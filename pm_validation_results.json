@@ -1,0 +1,120 @@
+{
+  "timestamp": "2026-03-23T19:01:40.355203+00:00",
+  "model": "anthropic:claude-sonnet-4-5-20250514",
+  "results": [
+    {
+      "name": "Prompt: Stage-Aware Recomposition",
+      "passed": true,
+      "details": "Checks: ['all_prompts_non_empty', 'prompts_differ_by_stage', 'intake_has_scoring_strategy', 'intake_has_eval_content', 'research_has_delegation', 'prd_review_has_eval_approval']",
+      "error": "",
+      "duration": 8.535385131835938e-05,
+      "state_snapshot": {
+        "intake_length": 13581,
+        "prd_review_length": 10246,
+        "research_length": 9902,
+        "execution_length": 9930
+      }
+    },
+    {
+      "name": "State: Mutation via Command Pattern",
+      "passed": false,
+      "details": "",
+      "error": "ValueError: When tool includes an InjectedToolCallId argument, tool must always be invoked with a full model ToolCall of the form: {'args': {...}, 'name': '...', 'type': 'tool_call', 'tool_call_id': '...'}\nTraceback (most recent call last):\n  File \"/home/user/workspace/meta-agent-v5.6.0/pm_validation.py\", line 390, in test_state_mutations\n    decision_cmd = record_decision_tool.invoke({\n        \"decision\": \"Use argparse for CLI\",\n    ...<2 lines>...\n        \"tool_call_id\": \"test-001\",\n    })\n  File \"/usr/local/lib/python3.13/site-packages/langchain_core/tools/base.py\", line 642, in invoke\n    return self.run(tool_input, **kwargs)\n           ~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^\n  File \"/usr/local/lib/python3.13/site-packages/langchain_core/tools/base.py\", line 1001, in run\n    raise error_to_raise\n  File \"/usr/local/lib/python3.13/site-packages/langchain_core/tools/base.py\", line 960, in run\n    tool_args, tool_kwargs = self._to_args_and_kwargs(\n                             ~~~~~~~~~~~~~~~~~~~~~~~~^\n        tool_input, tool_call_id\n        ^^^^^^^^^^^^^^^^^^^^^^^^\n    )\n    ^\n  File \"/usr/local/lib/python3.13/site-packages/langchain_core/tools/base.py\", line 862, in _to_args_and_kwargs\n    tool_input = self._parse_input(tool_input, tool_call_id)\n  File \"/usr/local/lib/python3.13/site-packages/langchain_core/tools/base.py\", line 709, in _parse_input\n    raise ValueError(msg)\nValueError: When tool includes an InjectedToolCallId argument, tool must always be invoked with a full model ToolCall of the form: {'args': {...}, 'name': '...', 'type': 'tool_call', 'tool_call_id': '...'}\n",
+      "duration": 0.017003536224365234,
+      "state_snapshot": {}
+    },
+    {
+      "name": "HITL: Interrupt and Resume Flow",
+      "passed": true,
+      "details": "Checks: ['hitl_middleware_in_graph', 'hitl_tools_configured']",
+      "error": "Unexpected error: ValueError: When tool includes an InjectedToolCallId argument, tool must always be invoked with a full model ToolCall of the form: {'args': {...}, 'name': '...', 'type': 'tool_call', 'tool_call_id': '...'}",
+      "duration": 0.0017883777618408203,
+      "state_snapshot": {}
+    },
+    {
+      "name": "INTAKE: Basic PM Conversation",
+      "passed": true,
+      "details": "Checks passed: ['agent_responded', 'correct_stage', 'asks_clarifying_questions']. AI response: 2254 chars",
+      "error": "",
+      "duration": 22.738564014434814,
+      "state_snapshot": {
+        "current_stage": "INTAKE",
+        "message_counts": {
+          "human": 1,
+          "ai": 2,
+          "tool": 2,
+          "system": 0,
+          "other": 0
+        },
+        "decision_log_count": 0,
+        "assumption_log_count": 0
+      }
+    },
+    {
+      "name": "INTAKE: Multi-Turn Context Maintenance",
+      "passed": true,
+      "details": "Checks: ['both_turns_responded', 'messages_accumulated', 'context_maintained', 'stage_stable']. Turn1: 2154c, Turn2: 2262c, Messages: {'human': 2, 'ai': 3, 'tool': 2, 'system': 0, 'other': 0}",
+      "error": "",
+      "duration": 37.154338121414185,
+      "state_snapshot": {
+        "current_stage": "INTAKE",
+        "message_counts": {
+          "human": 2,
+          "ai": 3,
+          "tool": 2,
+          "system": 0,
+          "other": 0
+        },
+        "total_messages": 7
+      }
+    },
+    {
+      "name": "INTAKE: Tool Usage (record_decision, write_file)",
+      "passed": true,
+      "details": "Checks: [\"tools_used:['read_file', 'ls']\", 'substantive_response']. Tools: {'read_file', 'ls'}",
+      "error": "",
+      "duration": 21.164098262786865,
+      "state_snapshot": {
+        "current_stage": "INTAKE",
+        "tools_used": [
+          "read_file",
+          "ls"
+        ],
+        "tool_message_count": 3,
+        "decision_log": 0,
+        "artifacts_written": [],
+        "todos": []
+      }
+    },
+    {
+      "name": "E2E: Full PRD Drafting Flow",
+      "passed": false,
+      "details": "Checks: ['agent_responded']",
+      "error": "",
+      "duration": 29.120033740997314,
+      "state_snapshot": {
+        "current_stage": "INTAKE",
+        "tools_used": [
+          "read_file",
+          "ls"
+        ],
+        "tool_messages": 3,
+        "decision_log": 0,
+        "artifacts_written": [],
+        "todos": [],
+        "ai_response_length": 2565,
+        "message_counts": {
+          "human": 1,
+          "ai": 3,
+          "tool": 3,
+          "system": 0,
+          "other": 0
+        }
+      }
+    }
+  ],
+  "summary": {
+    "passed": 5,
+    "total": 7
+  }
+}
