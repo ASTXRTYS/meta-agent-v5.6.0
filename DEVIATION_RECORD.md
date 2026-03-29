@@ -93,7 +93,159 @@ Can revert to `root_dir="."` after validating runtime blocking behavior across l
 - Reliability improved: startup now detects incompatible runtimes early.
 - Architectural risk reduced: fewer runtime-shape assumptions in hot execution path.
 
+---
+
+## Phase 1 Assessment Remediation (2026-03-29)
+
+### Context
+
+A Phase 1 assessment identified 6 gaps against the development plan. Root cause analysis classified them as:
+- **Category A (execution failures):** 2 items — spec and plan were clear, coding agent missed them
+- **Category B (spec/plan gaps):** 4 items — plan told the agent WHAT to build but not HOW to wire it into the SDK
+
+All 6 have been remediated across 4 commits. 433 unit tests pass after each.
+
+---
+
+## Deviation 4: SummarizationToolMiddleware wired (Category A)
+
+- File: `meta_agent/graph.py`
+- Spec sections: `8.11`, `22.4`
+- Plan section: `1.2.1`
+- Commit: `a462886`
+
+### Gap
+
+Plan 1.2.1 provides exact instantiation code. Spec 22.4 lists it as explicit middleware. Neither was followed — the middleware was never imported, instantiated, or added.
+
+### Fix
+
+Instantiated `SummarizationMiddleware(model, backend)` and passed to `SummarizationToolMiddleware()`. Added to explicit middleware list. Enables `compact_conversation` tool on orchestrator.
+
+### Root cause: Pure execution failure.
+
+---
+
+## Deviation 5: MemoryMiddleware wired (Category A)
+
+- File: `meta_agent/graph.py`
+- Spec sections: `13.4.6`, `22.4`
+- Plan section: `1.2.2`
+- Commit: `a462886`
+
+### Gap
+
+Plan lists MemoryMiddleware as one of "5 explicit" middleware. The custom `MemoryLoaderMiddleware` stub was imported but never used. The SDK's `MemoryMiddleware` was not imported at all.
+
+### Fix
+
+Replaced stub import with SDK `MemoryMiddleware`. Instantiated with backend and orchestrator AGENTS.md source paths (project-specific + global). Enforces per-agent isolation.
+
+### Root cause: Pure execution failure.
+
+---
+
+## Deviation 6: SkillsMiddleware paths corrected (Category B1)
+
+- File: `meta_agent/graph.py`
+- Spec sections: `11`, `11.5`, `22.4`
+- Plan sections: `0.2.1`, `1.2.2`
+- Commit: `95f2cd5`
+
+### Gap
+
+Spec says "cloned into skills/ directory" but does not document the internal layouts of the three upstream repos. Plan says "clone repos" and "add SkillsMiddleware" but never specifies the `skills=[]` parameter values. The three repos have different nesting:
+- `langchain-skills`: `config/skills/*/SKILL.md`
+- `langsmith-skills`: `config/skills/*/SKILL.md`
+- `anthropic/skills`: `skills/*/SKILL.md`
+
+Pointing to the top-level `skills/` found 0 skills because SkillsMiddleware scans one level deep.
+
+### Fix
+
+Replaced single `skills/` path with three repo-specific paths pointing to the directories that contain the actual skill subdirectories. All 31 skills now loadable.
+
+### Root cause: Spec gap (no repo layout documentation) + Plan gap (no `skills=[]` parameter values).
+
+### Spec/Plan update needed
+
+The plan Section 1.2.2 should include a note:
+> After cloning, resolve the actual skill roots for each repo. The `skills=[]` parameter must point to the directory containing skill subdirectories (each with SKILL.md), not the top-level clone directory.
+
+---
+
+## Deviation 7: Subagent definitions wired into SDK (Category B2)
+
+- Files: `meta_agent/subagents/configs.py`, `meta_agent/graph.py`
+- Spec sections: `6`, `22.3`, `22.4`
+- Plan section: `1.2.2`
+- Commit: `b13d2ac`
+
+### Gap
+
+Plan says "Implement configs.py per Section 22.3" and lists SubAgentMiddleware as "auto-attached." But SubAgentMiddleware auto-attachment only adds the middleware — it does not populate it with agent definitions. The plan never specifies the `subagents=[]` parameter on `create_deep_agent()`.
+
+### Fix
+
+Added `build_orchestrator_subagents()` to `configs.py` which:
+- Converts metadata configs into SDK `SubAgent` TypedDicts (name, description, system_prompt, tools, middleware, skills)
+- Resolves middleware string names to actual instances
+- Composes system prompts via each agent's prompt builder
+- Passes custom (non-filesystem) tools only
+- Assigns skill directories per agent
+
+`graph.py` now passes `subagents=` to `create_deep_agent()`.
+
+### Root cause: Plan gap (no wiring step specified).
+
+### Spec/Plan update needed
+
+Plan Section 1.2.2 should include:
+> Pass the built subagent list as `subagents=` to `create_deep_agent()`. SubAgentMiddleware is auto-attached but requires the `subagents` parameter to know what agents are available for delegation.
+
+---
+
+## Deviation 8: Tracing stubs integrated at graph creation (Category B3)
+
+- File: `meta_agent/graph.py`
+- Spec sections: `18.5.1`, `18.5.3`
+- Plan sections: `0.2.6` (stubs), `1.2.2` (integration)
+- Commit: `64c3bd3`
+
+### Gap
+
+Plan Phase 0 says "create stubs" (done). Plan Phase 1 says "full implementation with orchestrator graph" but provides no call sites, no code snippets, no file targets.
+
+### Fix
+
+- `prepare_agent_state` spans now fire at graph creation for the orchestrator (logs state keys, artifact paths, skill dirs, tools) and each subagent (logs skills and custom tools).
+- `delegation_decision` spans remain stubs — runtime delegation tracing requires intercepting the `task` tool during actual delegation, which is a Phase 3 concern.
+
+### Root cause: Plan gap (Phase 1 "full implementation" with no integration instructions).
+
+### Spec/Plan update needed
+
+Plan Section 1.2.2 should include:
+> Call `prepare_agent_state()` in `create_graph()` after subagent definitions are built, logging the provisioning of each agent. Runtime `delegation_decision` spans should be emitted via a `wrap_tool_call` middleware intercepting `task` calls, implemented in Phase 3 when delegation is exercised.
+
+---
+
+## Deferred: Transition validation (Category B4)
+
+- File: `meta_agent/tools/__init__.py`
+- Spec section: `8.1`
+- Plan section: `1.2.5`
+
+### Gap
+
+The `@tool` version of `transition_stage` cannot access graph state to validate transitions. The spec defines the tool as if it has state access; the SDK's `@tool` pattern does not provide it. Deferred pending architectural decision on `InjectedState` vs middleware interception.
+
+### Root cause: Spec gap (tool contract assumes state access) + Plan gap (no mechanism specified).
+
+---
+
 ## Follow-up
 
 - Keep this record synced with spec updates.
 - If spec is revised to this implementation, mark these deviations as absorbed and close this record.
+- Category B4 (transition validation) requires an architectural decision before implementation.
