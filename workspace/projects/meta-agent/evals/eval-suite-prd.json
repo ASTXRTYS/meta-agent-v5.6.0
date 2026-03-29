@@ -1,0 +1,572 @@
+{
+  "metadata": {
+    "stage": "prd",
+    "version": "1.0.0",
+    "created_by": "orchestrator-agent",
+    "created_at": "2025-07-17T00:00:00Z",
+    "project_id": "meta-agent-research-agent",
+    "total_evals": 38,
+    "binary_evals": 20,
+    "likert_evals": 18
+  },
+  "categories": [
+    {
+      "id": "RESEARCH-INFRA",
+      "name": "Research Infrastructure",
+      "description": "Artifact structure, output format, schema compliance"
+    },
+    {
+      "id": "RESEARCH-STATE",
+      "name": "Research State Context",
+      "description": "Validates what context is present in agent input/output state"
+    },
+    {
+      "id": "RESEARCH-BEHAVIORAL",
+      "name": "Research Behavioral",
+      "description": "Core agent behaviors — actions the agent must perform"
+    },
+    {
+      "id": "RESEARCH-QUALITY",
+      "name": "Research Quality",
+      "description": "Quality of research outputs, scored by LLM-as-judge"
+    },
+    {
+      "id": "RESEARCH-REASONING",
+      "name": "Research Reasoning",
+      "description": "Agent thought process, reflection quality, decision-making"
+    },
+    {
+      "id": "RESEARCH-INTEGRATION",
+      "name": "Research Integration",
+      "description": "Handoff quality, spec-writer compatibility, feedback loops"
+    }
+  ],
+  "evals": [
+    {
+      "id": "RINFRA-001",
+      "title": "Research bundle exists at correct path",
+      "category": "RESEARCH-INFRA",
+      "priority": "P0",
+      "scoring": "binary",
+      "threshold": 1.0,
+      "description": "Verify research bundle artifact exists at artifacts/research/research-bundle.md",
+      "evaluation_method": "file_existence",
+      "pass_criteria": "File exists at canonical path"
+    },
+    {
+      "id": "RINFRA-002",
+      "title": "Research bundle has valid YAML frontmatter",
+      "category": "RESEARCH-INFRA",
+      "priority": "P0",
+      "scoring": "binary",
+      "threshold": 1.0,
+      "description": "Verify research bundle has YAML frontmatter with required fields: artifact, project_id, title, version, status, stage, authors, lineage",
+      "evaluation_method": "frontmatter_validation",
+      "pass_criteria": "All required frontmatter fields present and valid"
+    },
+    {
+      "id": "RINFRA-003",
+      "title": "Research bundle schema completeness and quality",
+      "category": "RESEARCH-INFRA",
+      "priority": "P0",
+      "scoring": "likert",
+      "threshold": 4.0,
+      "description": "Assess whether the research bundle contains all required sections with substantive content",
+      "evaluation_method": "llm_as_judge",
+      "anchors": {
+        "1": "Research bundle is missing entirely or is a stub with no meaningful sections; structure is unrecognizable as a research artifact",
+        "2": "Some sections present but major required sections missing (e.g., no Ecosystem Options or no Model Capabilities); sections that exist are shallow placeholders",
+        "3": "All required sections present but some are thin or lack detail; structure is correct but content doesn't fully populate the schema",
+        "4": "All required sections present and substantively filled; minor gaps in optional subsections or inconsistent depth across sections",
+        "5": "Every section is richly populated with structured content; sections are internally consistent, well-organized with clear subsections, and the schema feels purpose-built for the spec-writer's needs"
+      }
+    },
+    {
+      "id": "RINFRA-004",
+      "title": "Citation quality across all findings",
+      "category": "RESEARCH-INFRA",
+      "priority": "P0",
+      "scoring": "likert",
+      "threshold": 4.0,
+      "description": "Assess structural and presentational quality of citations in the research bundle",
+      "evaluation_method": "llm_as_judge",
+      "anchors": {
+        "1": "No citations whatsoever; findings are presented as unsourced assertions; completely failed to cite anything",
+        "2": "Some citations exist but are vague or generic (e.g., 'from LangChain docs' with no URL/page); many findings remain uncited; source types not distinguished",
+        "3": "Most findings have citations with URLs or references, but citations lack specificity (e.g., links to homepage not specific page); no relationship-building between sources",
+        "4": "Findings cite specific pages, API references, or tweet URLs; source types are clearly distinguished (docs vs. tweet vs. API ref); citations are traceable and verifiable",
+        "5": "Citations are precise and contextualized — e.g., 'Harrison Chase stated [X] on 2025-06-15, which aligns with the approach described in the LangGraph persistence docs [URL], further validated by Anthropic's tool-use research [URL]'; agent builds explicit relationships between sources, demonstrating genuine internalization of the material"
+      }
+    },
+    {
+      "id": "RS-001",
+      "title": "PRD content present in agent input state",
+      "category": "RESEARCH-STATE",
+      "priority": "P0",
+      "scoring": "binary",
+      "threshold": 1.0,
+      "description": "Verify PRD file path or content is available in agent's input state",
+      "evaluation_method": "state_inspection",
+      "pass_criteria": "prd_path or prd_content exists in input state"
+    },
+    {
+      "id": "RS-002",
+      "title": "Eval suite content present in agent input state",
+      "category": "RESEARCH-STATE",
+      "priority": "P0",
+      "scoring": "binary",
+      "threshold": 1.0,
+      "description": "Verify eval suite file path or content is available in agent's input state",
+      "evaluation_method": "state_inspection",
+      "pass_criteria": "eval_suite_path or eval_suite_content exists in input state"
+    },
+    {
+      "id": "RS-003",
+      "title": "Project config present in state",
+      "category": "RESEARCH-STATE",
+      "priority": "P0",
+      "scoring": "binary",
+      "threshold": 1.0,
+      "description": "Verify Twitter handles, skills paths, and agent config are in input state",
+      "evaluation_method": "state_inspection",
+      "pass_criteria": "twitter_handles, skills_paths, and config exist in input state"
+    },
+    {
+      "id": "RS-004",
+      "title": "Research bundle written to agent output state",
+      "category": "RESEARCH-STATE",
+      "priority": "P0",
+      "scoring": "binary",
+      "threshold": 1.0,
+      "description": "Verify research bundle path or content is in agent's output state after completion",
+      "evaluation_method": "state_inspection",
+      "pass_criteria": "research_bundle_path exists in output state"
+    },
+    {
+      "id": "RB-001",
+      "title": "Agent reads full PRD before starting research",
+      "category": "RESEARCH-BEHAVIORAL",
+      "priority": "P0",
+      "scoring": "binary",
+      "threshold": 1.0,
+      "description": "Verify agent reads entire PRD file, not just first 100 lines",
+      "evaluation_method": "trace_inspection",
+      "pass_criteria": "Trace shows multiple read_file calls on PRD path covering full file length"
+    },
+    {
+      "id": "RB-002",
+      "title": "Agent reads eval suite before starting research",
+      "category": "RESEARCH-BEHAVIORAL",
+      "priority": "P0",
+      "scoring": "binary",
+      "threshold": 1.0,
+      "description": "Verify agent reads the eval suite artifact",
+      "evaluation_method": "trace_inspection",
+      "pass_criteria": "Trace shows read_file call on eval suite path"
+    },
+    {
+      "id": "RB-003",
+      "title": "Agent persists decomposition file",
+      "category": "RESEARCH-BEHAVIORAL",
+      "priority": "P0",
+      "scoring": "binary",
+      "threshold": 1.0,
+      "description": "Verify agent creates a PRD decomposition file at artifacts/research/research-decomposition.md",
+      "evaluation_method": "trace_inspection",
+      "pass_criteria": "Trace shows write_file call to research-decomposition.md"
+    },
+    {
+      "id": "RB-004",
+      "title": "Agent uses web_search/web_fetch tools",
+      "category": "RESEARCH-BEHAVIORAL",
+      "priority": "P0",
+      "scoring": "binary",
+      "threshold": 1.0,
+      "description": "Verify agent performs web research using search and fetch tools",
+      "evaluation_method": "trace_inspection",
+      "pass_criteria": "Trace contains web_search and/or web_fetch tool calls"
+    },
+    {
+      "id": "RB-005",
+      "title": "No hallucinated sources",
+      "category": "RESEARCH-BEHAVIORAL",
+      "priority": "P0",
+      "scoring": "binary",
+      "threshold": 1.0,
+      "description": "Cross-reference every URL cited in research bundle against web_fetch calls in trace AND re-fetch for content accuracy",
+      "evaluation_method": "trace_cross_reference_and_refetch",
+      "pass_criteria": "Every cited URL appears in trace as a web_fetch call AND re-fetched content matches agent's representation"
+    },
+    {
+      "id": "RB-006",
+      "title": "Agent researches Anthropic model capabilities",
+      "category": "RESEARCH-BEHAVIORAL",
+      "priority": "P1",
+      "scoring": "binary",
+      "threshold": 1.0,
+      "description": "Verify agent conducts research on Anthropic model capabilities",
+      "evaluation_method": "trace_inspection",
+      "pass_criteria": "Trace shows web_search/web_fetch calls to Anthropic docs or related content"
+    },
+    {
+      "id": "RB-007",
+      "title": "Agent uses skills directory",
+      "category": "RESEARCH-BEHAVIORAL",
+      "priority": "P0",
+      "scoring": "binary",
+      "threshold": 1.0,
+      "description": "Verify agent reads files from /skills/ directory",
+      "evaluation_method": "trace_inspection",
+      "pass_criteria": "Trace shows read_file calls to paths under /skills/"
+    },
+    {
+      "id": "RB-008",
+      "title": "Agent spawns sub-agents for research",
+      "category": "RESEARCH-BEHAVIORAL",
+      "priority": "P0",
+      "scoring": "binary",
+      "threshold": 1.0,
+      "description": "Verify agent delegates research to sub-agents via the task tool",
+      "evaluation_method": "trace_inspection",
+      "pass_criteria": "Trace contains task tool calls with research-related descriptions"
+    },
+    {
+      "id": "RB-009",
+      "title": "Sub-agents execute in parallel",
+      "category": "RESEARCH-BEHAVIORAL",
+      "priority": "P1",
+      "scoring": "binary",
+      "threshold": 1.0,
+      "description": "Verify multiple sub-agents are launched concurrently, not sequentially",
+      "evaluation_method": "trace_inspection",
+      "pass_criteria": "Multiple task tool calls appear in the same tool_use block or with overlapping timestamps"
+    },
+    {
+      "id": "RB-010",
+      "title": "Sub-agent findings are aggregated",
+      "category": "RESEARCH-BEHAVIORAL",
+      "priority": "P1",
+      "scoring": "binary",
+      "threshold": 1.0,
+      "description": "Verify main agent reads sub-agent output files after sub-agents complete",
+      "evaluation_method": "trace_inspection",
+      "pass_criteria": "Trace shows read_file calls to sub-findings directory after task calls complete"
+    },
+    {
+      "id": "RB-011",
+      "title": "HITL gate fires before deep-dive research",
+      "category": "RESEARCH-BEHAVIORAL",
+      "priority": "P1",
+      "scoring": "binary",
+      "threshold": 1.0,
+      "description": "Verify agent presents HITL research cluster for approval before deep-dive verification",
+      "evaluation_method": "trace_inspection",
+      "pass_criteria": "Trace shows request_approval or HITL interrupt before deep-dive web_fetch calls"
+    },
+    {
+      "id": "RQ-001",
+      "title": "PRD decomposition quality",
+      "category": "RESEARCH-QUALITY",
+      "priority": "P0",
+      "scoring": "likert",
+      "threshold": 4.0,
+      "description": "Assess how thoroughly the agent decomposed the PRD into research topics with line citations",
+      "evaluation_method": "llm_as_judge",
+      "anchors": {
+        "1": "Agent did not read the PRD or produced research unrelated to PRD requirements; no decomposition file created",
+        "2": "Agent created a decomposition file but it only captures 1-2 high-level topics; major PRD requirement areas ignored; no PRD line references",
+        "3": "Decomposition file covers most PRD topics but misses non-obvious dependencies, eval implications, or cross-cutting concerns; PRD line references present but incomplete",
+        "4": "Decomposition file thoroughly maps PRD requirements to research topics with PRD line citations; minor gaps in cross-cutting concerns or eval-driven research needs; agent uses the file to track progress",
+        "5": "Decomposition file systematically maps EVERY PRD requirement + eval to specific research topics with exact PRD line citations; identifies cross-cutting concerns and architectural dependencies; prioritized by impact; agent actively references and updates the file as research progresses"
+      }
+    },
+    {
+      "id": "RQ-002",
+      "title": "Research breadth",
+      "category": "RESEARCH-QUALITY",
+      "priority": "P0",
+      "scoring": "likert",
+      "threshold": 4.0,
+      "description": "Assess whether the agent found ALL relevant ecosystem options with zero blind spots",
+      "evaluation_method": "llm_as_judge",
+      "anchors": {
+        "1": "Agent researched only 1-2 obvious approaches; entire categories of relevant ecosystem options are missing; major blind spots in coverage",
+        "2": "Agent covered the most obvious options but missed significant alternatives; research is narrow within each topic area; didn't explore adjacent or emerging approaches",
+        "3": "Agent found most mainstream options across required topic areas, but missed niche alternatives, recent releases, or community-contributed approaches",
+        "4": "Agent systematically explored all major ecosystem options across every PRD requirement area; found both mainstream and less-obvious alternatives; minor gaps limited to very new or obscure options",
+        "5": "Exhaustive coverage — agent found every relevant option including emerging/experimental approaches, community forks, and alternatives from adjacent ecosystems; explicitly flagged areas where options are limited"
+      }
+    },
+    {
+      "id": "RQ-003",
+      "title": "Research depth",
+      "category": "RESEARCH-QUALITY",
+      "priority": "P0",
+      "scoring": "likert",
+      "threshold": 4.0,
+      "description": "Assess whether the agent went deep on promising approaches (source code, architecture, not just READMEs)",
+      "evaluation_method": "llm_as_judge",
+      "anchors": {
+        "1": "Research is entirely surface-level — agent only read READMEs, landing pages, or top-level docs; no architectural understanding demonstrated",
+        "2": "Agent went slightly beyond surface (e.g., getting-started guides) but didn't examine architectural patterns, source code, or advanced usage",
+        "3": "Moderate depth — examined docs, some API references, maybe a tutorial — but didn't dig into implementation details or trade-offs",
+        "4": "Agent went deep on promising approaches — read API references, examined source code or architecture docs, identified trade-offs and limitations",
+        "5": "Agent went to the bottom of the rabbit hole — examined source code, understood internal architecture, identified undocumented behaviors, found real-world usage patterns from issues/PRs/discussions"
+      }
+    },
+    {
+      "id": "RQ-004",
+      "title": "Citation accuracy (content re-fetch verified)",
+      "category": "RESEARCH-QUALITY",
+      "priority": "P0",
+      "scoring": "likert",
+      "threshold": 4.0,
+      "description": "Assess whether cited content accurately represents what the source actually says, verified via re-fetching",
+      "evaluation_method": "llm_as_judge_with_refetch",
+      "anchors": {
+        "1": "Citations are fabricated — URLs don't exist, content described doesn't match what the source actually says, or source pages return 404",
+        "2": "Citations point to real URLs but content is significantly misrepresented — agent paraphrased incorrectly, attributed statements to wrong sources, or drew unsupported conclusions",
+        "3": "Citations are real and content is roughly accurate, but key details are wrong or important caveats are omitted",
+        "4": "Citations are accurate — re-fetched content confirms the agent's representation; source types correctly identified; minor imprecisions in paraphrasing",
+        "5": "Citations are precisely accurate — every claim maps exactly to source content upon re-fetch; direct quotes are verbatim; paraphrases faithfully represent the source; nuances and caveats preserved"
+      }
+    },
+    {
+      "id": "RQ-005",
+      "title": "Research bundle utility for spec-writer",
+      "category": "RESEARCH-QUALITY",
+      "priority": "P0",
+      "scoring": "likert",
+      "threshold": 4.0,
+      "description": "Assess whether a spec-writer could make all architectural decisions from this bundle alone",
+      "evaluation_method": "llm_as_judge",
+      "anchors": {
+        "1": "Bundle is unusable — findings are unstructured, lack context, or don't map to PRD requirements; spec-writer would redo research from scratch",
+        "2": "Bundle contains some useful information but is poorly organized, missing comparative analysis; spec-writer needs significant supplementary research",
+        "3": "Bundle is structured and covers main topics, but trade-off analysis is shallow and spec-writer needs additional research on key decisions",
+        "4": "Bundle provides clear ecosystem options with trade-offs, model capabilities mapped to requirements, and enough detail for confident architectural decisions; minor gaps on edge cases",
+        "5": "Bundle is a complete decision-support document — every PRD requirement has researched options with explicit trade-offs, evidence-backed recommendations, and the spec-writer can proceed without any additional research"
+      }
+    },
+    {
+      "id": "RQ-006",
+      "title": "Twitter/SME consultation quality",
+      "category": "RESEARCH-QUALITY",
+      "priority": "P1",
+      "scoring": "likert",
+      "threshold": 4.0,
+      "description": "Assess quality of SME perspective gathering and integration",
+      "evaluation_method": "llm_as_judge",
+      "anchors": {
+        "1": "Agent never consulted the provided Twitter handles; SME perspectives completely absent; or agent fabricated tweets",
+        "2": "Agent fetched some tweets but only surface-level — grabbed recent tweets without assessing relevance; no analysis of SME perspectives",
+        "3": "Agent found relevant tweets/posts and included them as data points, but didn't connect SME perspectives to docs/skills findings",
+        "4": "Agent systematically consulted specified SMEs, identified relevant content, and analyzed how perspectives validate or challenge approaches found in docs",
+        "5": "Agent deeply integrated SME perspectives — contextualized tweets within broader research, used SME insights to prioritize options, wove SME voices into the narrative"
+      }
+    },
+    {
+      "id": "RQ-007",
+      "title": "Skill trigger relevance and timing",
+      "category": "RESEARCH-QUALITY",
+      "priority": "P0",
+      "scoring": "likert",
+      "threshold": 4.0,
+      "description": "Assess whether the agent triggered the right skills at the right time",
+      "evaluation_method": "llm_as_judge",
+      "anchors": {
+        "1": "Agent never triggered any skills despite them being available and relevant; or triggered completely irrelevant skills",
+        "2": "Agent triggered skills but at wrong times — e.g., after already completing research on that topic, or triggered broadly without targeting specific PRD topics",
+        "3": "Agent triggered contextually appropriate skills for major topics, but missed opportunities where a specific skill would have directly answered a PRD requirement",
+        "4": "Agent triggered the right skills at the right time for most topics; skill access clearly driven by current research question; minor missed opportunities",
+        "5": "Agent strategically triggers specific skills precisely when most relevant — e.g., accesses LangGraph persistence skills exactly when decomposing the PRD's state-management requirement"
+      }
+    },
+    {
+      "id": "RQ-008",
+      "title": "Skill reflection and internalization quality",
+      "category": "RESEARCH-QUALITY",
+      "priority": "P0",
+      "scoring": "likert",
+      "threshold": 4.0,
+      "description": "Assess whether agent read skills deeply, reflected, and internalized as baseline knowledge",
+      "evaluation_method": "llm_as_judge",
+      "anchors": {
+        "1": "Agent reads skill content but shows no evidence of processing it; skill output is ignored or copy-pasted verbatim; or agent only skimmed first few lines",
+        "2": "Agent reads portions of skill files and acknowledges content superficially but clearly didn't read deep enough to find substantive information",
+        "3": "Agent reads skill files with reasonable depth and extracts key takeaways, but reflection is generic — doesn't connect findings to specific PRD requirements",
+        "4": "Agent reads skill files thoroughly, identifies actionable content, reflects on how it maps to PRD needs, and treats skill findings as baseline knowledge; minor gaps in cross-referencing",
+        "5": "Agent reads skill files exhaustively, synthesizes across multiple skills to build coherent baseline understanding, and explicitly articulates what it now knows vs. what still needs web research"
+      }
+    },
+    {
+      "id": "RQ-009",
+      "title": "Skill-to-research-decision influence",
+      "category": "RESEARCH-QUALITY",
+      "priority": "P0",
+      "scoring": "likert",
+      "threshold": 4.0,
+      "description": "Assess whether skill findings actually influenced the agent's research direction",
+      "evaluation_method": "llm_as_judge",
+      "anchors": {
+        "1": "Skills had zero observable influence on research direction; research would have been identical without skills",
+        "2": "Agent mentions skill findings but research direction doesn't change — continues pre-determined path regardless",
+        "3": "Skills noticeably influence some decisions — e.g., agent follows up on a library mentioned in a skill — but influence is limited to obvious leads",
+        "4": "Skills clearly shape research strategy — agent adjusts what to investigate based on skill findings, drops dead ends skills revealed, deepens validated approaches",
+        "5": "Skills are a primary driver of research strategy — agent uses findings to dynamically reprioritize, identifies non-obvious connections skills surfaced, and traces how specific skill insights led to specific decisions"
+      }
+    },
+    {
+      "id": "RQ-010",
+      "title": "Sub-agent task delegation quality",
+      "category": "RESEARCH-QUALITY",
+      "priority": "P0",
+      "scoring": "likert",
+      "threshold": 4.0,
+      "description": "Assess quality of sub-agent topology reasoning and task brief specificity",
+      "evaluation_method": "llm_as_judge",
+      "anchors": {
+        "1": "Agent didn't delegate, or delegated with no meaningful task description and no reasoning about topology",
+        "2": "Agent delegated but used rigid/mechanical split without reasoning about whether grouping makes sense; some tasks too thin, others too broad",
+        "3": "Agent created reasonable tasks with some rationale, but didn't consider compute efficiency, dependencies, or volume differences between domains",
+        "4": "Agent dynamically reasoned about delegation — considered volume per domain, grouped logically, explained rationale; task briefs have specific research questions; minor suboptimal grouping",
+        "5": "Sophisticated metacognitive reasoning — explicitly evaluated multiple topology options, considered compute cost, domain dependencies, breadth vs depth; each sub-agent brief reflects awareness of what others are covering"
+      }
+    },
+    {
+      "id": "RQ-011",
+      "title": "Research findings synthesis quality",
+      "category": "RESEARCH-QUALITY",
+      "priority": "P0",
+      "scoring": "likert",
+      "threshold": 4.0,
+      "description": "Assess how well the agent synthesized sub-agent findings into a coherent bundle",
+      "evaluation_method": "llm_as_judge",
+      "anchors": {
+        "1": "No synthesis — sub-agent findings dumped as-is with no narrative; contradictions unresolved; reads like disconnected reports",
+        "2": "Minimal synthesis — merged outputs but didn't resolve contradictions or identify cross-cutting patterns; organized by sub-agent not by topic",
+        "3": "Moderate synthesis — reorganized by topic and created readable structure, but missed cross-cutting patterns and didn't reconcile conflicting findings",
+        "4": "Strong synthesis — integrated findings into coherent bundle organized around PRD requirements; cross-cutting patterns identified; contradictions resolved with reasoning",
+        "5": "Masterful synthesis — unified narrative where sections build on previous ones; explicit cross-references; contradictions explained; emergent insights no single sub-agent could have produced"
+      }
+    },
+    {
+      "id": "RQ-012",
+      "title": "HITL research cluster quality",
+      "category": "RESEARCH-QUALITY",
+      "priority": "P1",
+      "scoring": "likert",
+      "threshold": 4.0,
+      "description": "Assess quality of HITL cluster presentation — grouping, rationale, and specificity",
+      "evaluation_method": "llm_as_judge",
+      "anchors": {
+        "1": "No HITL presented; or content is empty/meaningless",
+        "2": "HITL fires but cluster is poorly formed — targets are vague, no rationale, illogical grouping",
+        "3": "HITL presents reasonable cluster with target list, but rationale is thin — doesn't explain why these targets were selected",
+        "4": "Well-formed cluster — grouped logically, each target has explanation of expected insight and relevance to PRD; user can understand research strategy",
+        "5": "Expertly curated — targets grouped by theme with specific questions, rationale connects to PRD line references, explains how cluster fits broader plan, user gains genuine insight into agent reasoning"
+      }
+    },
+    {
+      "id": "RQ-013",
+      "title": "Gap and contradiction remediation quality",
+      "category": "RESEARCH-QUALITY",
+      "priority": "P0",
+      "scoring": "likert",
+      "threshold": 4.0,
+      "description": "Assess quality of gap/contradiction identification, root cause analysis, and remediation execution",
+      "evaluation_method": "llm_as_judge",
+      "anchors": {
+        "1": "Agent identifies no gaps or contradictions despite them being present; gaps carry through to final bundle unresolved",
+        "2": "Agent identifies some gaps/contradictions but remediation is cosmetic — notes them as open questions or picks one answer without investigation",
+        "3": "Agent identifies gaps, performs root cause analysis, attempts remediation through additional research — but does NOT verify resolution against primary sources; resolutions based on inference alone",
+        "4": "Agent identifies gaps, diagnoses root causes, executes targeted verification against primary sources and confirms with evidence — but does NOT prioritize by downstream impact; all gaps treated with equal weight",
+        "5": "Agent catalogs gaps/contradictions with severity rated by downstream impact; diagnoses root causes; prioritizes remediation; executes verification with evidence chains; produces explicit resolution statements; unresolvable gaps flagged with recommended approaches"
+      }
+    },
+    {
+      "id": "RR-001",
+      "title": "Reflection quality at decision points",
+      "category": "RESEARCH-REASONING",
+      "priority": "P1",
+      "scoring": "likert",
+      "threshold": 4.0,
+      "description": "Assess whether the agent reflects meaningfully at research decision points",
+      "evaluation_method": "llm_as_judge",
+      "anchors": {
+        "1": "No evidence of reflection — moves mechanically from one action to the next; no reasoning about why",
+        "2": "Occasionally pauses to note findings, but reflection is shallow — restates without analyzing implications; doesn't adjust strategy",
+        "3": "Reflects at major decision points and articulates what it learned, but reflection doesn't consistently drive next actions",
+        "4": "Reflects meaningfully at each decision point — articulates what was learned, what it means for PRD, and why next action was chosen; minor gaps",
+        "5": "Transparent and rigorous reasoning at every decision point — tracks known vs unknown, articulates hypotheses, adjusts priorities in real-time based on evidence"
+      }
+    },
+    {
+      "id": "RR-002",
+      "title": "Relationship-building between sources",
+      "category": "RESEARCH-REASONING",
+      "priority": "P1",
+      "scoring": "likert",
+      "threshold": 4.0,
+      "description": "Assess whether the agent builds connections across different sources",
+      "evaluation_method": "llm_as_judge",
+      "anchors": {
+        "1": "Each source treated in isolation — no cross-referencing between docs, tweets, skills, API references",
+        "2": "Occasionally mentions two sources say similar things, but doesn't analyze why or what convergence means",
+        "3": "Identifies some relationships — notes where docs and tweets agree — but misses non-obvious connections",
+        "4": "Systematically builds relationships — cross-references docs with API references, validates SME opinions against docs, uses relationships to assess confidence",
+        "5": "Rich knowledge graph across sources — every finding triangulated where possible; contradictions identified and analyzed; convergence increases confidence; knowledge gaps explicitly flagged"
+      }
+    },
+    {
+      "id": "RR-003",
+      "title": "Self-correction and course adjustment",
+      "category": "RESEARCH-REASONING",
+      "priority": "P1",
+      "scoring": "likert",
+      "threshold": 4.0,
+      "description": "Assess whether the agent adjusts its research direction based on what it discovers",
+      "evaluation_method": "llm_as_judge",
+      "anchors": {
+        "1": "Never adjusts course — follows initial plan rigidly regardless of discoveries; doesn't correct mistakes",
+        "2": "Acknowledges when findings differ from expectations but doesn't meaningfully adjust; continues same path",
+        "3": "Adjusts when major findings demand it, but slow to correct — takes multiple signals before changing course",
+        "4": "Actively monitors whether research is on track — corrects course, abandons dead ends promptly, revisits assumptions; minor delays",
+        "5": "Dynamically adaptive — continuously evaluates optimal direction; proactively identifies wrong assumptions; explicitly flags corrections with reasoning"
+      }
+    },
+    {
+      "id": "RI-001",
+      "title": "Spec-writer sufficiency gate",
+      "category": "RESEARCH-INTEGRATION",
+      "priority": "P1",
+      "scoring": "binary",
+      "threshold": 1.0,
+      "description": "Verify research agent can receive and act on additional research requests from spec-writer",
+      "evaluation_method": "trace_inspection",
+      "pass_criteria": "When spec-writer requests more research, agent receives request and executes targeted follow-up"
+    },
+    {
+      "id": "RI-002",
+      "title": "Research covers all PRD functional requirements",
+      "category": "RESEARCH-INTEGRATION",
+      "priority": "P0",
+      "scoring": "binary",
+      "threshold": 1.0,
+      "description": "Verify every functional requirement (A-G) in the PRD has corresponding research in the bundle",
+      "evaluation_method": "content_inspection",
+      "pass_criteria": "Bundle contains research relevant to each FR area; no FR area is completely unaddressed"
+    },
+    {
+      "id": "RI-003",
+      "title": "Research covers eval implications",
+      "category": "RESEARCH-INTEGRATION",
+      "priority": "P1",
+      "scoring": "binary",
+      "threshold": 1.0,
+      "description": "Verify bundle addresses tooling/approach considerations relevant to the eval suite",
+      "evaluation_method": "content_inspection",
+      "pass_criteria": "Bundle addresses how to implement evaluable behaviors specified in the eval suite"
+    }
+  ]
+}

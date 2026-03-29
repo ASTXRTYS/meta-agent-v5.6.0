@@ -1,0 +1,497 @@
+# BRONZE-PATH Research Scenario
+#
+# Calibration target: Score ~2 across all Likert evals
+# Purpose: Establishes the LOW-QUALITY pole for LLM-as-judge calibration
+#
+# Same PRD input as GOLDEN-PATH, but the agent exhibits score-2 behavior:
+# - Goes through the motions but does everything poorly
+# - Reads PRD but only partially
+# - Creates a decomposition but it's thin and misses major areas
+# - Skims skills instead of reading deeply
+# - Doesn't spawn sub-agents (does everything as single agent)
+# - No HITL cluster presentation
+# - Surface-level web research
+# - Research bundle exists but is shallow, poorly cited, and incomplete
+#
+# Binary eval expectations:
+#   RINFRA-001: PASS (bundle exists at correct path)
+#   RINFRA-002: PASS (has frontmatter, though minimal)
+#   RS-001: PASS (PRD is in state)
+#   RS-002: PASS (eval suite is in state)
+#   RS-003: PASS (config is in state)
+#   RS-004: PASS (bundle written to state)
+#   RB-001: PASS (reads PRD — but only first 100 lines)
+#   RB-002: FAIL (never reads eval suite)
+#   RB-003: FAIL (no decomposition file persisted)
+#   RB-004: PASS (uses web_search/web_fetch)
+#   RB-005: FAIL (cites 2 URLs that were never fetched — hallucinated)
+#   RB-006: PASS (does some Anthropic research)
+#   RB-007: FAIL (never reads from /skills/ directory)
+#   RB-008: FAIL (no sub-agents spawned)
+#   RB-009: FAIL (no parallel execution)
+#   RB-010: FAIL (no sub-agent findings to aggregate)
+#   RB-011: FAIL (no HITL cluster presented)
+#   RI-001: N/A (no spec-writer feedback loop tested)
+#   RI-002: FAIL (research misses 4 of 7 PRD functional requirement areas)
+#   RI-003: FAIL (no consideration of eval implications)
+#
+# Likert eval expectations (all targeting score ~2):
+#   RINFRA-003: ~2 (some sections present but major ones missing)
+#   RINFRA-004: ~2 (some citations but vague, many uncited findings)
+#   RQ-001: ~2 (no decomposition file; agent jumps straight to research)
+#   RQ-002: ~2 (only researched obvious options, missed alternatives)
+#   RQ-003: ~2 (only read READMEs and landing pages)
+#   RQ-004: ~2 (citations exist but 2 are hallucinated, others are generic URLs)
+#   RQ-005: ~2 (spec-writer would need significant supplementary research)
+#   RQ-006: ~2 (fetched 1 SME profile but no analysis of relevance)
+#   RQ-007: ~2 (never triggered skills despite them being available)
+#   RQ-008: ~2 (never read skills — N/A, scores as failure)
+#   RQ-009: ~2 (skills had zero influence on research direction)
+#   RQ-010: ~1 (no sub-agents deployed)
+#   RQ-011: ~1 (no synthesis needed — single agent, single output)
+#   RQ-012: ~1 (no HITL cluster presented)
+#   RQ-013: ~1 (no gaps identified, no remediation)
+#   RR-001: ~2 (occasional notes but no reasoning about decisions)
+#   RR-002: ~2 (treats each source in isolation)
+#   RR-003: ~1 (never adjusts course, follows initial plan rigidly)
+
+# ============================================================================
+# INPUT STATE (same as golden path)
+# ============================================================================
+
+input_state:
+  prd_path: "/workspace/projects/meta-agent/artifacts/intake/prd.md"
+  eval_suite_path: "/workspace/projects/meta-agent/evals/eval-suite-prd.yaml"
+  project_id: "meta-agent"
+  project_dir: "/workspace/projects/meta-agent"
+  skills_paths:
+    - "/skills/langchain/"
+    - "/skills/anthropic/"
+    - "/skills/langsmith/"
+  twitter_handles:
+    - handle: "@hwchase17"
+      name: "Harrison Chase"
+      role: "LangChain CEO"
+      url: "https://x.com/hwchase17"
+    - handle: "@Vtrivedy10"
+      name: "Varun Trivedy"
+      role: "LangChain"
+      url: "https://x.com/Vtrivedy10"
+    - handle: "@sydneyrunkle"
+      name: "Sydney Runkle"
+      role: "Pydantic / LangChain"
+      url: "https://x.com/sydneyrunkle"
+    - handle: "@masondrxy"
+      name: "Mason Drexler"
+      role: "LangChain"
+      url: "https://x.com/masondrxy"
+    - handle: "@BraceSproul"
+      name: "Brace Sproul"
+      role: "LangChain"
+      url: "https://x.com/BraceSproul"
+    - handle: "@RLanceMartin"
+      name: "Lance Martin"
+      role: "LangChain Developer Relations"
+      url: "https://x.com/RLanceMartin"
+  config:
+    model: "claude-opus-4-6"
+    effort: "max"
+    recursion_limit: 100
+
+# ============================================================================
+# STAGE 1: PRD Read (partial — only first 100 lines)
+# ============================================================================
+
+prd_read:
+  description: >
+    Agent reads the PRD but ONLY the first 100 lines. Misses the entire
+    Functional Requirements section (A-G), Technical-Spec Content Requirements,
+    Research and Source-of-Truth Requirements, and Constraints. Gets the
+    Product Summary and Stakeholder Design Intent but not the actionable
+    requirements.
+  tool_calls:
+    - name: read_file
+      args: {file_path: "/workspace/projects/meta-agent/artifacts/intake/prd.md"}
+      timestamp: 1.0
+      # Default read_file reads first 100 lines — agent never pages forward
+
+  # Agent NEVER reads the eval suite
+  eval_suite_read: null
+
+  agent_reaction: >
+    Okay, I've read the PRD. This is about building a meta-agent for the
+    LangChain ecosystem. Let me start researching.
+
+# ============================================================================
+# STAGE 2: No Decomposition File
+# ============================================================================
+
+decomposition:
+  description: >
+    Agent does NOT create a decomposition file. Jumps straight from reading
+    the PRD (partially) to web research. No structured research plan, no
+    domain identification, no PRD line citations, no progress tracking.
+  file_created: false
+  agent_reaction: >
+    I know enough from the PRD summary. The main things to research are
+    LangChain, LangGraph, and how to build agents. Let me search for that.
+
+# ============================================================================
+# STAGE 3: No Skill Interactions
+# ============================================================================
+
+skill_interactions:
+  description: >
+    Agent never reads from the /skills/ directory despite skills being
+    available and directly relevant. The agent proceeds straight to web
+    search, ignoring the baseline domain guidance that skills provide.
+  tool_calls: []
+  skills_read: 0
+  agent_reaction: >
+    I'll just search the web for LangChain documentation.
+
+# ============================================================================
+# STAGE 4: No Sub-Agent Delegation (single agent, sequential research)
+# ============================================================================
+
+subagent_delegation:
+  description: >
+    Agent does all research as a single agent. No sub-agents spawned. No
+    parallel execution. No delegation reasoning. Research is sequential and
+    unfocused — agent bounces between topics without a plan.
+  sub_agents_spawned: 0
+  delegation_reasoning: null
+
+  # The agent does a series of surface-level web searches
+  tool_calls:
+    # Some generic LangChain searches
+    - name: web_search
+      args: {query: "LangChain how to build agents"}
+      timestamp: 5.0
+    - name: web_fetch
+      args: {url: "https://python.langchain.com/docs/tutorials/agents/"}
+      timestamp: 5.1
+    - name: web_search
+      args: {query: "LangGraph tutorial"}
+      timestamp: 6.0
+    - name: web_fetch
+      args: {url: "https://langchain-ai.github.io/langgraph/tutorials/"}
+      timestamp: 6.1
+    # Jumps to Anthropic without finishing LangGraph
+    - name: web_search
+      args: {query: "Claude Opus 4.6 capabilities"}
+      timestamp: 7.0
+    - name: web_fetch
+      args: {url: "https://docs.anthropic.com/en/docs/about-claude/models"}
+      timestamp: 7.1
+    # Back to LangGraph randomly
+    - name: web_search
+      args: {query: "LangGraph state management"}
+      timestamp: 8.0
+    # Doesn't fetch the result — just moves on
+    - name: web_search
+      args: {query: "LangSmith evaluation"}
+      timestamp: 9.0
+    - name: web_fetch
+      args: {url: "https://docs.smith.langchain.com/"}
+      timestamp: 9.1
+      # Only fetches the landing page, not the evaluation docs
+    # One SME lookup — but just the profile page, no search for relevant content
+    - name: web_fetch
+      args: {url: "https://x.com/hwchase17"}
+      timestamp: 10.0
+    # Total: 10 tool calls, 5 web fetches, 4 web searches
+    # Compare to golden path: 78 total web fetches across 5 sub-agents
+
+# ============================================================================
+# STAGE 5: No HITL Cluster
+# ============================================================================
+
+hitl_cluster:
+  description: >
+    Agent never presents a HITL research cluster. No grouped research targets,
+    no rationale, no user approval before deep-diving. The agent simply
+    proceeds from surface-level searches directly to writing the bundle.
+  hitl_presented: false
+  approval_requested: false
+
+# ============================================================================
+# STAGE 6: Research Bundle (shallow, poorly cited, incomplete)
+# ============================================================================
+
+research_bundle:
+  tool_call:
+    name: write_file
+    args: {file_path: "/workspace/projects/meta-agent/artifacts/research/research-bundle.md"}
+    timestamp: 12.0
+
+  content: |
+    ---
+    artifact: research-bundle
+    project_id: meta-agent
+    title: "Research Bundle"
+    version: "1.0.0"
+    status: complete
+    stage: RESEARCH
+    authors:
+      - research-agent
+    lineage:
+      - artifacts/intake/prd.md
+    ---
+
+    # Research Bundle
+
+    ## Summary
+
+    This research covers the LangChain ecosystem for building a meta-agent.
+    LangGraph is the recommended framework for building complex agents.
+
+    ## LangChain / LangGraph
+
+    LangChain is a framework for building applications with LLMs. LangGraph
+    is built on top of LangChain and provides a way to build stateful
+    multi-actor applications.
+
+    LangGraph uses a StateGraph where you define nodes and edges. You can
+    create agents that use tools and maintain state across interactions.
+
+    LangGraph supports checkpointing for persistence and has a dev server
+    for local development.
+
+    Source: https://python.langchain.com/docs/tutorials/agents/
+
+    ## Anthropic Claude
+
+    Claude Opus 4.6 is Anthropic's most capable model. It has a large context
+    window and supports tool use. It can be used with LangChain via the
+    langchain-anthropic package.
+
+    Claude supports extended thinking for complex reasoning tasks.
+
+    Source: https://docs.anthropic.com/en/docs/about-claude/models
+
+    ## Evaluation
+
+    LangSmith provides tools for tracing and evaluating LLM applications.
+    You can create datasets and run evaluations.
+
+    Source: https://docs.smith.langchain.com/
+
+    ## Agent Patterns
+
+    Harrison Chase is the CEO of LangChain and advocates for using LangGraph
+    for complex agent systems.
+
+    Source: https://x.com/hwchase17
+
+    ## Recommendations
+
+    - Use LangGraph for the agent framework
+    - Use Claude Opus 4.6 as the model
+    - Use LangSmith for evaluation
+    - Use a StateGraph with checkpointing for persistence
+
+  # ============================================================================
+  # Analysis: Why this scores ~2 across all Likert evals
+  # ============================================================================
+
+  scoring_analysis:
+
+    RINFRA-003_schema_quality:
+      expected_score: 2
+      reasoning: >
+        Some sections present (LangChain, Anthropic, Evaluation, Recommendations)
+        but major required sections missing: no Tool System analysis, no HITL
+        patterns, no prompt engineering, no workspace/sandbox comparison, no
+        safety/guardrails, no rejected alternatives, no tradeoff analysis, no
+        SME perspectives section, no risks/caveats, no cross-cutting synthesis,
+        no confidence assessment, no methodology section. Structure is a flat
+        list of summaries, not a structured research artifact.
+
+    RINFRA-004_citation_quality:
+      expected_score: 2
+      reasoning: >
+        Some citations exist but they're generic URLs pointing to landing pages
+        (tutorials page, models page, LangSmith home), not specific documentation
+        pages. The Harrison Chase "citation" is just a link to his Twitter profile
+        with no specific tweet or quote. Two findings have no citation at all
+        ("LangGraph supports checkpointing" and "Claude supports extended thinking").
+        No source type distinction. No relationship-building between sources.
+
+    RQ-001_decomposition:
+      expected_score: 2
+      reasoning: >
+        No decomposition file created. Agent read only the first 100 lines of
+        the PRD (missed Functional Requirements A-G entirely). No research plan,
+        no domain identification, no PRD line references. The research that was
+        done covers only 3 broad topics (LangChain, Anthropic, evaluation)
+        instead of the 9 domains a proper decomposition would identify.
+
+    RQ-002_breadth:
+      expected_score: 2
+      reasoning: >
+        Only covered the most obvious options: LangGraph, Claude, LangSmith.
+        No alternative framework comparison (CrewAI, AutoGen, raw LangGraph vs
+        Deep Agents). No Deep Agents SDK mentioned at all. No workspace options
+        evaluated (Daytona, OpenSWE). No safety patterns. No prompt engineering
+        patterns. Major blind spots across 6 of 9 domains.
+
+    RQ-003_depth:
+      expected_score: 2
+      reasoning: >
+        Entirely surface-level. Agent read tutorial pages and landing pages —
+        never examined API references, source code, architecture docs, or
+        advanced usage patterns. The LangGraph section describes what StateGraph
+        IS but not HOW to use it for multi-stage workflows. The Anthropic section
+        mentions "large context window" without specifying the actual number.
+        Findings could have been generated from reading package descriptions alone.
+
+    RQ-004_citation_accuracy:
+      expected_score: 2
+      reasoning: >
+        Two hallucinated claims: "LangGraph supports checkpointing for persistence"
+        has no citation and was not verified via web_fetch. "Claude supports
+        extended thinking for complex reasoning tasks" has no citation and was
+        never fetched. The citations that do exist point to real URLs but the
+        agent's descriptions are vague enough that accuracy can't be confirmed.
+        No re-fetch verification possible for uncited claims.
+
+    RQ-005_specwriter_utility:
+      expected_score: 2
+      reasoning: >
+        A spec-writer receiving this bundle would need to redo essentially all
+        the research. No architecture comparison, no persistence design options,
+        no tool system details, no HITL patterns, no prompt strategy, no eval
+        workflow details, no safety patterns. The "Recommendations" section says
+        "use LangGraph" without any tradeoff analysis. The spec-writer has no
+        basis for making informed architectural decisions.
+
+    RQ-006_sme_consultation:
+      expected_score: 2
+      reasoning: >
+        Agent fetched Harrison Chase's Twitter profile page but didn't search
+        for specific relevant tweets. No analysis of what Chase actually said
+        about multi-agent patterns. 5 of 6 specified SME handles were never
+        consulted at all. The "finding" from Chase is generic: "advocates for
+        using LangGraph for complex agent systems" — no specific quote, no date,
+        no tweet URL.
+
+    RQ-007_skill_trigger:
+      expected_score: 1
+      reasoning: >
+        Agent never triggered any skills despite /skills/ directory being
+        available with 14 directly relevant skill files. This is a complete
+        failure — the skills contain exactly the baseline knowledge the agent
+        needed (framework comparison, Deep Agents architecture, persistence
+        patterns, HITL patterns, evaluation workflows).
+
+    RQ-008_skill_reflection:
+      expected_score: 1
+      reasoning: >
+        N/A — agent never read any skills. No reflection possible on content
+        that was never consumed.
+
+    RQ-009_skill_influence:
+      expected_score: 1
+      reasoning: >
+        Skills had zero influence on research direction. Agent's research
+        would have been identical without skills existing.
+
+    RQ-010_delegation_quality:
+      expected_score: 1
+      reasoning: >
+        No sub-agents deployed. No delegation reasoning. Agent did everything
+        as a single sequential agent with 10 tool calls total.
+
+    RQ-011_synthesis_quality:
+      expected_score: 1
+      reasoning: >
+        No synthesis needed — single agent produced a flat document. No
+        cross-referencing between findings, no pattern identification, no
+        contradiction resolution.
+
+    RQ-012_hitl_cluster:
+      expected_score: 1
+      reasoning: >
+        No HITL cluster presented. Agent went directly from surface-level
+        searches to writing the bundle.
+
+    RQ-013_gap_remediation:
+      expected_score: 1
+      reasoning: >
+        Agent identified no gaps or contradictions. Never compared findings
+        against each other or against primary sources. Gaps are invisible
+        because the agent didn't do enough research to discover them.
+
+    RR-001_reflection_quality:
+      expected_score: 2
+      reasoning: >
+        Agent's "reactions" are present but shallow: "I've read the PRD. Let me
+        start researching." No reasoning about what to research first, why, or
+        what it learned from each source. Moves between topics without explaining
+        why (jumps from LangGraph to Anthropic mid-stream).
+
+    RR-002_relationship_building:
+      expected_score: 2
+      reasoning: >
+        Each source treated in complete isolation. No cross-referencing between
+        LangGraph docs and Anthropic docs. No connection between Harrison Chase's
+        advocacy and the technical findings. The bundle reads as four independent
+        summaries, not an integrated analysis.
+
+    RR-003_self_correction:
+      expected_score: 1
+      reasoning: >
+        Agent never adjusts course. Follows a vague initial impulse ("search
+        for LangChain, then Anthropic, then LangSmith") rigidly. Never realizes
+        it missed the Functional Requirements section of the PRD. Never notices
+        that it's only covering 3 of 9 domains. Never reconsiders after finding
+        limited results.
+
+  # ============================================================================
+  # Trace summary for binary eval verification
+  # ============================================================================
+
+  trace_summary:
+    total_tool_calls: 12
+    read_file_calls:
+      - path: "/workspace/projects/meta-agent/artifacts/intake/prd.md"
+        offsets_read: [0]  # Only first 100 lines
+        full_file_read: false
+    eval_suite_read: false
+    decomposition_file_created: false
+    skills_directory_accessed: false
+    skills_files_read: 0
+    sub_agents_spawned: 0
+    hitl_approvals_requested: 0
+    web_searches: 4
+    web_fetches: 5
+    urls_fetched:
+      - "https://python.langchain.com/docs/tutorials/agents/"
+      - "https://langchain-ai.github.io/langgraph/tutorials/"
+      - "https://docs.anthropic.com/en/docs/about-claude/models"
+      - "https://docs.smith.langchain.com/"
+      - "https://x.com/hwchase17"
+    urls_cited_but_not_fetched:
+      # These are hallucinated citations — cited in bundle but never fetched
+      - null  # "LangGraph supports checkpointing" — no URL cited, no fetch
+      - null  # "extended thinking" — no URL cited, no fetch
+    sme_handles_consulted: 1  # Only @hwchase17 profile page, no search
+    sme_handles_missed: ["@Vtrivedy10", "@sydneyrunkle", "@masondrxy", "@BraceSproul", "@RLanceMartin"]
+    prd_functional_requirements_covered: ["B (partial)", "F (partial)"]
+    prd_functional_requirements_missed: ["A", "C", "D", "E", "G"]
+    research_bundle_sections: 5  # Summary, LangChain, Anthropic, Evaluation, Recommendations
+    research_bundle_missing_sections:
+      - "Tool System"
+      - "HITL Patterns"
+      - "Prompt Engineering"
+      - "Workspace / Execution Environment"
+      - "Safety / Guardrails"
+      - "Rejected Alternatives"
+      - "Tradeoff Analysis"
+      - "SME Perspectives"
+      - "Risks / Caveats"
+      - "Cross-Cutting Synthesis"
+      - "Confidence Assessment"
+      - "Research Methodology"
+      - "Unresolved Questions"
