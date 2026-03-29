@@ -2026,42 +2026,66 @@ Phase 3 implements the research-agent, verification-agent, spec-writer-agent, an
 
 ##### 3.2.1 Research-Agent
 
-**Spec References:** Sections 6.1, 6.1.1, 8.9, 8.10, 8.11, 19.3, 19.6, 19.7
+**Spec References:** Sections 3.3, 5.3, 5.3.1, 5.3.2, 6.1, 6.1.1, 8.9, 8.10, 8.11, 9.2, 19.3, 19.6, 19.7
+
+**Behavioral Source of Truth:** Component PRD at `workspace/projects/meta-agent/artifacts/intake/research-agent-prd.md`
 
 **Tasks:**
 
-- Treat `meta_agent/evals/research/` as the canonical measurement stack for this phase. The research-agent runtime must emit the normalized artifacts, state, and trace evidence required by that package rather than inventing a separate evaluation interface.
+- Treat `meta_agent/evals/research/` as the canonical measurement stack for this phase (38 evals, calibrated with 185/185 pass/fail agreement on synthetic data). The research-agent runtime must emit the normalized artifacts, state, and trace evidence required by that package rather than inventing a separate evaluation interface.
 - Implement research-agent as Deep Agent via `create_deep_agent()` per Section 6.1:
-  - **1M context window** native on Opus 4.6 â€” NO beta header (Section 19.6)
+  - **1M context window** native on Opus 4.6 — NO beta header (Section 19.6)
   - Effort level: `max` (Section 10.5.3)
   - Recursion limit: `100` (Section 19.5)
-  - Tools: `web_search`, `web_fetch`, `read_file`, `write_file`, `compact_conversation`
+  - Tools: `web_search`, `web_fetch`, `read_file`, `write_file`, `edit_file`, `ls`, `glob`, `grep`, `compact_conversation`
   - Middleware: 6 auto + SummarizationToolMiddleware (explicit), SkillsMiddleware, ToolErrorMiddleware
   - Skills: All 31 skills from all 3 repositories via SkillsMiddleware (Section 11.5)
 
-- Implement multi-pass research protocol (Section 6.1):
-  1. **Breadth-first search** â€” initial web_search across topics
-  2. **Depth-first investigation** â€” targeted web_fetch on promising results
-  3. **Agent-controlled compaction** â€” `compact_conversation` between passes (retains 10% most recent)
-  4. **Structured synthesis** â€” research bundle assembly
+- Implement **4-phase research workflow** per Sections 3.3 and 6.1:
+
+  **Phase 1: Decomposition** (Hard gate — no research begins until decomposition file is persisted)
+  1. Read the full PRD and eval suite (all lines, not truncated)
+  2. Create research decomposition file at `artifacts/research/research-decomposition.md` per Section 5.3.1:
+     - Every PRD requirement as a research topic with PRD line citations
+     - Mapping to relevant eval IDs
+     - Skills to consult per topic
+     - SME handles relevant per topic
+     - Phased execution plan prioritized by architectural impact
+     - Progress tracker
+
+  **Phase 2: Research Cluster Formation & HITL**
+  1. Read and internalize pre-loaded skills from `/skills/langchain/`, `/skills/anthropic/`, `/skills/langsmith/` (full files, not truncated)
+  2. Identify research gaps that skills do not cover
+  3. Group research targets into themed clusters
+  4. Present each cluster for user approval via `research_cluster_approval` interrupt (Section 9.2)
+  5. Write clusters to `artifacts/research/research-clusters.md` per Section 5.3.2
+  6. Do not proceed with deep-dive research until user approves
+
+  **Phase 3: Parallel Sub-Agent Research Execution**
+  1. Reason explicitly about delegation topology: number of sub-agents, grouping rationale, unique contribution of each, alternatives considered and rejected
+  2. Deploy sub-agents in parallel with task briefs including: baseline knowledge from skills, specific research questions tied to PRD requirements, expected output format, PRD line references
+  3. Sub-agents write findings to `artifacts/research/sub-findings/`
+  4. Read all sub-agent outputs thoroughly after completion
+  5. Consult all configured Twitter/X SME handles for relevant content
+
+  **Phase 4: Gap Remediation and Synthesis**
+  1. Catalog gaps and contradictions across sub-agent findings with severity ratings
+  2. Diagnose root causes, create remediation plan, execute targeted verification
+  3. Synthesize all findings (skills baseline, sub-agent web research, SME perspectives, deep-dive verification) organized by topic, not by source
+  4. Run internal reflection loop: extract every PRD requirement/constraint/criterion, verify bundle addresses each with evidence
+  5. Loop up to 5 passes until coverage is verified
 
 - Implement **3-layer compaction strategy** per Section 19.7:
   - Layer 1: SummarizationMiddleware (automatic at 85% context)
   - Layer 2: SummarizationToolMiddleware (`compact_conversation` agent-controlled)
   - Layer 3: Anthropic Server-Side Compaction (compact-2026-01-12 beta)
 
-- Implement **5-pass internal reflection loop** per Section 6.1:
-  - After synthesis pass, extract every requirement/constraint/criterion from PRD
-  - Check whether research bundle addresses each with sufficient evidence
-  - Gaps trigger additional targeted research passes
-  - Loop repeats until coverage verified or max 5 passes reached
-
-- Implement nested sub-subagents for specialized search and synthesis
-
-- Implement system prompt per Section 6.1.1 using `construct_research_agent_prompt()`
+- Implement system prompt per Section 6.1.1 using `construct_research_agent_prompt()` — the 262-line `RESEARCH_AGENT_ROLE` constant is already populated in `meta_agent/prompts/research_agent.py`
 
 - Write research bundle to `{project_dir}/artifacts/research/research-bundle.md` per Section 5.3:
-  - Required sections: Sources Consulted, Key Findings, Constraints Discovered, Options Evaluated, Tradeoffs, Recommendations, PRD Coverage Matrix, Unresolved Research Gaps
+  - Required sections (8): Executive Summary, PRD Requirements Coverage, Ecosystem Options, Model Capabilities, Technical Deep Dives, SME Insights, Knowledge Gaps, Source Index
+  - YAML frontmatter with: prd_version, decomposition_file, research_completed, topics_covered, topics_total
+  - Every finding must have a citation with source type and URL
 
 ---
 
@@ -2181,7 +2205,7 @@ Phase 3 implements the research-agent, verification-agent, spec-writer-agent, an
 
 ##### 3.2.6 Phase 3 Eval Implementations
 
-Implement the 7 eval functions for Phase 3 in the appropriate eval files. Full Python implementations must be created before this phase begins (see Section 3.3.2).
+[v5.6-R2] The canonical research-agent eval package at `meta_agent/evals/research/` contains 38 evaluators that are already calibrated (185/185 pass/fail agreement on synthetic data). Phase 3 implementation must wire the runtime into this existing package. See Section 3.3.1 for the full eval contract and Section 3.3.2 for integration guidance.
 
 ---
 
@@ -2189,52 +2213,53 @@ Implement the 7 eval functions for Phase 3 in the appropriate eval files. Full P
 
 ##### 3.3.1 Evals for This Phase
 
+[v5.6-R2] The canonical eval contract for the research-agent is the 38-eval suite in `meta_agent/evals/research/`. These are organized into 4 categories with 3 scoring types. All Likert thresholds are >= 4.0 ("Good" quality or above).
+
+**Research-Agent Evals (38 total from `meta_agent/evals/research/`):**
+
+| Category | Prefix | Count | Scoring | Threshold | What They Test |
+|----------|--------|-------|---------|-----------|----------------|
+| Binary Structural | RB- | ~10 | Binary | 1.0 | Bundle exists, decomposition exists, all 8 sections present, PRD fully read, eval suite read, skills loaded, citations have URLs, sub-agent delegation occurred, HITL cluster presented, frontmatter valid |
+| Research Quality | RQ- | ~15 | Likert 1-5 | >= 4.0 | Decomposition completeness, research depth (not surface-level), citation accuracy, skills lifecycle quality, SME contextualization, sub-agent topology reasoning, gap/contradiction remediation, synthesis quality, cross-referencing |
+| Research Integration | RI- | ~8 | Likert 1-5 | >= 4.0 | Bundle covers all PRD FRs, bundle usable by spec-writer without additional research, model capability matrix complete, ecosystem options have evidence, knowledge gaps are honest |
+| End-to-End | RE- | ~5 | LLM-as-Judge | >= 4.0 | Overall bundle quality, research methodology rigor, traceability from PRD to findings, spec-writer readiness |
+
+**Spec-Writer Evals (carried forward):**
+
 | Eval ID | Name | What It Tests | Scoring | Threshold | Priority |
 |---------|------|---------------|---------|-----------|----------|
-| RESEARCH-001 | Research Bundle Exists | Research bundle artifact at correct path | Binary | 1.0 | P0 |
-| RESEARCH-002 | Research Bundle Has PRD Coverage Matrix | PRD Coverage Matrix section present | Binary | 1.0 | P0 |
-| RESEARCH-003 | Research Quality | Covers all PRD requirements with evidence | Likert | >= 3.0 | P1 |
 | SPEC-001 | Technical Specification Exists | Spec artifact at correct path | Binary | 1.0 | P0 |
 | SPEC-002 | Spec Has PRD Traceability Matrix | 100% coverage confirmed | Binary | 1.0 | P0 |
 | SPEC-003 | Tier 2 Eval Suite Created | eval-suite-architecture.json exists | Binary | 1.0 | P0 |
-| SPEC-004 | Spec Quality | Zero-ambiguity, implementable without questions | Likert | >= 3.0 | P1 |
+| SPEC-004 | Spec Quality | Zero-ambiguity, implementable without questions | Likert | >= 4.0 | P1 |
 
 ---
 
 ##### 3.3.2 Eval Definitions
 
-> **Current state:** The canonical research-agent calibration data already exists in `meta_agent/evals/research/`. These placeholder eval notes remain here for planning context only. Phase 3 implementation should plug the runtime into that package instead of authoring another disconnected synthetic suite.
+[v5.6-R2] The canonical eval implementations live in `meta_agent/evals/research/` (3,462 lines, 38 evaluators). These are NOT stubs — they are fully implemented with structured judge outputs, a LangSmith SDK experiment harness, and UI-ready judge profiles. The package is calibrated on 5 synthetic scenarios with 185/185 pass/fail agreement.
 
-The eval implementations should follow the same pattern as Phases 0-2 (code-graded binary evals for structure, LLM-as-judge for quality):
+**Integration guidance for Phase 3 runtime:**
+
+1. The research-agent runtime must emit normalized artifacts that the eval package can consume:
+   - `artifacts/research/research-bundle.md` (final bundle)
+   - `artifacts/research/research-decomposition.md` (decomposition file)
+   - `artifacts/research/research-clusters.md` (HITL clusters)
+   - `artifacts/research/sub-findings/*.md` (sub-agent outputs)
+2. The runtime must produce LangSmith traces with the metadata keys the evaluators expect (sub-agent delegation spans, web_fetch URLs, skill_loaded spans, interrupt spans)
+3. Use `meta_agent.evals.research.langsmith_experiment` for LangSmith experiment runs
+4. Use `meta_agent.evals.research.runner` for local calibration runs
+
+**Spec-writer evals** continue to follow the Phase 0-2 pattern (code-graded binary for structure, LLM-as-judge for quality):
 
 ```python
-# tests/evals/test_phase3.py â€” STUB implementations to be completed
-
-def eval_research_001_bundle_exists(project_dir: str) -> dict:
-    """RESEARCH-001: Research bundle artifact exists at correct path."""
-    path = f"{project_dir}/artifacts/research/research-bundle.md"
-    exists = os.path.isfile(path)
-    return {"pass": exists, "reason": f"Research bundle {'exists' if exists else 'not found'} at {path}"}
-
-
-def eval_research_002_prd_coverage_matrix(project_dir: str) -> dict:
-    """RESEARCH-002: Research bundle contains PRD Coverage Matrix."""
-    path = f"{project_dir}/artifacts/research/research-bundle.md"
-    try:
-        with open(path) as f:
-            content = f.read().lower()
-        has_matrix = "prd coverage matrix" in content
-        return {"pass": has_matrix, "reason": "PRD Coverage Matrix found" if has_matrix else "PRD Coverage Matrix missing"}
-    except Exception as e:
-        return {"pass": False, "reason": f"Error: {e}"}
-
+# tests/evals/test_phase3_spec.py — spec-writer evals only
 
 def eval_spec_001_spec_exists(project_dir: str) -> dict:
     """SPEC-001: Technical specification artifact exists at correct path."""
     path = f"{project_dir}/artifacts/spec/technical-specification.md"
     exists = os.path.isfile(path)
     return {"pass": exists, "reason": f"Spec {'exists' if exists else 'not found'} at {path}"}
-
 
 def eval_spec_002_traceability_matrix(project_dir: str) -> dict:
     """SPEC-002: Spec contains PRD Traceability Matrix with 100% coverage."""
@@ -2247,16 +2272,11 @@ def eval_spec_002_traceability_matrix(project_dir: str) -> dict:
     except Exception as e:
         return {"pass": False, "reason": f"Error: {e}"}
 
-
 def eval_spec_003_tier2_eval_suite(project_dir: str) -> dict:
     """SPEC-003: Tier 2 eval suite artifact created."""
     path = f"{project_dir}/evals/eval-suite-architecture.json"
     exists = os.path.isfile(path)
     return {"pass": exists, "reason": f"Tier 2 eval suite {'exists' if exists else 'not found'} at {path}"}
-
-
-# Historical placeholder note: these stubs predate the canonical research eval package.
-# Use `meta_agent/evals/research/` for calibration and LangSmith experiments.
 ```
 
 ---
@@ -2297,9 +2317,15 @@ python -m meta_agent.evals.runner --phase 2 --data datasets/phase-2-synthetic-da
 
 ##### 3.3.5 Pass Criteria
 
-- **Binary evals:** ALL 5 binary evals must pass (threshold 1.0 each)
-- **Likert evals:** Mean >= 3.0 for RESEARCH-003 and SPEC-004
-- **Regression:** Re-run all Phase 0, 1, and 2 evals (all 23 orchestrator evals) â€” ALL must still pass
+[v5.6-R2] Updated to reflect the canonical 38-eval research package and >= 4.0 thresholds:
+
+- **Research binary evals (RB-):** ALL ~10 binary evals must pass (threshold 1.0 each)
+- **Research quality evals (RQ-):** ALL ~15 Likert evals must score >= 4.0 ("Good" or above)
+- **Research integration evals (RI-):** ALL ~8 Likert evals must score >= 4.0
+- **Research end-to-end evals (RE-):** ALL ~5 LLM-as-judge evals must score >= 4.0
+- **Spec binary evals:** ALL 3 spec binary evals must pass (SPEC-001 through SPEC-003)
+- **Spec quality eval:** SPEC-004 must score >= 4.0
+- **Regression:** Re-run all Phase 0, 1, and 2 evals (all 23 orchestrator evals) — ALL must still pass
 
 ---
 
@@ -2316,7 +2342,8 @@ If evals fail:
 
 ##### 3.3.7 Phase Complete Checklist
 
-- [ ] All 7 Phase 3 evals pass (RESEARCH-001 through RESEARCH-003, SPEC-001 through SPEC-004)
+- [ ] All 38 research-agent evals pass (RB-*, RQ-*, RI-*, RE-* from `meta_agent/evals/research/`)
+- [ ] All 4 spec-writer evals pass (SPEC-001 through SPEC-004)
 - [ ] All 23 regression evals from Phases 0-2 pass
 - [ ] LangSmith experiment recorded with metadata: `phase_number=3`, `commit_hash`, `timestamp`
 - [ ] Progress committed to git

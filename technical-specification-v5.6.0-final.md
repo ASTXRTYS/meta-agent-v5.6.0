@@ -98,6 +98,22 @@ v5.6.0-R Changelog (Research Eval Hardening Alignment)
 
 [v5.6-R] R3 — Canonical Tier 1 research-eval artifacts are JSON-first. The workspace seed artifact remains `synthetic-research-agent.json`, and runtime-ready examples are expanded from that seed by `meta_agent/evals/research/synthetic_trace_adapter.py`.
 
+v5.6.0-R2 Changelog (Research-Agent PRD Integration)
+
+[v5.6-R2] This version integrates the research-agent component PRD (authored by the orchestrator with stakeholder collaboration) and new operational system prompt into the specification. The component PRD at `workspace/projects/meta-agent/artifacts/intake/research-agent-prd.md` is the behavioral source of truth for the research agent. Changes are marked with [v5.6-R2] throughout.
+
+[v5.6-R2] R2-C1 — Section 3.3 (RESEARCH stage) rewritten. The research protocol is now a 4-phase workflow: (1) PRD Decomposition with persisted decomposition file, (2) Research Cluster Formation with mid-research HITL approval gate, (3) Parallel Sub-Agent Research Execution, (4) Gap Remediation and Synthesis. Replaces the prior "breadth, depth, compact, synthesis" description.
+
+[v5.6-R2] R2-C2 — Section 5.3 (Research Bundle Schema) replaced. Bundle now has 8 required sections aligned with the component PRD: Executive Summary, PRD Requirements Coverage, Ecosystem Options, Model Capabilities, Technical Deep Dives, SME Insights, Knowledge Gaps, Source Index. New Sections 5.3.1 (Research Decomposition Schema) and 5.3.2 (Research Clusters Schema) added for intermediate artifacts.
+
+[v5.6-R2] R2-C3 — Section 6.1 (research-agent) expanded. Now includes: SME/Twitter configuration, sub-agent topology reasoning requirements, gap and contradiction remediation protocol, spec-writer feedback loop, and reference to the component PRD as behavioral source of truth.
+
+[v5.6-R2] R2-C4 — Section 6.1.1 (System Prompt) populated. References the full 262-line operational system prompt maintained in `meta_agent/prompts/research_agent.py`. The prompt defines the 4-phase workflow, citation standards, reasoning standards, anti-patterns, and success criteria.
+
+[v5.6-R2] R2-C5 — Section 9.2 (Interrupt Configuration) updated. Added `research_cluster_approval` interrupt for mid-research HITL gate.
+
+[v5.6-R2] R2-C6 — Orchestrator RESEARCH stage context (Section 7.3) updated. Delegation instructions now reference intermediate artifacts (decomposition file, HITL clusters, sub-findings) and the 4-phase research workflow.
+
 
 Table of Contents
 
@@ -260,18 +276,32 @@ When the user initiates a new agent project, the orchestrator creates a project-
 ## 3.3 RESEARCH: Deep Ecosystem Research
 
 
-| Entry Conditions | An approved PRD exists. The current_prd_path field is populated in state. |
+| Entry Conditions | An approved PRD exists. The current_prd_path field is populated in state. The eval suite path is populated in eval_suites. |
 | --- | --- |
-| Exit Conditions / Acceptance Criteria | A research bundle artifact has been produced that includes a PRD Coverage Matrix showing all PRD requirements as COVERED, verified by the research-agent's internal reflection loop, confirmed by the verification-agent, and written to /workspace/projects/{project_id}/artifacts/research/research-bundle.md. Any PARTIAL or UNCOVERED items must be documented in the Unresolved Research Gaps section. |
-| Artifacts Consumed (Input) | Approved PRD artifact |
-| Artifacts Produced (Output) | Research bundle artifact (/workspace/projects/{project_id}/artifacts/research/research-bundle.md) |
-| Human Review Checkpoints | Research findings are presented to the user for review before proceeding to specification. |
-| Tools Available | web_search, web_fetch, read_file, write_file, record_decision, record_assumption, request_approval, transition_stage, compact_conversation |
+| Exit Conditions / Acceptance Criteria | [v5.6-R2] A research bundle artifact has been produced at /workspace/projects/{project_id}/artifacts/research/research-bundle.md containing all 8 required sections (see Section 5.3), with a PRD Requirements Coverage table showing all PRD requirements as COVERED, verified by the research-agent's internal reflection loop, confirmed by the verification-agent. A research decomposition file exists at artifacts/research/research-decomposition.md. Any PARTIAL or UNCOVERED items must be documented in the Knowledge Gaps section. |
+| Artifacts Consumed (Input) | Approved PRD artifact, Tier 1 eval suite (eval-suite-prd.json) |
+| Artifacts Produced (Output) | [v5.6-R2] Research decomposition (artifacts/research/research-decomposition.md), Research clusters HITL document (artifacts/research/research-clusters.md), Sub-agent findings (artifacts/research/sub-findings/*.md), Research bundle (artifacts/research/research-bundle.md) |
+| Human Review Checkpoints | [v5.6-R2] Two checkpoints: (1) Mid-research HITL — research clusters are presented for user approval before deep-dive verification. (2) End-of-research HITL — research findings are presented to the user for review before proceeding to specification. |
+| Tools Available | web_search, web_fetch, read_file, write_file, edit_file, ls, glob, grep, record_decision, record_assumption, request_approval, transition_stage, compact_conversation, task (for sub-agent delegation) |
 
 
-The RESEARCH stage employs a skills-first methodology. [v5.5.3] All agents have access to the full skill set from all three official repositories (LangChain, LangSmith, Anthropic) via SkillsMiddleware, loading whichever skills are most relevant at runtime. The research-agent loads relevant skills before beginning any web searches, ensuring grounded knowledge of available tools and patterns. Research uses native Claude web_search and web_fetch server-side tools. The research protocol follows a multi-pass approach: breadth-first search, depth-first investigation, agent-controlled compaction between passes (via compact_conversation tool), and structured synthesis. [v5.5.5] The research-agent operates with a 1M native context window (Claude Opus 4.6 supports 1M context natively — no beta header required) and uses SummarizationMiddleware for automatic compaction plus SummarizationToolMiddleware for agent-controlled compaction between research passes.
+[v5.6-R2] The RESEARCH stage employs a 4-phase workflow defined in the research-agent component PRD (`workspace/projects/meta-agent/artifacts/intake/research-agent-prd.md`):
 
-[v5.6-R] External measurement for this stage is already implemented in `meta_agent/evals/research/` and calibrated on synthetic scenarios. The runtime research-agent described here is still pending implementation, so the repo currently supports evaluator calibration but not live RESEARCH-stage execution.
+**Phase 1: Decomposition.** Before any research begins, the research-agent reads the full PRD and eval suite, then creates a research decomposition file at `artifacts/research/research-decomposition.md`. The decomposition lists every PRD requirement as a research topic with specific PRD line citations, maps each topic to relevant eval IDs, identifies which skills to consult, identifies which SME handles may be relevant, and includes a phased execution plan prioritized by architectural impact. This is a hard gate — no research begins until the decomposition file is persisted.
+
+**Phase 2: Research Cluster Formation & HITL.** The agent groups related research targets into themed clusters (repos, issues, PRs, documentation sections, source code files). Each cluster explains what will be investigated, why, and how it connects to specific PRD requirements. Clusters are presented to the user for approval via `research_cluster_approval` interrupt before deep-dive research proceeds. The cluster document is persisted at `artifacts/research/research-clusters.md`.
+
+**Phase 3: Parallel Sub-Agent Research Execution.** The research-agent delegates web research to sub-agents for parallel execution. Delegation requires intentional topology reasoning: the agent must articulate why each sub-agent exists, what it uniquely contributes, and why alternative topologies were rejected. Sub-agent task briefs include baseline knowledge from skills, specific research questions tied to PRD requirements, and expected output format. Sub-agents write findings to `artifacts/research/sub-findings/`. The agent uses the skills-first methodology — it loads relevant skills from all three repositories (LangChain, LangSmith, Anthropic) via SkillsMiddleware before beginning web searches, ensuring grounded knowledge of available tools and patterns.
+
+**Phase 4: Gap Remediation & Synthesis.** After collecting sub-agent findings, the agent systematically identifies gaps and contradictions, diagnoses root causes, creates a remediation plan, and executes targeted verification research. The agent then synthesizes all findings — skills baseline, sub-agent web research, SME perspectives, deep-dive verification — into the research bundle organized by PRD topic (not by source or sub-agent). The internal reflection loop runs after synthesis: the agent extracts every requirement from the PRD and checks coverage, with gaps triggering additional passes up to a maximum of 5 total passes.
+
+[v5.5.5] The research-agent operates with a 1M native context window (Claude Opus 4.6 supports 1M context natively — no beta header required) and uses SummarizationMiddleware for automatic compaction plus SummarizationToolMiddleware for agent-controlled compaction between research passes.
+
+[v5.6-R2] The research-agent supports a spec-writer feedback loop: if the spec-writer determines the research bundle is insufficient for a particular area during SPEC_GENERATION, it can request additional targeted research. The research-agent conducts focused follow-up research and updates the bundle. This is triggered via the SPEC_REVIEW → RESEARCH backward transition.
+
+[v5.6-R2] SME/Twitter Consultation: The research-agent is configured with specific Twitter/X handles of LangChain and Anthropic employees (see Section 6.1). It systematically searches each handle for content relevant to research domains, contextualizes SME perspectives by tying them to findings from docs and skills, and identifies consensus and disagreements among SMEs.
+
+[v5.6-R] External measurement for this stage is already implemented in `meta_agent/evals/research/` (38 evals, calibrated on 5 synthetic scenarios with 185/185 pass/fail agreement). The runtime research-agent is pending implementation.
 
 ## 3.4 SPEC_GENERATION: Technical Specification Generation
 
@@ -499,9 +529,42 @@ The PRD artifact contains frontmatter and required sections: Product Summary, Go
 
 ## 5.3 Research Bundle Schema
 
-The research bundle artifact contains frontmatter and sections: Sources Consulted, Key Findings, Constraints Discovered, Options Evaluated, Tradeoffs, and Recommendations.
+[v5.6-R2] The research bundle artifact is written to `{project_dir}/artifacts/research/research-bundle.md`. It contains YAML frontmatter with lineage tracing to all input artifacts and the following 8 required sections (aligned with the component PRD):
 
-v5.4 Addition — PRD Coverage Matrix and Unresolved Research Gaps are included as additional required sections.
+| # | Section | Contents |
+|---|---------|----------|
+| 1 | Executive Summary | 2-3 paragraphs summarizing key findings and top recommendations |
+| 2 | PRD Requirements Coverage | Table mapping each PRD functional requirement to research findings with status (COVERED / PARTIAL / GAP) |
+| 3 | Ecosystem Options | For each architectural decision point: options discovered, trade-offs, evidence for/against, recommendation with reasoning |
+| 4 | Model Capabilities | Anthropic frontier model capability matrix, pricing, rate limits, tool_as_code support, langchain-anthropic integration |
+| 5 | Technical Deep Dives | Detailed findings on complex topics, organized by PRD section — not by source or sub-agent |
+| 6 | SME Insights | Synthesized perspectives from Twitter/X SME consultation, tied to technical findings |
+| 7 | Knowledge Gaps | Topics where research was inconclusive, sources unavailable, or contradictions unresolved — with recommended approaches for the spec-writer |
+| 8 | Source Index | Complete list of all sources consulted with URLs, categorized by source type (docs, API ref, tweet, source code, skill file) |
+
+Frontmatter must include: `prd_version`, `decomposition_file`, `research_completed` (timestamp), `topics_covered`, `topics_total`.
+
+### 5.3.1 Research Decomposition Schema
+
+[v5.6-R2] The research decomposition artifact is written to `{project_dir}/artifacts/research/research-decomposition.md` before any research begins (Phase 1 hard gate). It contains:
+
+- Every PRD requirement listed as a research topic with specific PRD line citations
+- Mapping of each topic to relevant eval IDs from the eval suite
+- Identification of which skills to consult per topic
+- Identification of which SME handles may be relevant per topic
+- A phased execution plan prioritized by architectural impact
+- A progress tracker updated throughout the research process
+
+### 5.3.2 Research Clusters Schema
+
+[v5.6-R2] The HITL research clusters document is written to `{project_dir}/artifacts/research/research-clusters.md` during Phase 2. Each cluster contains:
+
+- Grouped research targets (repos, issues, PRs, docs pages, source files)
+- Rationale connecting each target to specific PRD requirements
+- Research questions the cluster intends to answer
+- How the cluster fits into the broader research plan
+- Estimated effort level
+- Approval status (pending / approved / redirected)
 
 ## 5.4 Technical Specification Schema
 
@@ -655,17 +718,49 @@ The meta-agent delegates specialized work to eight orchestrator-level subagents.
 
 Description:
 
-Performs deep ecosystem research as a Deep Agent with nested sub-subagents. Uses native web_search and web_fetch server-side tools. [v5.5.3] Has access to all 31 skills from all three repositories via SkillsMiddleware (loads relevant skills at runtime), multi-pass research protocol (breadth, depth, compact, synthesis), 1M context window, and agent-controlled compaction middleware.
+[v5.6-R2] Performs deep ecosystem research as a Deep Agent with nested sub-subagents. The behavioral source of truth is the component PRD at `workspace/projects/meta-agent/artifacts/intake/research-agent-prd.md`. Uses native web_search and web_fetch server-side tools. Has access to all 31 skills from all three repositories via SkillsMiddleware (loads relevant skills at runtime), 1M context window (Opus 4.6 native), and agent-controlled compaction middleware.
 
-The research-agent implements an internal reflection loop after its synthesis pass. Before writing the final research bundle, the agent extracts every requirement, constraint, and acceptance criterion from the PRD and checks whether the research bundle addresses each one with sufficient evidence. Any gaps trigger additional targeted research passes. The loop repeats until coverage is verified or a maximum of 5 total passes is reached.
+[v5.6-R2] The research-agent implements a 4-phase workflow (see Section 3.3): (1) PRD Decomposition with persisted decomposition file, (2) Research Cluster Formation with HITL approval gate, (3) Parallel Sub-Agent Research Execution with intentional topology reasoning, (4) Gap Remediation and Synthesis. The internal reflection loop operates within Phase 4 — after synthesis, the agent extracts every requirement/constraint/criterion from the PRD and checks whether the bundle addresses each with sufficient evidence. Gaps trigger additional targeted research passes, up to a maximum of 5 total passes.
 
-Tools: web_search, web_fetch, read_file, write_file, compact_conversation
+[v5.6-R2] Sub-agent topology reasoning: When delegating to sub-agents, the research-agent must articulate why each sub-agent exists, what it uniquely contributes, and why alternative topologies were rejected. Mechanical fixed splits (one per domain) are insufficient — the agent considers workload volume, domain dependencies, compute efficiency, and breadth vs. depth requirements.
 
-[v5.5.3] Skills: All skills from all three repositories (LangChain, LangSmith, Anthropic) are available to this agent via SkillsMiddleware. The agent loads skills it finds relevant at runtime.
+[v5.6-R2] Gap and contradiction remediation: After collecting sub-agent findings, the agent systematically catalogs gaps and contradictions with severity ratings, performs root cause analysis, creates a remediation plan, and executes targeted verification. Resolved items get explicit resolution statements with evidence. Unresolved items are flagged with recommended approaches for the spec-writer.
+
+[v5.6-R2] Spec-writer feedback loop: If the spec-writer determines the research bundle is insufficient for a particular area during SPEC_GENERATION, it can request additional targeted research. The research-agent conducts focused follow-up and updates the bundle. This is triggered via the SPEC_REVIEW → RESEARCH backward transition (see Section 4.3).
+
+[v5.6-R2] SME/Twitter configuration:
+
+| Handle | Name | Role |
+|--------|------|------|
+| @hwchase17 | Harrison Chase | LangChain CEO |
+| @Vtrivedy10 | Varun Trivedy | LangChain |
+| @sydneyrunkle | Sydney Runkle | Pydantic / LangChain |
+| @masondrxy | Mason Drexler | LangChain |
+| @BraceSproul | Brace Sproul | LangChain |
+| @RLanceMartin | Lance Martin | LangChain Developer Relations |
+
+The agent systematically searches each handle for content relevant to research domains, contextualizes SME perspectives by tying them to findings from docs and skills, and identifies consensus and disagreements among SMEs.
+
+Tools: web_search, web_fetch, read_file, write_file, edit_file, ls, glob, grep, compact_conversation
+
+[v5.5.3] Skills: All skills from all three repositories (LangChain, LangSmith, Anthropic) are available to this agent via SkillsMiddleware. Skills are a primary driver of the research strategy — the agent reads and internalizes skills BEFORE conducting web research, then targets web research to fill gaps in skill content.
 
 [v5.5.5] Middleware: TodoListMiddleware (auto), FilesystemMiddleware (auto), SubAgentMiddleware (auto), SummarizationMiddleware (auto), AnthropicPromptCachingMiddleware (auto), PatchToolCallsMiddleware (auto), SummarizationToolMiddleware (explicit — instantiated with the auto-attached SummarizationMiddleware instance), SkillsMiddleware, ToolErrorMiddleware
 
 ### 6.1.1 System Prompt
+
+[v5.6-R2] The full operational system prompt is maintained in `meta_agent/prompts/research_agent.py` as the `RESEARCH_AGENT_ROLE` constant. The prompt defines:
+
+- Mission: Transform a PRD and eval suite into a thoroughly researched bundle of findings, options, and evidence
+- Core 4-phase workflow: Decomposition → Cluster Formation & HITL → Parallel Research Execution → Synthesis
+- Research source hierarchy: (1) Skills as primary source, (2) Documentation & API references, (3) Twitter/SME consultation, (4) Source code, issues, PRs
+- Citation standards: every finding must have a specific, source-typed, traceable citation
+- Reasoning standards: reflect at every decision point, build relationships between sources, self-correct dynamically
+- Research bundle output schema: 8 required sections with YAML frontmatter
+- Anti-patterns: starting before decomposition, organizing by source not topic, citing vaguely, treating skills as checkbox
+- Success criteria: completeness, depth, breadth, traceability, utility, synthesis, honesty
+
+The prompt is composed at runtime by `construct_research_agent_prompt()` which concatenates `RESEARCH_AGENT_ROLE` with shared sections (workspace, artifact protocol, tool usage, quality standards, core behavior, communication, skills, AGENTS.md).
 
 ## 6.2 spec-writer-agent
 
@@ -1190,22 +1285,35 @@ You are in RESEARCH — the research-agent is performing deep ecosystem research
 
 **Your role in this stage:** You DELEGATE to the research-agent. You do not perform research yourself.
 
-**Entry condition:** Approved PRD exists.
+**Entry condition:** Approved PRD and eval suite exist.
 
-**Exit condition:** Research bundle written, verified by verification-agent, and approved by user.
+**Exit condition:** Research bundle written (all 8 required sections per Section 5.3), verified by verification-agent, and approved by user.
 
 **Your protocol:**
 
 1. Delegate to research-agent with clear instructions:
-   - Provide the PRD path
-   - Specify that all PRD requirements must be addressed
-   - Request a PRD Coverage Matrix in the output
+   - Provide the PRD path and eval suite path
+   - Specify the 4-phase workflow: Decomposition → Cluster Formation & HITL → Parallel Research → Synthesis
+   - Require a research decomposition file at artifacts/research/research-decomposition.md (Phase 1 hard gate)
+   - Require HITL cluster approval before deep-dive verification (Phase 2)
+   - Require sub-agent findings written to artifacts/research/sub-findings/ (Phase 3)
+   - Require the final research bundle at artifacts/research/research-bundle.md with all 8 sections (Phase 4)
+   - Require PRD Requirements Coverage table showing all requirements as COVERED
+   - Require full citations per Section 5.3 Source Index standards
 
-2. When the research-agent returns, delegate to verification-agent to confirm coverage.
+2. Monitor intermediate artifacts:
+   - Confirm decomposition file exists before research begins
+   - Review HITL cluster presentations when surfaced for approval
+   - Check sub-findings directory for parallel research output
 
-3. Present research findings to user for approval.
+3. When the research-agent returns, delegate to verification-agent to confirm:
+   - All PRD requirements addressed with evidence
+   - Knowledge Gaps section is honest about unresolved items
+   - Citations are specific and traceable
 
-4. On approval, transition to SPEC_GENERATION.
+4. Present research findings to user for approval.
+
+5. On approval, transition to SPEC_GENERATION.
 
 **Tools available:** read_file, write_file, request_approval, record_decision, transition_stage, task (for delegation)
 ```
@@ -1963,7 +2071,7 @@ Human-in-the-loop (HITL) is a first-class architectural concern. The meta-agent 
 
 ## 9.2 Interrupt Configuration
 
-The following tools trigger interrupts: write_file (conditional on artifact paths), execute_command (always), transition_stage (always), langsmith_dataset_create (always), [v5.6] request_eval_approval (always — triggers during PRD_REVIEW for Tier 1 eval suite approval and during SPEC_REVIEW for Tier 2 architecture eval approval).
+The following tools trigger interrupts: write_file (conditional on artifact paths), execute_command (always), transition_stage (always), langsmith_dataset_create (always), [v5.6] request_eval_approval (always — triggers during PRD_REVIEW for Tier 1 eval suite approval and during SPEC_REVIEW for Tier 2 architecture eval approval), [v5.6-R2] research_cluster_approval (always — triggers during RESEARCH when the research-agent presents a HITL research cluster for user review before deep-dive verification).
 
 ## 9.3 Interrupt Payload Format
 
