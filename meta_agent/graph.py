@@ -14,9 +14,11 @@ Middleware order (per Section 22.4):
   5. SummarizationMiddleware (auto — added by create_deep_agent)
   6. AnthropicPromptCachingMiddleware (auto — added by create_deep_agent)
   7. PatchToolCallsMiddleware (auto — added by create_deep_agent)
-  8. ToolErrorMiddleware (explicit)
-  9. HumanInTheLoopMiddleware (auto via interrupt_on parameter)
- 10. SkillsMiddleware (explicit via skills= parameter — on-demand SKILL.md loading)
+  8. SummarizationToolMiddleware (explicit — agent-controlled compact_conversation)
+  9. MemoryMiddleware (explicit — per-agent AGENTS.md loading)
+ 10. ToolErrorMiddleware (explicit)
+ 11. HumanInTheLoopMiddleware (auto via interrupt_on parameter)
+ 12. SkillsMiddleware (explicit via skills= parameter — on-demand SKILL.md loading)
 """
 
 from __future__ import annotations
@@ -26,6 +28,11 @@ from typing import Any
 
 from deepagents import create_deep_agent
 from deepagents.backends import FilesystemBackend as SdkFilesystemBackend
+from deepagents.middleware.summarization import (
+    SummarizationMiddleware,
+    SummarizationToolMiddleware,
+)
+from deepagents.middleware.memory import MemoryMiddleware
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.store.memory import InMemoryStore
 
@@ -38,8 +45,6 @@ from meta_agent.safety import RECURSION_LIMITS
 from meta_agent.middleware.meta_state import MetaAgentStateMiddleware
 from meta_agent.middleware.dynamic_system_prompt import DynamicSystemPromptMiddleware
 from meta_agent.middleware.tool_error_handler import ToolErrorMiddleware
-from meta_agent.middleware.completion_guard import CompletionGuardMiddleware
-from meta_agent.middleware.memory_loader import MemoryLoaderMiddleware
 from meta_agent.tools import LANGCHAIN_TOOLS
 from meta_agent.tools.registry import HITL_GATED_TOOLS
 from meta_agent.prompts.orchestrator import construct_orchestrator_prompt
@@ -63,11 +68,12 @@ def create_graph(
     Returns:
         Compiled LangGraph StateGraph from create_deep_agent().
     """
+    import os
+
     cfg = config or MetaAgentConfig.from_env()
 
     # Ensure project directory structure exists (creates dirs + AGENTS.md files)
     if project_id and project_dir:
-        import os
         base_dir = os.path.dirname(project_dir) if project_dir.endswith(project_id) else project_dir
         # Only init if the project dir doesn't look fully initialized
         agents_md = os.path.join(project_dir, ".agents", "orchestrator", "AGENTS.md")
@@ -101,14 +107,35 @@ def create_graph(
         project_id=project_id,
     )
 
+    # SummarizationToolMiddleware — agent-controlled compact_conversation
+    # Per Plan 1.2.1 / Spec 8.11: requires a SummarizationMiddleware instance.
+    summarization_mw = SummarizationMiddleware(model=cfg.model_name, backend=backend)
+    summarization_tool_mw = SummarizationToolMiddleware(summarization_mw)
+
+    # MemoryMiddleware — per-agent AGENTS.md loading (Spec 22.4, Section 13.4.6)
+    # Orchestrator loads its own AGENTS.md; isolation rule: no cross-agent memory.
+    memory_sources = []
+    if project_dir:
+        project_agents_md = os.path.join(
+            project_dir, ".agents", "orchestrator", "AGENTS.md"
+        )
+        if os.path.isfile(project_agents_md):
+            memory_sources.append(project_agents_md)
+    global_agents_md = str(repo_root / ".agents" / "orchestrator" / "AGENTS.md")
+    if os.path.isfile(global_agents_md):
+        memory_sources.append(global_agents_md)
+    memory_mw = MemoryMiddleware(backend=backend, sources=memory_sources)
+
     # ToolErrorMiddleware
     tool_error_mw = ToolErrorMiddleware()
 
     # Build explicit middleware list (order matters per Section 22.4)
     explicit_middleware = [
-        dynamic_prompt_mw,   # 0. Dynamic system prompt
-        meta_state_mw,       # 1. Extends state schema
-        tool_error_mw,       # 8. ToolError (catches tool exceptions)
+        dynamic_prompt_mw,     # 0. Dynamic system prompt (MUST be first)
+        meta_state_mw,         # 1. Extends state schema
+        summarization_tool_mw, # 8. Agent-controlled compact_conversation
+        memory_mw,             # 9. Per-agent AGENTS.md loading
+        tool_error_mw,         # 10. ToolError (catches tool exceptions)
     ]
 
     # Build interrupt_on config for HITL-gated tools
