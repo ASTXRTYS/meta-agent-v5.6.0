@@ -22,6 +22,7 @@ from .sections import (
     format_memory_section,
 )
 from .eval_mindset import EVAL_MINDSET_SECTION
+from .eval_engineering import EVAL_ENGINEERING_SECTION
 from .scoring_strategy import SCORING_STRATEGY_SECTION
 from .eval_approval_protocol import EVAL_APPROVAL_PROTOCOL
 
@@ -41,6 +42,7 @@ def construct_orchestrator_prompt(
     sections = [
         ROLE_SECTION,
         EVAL_MINDSET_SECTION,
+        EVAL_ENGINEERING_SECTION,
         CORE_BEHAVIOR_SECTION,
         ARTIFACT_PROTOCOL_SECTION,
         format_workspace_section(project_dir, project_id),

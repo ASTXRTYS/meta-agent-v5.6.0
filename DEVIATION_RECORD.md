@@ -244,6 +244,42 @@ The `@tool` version of `transition_stage` cannot access graph state to validate 
 
 ---
 
+## Deviation 9: Eval Engineering prompt section added (Polly Enhancement)
+
+- Files: `meta_agent/prompts/eval_engineering.py` (new), `meta_agent/prompts/sections.py`, `meta_agent/prompts/orchestrator.py`, `meta_agent/prompts/__init__.py`
+- Spec sections: `7.3`, `22.14`, `22.15`
+- Plan sections: `0.2.9`, `2.2.2`
+- Source: Polly assessment (LangSmith trace `019d2a1c-bdf9-7a01-b683-8278e3345d6d`)
+
+### Gap
+
+The orchestrator had no dedicated guidance on eval engineering methodology. The agent improvised eval formats, scoring strategies, and dataset structures through conversation rather than from prompt instructions. This meant:
+- Agent wrote YAML when LangSmith needs JSON
+- Likert anchors were improvised inconsistently
+- No synthetic data curation protocol existed
+- No LangSmith dataset schema guidance was present
+
+### Fix
+
+Three changes to the prompt system:
+
+1. **New `EVAL_ENGINEERING_SECTION`** (always-on for orchestrator) — eval taxonomy (5 categories), scoring strategies with mandatory Likert anchor SOP, LangSmith-compatible JSON dataset format, synthetic data curation protocol, eval suite artifact schema, and dataset writing format.
+
+2. **Enhanced `STAGE_CONTEXTS["INTAKE"]`** — 5-phase protocol (Requirements Elicitation, PRD Drafting, Eval Definition, Synthetic Data Curation, Approval), 3 exit artifacts (PRD + eval suite JSON + synthetic dataset), hard rules (JSON not YAML, mandatory Likert anchors, no eval skipping).
+
+3. **Expanded `ROLE_SECTION`** — eval engineering elevated to named core PM skill with LangSmith format awareness and curation methodology.
+
+### Root cause: Prompt gap — spec and plan defined eval tools and eval-mindset sections but did not include structured methodology guidance for the agent to follow when writing evals and curating datasets.
+
+### Spec/Plan updates applied
+
+- Plan Section 0.2.9: `[v5.6-R]` note documenting new `eval_engineering.py` section
+- Plan Section 2.2.2: `[v5.6-R]` note documenting enhanced INTAKE context with 3-artifact exit conditions
+- Spec Section 22.15: `[v5.6-R]` note documenting the fourth eval-specific section file
+- Spec Section 22.16: `[v5.6-R]` note documenting always-on loading and enhanced INTAKE protocol
+
+---
+
 ## Follow-up
 
 - Keep this record synced with spec updates.

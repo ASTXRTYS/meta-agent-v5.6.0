@@ -3926,9 +3926,11 @@ Ordering: MUST be first in the explicit middleware list, before AnthropicPromptC
 
 [v5.5.4] Defines all named prompt section constants (ROLE_SECTION, WORKSPACE_SECTION, STAGE_CONTEXT_SECTION, etc.) as documented in Section 7.2.1. [v5.6-P] The monolithic EVAL_CREATION_PROTOCOL_SECTION has been split into three separate files: eval_mindset.py (Section 22.19), scoring_strategy.py (Section 22.20), and eval_approval_protocol.py (Section 22.21).
 
+[v5.6-R] A fourth eval-specific section has been added: `meta_agent/prompts/eval_engineering.py` containing `EVAL_ENGINEERING_SECTION`. This section is always loaded for the orchestrator and provides structured guidance on eval taxonomy (5 categories: Infrastructure, Behavioral, Quality, Reasoning, Integration), scoring strategies with mandatory Likert anchor SOP, LangSmith-compatible JSON dataset format (inputs/outputs/metadata), synthetic data curation protocol, eval suite artifact schema, and dataset writing format. Source: Polly assessment (LangSmith trace `019d2a1c-bdf9-7a01-b683-8278e3345d6d`).
+
 ## 22.16 meta_agent/prompts/orchestrator.py
 
-[v5.5.4] Implements construct_orchestrator_prompt() as documented in Section 7.2.2. [v5.6-P] Updated with stage-aware composition: EVAL_MINDSET_SECTION always loaded, SCORING_STRATEGY_SECTION loaded during INTAKE/SPEC_REVIEW, EVAL_APPROVAL_PROTOCOL loaded during INTAKE/PRD_REVIEW/SPEC_REVIEW, DELEGATION_SECTION loaded during RESEARCH/SPEC_GENERATION/PLANNING/EXECUTION. See Section 7.3 for the full composition function.
+[v5.5.4] Implements construct_orchestrator_prompt() as documented in Section 7.2.2. [v5.6-P] Updated with stage-aware composition: EVAL_MINDSET_SECTION always loaded, SCORING_STRATEGY_SECTION loaded during INTAKE/SPEC_REVIEW, EVAL_APPROVAL_PROTOCOL loaded during INTAKE/PRD_REVIEW/SPEC_REVIEW, DELEGATION_SECTION loaded during RESEARCH/SPEC_GENERATION/PLANNING/EXECUTION. See Section 7.3 for the full composition function. [v5.6-R] `EVAL_ENGINEERING_SECTION` is now also always loaded, positioned after `EVAL_MINDSET_SECTION`. The INTAKE `STAGE_CONTEXTS` entry has been enhanced with a 5-phase protocol (Requirements Elicitation, PRD Drafting, Eval Definition, Synthetic Data Curation, Approval) and 3 exit artifacts (PRD + eval suite JSON + synthetic dataset). The `ROLE_SECTION` now elevates eval engineering as a named core PM skill.
 
 ## 22.17 meta_agent/tools/eval_tools.py [v5.6]
 

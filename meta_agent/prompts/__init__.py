@@ -24,6 +24,7 @@ from .sections import (
     format_memory_section,
 )
 from .eval_mindset import EVAL_MINDSET_SECTION
+from .eval_engineering import EVAL_ENGINEERING_SECTION
 from .scoring_strategy import SCORING_STRATEGY_SECTION
 from .eval_approval_protocol import EVAL_APPROVAL_PROTOCOL
 from .orchestrator import construct_orchestrator_prompt
@@ -44,6 +45,7 @@ __all__ = [
     "SECTION_MATRIX",
     "STAGE_CONTEXTS",
     "EVAL_MINDSET_SECTION",
+    "EVAL_ENGINEERING_SECTION",
     "SCORING_STRATEGY_SECTION",
     "EVAL_APPROVAL_PROTOCOL",
     "construct_orchestrator_prompt",

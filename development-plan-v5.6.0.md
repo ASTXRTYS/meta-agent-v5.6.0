@@ -522,6 +522,9 @@ Phase 0 establishes the repository structure, core state model, configuration, p
   - `meta_agent/prompts/scoring_strategy.py` (Section 22.20): `SCORING_STRATEGY_SECTION` â€” loaded only during INTAKE and SPEC_REVIEW. Contains Binary pass/fail and Likert 1-5 with anchored definitions (V1 only).
   - `meta_agent/prompts/eval_approval_protocol.py` (Section 22.21): `EVAL_APPROVAL_PROTOCOL` â€” loaded during INTAKE, PRD_REVIEW, SPEC_REVIEW. Contains all 7 user response branches.
 
+- **[v5.6-R] New eval-specific section added post-assessment:**
+  - `meta_agent/prompts/eval_engineering.py`: `EVAL_ENGINEERING_SECTION` — always loaded for orchestrator. Contains eval taxonomy (5 categories: Infrastructure, Behavioral, Quality, Reasoning, Integration), scoring strategies with mandatory Likert anchor SOP, LangSmith-compatible JSON dataset format, synthetic data curation protocol, eval suite artifact schema, and dataset writing format. Source: Polly assessment (LangSmith trace `019d2a1c-bdf9-7a01-b683-8278e3345d6d`).
+
 - Section Selection Matrix per Section 7.2.5 â€” implement as a constant:
   ```python
   SECTION_MATRIX = {
@@ -1407,6 +1410,8 @@ Phase 2 implements the eval tools, INTAKE stage wiring (orchestrator writes PRD 
   7. Hard gate: "Do these evals capture what success looks like?"
 
 - After PRD + eval suite are written, orchestrator delegates to document-renderer for DOCX/PDF (Section 3.1 exit conditions)
+- **[v5.6-R] Enhanced INTAKE stage context:** The INTAKE `STAGE_CONTEXTS` entry now requires 3 exit artifacts (PRD + eval suite in JSON format + synthetic dataset), includes a 5-phase protocol (Requirements Elicitation, PRD Drafting, Eval Definition, Synthetic Data Curation, Approval), enforces hard rules (JSON not YAML for evals/datasets, mandatory Likert anchors, no eval skipping), and the `ROLE_SECTION` elevates eval engineering as a named core PM skill. Source: Polly assessment.
+
 
 - Tier 1 eval suite written to `{project_dir}/evals/eval-suite-prd.yaml` per Section 5.10 schema:
   ```yaml
