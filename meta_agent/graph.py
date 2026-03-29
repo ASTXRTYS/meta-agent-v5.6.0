@@ -49,6 +49,7 @@ from meta_agent.tools import LANGCHAIN_TOOLS
 from meta_agent.tools.registry import HITL_GATED_TOOLS
 from meta_agent.prompts.orchestrator import construct_orchestrator_prompt
 from meta_agent.subagents.configs import build_orchestrator_subagents
+from meta_agent.tracing import prepare_agent_state
 
 
 def create_graph(
@@ -162,6 +163,22 @@ def create_graph(
         project_id=project_id,
         skills_dirs=skills_dirs,
     )
+
+    # Emit prepare_agent_state spans (Spec 18.5.1, Gap 1)
+    # Documents what each agent was provisioned with at graph creation time.
+    prepare_agent_state(
+        agent_name="orchestrator",
+        state_keys=list(MetaAgentState.__annotations__.keys()),
+        artifact_paths=[project_dir] if project_dir else [],
+        skill_dirs=skills_dirs,
+        tools=[t.name for t in LANGCHAIN_TOOLS],
+    )
+    for sa in subagents:
+        prepare_agent_state(
+            agent_name=sa["name"],
+            skill_dirs=sa.get("skills", []),
+            tools=[t.name for t in sa.get("tools", []) if hasattr(t, "name")],
+        )
 
     # Create the real graph via deepagents SDK
     graph = create_deep_agent(
