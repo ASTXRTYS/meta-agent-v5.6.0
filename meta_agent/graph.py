@@ -48,6 +48,7 @@ from meta_agent.middleware.tool_error_handler import ToolErrorMiddleware
 from meta_agent.tools import LANGCHAIN_TOOLS
 from meta_agent.tools.registry import HITL_GATED_TOOLS
 from meta_agent.prompts.orchestrator import construct_orchestrator_prompt
+from meta_agent.subagents.configs import build_orchestrator_subagents
 
 
 def create_graph(
@@ -155,12 +156,20 @@ def create_graph(
         str(repo_root / "skills" / "anthropic" / "skills"),             # 17 skills
     ]
 
+    # Build SDK-compatible subagent definitions (Section 6, 22.3)
+    subagents = build_orchestrator_subagents(
+        project_dir=project_dir,
+        project_id=project_id,
+        skills_dirs=skills_dirs,
+    )
+
     # Create the real graph via deepagents SDK
     graph = create_deep_agent(
         model=cfg.model_name,
         tools=LANGCHAIN_TOOLS,
         system_prompt=system_prompt,
         middleware=explicit_middleware,
+        subagents=subagents,
         checkpointer=checkpointer,
         store=store,
         backend=backend,

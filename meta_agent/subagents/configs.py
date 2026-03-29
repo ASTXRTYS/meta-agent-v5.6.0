@@ -4,10 +4,14 @@ Spec Reference: Sections 22.3, 6, 2.2.1
 
 Defines all 8 subagent configurations with middleware stacks,
 tool sets, effort levels, and recursion limits.
+
+Provides build_orchestrator_subagents() to produce SDK-compatible SubAgent
+dicts for the create_deep_agent(subagents=...) parameter.
 """
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any
 
 
@@ -160,3 +164,178 @@ def get_subagent_middleware(agent_name: str) -> list[str]:
 def get_all_subagent_names() -> list[str]:
     """Get list of all configured subagent names."""
     return list(SUBAGENT_CONFIGS.keys())
+
+
+# ---------------------------------------------------------------------------
+# SDK-compatible SubAgent builder (Spec Sections 6, 22.3, 22.4)
+#
+# Converts the metadata configs above into dicts matching the deepagents
+# SubAgent TypedDict: {name, description, system_prompt, tools?, middleware?,
+# skills?}.  Filesystem tools (read_file, write_file, ls, edit_file, glob,
+# grep) are provided automatically by FilesystemMiddleware on each subagent
+# and must NOT be passed again in tools=[].
+# ---------------------------------------------------------------------------
+
+# Descriptions per spec Section 6.x — used by SubAgentMiddleware's task tool
+# to let the orchestrator know what each agent can do.
+SUBAGENT_DESCRIPTIONS: dict[str, str] = {
+    "research-agent": (
+        "Deep ecosystem researcher. Performs multi-pass web research, "
+        "loads skills, and produces structured research bundles with "
+        "evidence citations and PRD coverage matrices."
+    ),
+    "spec-writer": (
+        "Technical specification author. Transforms an approved PRD and "
+        "research bundle into a zero-ambiguity technical specification "
+        "with full PRD traceability and Tier 2 eval proposals."
+    ),
+    "plan-writer": (
+        "Development lifecycle planner. Creates actionable implementation "
+        "plans with eval-phase mapping, phase gates, observation "
+        "checkpoints, and spec coverage matrices."
+    ),
+    "code-agent": (
+        "Implementation engineer. Writes code, runs tests, manages the "
+        "LangGraph dev server, and coordinates observation/evaluation/audit "
+        "sub-agents during the EXECUTION phase."
+    ),
+    "verification-agent": (
+        "Artifact verifier. Cross-checks produced artifacts against their "
+        "source requirements to confirm completeness before user review."
+    ),
+    "test-agent": (
+        "Test engineer. Writes and runs tests to validate the "
+        "implementation against the specification."
+    ),
+    "document-renderer": (
+        "Document formatter. Converts Markdown artifacts into "
+        "professionally formatted DOCX and PDF files."
+    ),
+}
+
+
+def _resolve_middleware_instances() -> dict[str, Any]:
+    """Lazily import and return middleware class instances by name."""
+    from meta_agent.middleware.tool_error_handler import ToolErrorMiddleware
+    from meta_agent.middleware.completion_guard import CompletionGuardMiddleware
+    return {
+        "ToolErrorMiddleware": ToolErrorMiddleware(),
+        "CompletionGuardMiddleware": CompletionGuardMiddleware(),
+    }
+
+
+def build_orchestrator_subagents(
+    project_dir: str = "",
+    project_id: str = "",
+    skills_dirs: list[str] | None = None,
+) -> list[dict[str, Any]]:
+    """Build SDK-compatible SubAgent dicts for create_deep_agent(subagents=...).
+
+    Each subagent gets:
+    - name, description, system_prompt (required by SDK)
+    - middleware instances resolved from the string names in SUBAGENT_MIDDLEWARE
+    - skills paths (all agents except document-renderer get full skill set)
+
+    Filesystem tools (read_file, write_file, etc.) are NOT passed in tools=[]
+    because FilesystemMiddleware is auto-attached on each subagent and provides
+    them. Only custom tools specific to each agent are included.
+
+    Args:
+        project_dir: Project directory for prompt composition.
+        project_id: Project identifier for prompt composition.
+        skills_dirs: Resolved skill directory paths from graph.py.
+
+    Returns:
+        List of SubAgent-compatible dicts ready for create_deep_agent().
+    """
+    from meta_agent.prompts.research_agent import construct_research_agent_prompt
+    from meta_agent.prompts.spec_writer import construct_spec_writer_prompt
+    from meta_agent.prompts.plan_writer import construct_plan_writer_prompt
+    from meta_agent.prompts.code_agent import construct_code_agent_prompt
+
+    mw_instances = _resolve_middleware_instances()
+
+    # Custom tools that are NOT provided by FilesystemMiddleware.
+    # Import only the @tool instances that subagents need beyond filesystem.
+    from meta_agent.tools import (
+        execute_command_tool,
+        langgraph_dev_server_tool,
+        langsmith_cli_tool,
+    )
+
+    # Prompt builders keyed by agent name
+    prompt_builders: dict[str, str] = {
+        "research-agent": construct_research_agent_prompt(project_dir, project_id),
+        "spec-writer": construct_spec_writer_prompt(project_dir, project_id),
+        "plan-writer": construct_plan_writer_prompt(project_dir, project_id),
+        "code-agent": construct_code_agent_prompt(project_dir, project_id),
+        "verification-agent": construct_spec_writer_prompt(project_dir, project_id),
+        "test-agent": construct_plan_writer_prompt(project_dir, project_id),
+        "document-renderer": (
+            "You are the Document Renderer. Convert Markdown artifacts into "
+            "professionally formatted DOCX and PDF files. Use the anthropic/docx "
+            "and anthropic/pdf skills for formatting guidance."
+        ),
+    }
+
+    # Custom (non-filesystem) tools per agent
+    custom_tools: dict[str, list[Any]] = {
+        "research-agent": [],       # web_search/web_fetch are server-side, not tool instances
+        "spec-writer": [],
+        "plan-writer": [],
+        "code-agent": [execute_command_tool, langgraph_dev_server_tool, langsmith_cli_tool],
+        "verification-agent": [],
+        "test-agent": [execute_command_tool],
+        "document-renderer": [],
+    }
+
+    # Skills per agent — all get full set except document-renderer (Section 6.9)
+    doc_renderer_skills = [
+        str(Path(d) / "docx") if "anthropic" in d else None
+        for d in (skills_dirs or [])
+    ]
+    # document-renderer only needs anthropic/docx and anthropic/pdf, but those
+    # are subdirs of the anthropic skills dir which is already a valid skills path.
+    # Per the SDK, skills=[] scans one level for SKILL.md, so we pass the
+    # anthropic skills dir and it sees docx/, pdf/, etc.
+    anthropic_skills_dir = next(
+        (d for d in (skills_dirs or []) if "anthropic" in d), None
+    )
+
+    subagents: list[dict[str, Any]] = []
+
+    for agent_name in [
+        "research-agent", "spec-writer", "plan-writer", "code-agent",
+        "verification-agent", "test-agent", "document-renderer",
+    ]:
+        config = SUBAGENT_CONFIGS.get(agent_name)
+        if not config or config.get("type") == "reserved":
+            continue
+
+        # Resolve middleware string names to instances
+        mw_names = SUBAGENT_MIDDLEWARE.get(agent_name, ["ToolErrorMiddleware"])
+        middleware = [mw_instances[n] for n in mw_names if n in mw_instances]
+
+        # Determine skills for this agent
+        if agent_name == "document-renderer":
+            agent_skills = [anthropic_skills_dir] if anthropic_skills_dir else []
+        else:
+            agent_skills = list(skills_dirs or [])
+
+        entry: dict[str, Any] = {
+            "name": agent_name,
+            "description": SUBAGENT_DESCRIPTIONS.get(agent_name, ""),
+            "system_prompt": prompt_builders.get(agent_name, ""),
+            "middleware": middleware,
+        }
+
+        agent_tools = custom_tools.get(agent_name, [])
+        if agent_tools:
+            entry["tools"] = agent_tools
+
+        if agent_skills:
+            entry["skills"] = agent_skills
+
+        subagents.append(entry)
+
+    return subagents
