@@ -144,10 +144,16 @@ def create_graph(
         for tool_name in HITL_GATED_TOOLS
     }
 
-    # Resolve skills directory (Section 11, 22.4)
+    # Resolve skills directories (Section 11, 22.4)
     # All 31 skills from LangChain, LangSmith, and Anthropic repos are available
     # to the orchestrator via SkillsMiddleware for on-demand SKILL.md loading.
-    skills_dir = str(repo_root / "skills")
+    # Each repo has a different internal layout, so we point to the directory
+    # that contains the skill subdirectories (each with a SKILL.md).
+    skills_dirs = [
+        str(repo_root / "skills" / "langchain" / "config" / "skills"),  # 11 skills
+        str(repo_root / "skills" / "langsmith" / "config" / "skills"),  # 3 skills
+        str(repo_root / "skills" / "anthropic" / "skills"),             # 17 skills
+    ]
 
     # Create the real graph via deepagents SDK
     graph = create_deep_agent(
@@ -159,7 +165,7 @@ def create_graph(
         store=store,
         backend=backend,
         interrupt_on=interrupt_on,
-        skills=[skills_dir],
+        skills=skills_dirs,
         name="meta-agent-orchestrator",
     )
 
