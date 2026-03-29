@@ -11,3 +11,4 @@ venv/
 .venv/
 .langgraph_api/
 tests/results/
+thread_state.json

@@ -48,7 +48,7 @@ v5.6.0 Changelog (Multi-Dimensional Scoring, Orchestrator-as-PM, Per-Agent Memor
 
 [v5.6] C5 — Per-agent AGENTS.md memory replaces single repository-root AGENTS.md. Each agent has its own `.agents/{agent-name}/AGENTS.md` (global and per-project). Critical isolation: each agent sees ONLY its own memory file. Updated Section 13.4.6.
 
-[v5.6] C6 — New eval artifact schemas: eval-suite-prd.yaml (5.10), eval-suite-architecture.yaml (5.11), eval-execution-map.yaml (5.12). Updated Section 5.
+[v5.6] C6 — New eval artifact schemas: eval-suite-prd.json (5.10), eval-suite-architecture.json (5.11), eval-execution-map.json (5.12). Updated Section 5.
 
 [v5.6] C7 — Five new eval tools added: propose_evals (8.15), create_eval_dataset (8.16), run_eval_suite (8.17), get_eval_results (8.18), compare_eval_runs (8.19). Updated Section 8.
 
@@ -90,6 +90,14 @@ v5.6.0-P Changelog (Polly Review Round — System Prompt Revision, Eval Suite, V
 
 [v5.6-P] P-C9 — New implementation file references in Section 22: meta_agent/evals/ directory structure, meta_agent/evals/rubrics/pm_dimensions.py, meta_agent/prompts/eval_mindset.py, meta_agent/prompts/scoring_strategy.py, meta_agent/prompts/eval_approval_protocol.py.
 
+v5.6.0-R Changelog (Research Eval Hardening Alignment)
+
+[v5.6-R] R1 — Added a canonical research-agent evaluation package under `meta_agent/evals/research/` with 38 evaluators, structured judge outputs, a LangSmith SDK experiment harness, and UI-ready judge profiles.
+
+[v5.6-R] R2 — Frozen a 5-scenario synthetic calibration baseline (`golden_path`, `silver_path`, `bronze_path`, `citation_hallucination_failure`, `hitl_subagent_failure`). Latest frozen run achieved `185/185` pass/fail agreement and `182/185` exact agreement. This is evaluator readiness only; the research-agent runtime itself remains unimplemented.
+
+[v5.6-R] R3 — Canonical Tier 1 research-eval artifacts are JSON-first. The workspace seed artifact remains `synthetic-research-agent.json`, and runtime-ready examples are expanded from that seed by `meta_agent/evals/research/synthetic_trace_adapter.py`.
+
 
 Table of Contents
 
@@ -98,6 +106,8 @@ Table of Contents
 This document is the authoritative technical specification for a local-first meta-agent that helps users design, specify, plan, evaluate, audit, and build AI agents within the LangChain ecosystem. The meta-agent operates as a rigorous agent-engineering system: it transforms conversational requirements into durable product artifacts, performs deep ecosystem research, produces implementation-ready technical specifications, generates full development lifecycle plans, and participates in local coding, testing, and evaluation workflows.
 
 [v5.6] The orchestrator doubles as the PM agent: it directly authors the PRD artifact, creates Tier 1 evals during INTAKE, and manages stakeholder alignment. It delegates to subagents for specialized expertise (research, spec writing, planning, coding, testing, verification, document rendering) — not for PM tasks. The system follows an eval-first methodology: if you can't evaluate it, you can't ship it. Every requirement is expressed as a machine-readable eval with an appropriate scoring strategy (binary, Likert 1–5, LLM-as-judge, or pairwise comparison) before implementation begins. Each agent maintains its own per-agent memory via `.agents/{agent-name}/AGENTS.md` files (global and per-project), loaded by MemoryMiddleware with strict isolation — no agent sees another agent's memory.
+
+[v5.6-R] Implementation status note: the external research-agent evaluator stack now exists and is calibrated on synthetic data, but the research-agent runtime/subgraph itself has not been built yet. Any current readiness claim for RESEARCH is therefore about measurement infrastructure, not live runtime performance.
 
 The specification is derived from two upstream artifacts: the Product Requirements Document (PRD) authored by the stakeholder, and a research context document that evaluates available LangChain ecosystem components. Every architecture decision in this document is traceable to a PRD requirement and supported by research evidence. No decision is assumed from convention or preference alone.
 
@@ -222,14 +232,14 @@ The meta-agent operates as a state machine with ten stages. Each stage has defin
 
 | Entry Conditions | User initiates a new conversation with a product idea, workflow description, or agent need. This is the default starting stage for new threads. |
 | --- | --- |
-| Exit Conditions / Acceptance Criteria | [v5.6] A complete PRD artifact has been drafted and written to /workspace/projects/{project_id}/artifacts/intake/prd.md by the orchestrator directly (the orchestrator writes the PRD itself — it does NOT delegate PRD authoring to a subagent). After the PRD is written, the orchestrator creates a Tier 1 eval suite (eval-suite-prd.yaml) proposing evals with appropriate scoring strategies for each requirement. After both artifacts are written and before user review, the orchestrator delegates to the document-renderer sub-agent to produce formatted DOCX and PDF versions of the PRD. The orchestrator then transitions to PRD_REVIEW. |
+| Exit Conditions / Acceptance Criteria | [v5.6] A complete PRD artifact has been drafted and written to /workspace/projects/{project_id}/artifacts/intake/prd.md by the orchestrator directly (the orchestrator writes the PRD itself — it does NOT delegate PRD authoring to a subagent). After the PRD is written, the orchestrator creates a Tier 1 eval suite (`eval-suite-prd.json`) proposing evals with appropriate scoring strategies for each requirement. After both artifacts are written and before user review, the orchestrator delegates to the document-renderer sub-agent to produce formatted DOCX and PDF versions of the PRD. The orchestrator then transitions to PRD_REVIEW. |
 | Artifacts Consumed (Input) | User messages (natural language requirements) |
-| Artifacts Produced (Output) | [v5.6] Draft PRD artifact (/workspace/projects/{project_id}/artifacts/intake/prd.md), Tier 1 eval suite (/workspace/projects/{project_id}/evals/eval-suite-prd.yaml) |
+| Artifacts Produced (Output) | [v5.6] Draft PRD artifact (/workspace/projects/{project_id}/artifacts/intake/prd.md), Tier 1 eval suite (/workspace/projects/{project_id}/evals/eval-suite-prd.json) |
 | Human Review Checkpoints | None required at this stage — the PRD_REVIEW stage handles approval. |
 | Tools Available | [v5.6] write_file, record_decision, record_assumption, transition_stage, propose_evals |
 
 
-[v5.6] Behavioral change: The orchestrator is the PM agent. It writes the PRD directly using write_file — it does NOT delegate to SubAgentMiddleware for PRD content. After drafting the PRD, the orchestrator proposes an initial eval suite interactively. For each PRD requirement, the orchestrator asks: "Is this deterministic or qualitative?" and selects the appropriate scoring strategy (binary pass/fail for deterministic, Likert 1–5 or LLM-as-judge for qualitative). The orchestrator presents the scoring strategy choice to the user and writes the eval suite to eval-suite-prd.yaml.
+[v5.6] Behavioral change: The orchestrator is the PM agent. It writes the PRD directly using write_file — it does NOT delegate to SubAgentMiddleware for PRD content. After drafting the PRD, the orchestrator proposes an initial eval suite interactively. For each PRD requirement, the orchestrator asks: "Is this deterministic or qualitative?" and selects the appropriate scoring strategy (binary pass/fail for deterministic, Likert 1–5 or LLM-as-judge for qualitative). The orchestrator presents the scoring strategy choice to the user and writes the eval suite to `eval-suite-prd.json`.
 
 ### 3.1.1 Multi-Project Artifact Isolation
 
@@ -240,8 +250,8 @@ When the user initiates a new agent project, the orchestrator creates a project-
 
 | Entry Conditions | A draft PRD artifact exists at /workspace/projects/{project_id}/artifacts/intake/prd.md. |
 | --- | --- |
-| Exit Conditions / Acceptance Criteria | [v5.6] User explicitly approves the PRD AND the Tier 1 eval suite (approval recorded in approval_history). The PRD is marked as final with approved_at in its YAML frontmatter. The eval suite is marked as approved in eval-suite-prd.yaml. |
-| Artifacts Consumed (Input) | [v5.6] Draft PRD artifact, Tier 1 eval suite (eval-suite-prd.yaml) |
+| Exit Conditions / Acceptance Criteria | [v5.6] User explicitly approves the PRD AND the Tier 1 eval suite (approval recorded in approval_history). The PRD is marked as final with approved_at in its YAML frontmatter. The eval suite is marked as approved in `eval-suite-prd.json`. |
+| Artifacts Consumed (Input) | [v5.6] Draft PRD artifact, Tier 1 eval suite (`eval-suite-prd.json`) |
 | Artifacts Produced (Output) | [v5.6] Approved PRD artifact (updated frontmatter), Approved eval suite (updated status), Approval history entry |
 | Human Review Checkpoints | [v5.6] The agent asks: 'The PRD and eval suite are ready for review. Would you like to: (a) approve both as-is and proceed to research, (b) request specific changes to the PRD, (c) ask me to identify gaps and strengthen the PRD, or (d) review and modify the eval suite?' User response drives the next action. The eval suite approval is a HARD GATE — the process does not proceed without user approval of evals. |
 | Tools Available | [v5.6] read_file, write_file, request_approval, request_eval_approval, record_decision, transition_stage |
@@ -261,14 +271,16 @@ When the user initiates a new agent project, the orchestrator creates a project-
 
 The RESEARCH stage employs a skills-first methodology. [v5.5.3] All agents have access to the full skill set from all three official repositories (LangChain, LangSmith, Anthropic) via SkillsMiddleware, loading whichever skills are most relevant at runtime. The research-agent loads relevant skills before beginning any web searches, ensuring grounded knowledge of available tools and patterns. Research uses native Claude web_search and web_fetch server-side tools. The research protocol follows a multi-pass approach: breadth-first search, depth-first investigation, agent-controlled compaction between passes (via compact_conversation tool), and structured synthesis. [v5.5.5] The research-agent operates with a 1M native context window (Claude Opus 4.6 supports 1M context natively — no beta header required) and uses SummarizationMiddleware for automatic compaction plus SummarizationToolMiddleware for agent-controlled compaction between research passes.
 
+[v5.6-R] External measurement for this stage is already implemented in `meta_agent/evals/research/` and calibrated on synthetic scenarios. The runtime research-agent described here is still pending implementation, so the repo currently supports evaluator calibration but not live RESEARCH-stage execution.
+
 ## 3.4 SPEC_GENERATION: Technical Specification Generation
 
 
 | Entry Conditions | Approved PRD and research bundle exist. |
 | --- | --- |
-| Exit Conditions / Acceptance Criteria | [v5.6] A complete technical specification artifact has been written that includes a PRD Traceability Matrix showing all PRD requirements as FULLY SPECIFIED, verified by the spec-writer-agent's internal self-verification loop, confirmed by the verification-agent against the PRD. The spec-writer also identifies architecture-introduced testable properties and proposes Tier 2 evals with appropriate scoring strategies, written to eval-suite-architecture.yaml. After the artifact is written, the orchestrator delegates to the document-renderer to produce formatted DOCX and PDF versions. |
-| Artifacts Consumed (Input) | Approved PRD, Research bundle, Tier 1 eval suite (eval-suite-prd.yaml) |
-| Artifacts Produced (Output) | [v5.6] Technical specification artifact (/workspace/projects/{project_id}/artifacts/spec/technical-specification.md), Tier 2 eval suite (/workspace/projects/{project_id}/evals/eval-suite-architecture.yaml) |
+| Exit Conditions / Acceptance Criteria | [v5.6] A complete technical specification artifact has been written that includes a PRD Traceability Matrix showing all PRD requirements as FULLY SPECIFIED, verified by the spec-writer-agent's internal self-verification loop, confirmed by the verification-agent against the PRD. The spec-writer also identifies architecture-introduced testable properties and proposes Tier 2 evals with appropriate scoring strategies, written to `eval-suite-architecture.json`. After the artifact is written, the orchestrator delegates to the document-renderer to produce formatted DOCX and PDF versions. |
+| Artifacts Consumed (Input) | Approved PRD, Research bundle, Tier 1 eval suite (`eval-suite-prd.json`) |
+| Artifacts Produced (Output) | [v5.6] Technical specification artifact (/workspace/projects/{project_id}/artifacts/spec/technical-specification.md), Tier 2 eval suite (/workspace/projects/{project_id}/evals/eval-suite-architecture.json) |
 | Human Review Checkpoints | In active_participation_mode: system prompts, tool contracts, and inter-agent contracts are presented for user approval before inclusion. Otherwise: standard review at SPEC_REVIEW. [v5.6] Architecture-introduced evals are presented for user review during SPEC_REVIEW. |
 | Tools Available | [v5.6] read_file, write_file, edit_file, record_decision, record_assumption, transition_stage, propose_evals |
 
@@ -281,7 +293,7 @@ The RESEARCH stage employs a skills-first methodology. [v5.5.3] All agents have 
 | Entry Conditions | A technical specification artifact exists. |
 | --- | --- |
 | Exit Conditions / Acceptance Criteria | [v5.6] User approves the specification AND the Tier 2 architecture evals. Approval recorded in approval_history. |
-| Artifacts Consumed (Input) | [v5.6] Technical specification artifact, Tier 2 eval suite (eval-suite-architecture.yaml) |
+| Artifacts Consumed (Input) | [v5.6] Technical specification artifact, Tier 2 eval suite (`eval-suite-architecture.json`) |
 | Artifacts Produced (Output) | Approved specification (updated frontmatter), Approved Tier 2 eval suite, Approval history entry |
 | Human Review Checkpoints | [v5.6] The agent presents a summary of the specification and asks for approval, revision requests, or rejection. Also presents architecture-introduced evals for review. |
 | Tools Available | [v5.6] read_file, write_file, request_approval, request_eval_approval, record_decision, transition_stage |
@@ -292,9 +304,9 @@ The RESEARCH stage employs a skills-first methodology. [v5.5.3] All agents have 
 
 | Entry Conditions | An approved technical specification exists. |
 | --- | --- |
-| Exit Conditions / Acceptance Criteria | [v5.6] A complete implementation plan has been written that includes a Spec Coverage Matrix showing all specification sections are covered by plan tasks, verified by the plan-writer-agent's internal reflection loop, confirmed against both the specification and PRD. The plan explicitly includes observation phases, evaluation phases, and audit checkpoints. Every task has a unique ID, status field, spec references, and acceptance criteria. The plan-writer maps existing evals (Tier 1 + Tier 2) to development phases and defines phase gate thresholds, producing eval-execution-map.yaml. The plan-writer does NOT create new evals — it routes existing evals to phases. After the plan is written, the orchestrator delegates to the document-renderer to produce formatted DOCX and PDF versions. |
-| Artifacts Consumed (Input) | [v5.6] Approved specification, Approved PRD, Tier 1 eval suite (eval-suite-prd.yaml), Tier 2 eval suite (eval-suite-architecture.yaml) |
-| Artifacts Produced (Output) | [v5.6] Implementation plan artifact (/workspace/projects/{project_id}/artifacts/planning/implementation-plan.md), Eval execution map (/workspace/projects/{project_id}/evals/eval-execution-map.yaml) |
+| Exit Conditions / Acceptance Criteria | [v5.6] A complete implementation plan has been written that includes a Spec Coverage Matrix showing all specification sections are covered by plan tasks, verified by the plan-writer-agent's internal reflection loop, confirmed against both the specification and PRD. The plan explicitly includes observation phases, evaluation phases, and audit checkpoints. Every task has a unique ID, status field, spec references, and acceptance criteria. The plan-writer maps existing evals (Tier 1 + Tier 2) to development phases and defines phase gate thresholds, producing `eval-execution-map.json`. The plan-writer does NOT create new evals — it routes existing evals to phases. After the plan is written, the orchestrator delegates to the document-renderer to produce formatted DOCX and PDF versions. |
+| Artifacts Consumed (Input) | [v5.6] Approved specification, Approved PRD, Tier 1 eval suite (`eval-suite-prd.json`), Tier 2 eval suite (`eval-suite-architecture.json`) |
+| Artifacts Produced (Output) | [v5.6] Implementation plan artifact (/workspace/projects/{project_id}/artifacts/planning/implementation-plan.md), Eval execution map (/workspace/projects/{project_id}/evals/eval-execution-map.json) |
 | Human Review Checkpoints | In active_participation_mode: phase breakdown, observation/evaluation phase design, and acceptance gates are presented for user input. The plan-writer-agent explicitly asks the user which observation and evaluation strategies to include at each development phase. |
 | Tools Available | [v5.6] read_file, write_file, record_decision, record_assumption, transition_stage, langsmith_trace_list |
 
@@ -337,7 +349,7 @@ The plan-writer-agent has access to the official LangSmith skills repository (ht
 | Entry Conditions | An approved implementation plan exists. |
 | --- | --- |
 | Exit Conditions / Acceptance Criteria | [v5.6] All plan phases are complete or user explicitly stops execution. Execution summary, test summary, and progress log artifacts are produced. Observation reports and evaluation results (if observation/evaluation phases are included in the plan) are produced by the code-agent's sub-agents. The implementation plan's task statuses have been updated to reflect completion. All phase gate eval thresholds have been met (or user has explicitly overridden via HITL). |
-| Artifacts Consumed (Input) | [v5.6] Approved plan, Approved specification, Eval execution map (eval-execution-map.yaml), Tier 1 eval suite (eval-suite-prd.yaml), Tier 2 eval suite (eval-suite-architecture.yaml) |
+| Artifacts Consumed (Input) | [v5.6] Approved plan, Approved specification, Eval execution map (`eval-execution-map.json`), Tier 1 eval suite (`eval-suite-prd.json`), Tier 2 eval suite (`eval-suite-architecture.json`) |
 | Artifacts Produced (Output) | [v5.6] Code files, Test files, Execution summary, Test summary, Progress log, Observation reports (if applicable), Evaluation results per phase gate, Phase gate result artifacts |
 | Human Review Checkpoints | Every file write and every shell command execution requires user approval via interrupt. Code-agent and test-agent outputs are gated. When the code-agent's observation-agent or evaluation-agent produce reports, these are presented to the user for review. [v5.6] Failed phase gates after maximum remediation cycles (3) are escalated to HITL. |
 | Tools Available | [v5.6] read_file, write_file, edit_file, glob, grep, execute_command, langgraph_dev_server, langsmith_cli, langsmith_trace_list, langsmith_trace_get, langsmith_dataset_create, langsmith_eval_run, run_eval_suite, get_eval_results, record_decision, transition_stage |
@@ -353,7 +365,7 @@ The LangGraph dev server runs at http://127.0.0.1:2024 with hot reload enabled b
 
 ### 3.8.1 Phase Gate Eval Protocol [v5.6]
 
-[v5.6] Phase transitions during EXECUTION are gated by eval results from the eval-execution-map.yaml:
+[v5.6] Phase transitions during EXECUTION are gated by eval results from `eval-execution-map.json`:
 
 1. **Before a phase transition**, ALL applicable evals for that phase must run. The evaluation-agent (code-agent subagent) executes the mapped eval suite.
 
@@ -445,11 +457,11 @@ These execution tracking fields (v5.4) allow the orchestrator and the coding age
 
 [v5.6] The following eval-related state fields are added to the TypedDict:
 
-- `eval_suites: list[str]` — Paths to all eval suite YAML files for the current project (e.g., eval-suite-prd.yaml, eval-suite-architecture.yaml). Populated during INTAKE and SPEC_GENERATION. Read by PLANNING and EXECUTION.
+- `eval_suites: list[str]` — Paths to all eval suite JSON files for the current project (e.g., `eval-suite-prd.json`, `eval-suite-architecture.json`). Populated during INTAKE and SPEC_GENERATION. Read by PLANNING and EXECUTION.
 
 - `eval_results: dict` — Dictionary mapping eval run IDs to their results. Keys are experiment IDs (from LangSmith); values include phase_number, timestamp, pass/fail status, and per-eval scores. Updated after each phase gate eval run.
 
-- `current_eval_phase: Optional[str]` — The current phase being evaluated during EXECUTION. Set before each phase gate eval run. Reset to None when not in a phase gate evaluation. Used by the evaluation-agent to determine which evals to run from eval-execution-map.yaml.
+- `current_eval_phase: Optional[str]` — The current phase being evaluated during EXECUTION. Set before each phase gate eval run. Reset to None when not in a phase gate evaluation. Used by the evaluation-agent to determine which evals to run from `eval-execution-map.json`.
 
 ## 4.2 CompositeBackend Design
 
@@ -533,96 +545,104 @@ v5.4 Addition — Progress Log Schema: This log is appended by the code-agent af
 
 [v5.6] The Tier 1 eval suite artifact is created by the orchestrator during INTAKE and stores eval definitions derived from PRD requirements.
 
-```yaml
----
-artifact: eval-suite-prd
-project_id: <project_id>
-version: "1.0.0"
-tier: 1
-langsmith_dataset_name: "<project_id>-tier-1-evals"
-created_by: orchestrator
-status: approved
-lineage:
-  - intake-prd.md
----
-evals:
-  - id: EVAL-001
-    name: "<descriptive name>"
-    category: behavioral | acceptance | edge_case | user_intent
-    input:
-      scenario: "<description of what user does>"
-      preconditions:
-        <key>: <value>
-    expected:
-      behavior: "<expected outcome>"
-      exit_code: <optional int>
-      stdout_contains: "<optional string>"
-    scoring:
-      strategy: binary | likert | llm-judge | pairwise
-      threshold: <float>
-      rubric: "<for binary: verification description>"
-      dimensions:  # for llm-judge only
-        - name: "<dimension>"
-          anchors:
-            1: "<anchor>"
-            3: "<anchor>"
-            5: "<anchor>"
+```json
+{
+  "metadata": {
+    "artifact": "eval-suite-prd",
+    "project_id": "<project_id>",
+    "version": "1.0.0",
+    "tier": 1,
+    "langsmith_dataset_name": "<project_id>-tier-1-evals",
+    "created_by": "orchestrator",
+    "status": "approved",
+    "lineage": ["intake-prd.md"]
+  },
+  "evals": [
+    {
+      "id": "EVAL-001",
+      "name": "<descriptive name>",
+      "category": "behavioral",
+      "input": {
+        "scenario": "<description of what user does>",
+        "preconditions": {"<key>": "<value>"}
+      },
+      "expected": {
+        "behavior": "<expected outcome>",
+        "exit_code": "<optional int>",
+        "stdout_contains": "<optional string>"
+      },
+      "scoring": {
+        "strategy": "binary",
+        "threshold": 1.0,
+        "rubric": "<for binary: verification description>"
+      }
+    }
+  ]
+}
 ```
 
 ## 5.11 Eval Suite Architecture Schema (Tier 2) [v5.6]
 
 [v5.6] The Tier 2 eval suite artifact is created by the spec-writer during SPEC_GENERATION and stores eval definitions derived from architecture decisions.
 
-```yaml
----
-artifact: eval-suite-architecture
-project_id: <project_id>
-version: "1.0.0"
-tier: 2
-langsmith_dataset_name: "<project_id>-tier-2-evals"
-created_by: spec-writer
-status: approved
-lineage:
-  - eval-suite-prd.yaml
-  - technical-specification.md
----
-evals:
-  - id: ARCH-001
-    name: "<descriptive name>"
-    architecture_decision: "<the architecture decision that introduced this testable property>"
-    input:
-      scenario: "<test scenario>"
-      preconditions: {}
-    expected:
-      behavior: "<expected behavior>"
-    scoring:
-      strategy: binary | likert | llm-judge
-      threshold: <float>
+```json
+{
+  "metadata": {
+    "artifact": "eval-suite-architecture",
+    "project_id": "<project_id>",
+    "version": "1.0.0",
+    "tier": 2,
+    "langsmith_dataset_name": "<project_id>-tier-2-evals",
+    "created_by": "spec-writer",
+    "status": "approved",
+    "lineage": ["eval-suite-prd.json", "technical-specification.md"]
+  },
+  "evals": [
+    {
+      "id": "ARCH-001",
+      "name": "<descriptive name>",
+      "architecture_decision": "<the architecture decision that introduced this testable property>",
+      "input": {
+        "scenario": "<test scenario>",
+        "preconditions": {}
+      },
+      "expected": {"behavior": "<expected behavior>"},
+      "scoring": {"strategy": "binary", "threshold": 1.0}
+    }
+  ]
+}
 ```
 
 ## 5.12 Eval Execution Map Schema [v5.6]
 
 [v5.6] The eval execution map is created by the plan-writer during PLANNING and maps existing evals to development phases with gate thresholds.
 
-```yaml
----
-artifact: eval-execution-map
-project_id: <project_id>
-version: "1.0.0"
-created_by: plan-writer
----
-phases:
-  - phase: <int>
-    name: "<phase name>"
-    evals:
-      - id: <EVAL-ID or ARCH-ID>
-        strategy: binary | likert | llm-judge
-        dimensions: [<optional dimension list>]  # for llm-judge
-    pass_conditions:
-      binary: all_pass
-      likert_mean: <float, default 3.5>
-      llm_judge_mean: <float, default 3.5>
-    regression_check: [<list of eval IDs from prior phases>] | all
+```json
+{
+  "artifact": "eval-execution-map",
+  "project_id": "<project_id>",
+  "version": "1.0.0",
+  "created_by": "plan-writer",
+  "phases": [
+    {
+      "phase": "<int>",
+      "name": "<phase name>",
+      "evals": [
+        {
+          "id": "<EVAL-ID or ARCH-ID>",
+          "strategy": "binary",
+          "dimensions": ["<optional dimension list>"]
+        }
+      ],
+      "pass_conditions": {
+        "binary": "all_pass",
+        "likert_mean": 3.5,
+        "llm_judge_mean": 3.5
+      },
+      "regression_check": ["<list of eval IDs from prior phases>"]
+    }
+  ]
+}
 ```
 
 # 6. Subagent Architecture
@@ -1103,7 +1123,7 @@ You are in INTAKE — the requirements gathering and PRD authoring stage.
 
 **Exit conditions (ALL required):**
 1. PRD artifact written to /workspace/projects/{project_id}/artifacts/intake/prd.md
-2. Eval suite written to /workspace/projects/{project_id}/evals/eval-suite-prd.yaml
+2. Eval suite written to /workspace/projects/{project_id}/evals/eval-suite-prd.json
 3. User has explicitly approved BOTH the PRD and the eval suite
 4. Document-renderer has produced DOCX/PDF versions
 
@@ -1249,7 +1269,7 @@ You are in PLANNING — the plan-writer-agent is producing the implementation pl
 
 **Entry condition:** Approved specification exists.
 
-**Exit condition:** Implementation plan written with eval-execution-map.yaml, ready for review.
+**Exit condition:** Implementation plan written with `eval-execution-map.json`, ready for review.
 
 **Your protocol:**
 
@@ -1258,7 +1278,7 @@ You are in PLANNING — the plan-writer-agent is producing the implementation pl
    - Tier 1 and Tier 2 eval suite paths
    - Instructions to map evals to phases and define phase gate thresholds
 
-2. The plan-writer produces eval-execution-map.yaml — it does NOT create new evals, only routes existing ones.
+2. The plan-writer produces `eval-execution-map.json` — it does NOT create new evals, only routes existing ones.
 
 3. Delegate to verification-agent.
 
@@ -1434,9 +1454,9 @@ For V1, use two scoring strategies:
 - Implementation plan: {project_dir}/artifacts/planning/implementation-plan.md
 
 **Eval paths:**
-- Tier 1 evals: {project_dir}/evals/eval-suite-prd.yaml
-- Tier 2 evals: {project_dir}/evals/eval-suite-architecture.yaml
-- Eval execution map: {project_dir}/evals/eval-execution-map.yaml
+- Tier 1 evals: {project_dir}/evals/eval-suite-prd.json
+- Tier 2 evals: {project_dir}/evals/eval-suite-architecture.json
+- Eval execution map: {project_dir}/evals/eval-execution-map.json
 
 **Log paths:**
 - Decision log: {project_dir}/logs/decision-log.yaml
@@ -1866,14 +1886,14 @@ Yes — dataset creation requires user approval.
 
 ## 8.17 run_eval_suite [v5.6]
 
-[v5.6] Runs an eval suite against the current project code, executing all evals mapped to a specific phase. Uses the eval-execution-map.yaml to determine which evals to run.
+[v5.6] Runs an eval suite against the current project code, executing all evals mapped to a specific phase. Uses `eval-execution-map.json` to determine which evals to run.
 
 ### 8.17.1 Input Schema
 
 | Field | Type | Description | Required |
 | --- | --- | --- | --- |
 | phase | int | Phase number to evaluate | Yes |
-| eval_map_path | str | Path to eval-execution-map.yaml | Yes |
+| eval_map_path | str | Path to eval-execution-map.json | Yes |
 | commit_hash | str | Current git commit hash for metadata tagging | No |
 
 ### 8.17.2 Output Format
@@ -2440,7 +2460,9 @@ Key principles:
 | Regression detection (did we break a previously passing eval?) | **Binary pass/fail at 1.0 threshold** | `{pass: true}` or `{pass: false}` | Must be reliable, no ambiguity. Any regression is a failure. |
 
 
-[v5.6-P] **V1 Simplification:** For V1, only **Binary pass/fail** and **Likert 1-5 with anchored definitions** are implemented. LLM-as-judge (Section 15.2.3) and pairwise comparison (Section 15.2.4) are deferred to V2. The full framework is retained in this specification for completeness — V2 items are clearly marked. The orchestrator's SCORING_STRATEGY_SECTION (Section 7.3) reflects this V1 scope.
+[v5.6-P] **V1 Simplification:** For V1, only **Binary pass/fail** and **Likert 1-5 with anchored definitions** are implemented for the orchestrator's authored scoring strategy selection during INTAKE. The full framework is retained in this specification for completeness — V2 items are clearly marked. The orchestrator's SCORING_STRATEGY_SECTION (Section 7.3) reflects this authored-scoring scope.
+
+[v5.6-R] Implementation status note: external offline evaluation is no longer purely deferred. The research-agent evaluation package already uses LLM-as-judge and hybrid evaluators post-hoc for calibration and LangSmith experiments. This does NOT mean the orchestrator now authors only LLM-judge evals by default; it means the measurement stack has advanced ahead of the runtime agent implementation.
 
 ### 15.2.1 Binary Pass/Fail Evals
 
@@ -2732,7 +2754,7 @@ Step 4: User reviews, modifies, adds scenarios interactively
 
 Step 5: Eval dataset is saved as:
         a. A LangSmith dataset (for programmatic execution)
-        b. A local artifact: evals/eval-suite-prd.yaml
+        b. A local artifact: evals/eval-suite-prd.json
 
 Step 6: HITL Checkpoint — "Do these evals capture what success looks like?"
         → Hard gate. Process does not proceed without user approval.
@@ -2899,13 +2921,13 @@ def eval_infra_004_prd_required_sections(project_dir: str) -> dict:
 def eval_infra_005_eval_suite_artifact_exists(project_dir: str) -> dict:
     """INFRA-005: Eval suite artifact created alongside PRD.
     
-    Verifies the orchestrator creates a proposed eval suite YAML file
+    Verifies the orchestrator creates a proposed eval suite JSON file
     in the evals directory.
     
     Priority: P0 (every build)
     Scoring: Binary pass/fail
     """
-    eval_path = f"{project_dir}/evals/eval-suite-prd.yaml"
+    eval_path = f"{project_dir}/evals/eval-suite-prd.json"
     exists = os.path.isfile(eval_path)
     return {
         "pass": exists,
@@ -2916,20 +2938,18 @@ def eval_infra_005_eval_suite_artifact_exists(project_dir: str) -> dict:
 def eval_infra_006_eval_suite_schema_valid(project_dir: str) -> dict:
     """INFRA-006: Each eval in proposed suite has required fields.
     
-    Verifies every eval entry in eval-suite-prd.yaml contains
+    Verifies every eval entry in eval-suite-prd.json contains
     all required structural fields.
     
     Priority: P0 (every build)
     Scoring: Binary pass/fail
     """
-    eval_path = f"{project_dir}/evals/eval-suite-prd.yaml"
+    eval_path = f"{project_dir}/evals/eval-suite-prd.json"
     required_per_eval = ["id", "name", "category", "input", "expected", "scoring"]
     try:
         with open(eval_path) as f:
             content = f.read()
-        # Parse YAML (skip frontmatter)
-        parts = content.split("---", 2)
-        data = yaml.safe_load(parts[-1]) if len(parts) > 2 else yaml.safe_load(content)
+        data = json.loads(content)
         evals = data.get("evals", [])
         if not evals:
             return {"pass": False, "reason": "No evals found in suite"}
@@ -3767,7 +3787,7 @@ Layer 1: SummarizationMiddleware (automatic at 85% context). Layer 2: Summarizat
 
 [v5.6] Eval datasets are **read-only** during EXECUTION. This is a critical safety guardrail:
 
-- **During EXECUTION:** The coding agent, test agent, and evaluation agent may READ eval datasets and eval-execution-map.yaml but may NOT modify them. Eval criteria, thresholds, and scoring strategies are frozen for the duration of execution.
+- **During EXECUTION:** The coding agent, test agent, and evaluation agent may READ eval datasets and `eval-execution-map.json` but may NOT modify them. Eval criteria, thresholds, and scoring strategies are frozen for the duration of execution.
 - **Modification requires HITL:** Only the user (via HITL interrupt) can modify eval criteria, thresholds, or scoring strategies during execution. The orchestrator surfaces a request_eval_approval interrupt if the coding agent identifies an eval that appears incorrect or impossible to satisfy.
 - **Rationale:** If the agent could modify its own eval criteria, it could lower the bar to pass. This defeats the purpose of eval-gated development. The eval suite is the user's specification of "done" — only the user can change it.
 - **Implementation:** The eval tools (run_eval_suite, get_eval_results) read eval files with read-only file handles. The write_file HITL gate prevents unauthorized modification of files in the evals/ directory during EXECUTION stage.

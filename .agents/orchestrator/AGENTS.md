@@ -14,22 +14,25 @@ This file stores persistent memory for the orchestrator/PM agent across sessions
 - **My state:** `meta_agent/state.py` → `MetaAgentState` TypedDict, `WorkflowStage` enum
 - **My prompts:** `meta_agent/prompts/` → 16 prompt sections, stage-aware composition
 - **My tools:** `meta_agent/tools/` → 14+ custom @tool functions
-- **My middleware:** `meta_agent/middleware/` → DynamicSystemPrompt, ToolError, CompletionGuard, MemoryLoader
+- **My middleware:** `meta_agent/middleware/` plus configured SDK middleware → DynamicSystemPrompt, MetaAgentState, SummarizationTool, Memory, ToolError
 - **My subagents:** `meta_agent/subagents/configs.py` → 8 subagent configurations
-- **My evals:** `meta_agent/evals/` → 23 eval functions across 4 categories (INFRA, PM, STAGE, GUARD)
-- **My spec (source of truth):** External at `/Users/Jason/2026/V3/technical-specification-v5.6.0-final (3).md`
+- **My evals:** `meta_agent/evals/` → orchestrator evals plus a dedicated research-eval package under `meta_agent/evals/research/`
+- **My spec (source of truth):** `/Users/Jason/2026/v4/meta-agent-v5.6.0/technical-specification-v5.6.0-final.md`
 
 ### Current Project Status
-- **Phases 0, 1, 2:** COMPLETE. 410 unit tests pass. Real Deep Agents SDK (`deepagents==0.4.12`).
-- **Phase 3 (NEXT):** Research + Spec (research-agent, verification-agent, spec-writer as real SubAgents)
+- **Phases 0, 1, 2:** COMPLETE on the real Deep Agents SDK (`deepagents==0.4.12`).
+- **Research eval stack:** IMPLEMENTED and calibrated ahead of the runtime agent. Canonical 38 evals, 5 synthetic scenarios, LangSmith experiment harness, and UI judge profiles now live under `meta_agent/evals/research/`.
+- **Frozen calibration baseline:** `185/185` pass-fail agreement and `182/185` exact agreement on the synthetic calibration set.
+- **Phase 3 runtime status:** Research-agent runtime is NOT built yet. The next runtime work remains research-agent, verification-agent, and spec-writer implementation.
 - **Phase 4:** Planning + Execution (plan-writer, code-agent)
-- **Phase 5:** Evaluation + Audit (full LangSmith integration)
+- **Phase 5:** End-to-end evaluation + audit UX still needs a more user-friendly orchestrator workflow
 
 ### Existing Datasets
 - `meta-agent-phase-0-scaffolding` (15 examples, ID: `835a9b10-371f-413c-99f9-bdc19e2c4c25`)
 - `meta-agent-phase-1-orchestrator` (18 examples, ID: `70f34716-7d60-4042-a565-c086b063809d`)
 - `meta-agent-phase-2-intake-prd` (11 scenarios, ID: `b7c0535f-c17f-48bd-8663-e2dda2bd8f07`)
 - Phase 2 synthetic data file: `/datasets/phase-2-synthetic-data.yaml`
+- Research eval seed artifacts: `/workspace/projects/meta-agent/` with runtime expansion into 5 calibration scenarios via `meta_agent.evals.research.synthetic_trace_adapter`
 
 ---
 
@@ -81,3 +84,25 @@ This file stores persistent memory for the orchestrator/PM agent across sessions
   - Architecture: main agent decomposes PRD → delegates to sub-agents → sub-agents return raw findings → main agent synthesizes into research bundle
 - **Anchors locked in:** RINFRA-003, RINFRA-004, RQ-001, RQ-002, RQ-003, RQ-004, RQ-007, RQ-008, RQ-009
 - **Anchors still needed:** RQ-005, RQ-006, RR-001, RR-002, RR-003, plus new sub-agent/HITL evals
+
+### Eval Design Decisions (Round 4 — User Feedback)
+- **RQ-010 revised:** Sub-agent delegation must show INTENTIONAL topology reasoning — agent articulates why each sub-agent exists, what it uniquely contributes, why N was chosen over N-1 or N+1
+- **RQ-013 added:** Gap/contradiction remediation quality — identify → root cause → plan → execute → resolve
+- **ALL Likert anchors now defined:** 18 total Likert evals with full 1-5 anchored rubrics
+- **Synthetic data strategy:** GOLDEN-PATH (score 5) + BRONZE-PATH (score 2) only — two calibration poles sufficient for initial LLM-as-judge validation. Additional scenarios deferred.
+- **Total evals: 38** (20 binary + 18 Likert)
+
+### GOLDEN-PATH Synthetic Data — Stages Completed
+- Stage 1 (PRD + eval suite input): APPROVED — uses actual meta-agent PRD
+- Stage 2 (decomposition file): APPROVED — 9 domains, PRD line citations, phased execution
+- Stage 3 (skill interactions): APPROVED — 12 skills, 3 corrections applied re: create_deep_agent, sub-agent isolation, return types
+- Stage 4 (sub-agent delegation): REVISED — intentional topology reasoning (5 options evaluated) + gap/contradiction remediation cycle (5 items identified, 2 resolved analytically, 3 deferred to deep-dive)
+- Stage 5 (HITL cluster): APPROVED — 3 themed clusters, 16 targets, risk assessment
+- Stage 6 (research bundle): COMPLETED — 13 sections, all domains, full citations, SME perspectives, risks, unresolved questions
+
+### FORMAT CORRECTION (System Prompt Update)
+- **Eval suite MUST be JSON** (not YAML) — `eval-suite-prd.json` for direct LangSmith upload
+- **Synthetic datasets MUST be JSON** — LangSmith-compatible schema with `inputs`/`outputs`/`metadata`
+- **Three required INTAKE exit artifacts:** PRD (.md), eval suite (.json), synthetic dataset (.json)
+- YAML working files in /datasets/golden-path/ and /datasets/bronze-path/ are drafts — must be transformed to JSON final deliverables
+- Phase 2 used YAML (`/datasets/phase-2-synthetic-data.yaml`) but going forward all datasets are JSON

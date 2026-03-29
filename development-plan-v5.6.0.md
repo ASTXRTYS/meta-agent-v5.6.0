@@ -12,7 +12,7 @@ This document is the authoritative development plan for the local-first meta-age
 - Orchestrator is the PM agent â€” writes PRDs directly, no delegation for authoring
 - Eval-first methodology with 3-tier eval taxonomy (Tier 1 in INTAKE, Tier 2 in SPEC_GENERATION, mapping in PLANNING, gates in EXECUTION)
 - Per-agent `.agents/{agent-name}/AGENTS.md` memory with strict isolation
-- Multi-dimensional scoring: Binary + Likert (V1); LLM-as-judge + pairwise deferred to V2
+- Multi-dimensional scoring: Binary + Likert remain the authored product-eval baseline; the external research-eval package now also uses LLM-as-judge and hybrid evaluators for offline calibration; pairwise remains deferred
 - 5 new eval tools: `propose_evals`, `create_eval_dataset`, `run_eval_suite`, `get_eval_results`, `compare_eval_runs`
 - 3 new eval prompt sections: `EVAL_MINDSET_SECTION`, `SCORING_STRATEGY_SECTION`, `EVAL_APPROVAL_PROTOCOL`
 - 23-eval orchestrator eval suite (INFRA-001â€“008, PM-001â€“008, STAGE-001â€“003, GUARD-001â€“004)
@@ -23,6 +23,8 @@ This document is the authoritative development plan for the local-first meta-age
 - `meta-agent-phase-0-scaffolding` (15 examples, ID: `835a9b10-371f-413c-99f9-bdc19e2c4c25`)
 - `meta-agent-phase-1-orchestrator` (18 examples, ID: `70f34716-7d60-4042-a565-c086b063809d`)
 - `meta-agent-phase-2-intake-prd` (11 scenarios, ID: `b7c0535f-c17f-48bd-8663-e2dda2bd8f07`)
+
+**2026-03-29 implementation status note:** The research-agent evaluation stack is now implemented in `meta_agent/evals/research/`. It contains the canonical 38 research evals, five synthetic calibration scenarios, a LangSmith SDK experiment harness, and judge profiles. The latest frozen synthetic calibration run reached `185/185` threshold agreement and `182/185` exact agreement. This is evaluator readiness only: the research-agent runtime itself is not built yet, so no real-agent performance experiment has run.
 
 **Phase SOP (Standard Operating Procedure):** Every phase follows a strict structure:
 1. **Overview** â€” what the phase builds, dependencies, spec references
@@ -1037,7 +1039,7 @@ Implement the 6 eval functions for Phase 1 in the appropriate eval files. Full P
 
 | Eval ID | Name | What It Tests | Scoring | Threshold | Priority |
 |---------|------|---------------|---------|-----------|----------|
-| INFRA-005 | Eval Suite Artifact Exists | Eval suite YAML created at `{project_dir}/evals/eval-suite-prd.yaml` | Binary | 1.0 | P0 |
+| INFRA-005 | Eval Suite Artifact Exists | Eval suite JSON created at `{project_dir}/evals/eval-suite-prd.json` | Binary | 1.0 | P0 |
 | INFRA-006 | Eval Suite Schema Valid | Every eval has required fields: id, name, category, input, expected, scoring | Binary | 1.0 | P0 |
 | INFRA-007 | Per-Agent AGENTS.md Created | Orchestrator AGENTS.md exists at `{project_dir}/.agents/orchestrator/AGENTS.md` | Binary | 1.0 | P0 |
 | INFRA-008 | Dynamic Prompt Recomposition After Stage Transition | System prompt changes correctly when stage changes (SCORING_STRATEGY in INTAKE, DELEGATION in RESEARCH) | Binary | 1.0 | P0 |
@@ -1054,13 +1056,13 @@ Implement the 6 eval functions for Phase 1 in the appropriate eval files. Full P
 def eval_infra_005_eval_suite_artifact_exists(project_dir: str) -> dict:
     """INFRA-005: Eval suite artifact created alongside PRD.
 
-    Verifies the orchestrator creates a proposed eval suite YAML file
+    Verifies the orchestrator creates a proposed eval suite JSON file
     in the evals directory.
 
     Priority: P0 (every build)
     Scoring: Binary pass/fail
     """
-    eval_path = f"{project_dir}/evals/eval-suite-prd.yaml"
+    eval_path = f"{project_dir}/evals/eval-suite-prd.json"
     exists = os.path.isfile(eval_path)
     return {
         "pass": exists,
@@ -1071,20 +1073,18 @@ def eval_infra_005_eval_suite_artifact_exists(project_dir: str) -> dict:
 def eval_infra_006_eval_suite_schema_valid(project_dir: str) -> dict:
     """INFRA-006: Each eval in proposed suite has required fields.
 
-    Verifies every eval entry in eval-suite-prd.yaml contains
+    Verifies every eval entry in eval-suite-prd.json contains
     all required structural fields.
 
     Priority: P0 (every build)
     Scoring: Binary pass/fail
     """
-    eval_path = f"{project_dir}/evals/eval-suite-prd.yaml"
+    eval_path = f"{project_dir}/evals/eval-suite-prd.json"
     required_per_eval = ["id", "name", "category", "input", "expected", "scoring"]
     try:
         with open(eval_path) as f:
             content = f.read()
-        # Parse YAML (skip frontmatter)
-        parts = content.split("---", 2)
-        data = yaml.safe_load(parts[-1]) if len(parts) > 2 else yaml.safe_load(content)
+        data = json.loads(content)
         evals = data.get("evals", [])
         if not evals:
             return {"pass": False, "reason": "No evals found in suite"}
@@ -1413,32 +1413,30 @@ Phase 2 implements the eval tools, INTAKE stage wiring (orchestrator writes PRD 
 - **[v5.6-R] Enhanced INTAKE stage context:** The INTAKE `STAGE_CONTEXTS` entry now requires 3 exit artifacts (PRD + eval suite in JSON format + synthetic dataset), includes a 5-phase protocol (Requirements Elicitation, PRD Drafting, Eval Definition, Synthetic Data Curation, Approval), enforces hard rules (JSON not YAML for evals/datasets, mandatory Likert anchors, no eval skipping), and the `ROLE_SECTION` elevates eval engineering as a named core PM skill. Source: Polly assessment.
 
 
-- Tier 1 eval suite written to `{project_dir}/evals/eval-suite-prd.yaml` per Section 5.10 schema:
-  ```yaml
-  ---
-  artifact: eval-suite-prd
-  project_id: <project_id>
-  version: "1.0.0"
-  tier: 1
-  langsmith_dataset_name: "<project_id>-tier-1-evals"
-  created_by: orchestrator
-  status: approved
-  lineage:
-    - intake-prd.md
-  ---
-  evals:
-    - id: EVAL-001
-      name: "..."
-      category: behavioral | acceptance | edge_case | user_intent
-      input:
-        scenario: "..."
-        preconditions: {}
-      expected:
-        behavior: "..."
-      scoring:
-        strategy: binary | likert
-        threshold: <float>
-        rubric: "..."
+- Tier 1 eval suite written to `{project_dir}/evals/eval-suite-prd.json` per Section 5.10 schema:
+  ```json
+  {
+    "metadata": {
+      "artifact": "eval-suite-prd",
+      "project_id": "<project_id>",
+      "version": "1.0.0",
+      "tier": 1,
+      "langsmith_dataset_name": "<project_id>-tier-1-evals",
+      "created_by": "orchestrator",
+      "status": "approved",
+      "lineage": ["intake-prd.md"]
+    },
+    "evals": [
+      {
+        "id": "EVAL-001",
+        "name": "...",
+        "category": "behavioral",
+        "input": {"scenario": "...", "preconditions": {}},
+        "expected": {"behavior": "..."},
+        "scoring": {"strategy": "binary", "threshold": 1.0, "rubric": "..."}
+      }
+    ]
+  }
   ```
 
 ---
@@ -2014,6 +2012,8 @@ If evals fail:
 
 Phase 3 implements the research-agent, verification-agent, spec-writer-agent, and the RESEARCH â†’ SPEC_GENERATION â†’ SPEC_REVIEW stage wiring with Tier 2 eval integration. It depends on Phase 2 for INTAKE/PRD_REVIEW completion (approved PRD and Tier 1 evals exist).
 
+**Current implementation note:** Do not create a second disconnected research-eval stack for this phase. The canonical research-agent evaluator package already exists under `meta_agent/evals/research/`, is calibrated on five synthetic scenarios, and should be treated as the measurement contract for the future runtime implementation.
+
 **Dependencies:** Phase 2 (INTAKE/PRD_REVIEW stages, eval tools, document renderer)
 
 **Spec Section References:** Sections 3.3â€“3.5, 5.3, 5.4, 5.11, 6.1, 6.2, 6.8, 8.15, 19.3, 19.6, 19.7
@@ -2030,6 +2030,7 @@ Phase 3 implements the research-agent, verification-agent, spec-writer-agent, an
 
 **Tasks:**
 
+- Treat `meta_agent/evals/research/` as the canonical measurement stack for this phase. The research-agent runtime must emit the normalized artifacts, state, and trace evidence required by that package rather than inventing a separate evaluation interface.
 - Implement research-agent as Deep Agent via `create_deep_agent()` per Section 6.1:
   - **1M context window** native on Opus 4.6 â€” NO beta header (Section 19.6)
   - Effort level: `max` (Section 10.5.3)
@@ -2106,7 +2107,7 @@ Phase 3 implements the research-agent, verification-agent, spec-writer-agent, an
   - Spec-writer identifies architecture decisions that introduce NEW testable properties not in PRD
   - Examples: "JSON file storage â†’ verify file locking", "argparse CLI â†’ verify help text and argument validation"
   - For each, propose Tier 2 evals with appropriate scoring strategies via `propose_evals(tier=2)`
-  - Write to `{project_dir}/evals/eval-suite-architecture.yaml` per Section 5.11 schema
+  - Write to `{project_dir}/evals/eval-suite-architecture.json` per Section 5.11 schema
 
 - Write spec to `{project_dir}/artifacts/spec/technical-specification.md` per Section 5.4:
   - Required sections: Architecture Overview, State Model, Artifact Schemas, Prompt Strategy, System Prompts, Tool Descriptions and Contracts, Human Review Flows, API Contracts, Environment Configuration, Testing Strategy, Evaluation Strategy, Error Handling, Observability, Safety and Guardrails, Known Risks and Mitigations, PRD Traceability Matrix, Specification Gaps
@@ -2149,29 +2150,32 @@ Phase 3 implements the research-agent, verification-agent, spec-writer-agent, an
 **Tasks:**
 
 - Spec-writer calls `propose_evals(requirements=architecture_testable_properties, tier=2, project_id=...)`
-- Output written to `{project_dir}/evals/eval-suite-architecture.yaml` per Section 5.11:
-  ```yaml
-  ---
-  artifact: eval-suite-architecture
-  project_id: <project_id>
-  version: "1.0.0"
-  tier: 2
-  langsmith_dataset_name: "<project_id>-tier-2-evals"
-  created_by: spec-writer
-  status: approved
-  lineage:
-    - eval-suite-prd.yaml
-    - technical-specification.md
-  ---
-  evals:
-    - id: ARCH-001
-      name: "..."
-      architecture_decision: "..."
-      input: {scenario: "...", preconditions: {}}
-      expected: {behavior: "..."}
-      scoring: {strategy: binary|likert, threshold: <float>}
+- Output written to `{project_dir}/evals/eval-suite-architecture.json` per Section 5.11:
+  ```json
+  {
+    "metadata": {
+      "artifact": "eval-suite-architecture",
+      "project_id": "<project_id>",
+      "version": "1.0.0",
+      "tier": 2,
+      "langsmith_dataset_name": "<project_id>-tier-2-evals",
+      "created_by": "spec-writer",
+      "status": "approved",
+      "lineage": ["eval-suite-prd.json", "technical-specification.md"]
+    },
+    "evals": [
+      {
+        "id": "ARCH-001",
+        "name": "...",
+        "architecture_decision": "...",
+        "input": {"scenario": "...", "preconditions": {}},
+        "expected": {"behavior": "..."},
+        "scoring": {"strategy": "binary", "threshold": 1.0}
+      }
+    ]
+  }
   ```
-- Update state `eval_suites` list to include both eval-suite-prd.yaml and eval-suite-architecture.yaml paths
+- Update state `eval_suites` list to include both `eval-suite-prd.json` and `eval-suite-architecture.json` paths
 
 ---
 
@@ -2192,18 +2196,14 @@ Implement the 7 eval functions for Phase 3 in the appropriate eval files. Full P
 | RESEARCH-003 | Research Quality | Covers all PRD requirements with evidence | Likert | >= 3.0 | P1 |
 | SPEC-001 | Technical Specification Exists | Spec artifact at correct path | Binary | 1.0 | P0 |
 | SPEC-002 | Spec Has PRD Traceability Matrix | 100% coverage confirmed | Binary | 1.0 | P0 |
-| SPEC-003 | Tier 2 Eval Suite Created | eval-suite-architecture.yaml exists | Binary | 1.0 | P0 |
+| SPEC-003 | Tier 2 Eval Suite Created | eval-suite-architecture.json exists | Binary | 1.0 | P0 |
 | SPEC-004 | Spec Quality | Zero-ambiguity, implementable without questions | Likert | >= 3.0 | P1 |
 
 ---
 
 ##### 3.3.2 Eval Definitions
 
-> **SYNTHETIC DATA: Not yet created.** The four-part eval suite for this phase must be completed before the coding agent begins implementation. Required components:
-> 1. **What we're testing** â€” Research bundle completeness, spec coverage, Tier 2 eval creation
-> 2. **What we're looking for** â€” Artifact existence, required sections, coverage matrices, quality scores
-> 3. **Scoring method** â€” Binary for existence/structure checks, Likert for quality assessment
-> 4. **Actual synthetic data** â€” Fabricated research bundles, specs, and Tier 2 eval suites for both pass and fail cases
+> **Current state:** The canonical research-agent calibration data already exists in `meta_agent/evals/research/`. These placeholder eval notes remain here for planning context only. Phase 3 implementation should plug the runtime into that package instead of authoring another disconnected synthetic suite.
 
 The eval implementations should follow the same pattern as Phases 0-2 (code-graded binary evals for structure, LLM-as-judge for quality):
 
@@ -2250,38 +2250,42 @@ def eval_spec_002_traceability_matrix(project_dir: str) -> dict:
 
 def eval_spec_003_tier2_eval_suite(project_dir: str) -> dict:
     """SPEC-003: Tier 2 eval suite artifact created."""
-    path = f"{project_dir}/evals/eval-suite-architecture.yaml"
+    path = f"{project_dir}/evals/eval-suite-architecture.json"
     exists = os.path.isfile(path)
     return {"pass": exists, "reason": f"Tier 2 eval suite {'exists' if exists else 'not found'} at {path}"}
 
 
-# RESEARCH-003 and SPEC-004 require LLM-as-judge â€” implementations pending synthetic data creation
+# Historical placeholder note: these stubs predate the canonical research eval package.
+# Use `meta_agent/evals/research/` for calibration and LangSmith experiments.
 ```
 
 ---
 
 ##### 3.3.3 Synthetic Data Reference
 
-**SYNTHETIC DATA: Not yet created.** Must be fabricated before this phase begins.
+Synthetic calibration data now exists in two layers:
 
-Required components:
-1. **What we're testing** â€” Research bundle completeness and quality, spec coverage and quality, Tier 2 eval creation
-2. **What we're looking for** â€” Artifact existence at canonical paths, required section headers, coverage matrix completeness, writing quality
-3. **Scoring method** â€” Binary for structural checks (RESEARCH-001, RESEARCH-002, SPEC-001, SPEC-002, SPEC-003), Likert 1-5 for quality (RESEARCH-003, SPEC-004)
-4. **Actual synthetic data** â€” Fabricated research bundles (good and bad), technical specifications (complete and incomplete), Tier 2 eval suites
+1. **Seed artifact:** `workspace/projects/meta-agent/datasets/synthetic-research-agent.json`
+2. **Runtime-expanded dataset:** built by `meta_agent.evals.research.synthetic_trace_adapter`
+3. **Canonical scenarios:** `golden_path`, `silver_path`, `bronze_path`, `citation_hallucination_failure`, `hitl_subagent_failure`
+4. **Execution path:** `meta_agent.evals.research.dataset_builder` for raw examples and `meta_agent.evals.research.langsmith_experiment` for LangSmith runs
+
+This means Phase 3 is blocked by missing runtime implementation, not by missing evaluator data or judge infrastructure.
 
 ---
 
 ##### 3.3.4 How to Run
 
 ```bash
-# Run Phase 3 evals
-python -m meta_agent.evals.runner --phase 3 --data datasets/phase-3-synthetic-data.yaml
+# Build the research-agent calibration dataset
+python -m meta_agent.evals.research.dataset_builder --datasets-dir datasets \
+  --output /tmp/research-agent-eval-calibration.json
 
-# Run with LangSmith experiment tracking
-python -m meta_agent.evals.runner --phase 3 --data datasets/phase-3-synthetic-data.yaml \
-  --langsmith-project meta-agent-evals \
-  --experiment "phase-3-gate-$(git rev-parse --short HEAD)"
+# Run the local phased runner against a named calibration scenario
+python -m meta_agent.evals.research.runner --scenario golden_path --mode calibration
+
+# Run the LangSmith synthetic calibration experiment
+python -m meta_agent.evals.research.langsmith_experiment --datasets-dir datasets
 
 # Run regression: all prior phase evals
 python -m meta_agent.evals.runner --phase 0 --data datasets/phase-0-1-synthetic-data.yaml
@@ -2355,28 +2359,29 @@ Phase 4 implements the plan-writer-agent, full document renderer, PLANNING â†
   - Each task has: unique ID, status field, spec references, acceptance criteria
 
 - Implement eval-to-phase mapping per Section 3.6:
-  - Plan-writer reads Tier 1 eval suite (eval-suite-prd.yaml) and Tier 2 eval suite (eval-suite-architecture.yaml)
+  - Plan-writer reads Tier 1 eval suite (`eval-suite-prd.json`) and Tier 2 eval suite (`eval-suite-architecture.json`)
   - Maps each eval to a development phase
   - Defines phase gate thresholds per scoring strategy
   - Does NOT create new evals â€” only routes existing evals to phases
-  - Writes `{project_dir}/evals/eval-execution-map.yaml` per Section 5.12:
-    ```yaml
-    ---
-    artifact: eval-execution-map
-    project_id: <project_id>
-    version: "1.0.0"
-    created_by: plan-writer
-    ---
-    phases:
-      - phase: 1
-        name: "..."
-        evals:
-          - id: EVAL-001
-            strategy: binary
-        pass_conditions:
-          binary: all_pass
-          likert_mean: 3.5
-        regression_check: all
+  - Writes `{project_dir}/evals/eval-execution-map.json` per Section 5.12:
+    ```json
+    {
+      "artifact": "eval-execution-map",
+      "project_id": "<project_id>",
+      "version": "1.0.0",
+      "created_by": "plan-writer",
+      "phases": [
+        {
+          "phase": 1,
+          "name": "...",
+          "evals": [
+            {"id": "EVAL-001", "strategy": "binary"}
+          ],
+          "pass_conditions": {"binary": "all_pass", "likert_mean": 3.5},
+          "regression_check": "all"
+        }
+      ]
+    }
     ```
 
 - Write plan to `{project_dir}/artifacts/planning/implementation-plan.md` per Section 5.5:
@@ -2540,7 +2545,7 @@ Phase 4 implements the plan-writer-agent, full document renderer, PLANNING â†
 - Implement remaining 3 eval tools in `meta_agent/tools/eval_tools.py`:
 
 - `run_eval_suite(phase, eval_map_path, commit_hash)` per Section 8.17:
-  - Runs all evals mapped to specified phase from eval-execution-map.yaml
+  - Runs all evals mapped to specified phase from `eval-execution-map.json`
   - Returns per-eval results + aggregate results
   - Creates LangSmith experiment with metadata (P3)
   - NOT HITL-gated â€” runs autonomously during phase gates
@@ -2605,7 +2610,7 @@ Implement the 8 eval functions for Phase 4. The four-part eval suite must be com
 |---------|------|---------------|---------|-----------|----------|
 | PLAN-001 | Implementation Plan Exists | Plan artifact at correct path | Binary | 1.0 | P0 |
 | PLAN-002 | Plan Has Spec Coverage Matrix | 100% spec coverage | Binary | 1.0 | P0 |
-| PLAN-003 | Eval Execution Map Exists | eval-execution-map.yaml valid | Binary | 1.0 | P0 |
+| PLAN-003 | Eval Execution Map Exists | eval-execution-map.json valid | Binary | 1.0 | P0 |
 | PLAN-004 | Plan Quality | Actionable tasks, observation phases, eval phases | Likert | >= 3.5 | P1 |
 | EXEC-001 | Phase Gate Protocol Works | Evals run before phase transition | Binary | 1.0 | P0 |
 | EXEC-002 | Remediation Cycles Function | Failed evals trigger fix + re-run | Binary | 1.0 | P0 |
@@ -2646,7 +2651,7 @@ def eval_plan_002_spec_coverage(project_dir: str) -> dict:
 
 def eval_plan_003_eval_execution_map(project_dir: str) -> dict:
     """PLAN-003: Eval execution map exists and is valid."""
-    path = f"{project_dir}/evals/eval-execution-map.yaml"
+    path = f"{project_dir}/evals/eval-execution-map.json"
     exists = os.path.isfile(path)
     return {"pass": exists, "reason": f"Eval execution map {'exists' if exists else 'not found'} at {path}"}
 
@@ -2663,7 +2668,7 @@ def eval_plan_003_eval_execution_map(project_dir: str) -> dict:
 
 Required components:
 1. **What we're testing** â€” Plan artifact completeness, phase gate protocol execution, remediation cycle behavior, HITL escalation triggers, regression test execution
-2. **What we're looking for** â€” Plan at canonical path with all required sections, eval-execution-map.yaml with valid phase mappings, phase gate traces showing eval runs before transitions, remediation logs showing fixâ†’re-run cycles, escalation messages after 3 failed cycles
+2. **What we're looking for** â€” Plan at canonical path with all required sections, eval-execution-map.json with valid phase mappings, phase gate traces showing eval runs before transitions, remediation logs showing fixâ†’re-run cycles, escalation messages after 3 failed cycles
 3. **Scoring method** â€” Binary for existence/behavior checks, Likert for plan quality assessment
 4. **Actual synthetic data** â€” Fabricated plans (complete and incomplete), eval execution traces (passing and failing), remediation cycle sequences, escalation triggers
 

@@ -4,7 +4,7 @@
 
 - Date: 2026-03-23
 - Project: `meta-agent-v5.6.0`
-- Spec source of truth: `/Users/Jason/2026/V3/technical-specification-v5.6.0-final (3).md`
+- Spec source of truth: `/Users/Jason/2026/v4/meta-agent-v5.6.0/technical-specification-v5.6.0-final.md`
 - Trigger: runtime failures observed in LangGraph Studio and `/runs/wait` path
 
 ## Deviation 1: Dynamic prompt middleware execution model
@@ -285,3 +285,46 @@ Three changes to the prompt system:
 - Keep this record synced with spec updates.
 - If spec is revised to this implementation, mark these deviations as absorbed and close this record.
 - Category B4 (transition validation) requires an architectural decision before implementation.
+
+---
+
+## Deviation 10: Research eval package hardened and calibrated ahead of runtime implementation
+
+- Files: `meta_agent/evals/research/*`, `workspace/projects/meta-agent/datasets/synthetic-research-agent.json`
+- Spec sections: `3.3`, `5.10`, `15.2`, `15.14`
+- Plan sections: `3.1` through `3.3`
+- Date: `2026-03-29`
+
+### Gap
+
+The repo had a research-agent PRD, a 38-eval suite, and seed synthetic data, but it did not have a production-ready evaluation package that could be executed end-to-end in LangSmith. The seed dataset was summary-level and JSON/YAML references drifted. The runtime research-agent itself also remains unimplemented, so the repo needed a way to prove evaluator readiness independently of agent readiness.
+
+### Implemented behavior
+
+- Added a dedicated research evaluation package under `meta_agent/evals/research/`.
+- Restored the canonical external 38-eval contract.
+- Added deterministic, hybrid, and LLM-as-judge evaluators with structured outputs.
+- Added a LangSmith SDK experiment harness and dataset builder.
+- Froze a 5-scenario synthetic calibration baseline: `golden_path`, `silver_path`, `bronze_path`, `citation_hallucination_failure`, and `hitl_subagent_failure`.
+- Standardized the canonical Tier 1 research eval artifact path to `eval-suite-prd.json`.
+
+### Why
+
+This separates two concerns that were previously blurred:
+
+1. **Evaluator readiness** — can the measurement stack score known-good and known-bad traces consistently?
+2. **Agent readiness** — can the actual research-agent runtime perform well?
+
+The repository needed (1) before Phase 3 runtime implementation could begin in a trustworthy way.
+
+### Evidence
+
+- LangSmith frozen synthetic calibration run: `research-eval-calibration-openai-frozen-1774813660-98b28e62`
+- Threshold agreement: `185/185`
+- Exact agreement: `182/185`
+
+### Impact
+
+- The evaluation stack is ready for Phase 3 runtime integration.
+- No real-agent performance claims are made yet, because the research-agent runtime has not been built.
+- Documentation must clearly distinguish seed artifacts from the runtime-generated calibration dataset and must stop implying that LLM-as-judge work is still entirely deferred in external offline evaluation.

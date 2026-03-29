@@ -124,7 +124,9 @@ make evals         # Run all evals
 
 ## Project Status
 
-Phases 0, 1, and 2 are complete and running on the **real Deep Agents SDK** (`deepagents==0.4.12`). 410 unit tests pass. 23 eval functions implemented across 4 categories. The orchestrator produces a real `CompiledStateGraph` via `create_deep_agent()` and successfully invokes the Anthropic API.
+Phases 0, 1, and 2 are complete and running on the real Deep Agents SDK (`deepagents==0.4.12`). The orchestrator produces a real `CompiledStateGraph` via `create_deep_agent()` and successfully invokes model providers through the configured runtime.
+
+The research-agent runtime itself is not implemented yet, but the research-agent evaluation stack now exists under `meta_agent/evals/research/`. That package implements the canonical 38 research evals, 5 synthetic calibration scenarios, structured judge outputs, LangSmith SDK experiment execution, and UI-ready judge profiles. The latest frozen synthetic calibration baseline reached `185/185` pass/fail agreement and `182/185` exact agreement. This means the measuring instrument is ready before the research-agent runtime exists; no real-agent experiment has been run yet.
 
 ## How It Works
 
@@ -149,11 +151,12 @@ These are **auto-attached** by the SDK — we do NOT instantiate them:
 | `model` | `"claude-opus-4-6"` (from env) | Section 10.5 |
 | `system_prompt` | `construct_orchestrator_prompt()` output | Section 7.3 |
 | `tools` | Custom tools from `meta_agent/tools/` (registered as `@tool`) | Sections 8.1–8.14 |
-| `middleware` | `[DynamicSystemPromptMiddleware, MetaAgentStateMiddleware, ToolErrorMiddleware]` | Sections 22.4, 22.12 |
+| `middleware` | `[DynamicSystemPromptMiddleware, MetaAgentStateMiddleware, SummarizationToolMiddleware, MemoryMiddleware, ToolErrorMiddleware]` | Sections 22.4, 22.12 |
 | `backend` | `FilesystemBackend(root_dir=<repo_root>, virtual_mode=True)` | Section 4.2 |
 | `checkpointer` | `MemorySaver()` (InMemorySaver) | Section 4.3 |
 | `store` | `InMemoryStore()` | Section 4.2 |
 | `interrupt_on` | `{tool_name: True for tool_name in HITL_GATED_TOOLS}` | Section 9.2 |
+| `skills` | `skills/langchain/config/skills`, `skills/langsmith/config/skills`, `skills/anthropic/skills` | Sections 11, 22.4 |
 | `name` | `"meta-agent-orchestrator"` | — |
 
 ### Custom Middleware
@@ -161,9 +164,10 @@ These are **auto-attached** by the SDK — we do NOT instantiate them:
 | Middleware | File | Hook Type | Purpose |
 |---|---|---|---|
 | `DynamicSystemPromptMiddleware` | `middleware/dynamic_system_prompt.py` | `@wrap_model_call` / `@before_model` | Reads `current_stage` from state, builds stage-aware prompt, strips stale system messages from history in `before_model`, then applies request-level system prompt in wrap hooks. **MUST be first in middleware list.** |
+| `MetaAgentStateMiddleware` | `middleware/meta_state.py` | `AgentMiddleware` | Extends the graph state schema and keeps orchestrator state shape aligned with the spec. |
+| `SummarizationToolMiddleware` | `graph.py` (SDK middleware instance) | SDK middleware | Exposes `compact_conversation` for agent-controlled compaction on top of the auto-attached summarization layer. |
+| `MemoryMiddleware` | `graph.py` (SDK middleware instance) | SDK middleware | Loads the orchestrator's own AGENTS.md files with per-agent isolation. |
 | `ToolErrorMiddleware` | `middleware/tool_error_handler.py` | `@wrap_tool_call` | Wraps tool calls in try/except, returns structured error JSON |
-| `CompletionGuardMiddleware` | `middleware/completion_guard.py` | `@after_model` | Injects nudge when model returns no tool calls |
-| `MemoryLoaderMiddleware` | `middleware/memory_loader.py` | `@before_model` | Loads per-agent AGENTS.md with isolation |
 
 ## Architecture
 
@@ -184,22 +188,31 @@ meta_agent/
 ├── tools/              # 14+ custom @tool functions, tool registry
 ├── stages/             # IntakeStage, PrdReviewStage logic
 ├── subagents/          # 8 subagent configs
-└── evals/              # 23 eval functions, CLI runner
+└── evals/              # Orchestrator evals, research eval package, runners
+    └── research/       # 38 research-agent evaluators, dataset builder, LangSmith harness
 ```
 
 ## Remaining Work (Phases 3-5)
 
-- **Phase 3:** Research + Spec (research-agent, verification-agent, spec-writer as real SubAgents)
+- **Phase 3:** Research + Spec runtime implementation (research-agent, verification-agent, spec-writer as real SubAgents). The evaluation stack for this phase already exists; the runtime agent does not.
 - **Phase 4:** Planning + Execution (plan-writer, code-agent with 3 nested sub-agents)
-- **Phase 5:** Evaluation + Audit (full LangSmith integration, CLI)
+- **Phase 5:** End-to-end evaluation + audit UX. LangSmith experiment plumbing exists, but the orchestrator still does not provide a user-friendly end-to-end eval/testing workflow.
 
 ## Spec and Plan Documents
 
-- **Technical Specification (source of truth):** `/Users/Jason/2026/V3/technical-specification-v5.6.0-final (3).md`
-- **Implementation Deviation Record:** `DEVIATION_RECORD.md`
+- **Technical Specification (source of truth):** `/Users/Jason/2026/v4/meta-agent-v5.6.0/technical-specification-v5.6.0-final.md`
+- **Development Plan:** `/Users/Jason/2026/v4/meta-agent-v5.6.0/development-plan-v5.6.0.md`
+- **Implementation Deviation Record:** `/Users/Jason/2026/v4/meta-agent-v5.6.0/DEVIATION_RECORD.md`
 
 ## LangSmith Datasets (Pre-loaded)
 
 - `meta-agent-phase-0-scaffolding` (15 examples, ID: `835a9b10-371f-413c-99f9-bdc19e2c4c25`)
 - `meta-agent-phase-1-orchestrator` (18 examples, ID: `70f34716-7d60-4042-a565-c086b063809d`)
 - `meta-agent-phase-2-intake-prd` (11 scenarios, ID: `b7c0535f-c17f-48bd-8663-e2dda2bd8f07`)
+
+## Research Eval Calibration
+
+- Seed artifacts live under `/workspace/projects/meta-agent/` and are expanded into a 5-scenario calibration dataset by `meta_agent.evals.research.synthetic_trace_adapter`.
+- Build the raw LangSmith-ready dataset with `python -m meta_agent.evals.research.dataset_builder --datasets-dir datasets --output /tmp/research-agent-eval-calibration.json`.
+- Run the synthetic calibration experiment with `python -m meta_agent.evals.research.langsmith_experiment --datasets-dir datasets`.
+- The frozen calibration baseline validates evaluator behavior only. It does not measure the real research-agent runtime because that runtime is still unimplemented.
