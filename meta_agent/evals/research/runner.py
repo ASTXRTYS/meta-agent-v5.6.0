@@ -5,11 +5,13 @@ from __future__ import annotations
 import argparse
 import asyncio
 import inspect
+import os
 import sys
 import time
 from typing import Any
 
 from meta_agent.evals.research.evaluators import RESEARCH_EVAL_REGISTRY
+from meta_agent.evals.research.report import generate_report
 from meta_agent.evals.research.synthetic_trace_adapter import load_calibration_dataset
 
 
@@ -330,6 +332,11 @@ def main() -> None:
     )
     parser.add_argument("--mode", default="calibration", choices=["calibration", "trace"])
     parser.add_argument("--quiet", action="store_true")
+    parser.add_argument(
+        "--report-dir",
+        default=None,
+        help="Directory to save markdown experiment report (default: workspace/projects/meta-agent/evals/reports/)",
+    )
     args = parser.parse_args()
 
     phases = None if args.phase == "all" else [args.phase.upper()]
@@ -344,6 +351,25 @@ def main() -> None:
             verbose=not args.quiet,
         )
     )
+
+    report_dir = args.report_dir
+    if report_dir is None:
+        repo_root = os.path.join(os.path.dirname(__file__), "..", "..", "..")
+        report_dir = os.path.join(repo_root, "workspace", "projects", "meta-agent", "evals", "reports")
+
+    results_list = result.get("results", [])
+    if results_list:
+        phase_label = args.phase if args.phase != "all" else "all"
+        experiment_name = f"research-{args.mode}-phase-{phase_label}-{args.scenario}"
+        generate_report(
+            results_list,
+            experiment_name=experiment_name,
+            scenario=args.scenario,
+            mode=args.mode,
+            report_dir=report_dir,
+            extra_metadata={"phases": phase_label, "data_dir": args.data},
+        )
+
     if not result.get("passed", False):
         sys.exit(1)
 

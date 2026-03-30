@@ -14,6 +14,7 @@ from langsmith import Client, evaluate
 
 from meta_agent.evals.research.dataset_builder import build_dataset
 from meta_agent.evals.research.evaluators import RESEARCH_EVAL_REGISTRY
+from meta_agent.evals.research.report import generate_report_from_experiment_results
 
 
 def _load_env() -> None:
@@ -68,6 +69,7 @@ def run_experiment(
     dataset_prefix: str = "research-agent-eval-calibration",
     experiment_prefix: str = "research-eval-calibration",
     include_deferred: bool = False,
+    report_dir: str | None = None,
 ) -> dict[str, Any]:
     _load_env()
     client = Client()
@@ -96,6 +98,17 @@ def run_experiment(
         data=dataset_name,
         evaluators=evaluators,
         experiment_prefix=experiment_name,
+        blocking=True,
+    )
+
+    if report_dir is None:
+        repo_root = os.path.join(os.path.dirname(__file__), "..", "..", "..")
+        report_dir = os.path.join(repo_root, "workspace", "projects", "meta-agent", "evals", "reports")
+
+    generate_report_from_experiment_results(
+        results,
+        experiment_name=experiment_name,
+        report_dir=report_dir,
     )
 
     return {
@@ -110,6 +123,11 @@ def main() -> None:
     parser.add_argument("--dataset-prefix", default="research-agent-eval-calibration")
     parser.add_argument("--experiment-prefix", default="research-eval-calibration")
     parser.add_argument("--include-deferred", action="store_true")
+    parser.add_argument(
+        "--report-dir",
+        default=None,
+        help="Directory to save markdown experiment report (default: workspace/projects/meta-agent/evals/reports/)",
+    )
     args = parser.parse_args()
 
     result = run_experiment(
@@ -117,6 +135,7 @@ def main() -> None:
         dataset_prefix=args.dataset_prefix,
         experiment_prefix=args.experiment_prefix,
         include_deferred=args.include_deferred,
+        report_dir=args.report_dir,
     )
     print(result)
 
