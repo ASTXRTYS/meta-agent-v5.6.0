@@ -250,8 +250,10 @@ def build_orchestrator_subagents(
     """
     from meta_agent.prompts.research_agent import construct_research_agent_prompt
     from meta_agent.prompts.spec_writer import construct_spec_writer_prompt
+    from meta_agent.prompts.verification_agent import construct_verification_agent_prompt
     from meta_agent.prompts.plan_writer import construct_plan_writer_prompt
     from meta_agent.prompts.code_agent import construct_code_agent_prompt
+    from meta_agent.subagents.research_agent import create_research_agent_subagent
 
     mw_instances = _resolve_middleware_instances()
 
@@ -261,6 +263,7 @@ def build_orchestrator_subagents(
         execute_command_tool,
         langgraph_dev_server_tool,
         langsmith_cli_tool,
+        propose_evals_tool,
     )
 
     # Prompt builders keyed by agent name
@@ -269,7 +272,7 @@ def build_orchestrator_subagents(
         "spec-writer": construct_spec_writer_prompt(project_dir, project_id),
         "plan-writer": construct_plan_writer_prompt(project_dir, project_id),
         "code-agent": construct_code_agent_prompt(project_dir, project_id),
-        "verification-agent": construct_spec_writer_prompt(project_dir, project_id),
+        "verification-agent": construct_verification_agent_prompt(project_dir, project_id),
         "test-agent": construct_plan_writer_prompt(project_dir, project_id),
         "document-renderer": (
             "You are the Document Renderer. Convert Markdown artifacts into "
@@ -280,8 +283,8 @@ def build_orchestrator_subagents(
 
     # Custom (non-filesystem) tools per agent
     custom_tools: dict[str, list[Any]] = {
-        "research-agent": [],       # web_search/web_fetch are server-side, not tool instances
-        "spec-writer": [],
+        "research-agent": [],
+        "spec-writer": [propose_evals_tool],
         "plan-writer": [],
         "code-agent": [execute_command_tool, langgraph_dev_server_tool, langsmith_cli_tool],
         "verification-agent": [],
@@ -310,6 +313,16 @@ def build_orchestrator_subagents(
     ]:
         config = SUBAGENT_CONFIGS.get(agent_name)
         if not config or config.get("type") == "reserved":
+            continue
+
+        if agent_name == "research-agent":
+            subagents.append(
+                create_research_agent_subagent(
+                    project_dir=project_dir,
+                    project_id=project_id,
+                    skills_dirs=skills_dirs,
+                )
+            )
             continue
 
         # Resolve middleware string names to instances

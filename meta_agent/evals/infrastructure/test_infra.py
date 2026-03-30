@@ -17,6 +17,7 @@ Phase 1 evals:
 
 from __future__ import annotations
 
+import json
 import os
 from typing import Any
 
@@ -150,13 +151,13 @@ def eval_infra_004_prd_required_sections(project_dir: str) -> dict[str, Any]:
 def eval_infra_005_eval_suite_artifact_exists(project_dir: str) -> dict[str, Any]:
     """INFRA-005: Eval suite artifact created alongside PRD.
 
-    Verifies the orchestrator creates a proposed eval suite YAML file
+    Verifies the orchestrator creates a proposed eval suite JSON file
     in the evals directory.
 
     Priority: P0 (every build)
     Scoring: Binary pass/fail
     """
-    eval_path = f"{project_dir}/evals/eval-suite-prd.yaml"
+    eval_path = f"{project_dir}/evals/eval-suite-prd.json"
     exists = os.path.isfile(eval_path)
     return {
         "pass": exists,
@@ -167,23 +168,20 @@ def eval_infra_005_eval_suite_artifact_exists(project_dir: str) -> dict[str, Any
 def eval_infra_006_eval_suite_schema_valid(project_dir: str) -> dict[str, Any]:
     """INFRA-006: Each eval in proposed suite has required fields.
 
-    Verifies every eval entry in eval-suite-prd.yaml contains
+    Verifies every eval entry in eval-suite-prd.json contains
     all required structural fields.
 
     Priority: P0 (every build)
     Scoring: Binary pass/fail
     """
-    eval_path = f"{project_dir}/evals/eval-suite-prd.yaml"
+    eval_path = f"{project_dir}/evals/eval-suite-prd.json"
     required_per_eval = ["id", "name", "category", "input", "expected", "scoring"]
     try:
         with open(eval_path) as f:
-            content = f.read()
-        # Parse YAML (skip frontmatter)
-        if yaml is not None:
-            parts = content.split("---", 2)
-            data = yaml.safe_load(parts[-1]) if len(parts) > 2 else yaml.safe_load(content)
-        else:
-            return {"pass": False, "reason": "yaml package not installed"}
+            data = json.load(f)
+        metadata = data.get("metadata", {})
+        if not isinstance(metadata, dict):
+            return {"pass": False, "reason": "Missing metadata object"}
         evals = data.get("evals", [])
         if not evals:
             return {"pass": False, "reason": "No evals found in suite"}

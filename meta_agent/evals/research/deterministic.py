@@ -5,21 +5,16 @@ from __future__ import annotations
 import os
 from typing import Any, Iterable, Mapping
 
-try:
-    import yaml
-
-    HAS_YAML = True
-except ImportError:
-    yaml = None  # type: ignore[assignment]
-    HAS_YAML = False
-
 from meta_agent.evals.research.common import (
     CANONICAL_RESEARCH_BUNDLE_PATH,
     CANONICAL_RESEARCH_DECOMPOSITION_PATH,
+    RESEARCH_BUNDLE_FRONTMATTER_FIELDS,
     extract_urls,
+    extract_yaml_frontmatter,
     get_arg_path,
     get_timestamp,
     make_result,
+    missing_research_bundle_frontmatter_fields,
     normalize_url,
 )
 
@@ -157,32 +152,18 @@ def eval_rinfra_002(run: Any, example: Any) -> dict:
     if not content:
         return make_result(0, "RINFRA-002: no bundle content available", flags=["missing_bundle"])
 
-    required = ["artifact", "project_id", "title", "version", "status", "stage", "authors", "lineage"]
     parts = content.split("---", 2)
     if len(parts) < 3:
         return make_result(0, "RINFRA-002: no YAML frontmatter delimiters", flags=["frontmatter_missing"])
 
-    if not HAS_YAML:
-        fm_text = parts[1]
-        missing = [field for field in required if field not in fm_text]
-        return make_result(
-            1 if not missing else 0,
-            "RINFRA-002: all fields present (text check)" if not missing else f"RINFRA-002: missing={missing}",
-            evidence=required if not missing else missing,
-            flags=[] if not missing else ["frontmatter_incomplete"],
-        )
-
-    try:
-        fm = yaml.safe_load(parts[1])
-    except Exception as exc:
-        return make_result(0, f"RINFRA-002: parse error: {exc}", flags=["frontmatter_parse_error"])
-    if not isinstance(fm, dict):
+    fm = extract_yaml_frontmatter(content)
+    if fm is None:
         return make_result(0, "RINFRA-002: frontmatter is not a mapping", flags=["frontmatter_invalid"])
-    missing = [field for field in required if field not in fm]
+    missing = missing_research_bundle_frontmatter_fields(content)
     return make_result(
         1 if not missing else 0,
         "RINFRA-002: all fields present" if not missing else f"RINFRA-002: missing={missing}",
-        evidence=required if not missing else missing,
+        evidence=list(RESEARCH_BUNDLE_FRONTMATTER_FIELDS) if not missing else missing,
         flags=[] if not missing else ["frontmatter_incomplete"],
     )
 

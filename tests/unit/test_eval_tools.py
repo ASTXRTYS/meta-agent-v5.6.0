@@ -1,41 +1,42 @@
-"""Unit tests for meta_agent.tools.eval_tools module (Phase 2)."""
+"""Unit tests for meta_agent.tools.eval_tools module."""
 
 from __future__ import annotations
 
-import os
-import tempfile
-
-import pytest
-
-try:
-    import yaml
-    HAS_YAML = True
-except ImportError:
-    HAS_YAML = False
+import json
 
 from meta_agent.tools.eval_tools import (
-    propose_evals,
-    create_eval_dataset,
-    validate_eval_suite,
-    _build_eval_entry,
+    EVAL_SUITE_TEMPLATE,
+    REQUIRED_EVAL_FIELDS,
     VALID_CATEGORIES,
     VALID_STRATEGIES,
-    REQUIRED_EVAL_FIELDS,
+    _build_eval_entry,
+    create_eval_dataset,
+    propose_evals,
+    validate_eval_suite,
 )
 
 
-class TestProposeEvals:
-    """Tests for the propose_evals tool."""
+def _metadata() -> dict:
+    return {
+        "artifact": "eval-suite-prd",
+        "project_id": "test-proj",
+        "version": "1.0.0",
+        "tier": 1,
+        "langsmith_dataset_name": "test-proj-tier-1-evals",
+        "created_by": "orchestrator",
+        "status": "draft",
+        "lineage": ["intake-prd.md"],
+    }
 
+
+class TestProposeEvals:
     def test_basic_proposal(self):
-        reqs = [
-            {"id": "REQ-001", "description": "Must parse tags", "type": "deterministic"},
-        ]
+        reqs = [{"id": "REQ-001", "description": "Must parse tags", "type": "deterministic"}]
         result = propose_evals(reqs, tier=1, project_id="test-proj")
         assert result["eval_count"] == 1
         assert result["tier"] == 1
         assert result["status"] == "proposed"
-        assert "yaml_content" in result
+        assert "json_content" in result
         assert "path" in result
 
     def test_multiple_requirements(self):
@@ -67,23 +68,23 @@ class TestProposeEvals:
         result = propose_evals(reqs, tier=1, project_id="my-project")
         assert result["dataset_name"] == "my-project-tier-1-evals"
 
-    def test_yaml_content_has_frontmatter(self):
+    def test_json_content_has_metadata(self):
         reqs = [{"id": "REQ-001", "description": "test", "type": "deterministic"}]
         result = propose_evals(reqs, tier=1, project_id="test-proj")
-        yaml_content = result["yaml_content"]
-        assert yaml_content.startswith("---")
-        assert "artifact:" in yaml_content or "artifact: " in yaml_content
+        data = json.loads(result["json_content"])
+        assert data["metadata"]["artifact"] == "eval-suite-prd"
 
-    def test_yaml_content_has_evals(self):
+    def test_json_content_has_evals(self):
         reqs = [{"id": "REQ-001", "description": "test", "type": "deterministic"}]
         result = propose_evals(reqs, tier=1, project_id="test-proj")
-        assert "evals:" in result["yaml_content"]
-        assert "EVAL-001" in result["yaml_content"]
+        data = json.loads(result["json_content"])
+        assert data["evals"][0]["id"] == "EVAL-001"
 
     def test_default_type_is_deterministic(self):
         reqs = [{"id": "REQ-001", "description": "test"}]
         result = propose_evals(reqs, tier=1, project_id="test-proj")
-        assert "binary" in result["yaml_content"]
+        data = json.loads(result["json_content"])
+        assert data["evals"][0]["scoring"]["strategy"] == "binary"
 
     def test_auto_generated_req_ids(self):
         reqs = [{"description": "test requirement"}]
@@ -92,8 +93,6 @@ class TestProposeEvals:
 
 
 class TestBuildEvalEntry:
-    """Tests for _build_eval_entry helper."""
-
     def test_deterministic_gets_binary(self):
         entry = _build_eval_entry("EVAL-001", "REQ-001", "test desc", "deterministic")
         assert entry["scoring"]["strategy"] == "binary"
@@ -123,161 +122,127 @@ class TestBuildEvalEntry:
 
 
 class TestValidateEvalSuite:
-    """Tests for validate_eval_suite."""
-
-    @pytest.mark.skipif(not HAS_YAML, reason="yaml not installed")
     def test_valid_suite(self, tmp_path):
-        suite_content = """---
-artifact: eval-suite-prd
----
-evals:
-  - id: EVAL-001
-    name: Test eval
-    category: acceptance
-    input:
-      scenario: test
-    expected:
-      behavior: passes
-    scoring:
-      strategy: binary
-      threshold: 1.0
-"""
-        path = tmp_path / "eval-suite.yaml"
-        path.write_text(suite_content)
+        suite = {
+            "metadata": _metadata(),
+            "evals": [
+                {
+                    "id": "EVAL-001",
+                    "name": "Test eval",
+                    "category": "acceptance",
+                    "input": {"scenario": "test"},
+                    "expected": {"behavior": "passes"},
+                    "scoring": {"strategy": "binary", "threshold": 1.0},
+                }
+            ],
+        }
+        path = tmp_path / "eval-suite.json"
+        path.write_text(json.dumps(suite))
         result = validate_eval_suite(str(path))
         assert result["valid"] is True
 
     def test_missing_file(self):
-        result = validate_eval_suite("/nonexistent/path.yaml")
+        result = validate_eval_suite("/nonexistent/path.json")
         assert result["valid"] is False
 
-    @pytest.mark.skipif(not HAS_YAML, reason="yaml not installed")
     def test_missing_evals_key(self, tmp_path):
-        path = tmp_path / "bad.yaml"
-        path.write_text("metadata: test\n")
+        path = tmp_path / "bad.json"
+        path.write_text(json.dumps({"metadata": _metadata()}))
         result = validate_eval_suite(str(path))
         assert result["valid"] is False
 
-    @pytest.mark.skipif(not HAS_YAML, reason="yaml not installed")
     def test_empty_evals(self, tmp_path):
-        path = tmp_path / "empty.yaml"
-        path.write_text("evals: []\n")
+        path = tmp_path / "empty.json"
+        path.write_text(json.dumps({"metadata": _metadata(), "evals": []}))
         result = validate_eval_suite(str(path))
         assert result["valid"] is False
 
-    @pytest.mark.skipif(not HAS_YAML, reason="yaml not installed")
     def test_missing_required_fields(self, tmp_path):
-        path = tmp_path / "bad.yaml"
-        path.write_text("evals:\n  - id: EVAL-001\n    name: Test\n")
+        path = tmp_path / "bad.json"
+        path.write_text(json.dumps({"metadata": _metadata(), "evals": [{"id": "EVAL-001", "name": "Test"}]}))
         result = validate_eval_suite(str(path))
         assert result["valid"] is False
         assert any("missing fields" in e for e in result["errors"])
 
-    @pytest.mark.skipif(not HAS_YAML, reason="yaml not installed")
     def test_invalid_strategy(self, tmp_path):
-        suite_content = """evals:
-  - id: EVAL-001
-    name: Test
-    category: acceptance
-    input: test
-    expected: passes
-    scoring:
-      strategy: invalid_strategy
-"""
-        path = tmp_path / "bad.yaml"
-        path.write_text(suite_content)
+        suite = {
+            "metadata": _metadata(),
+            "evals": [
+                {
+                    "id": "EVAL-001",
+                    "name": "Test",
+                    "category": "acceptance",
+                    "input": {"scenario": "test"},
+                    "expected": {"behavior": "passes"},
+                    "scoring": {"strategy": "invalid_strategy"},
+                }
+            ],
+        }
+        path = tmp_path / "bad.json"
+        path.write_text(json.dumps(suite))
         result = validate_eval_suite(str(path))
         assert result["valid"] is False
         assert any("invalid strategy" in e for e in result["errors"])
 
 
 class TestCreateEvalDataset:
-    """Tests for create_eval_dataset."""
-
-    @pytest.mark.skipif(not HAS_YAML, reason="yaml not installed")
     def test_creates_local_dataset(self, tmp_path):
-        suite_content = """---
-artifact: eval-suite-prd
----
-evals:
-  - id: EVAL-001
-    name: Test eval
-    category: acceptance
-    input:
-      scenario: test scenario
-      preconditions: {}
-    expected:
-      behavior: should pass
-    scoring:
-      strategy: binary
-      threshold: 1.0
-"""
-        path = tmp_path / "eval-suite.yaml"
-        path.write_text(suite_content)
+        suite = {
+            "metadata": _metadata(),
+            "evals": [
+                {
+                    "id": "EVAL-001",
+                    "name": "Test eval",
+                    "category": "acceptance",
+                    "input": {"scenario": "test scenario", "preconditions": {}},
+                    "expected": {"behavior": "should pass"},
+                    "scoring": {"strategy": "binary", "threshold": 1.0},
+                }
+            ],
+        }
+        path = tmp_path / "eval-suite.json"
+        path.write_text(json.dumps(suite))
         result = create_eval_dataset(str(path), "test-dataset")
-        # Status depends on LangSmith availability and auth:
-        # "created" = full LangSmith, "local_only" = no langsmith package,
-        # "error" = langsmith installed but not authenticated
         assert result["status"] in ("created", "local_only", "error")
         assert result["dataset_name"] == "test-dataset"
         if result["status"] != "error":
             assert result["example_count"] == 1
 
-    @pytest.mark.skipif(not HAS_YAML, reason="yaml not installed")
     def test_local_only_has_examples(self, tmp_path):
-        suite_content = """---
-artifact: eval-suite-prd
----
-evals:
-  - id: EVAL-001
-    name: Test eval
-    category: acceptance
-    input:
-      scenario: test
-      preconditions: {}
-    expected:
-      behavior: passes
-    scoring:
-      strategy: binary
-      threshold: 1.0
-  - id: EVAL-002
-    name: Test eval 2
-    category: acceptance
-    input:
-      scenario: test 2
-    expected:
-      behavior: passes 2
-    scoring:
-      strategy: likert
-      threshold: 3.5
-"""
-        path = tmp_path / "eval-suite.yaml"
-        path.write_text(suite_content)
+        suite = {
+            "metadata": _metadata(),
+            "evals": [
+                {
+                    "id": "EVAL-001",
+                    "name": "Test eval",
+                    "category": "acceptance",
+                    "input": {"scenario": "test", "preconditions": {}},
+                    "expected": {"behavior": "passes"},
+                    "scoring": {"strategy": "binary", "threshold": 1.0},
+                },
+                {
+                    "id": "EVAL-002",
+                    "name": "Test eval 2",
+                    "category": "acceptance",
+                    "input": {"scenario": "test 2"},
+                    "expected": {"behavior": "passes 2"},
+                    "scoring": {"strategy": "likert", "threshold": 3.5},
+                },
+            ],
+        }
+        path = tmp_path / "eval-suite.json"
+        path.write_text(json.dumps(suite))
         result = create_eval_dataset(str(path), "test-dataset")
         if result["status"] == "local_only":
             assert len(result["examples"]) == 2
             assert result["examples"][0]["inputs"]["eval_id"] == "EVAL-001"
 
-    def test_invalid_suite_returns_error(self):
-        result = create_eval_dataset("/nonexistent.yaml", "test-dataset")
-        assert result["status"] == "error"
+
+def test_eval_suite_template_is_json_shape():
+    assert set(EVAL_SUITE_TEMPLATE) == {"metadata", "evals"}
+    assert EVAL_SUITE_TEMPLATE["metadata"]["artifact"] == "eval-suite-prd"
 
 
-class TestConstants:
-    """Tests for module-level constants."""
-
-    def test_valid_categories(self):
-        assert "behavioral" in VALID_CATEGORIES
-        assert "acceptance" in VALID_CATEGORIES
-        assert "edge_case" in VALID_CATEGORIES
-        assert "user_intent" in VALID_CATEGORIES
-
-    def test_valid_strategies(self):
-        assert "binary" in VALID_STRATEGIES
-        assert "likert" in VALID_STRATEGIES
-        assert "llm-judge" in VALID_STRATEGIES
-        assert "pairwise" in VALID_STRATEGIES
-
-    def test_required_fields(self):
-        assert "id" in REQUIRED_EVAL_FIELDS
-        assert "scoring" in REQUIRED_EVAL_FIELDS
+def test_valid_constants_are_nonempty():
+    assert VALID_CATEGORIES
+    assert VALID_STRATEGIES

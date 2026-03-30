@@ -46,7 +46,7 @@ class PrdReviewStage:
         self.project_dir = project_dir
         self.project_id = project_id
         self.prd_path = f"{project_dir}/artifacts/intake/prd.md"
-        self.eval_suite_path = f"{project_dir}/evals/eval-suite-prd.yaml"
+        self.eval_suite_path = f"{project_dir}/evals/eval-suite-prd.json"
         self.revision_count = 0
 
     def check_entry_conditions(self) -> dict[str, Any]:

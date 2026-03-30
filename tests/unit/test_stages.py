@@ -34,7 +34,7 @@ class TestIntakeStageInit:
     def test_sets_paths(self, tmp_path):
         stage = IntakeStage(str(tmp_path), "test-proj")
         assert stage.prd_path == f"{tmp_path}/artifacts/intake/prd.md"
-        assert stage.eval_suite_path == f"{tmp_path}/evals/eval-suite-prd.yaml"
+        assert stage.eval_suite_path == f"{tmp_path}/evals/eval-suite-prd.json"
         assert stage.project_id == "test-proj"
 
     def test_entry_conditions_always_met(self, tmp_path):
@@ -73,8 +73,8 @@ class TestIntakeExitConditions:
         os.makedirs(eval_dir, exist_ok=True)
         with open(os.path.join(prd_dir, "prd.md"), "w") as f:
             f.write("PRD content")
-        with open(os.path.join(eval_dir, "eval-suite-prd.yaml"), "w") as f:
-            f.write("evals: []")
+        with open(os.path.join(eval_dir, "eval-suite-prd.json"), "w") as f:
+            f.write("{\"metadata\": {}, \"evals\": []}")
         state = {"approval_history": []}
         result = stage.check_exit_conditions(state)
         assert result["met"] is False
@@ -88,8 +88,8 @@ class TestIntakeExitConditions:
         os.makedirs(eval_dir, exist_ok=True)
         with open(os.path.join(prd_dir, "prd.md"), "w") as f:
             f.write("PRD content")
-        with open(os.path.join(eval_dir, "eval-suite-prd.yaml"), "w") as f:
-            f.write("evals: []")
+        with open(os.path.join(eval_dir, "eval-suite-prd.json"), "w") as f:
+            f.write("{\"metadata\": {}, \"evals\": []}")
         state = {
             "approval_history": [
                 {"artifact": "prd", "action": "approved"},
@@ -175,7 +175,7 @@ class TestPrdReviewStageInit:
     def test_sets_paths(self, tmp_path):
         stage = PrdReviewStage(str(tmp_path), "test-proj")
         assert stage.prd_path == f"{tmp_path}/artifacts/intake/prd.md"
-        assert stage.eval_suite_path == f"{tmp_path}/evals/eval-suite-prd.yaml"
+        assert stage.eval_suite_path == f"{tmp_path}/evals/eval-suite-prd.json"
 
     def test_initial_revision_count(self, tmp_path):
         stage = PrdReviewStage(str(tmp_path), "test-proj")

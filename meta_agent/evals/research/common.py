@@ -8,6 +8,14 @@ import re
 from functools import lru_cache
 from typing import Any, Mapping
 
+try:
+    import yaml
+
+    HAS_YAML = True
+except ImportError:
+    yaml = None  # type: ignore[assignment]
+    HAS_YAML = False
+
 ROOT_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "..")
 CANONICAL_EVAL_SUITE_PATH = os.path.join(
     ROOT_DIR,
@@ -28,6 +36,31 @@ CANONICAL_PRD_PATH = os.path.join(
 )
 CANONICAL_RESEARCH_BUNDLE_PATH = "/workspace/projects/meta-agent/artifacts/research/research-bundle.md"
 CANONICAL_RESEARCH_DECOMPOSITION_PATH = "/workspace/projects/meta-agent/artifacts/research/research-decomposition.md"
+RESEARCH_BUNDLE_FRONTMATTER_FIELDS = (
+    "artifact",
+    "project_id",
+    "title",
+    "version",
+    "status",
+    "stage",
+    "authors",
+    "lineage",
+)
+RESEARCH_BUNDLE_REQUIRED_SECTIONS = (
+    "Ecosystem Options with Tradeoffs",
+    "Rejected Alternatives with Rationale",
+    "Model Capability Matrix",
+    "SME Perspectives",
+    "Risks and Caveats",
+    "Confidence Assessment per Domain",
+    "Research Methodology",
+    "Unresolved Questions for Spec-Writer",
+    "PRD Coverage Matrix",
+    "Unresolved Research Gaps",
+    "Skills Baseline Summary",
+    "Gap and Contradiction Remediation Log",
+    "Citation Index",
+)
 
 
 @lru_cache(maxsize=1)
@@ -117,6 +150,90 @@ def normalize_workspace_path(path: str) -> str:
     return path
 
 
+def extract_yaml_frontmatter(text: str) -> dict[str, Any] | None:
+    if not text:
+        return None
+
+    parts = text.split("---", 2)
+    if len(parts) < 3:
+        return None
+
+    if HAS_YAML:
+        try:
+            frontmatter = yaml.safe_load(parts[1])
+        except Exception:
+            return None
+        return frontmatter if isinstance(frontmatter, dict) else None
+
+    frontmatter: dict[str, Any] = {}
+    for line in parts[1].splitlines():
+        stripped = line.strip()
+        if not stripped or stripped.startswith("-") or ":" not in stripped:
+            continue
+        key, value = stripped.split(":", 1)
+        frontmatter[key.strip()] = value.strip()
+    return frontmatter or None
+
+
+def missing_research_bundle_frontmatter_fields(text: str) -> list[str]:
+    frontmatter = extract_yaml_frontmatter(text)
+    if not frontmatter:
+        return list(RESEARCH_BUNDLE_FRONTMATTER_FIELDS)
+    return [
+        field
+        for field in RESEARCH_BUNDLE_FRONTMATTER_FIELDS
+        if field not in frontmatter
+    ]
+
+
+def normalize_markdown_heading(heading: str) -> str:
+    normalized = heading.strip()
+    normalized = re.sub(r"^#+\s*", "", normalized)
+    normalized = re.sub(r"^\d+(?:\.\d+)*[\)\.\-:]\s*", "", normalized)
+    normalized = re.sub(r"\s+", " ", normalized)
+    return normalized.casefold()
+
+
+def _heading_level(line: str) -> int:
+    stripped = line.lstrip()
+    level = len(stripped) - len(stripped.lstrip("#"))
+    return level if level > 0 else 0
+
+
+def find_markdown_headings(text: str, *, level: int | None = None) -> list[str]:
+    if not text:
+        return []
+    headings: list[str] = []
+    for line in text.splitlines():
+        current_level = _heading_level(line)
+        if current_level == 0:
+            continue
+        if level is not None and current_level != level:
+            continue
+        headings.append(line.strip())
+    return headings
+
+
+def present_research_bundle_sections(text: str) -> list[str]:
+    normalized_titles = {
+        normalize_markdown_heading(title): title
+        for title in RESEARCH_BUNDLE_REQUIRED_SECTIONS
+    }
+    present: list[str] = []
+    for heading in find_markdown_headings(text, level=2):
+        canonical = normalized_titles.get(normalize_markdown_heading(heading))
+        if canonical and canonical not in present:
+            present.append(canonical)
+    return present
+
+
+def missing_research_bundle_sections(text: str) -> list[str]:
+    present = set(present_research_bundle_sections(text))
+    return [
+        title for title in RESEARCH_BUNDLE_REQUIRED_SECTIONS if title not in present
+    ]
+
+
 def get_timestamp(tool_call: Mapping[str, Any]) -> float | None:
     value = tool_call.get("timestamp")
     if value is None:
@@ -196,21 +313,26 @@ def extract_markdown_section(
     if not text:
         return ""
     targets = (heading_prefix,) if isinstance(heading_prefix, str) else heading_prefix
+    normalized_targets = {normalize_markdown_heading(target) for target in targets}
     lines = text.splitlines()
     start = None
+    start_level = level
     for idx, line in enumerate(lines):
+        current_level = _heading_level(line)
+        if current_level == 0:
+            continue
         stripped = line.strip()
-        if any(stripped.startswith(target) for target in targets):
+        if current_level == level and normalize_markdown_heading(stripped) in normalized_targets:
             start = idx
+            start_level = current_level
             break
     if start is None:
         return ""
 
-    stop_prefix = "#" * level + " "
     end = len(lines)
     for idx in range(start + 1, len(lines)):
-        stripped = lines[idx].strip()
-        if stripped.startswith(stop_prefix):
+        current_level = _heading_level(lines[idx])
+        if current_level and current_level <= start_level:
             end = idx
             break
 

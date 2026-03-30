@@ -9,7 +9,12 @@ from __future__ import annotations
 
 from typing import Any
 
-from meta_agent.evals.research.common import format_fr_checklist, load_eval_suite
+from meta_agent.evals.research.common import (
+    RESEARCH_BUNDLE_FRONTMATTER_FIELDS,
+    RESEARCH_BUNDLE_REQUIRED_SECTIONS,
+    format_fr_checklist,
+    load_eval_suite,
+)
 
 # ---------------------------------------------------------------------------
 # Load anchors from the canonical eval suite JSON
@@ -46,15 +51,15 @@ SPECIFIC_INSTRUCTIONS: dict[str, str] = {
 
     "RINFRA-003": (
         "WHAT TO EVALUATE: The structural completeness and content quality of the research bundle.\n\n"
-        "REQUIRED SECTIONS (12): Executive Summary, Orchestration Architecture, State Management, "
-        "Human-in-the-Loop, Tool System, Prompt Engineering, Model Capabilities, Evaluation/Observability, "
-        "Safety/Guardrails, Rejected Alternatives, Risks/Caveats, Unresolved Questions.\n\n"
+        f"REQUIRED YAML FRONTMATTER FIELDS: {', '.join(RESEARCH_BUNDLE_FRONTMATTER_FIELDS)}.\n\n"
+        f"REQUIRED SECTIONS (13): {', '.join(RESEARCH_BUNDLE_REQUIRED_SECTIONS)}.\n\n"
         "LOOK FOR:\n"
-        "- Are all 12 required sections present as distinct headings?\n"
+        "- Are all 13 required sections present as distinct H2 headings?\n"
+        "- Is the YAML frontmatter complete and aligned to the research-bundle contract?\n"
         "- Does each section have substantive content (not just a title or one-liner)?\n"
         "- Are sections internally structured with sub-headings, tables, or lists?\n\n"
-        "RED FLAGS (score <= 2): Missing more than 3 required sections; flat structure with no sub-headings.\n\n"
-        "SCORE-4 MINIMUM: All 12 sections present with multi-paragraph content; at least 8 have sub-structure."
+        "RED FLAGS (score <= 2): Missing frontmatter fields; missing more than 3 required sections; flat structure with no sub-headings.\n\n"
+        "SCORE-4 MINIMUM: All 13 sections present with multi-paragraph content; frontmatter complete; at least 8 sections have sub-structure."
     ),
 
     "RINFRA-004": (

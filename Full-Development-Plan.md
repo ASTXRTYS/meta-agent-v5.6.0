@@ -24,7 +24,7 @@ This document is the authoritative development plan for the local-first meta-age
 - `meta-agent-phase-1-orchestrator` (18 examples, ID: `70f34716-7d60-4042-a565-c086b063809d`)
 - `meta-agent-phase-2-intake-prd` (11 scenarios, ID: `b7c0535f-c17f-48bd-8663-e2dda2bd8f07`)
 
-**2026-03-29 implementation status note:** The research-agent evaluation stack is now implemented in `meta_agent/evals/research/`. It contains the canonical 38 research evals, five synthetic calibration scenarios, a LangSmith SDK experiment harness, and judge profiles. The latest frozen synthetic calibration run reached `185/185` threshold agreement and `182/185` exact agreement. This is evaluator readiness only: the research-agent runtime itself is not built yet, so no real-agent performance experiment has run.
+**2026-03-29 implementation status note:** The research-agent evaluation stack is now implemented in `meta_agent/evals/research/`. It contains 38 canonical research eval definitions, five synthetic calibration scenarios, a LangSmith SDK experiment harness, and judge profiles. The default run path treats this as `37 active + 1 deferred` because `RI-001` remains intentionally deferred unless explicitly included. The measurement contract is aligned to the v5.6.1 13-section research-bundle schema. A historical frozen synthetic calibration run reached `185/185` threshold agreement and `182/185` exact agreement before the schema/reporting remediation; rerun calibration before treating that baseline as current. This is evaluator readiness only: the research-agent runtime itself is not built yet, so no real-agent performance experiment has run.
 
 **Phase SOP (Standard Operating Procedure):** Every phase follows a strict structure:
 1. **Overview** â€” what the phase builds, dependencies, spec references
@@ -2030,7 +2030,7 @@ Phase 3 implements the research-agent, verification-agent, spec-writer-agent, an
 
 **Canonical PRD:** `workspace/projects/meta-agent/artifacts/intake/research-agent-prd.md`
 
-**Eval measurement contract:** Treat `meta_agent/evals/research/` as the canonical measurement stack for this phase. The 38 research evals (`eval-suite-prd.json`) and 5-scenario synthetic calibration dataset (`synthetic-research-agent.json`) are already aligned with the PRD. The research-agent runtime must emit the normalized artifacts, state, and trace evidence required by that package rather than inventing a separate evaluation interface. No new eval authoring required.
+**Eval measurement contract:** Treat `meta_agent/evals/research/` as the canonical measurement stack for this phase. The package is aligned to the v5.6.1 research-bundle schema and contains 38 defined research evals, with 37 active in the default run path and `RI-001` deferred unless explicitly included. The research-agent runtime must emit the normalized artifacts, state, and trace evidence required by that package rather than inventing a separate evaluation interface. No new eval authoring is expected as part of normal Phase 3 runtime work.
 
 **Tasks:**
 
@@ -2275,7 +2275,7 @@ This section defines how to run real experiments against the research-agent runt
 
 An experiment has three actors that connect through `langsmith.evaluate()`:
 
-1. **Dataset** â€" provides inputs to the agent and reference outputs for comparison. The dataset for the research-agent is `synthetic-research-agent.json`, already uploaded to LangSmith and expanded into 5 scenarios by `synthetic_trace_adapter.py`.
+1. **Dataset** â€” provides inputs to the agent and reference outputs for comparison. The canonical calibration examples come from the local synthetic research dataset and are expanded into 5 scenarios by `synthetic_trace_adapter.py`. The default experiment script materializes a timestamped LangSmith dataset from those local examples; pass `--dataset-name` to reuse an existing LangSmith dataset instead.
 
 2. **Run function** â€" takes dataset inputs, invokes the real research-agent graph, and returns the agent's actual outputs. The agent runs its full protocol (reading the PRD, consulting skills, spawning sub-agents, writing artifacts). LangSmith automatically captures the full trace.
 
@@ -2535,10 +2535,10 @@ python -m meta_agent.evals.research.runner --phase C --mode trace --scenario gol
 Run after: Topic-organized synthesis, 13-section research bundle, internal reflection loop, all artifacts written.
 
 ```bash
-# Full suite â€" all 38 evals, all phases
+# Full suite â€" 37 active evals by default, all phases
 python -m meta_agent.evals.research.runner --phase all --mode trace --scenario golden_path
 
-# LangSmith experiment (records to LangSmith for comparison)
+# LangSmith experiment (records to LangSmith for comparison; materializes a timestamped dataset unless --dataset-name is provided)
 python -m meta_agent.evals.research.langsmith_experiment --datasets-dir datasets
 ```
 
@@ -2555,7 +2555,7 @@ python -m meta_agent.evals.research.langsmith_experiment --datasets-dir datasets
 | RI-002 | Research covers all PRD functional requirements | Binary | pass |
 | RI-003 | Research covers eval implications | Binary | pass |
 
-**Pass criteria:** ALL 38 evals pass (20 binary pass, 18 Likert >= 4.0). This is the full Layer 2 gate.
+**Pass criteria:** All 37 active Layer 2 evals pass by default (20 binary pass, 17 active Likert >= 4.0, plus `RI-001` remains deferred unless intentionally included). This is the full default Layer 2 gate.
 
 ---
 
@@ -2579,7 +2579,7 @@ python -m meta_agent.evals.runner --phase 2 --data datasets/phase-2-synthetic-da
 python -m meta_agent.evals.research.langsmith_experiment --datasets-dir datasets
 ```
 
-**Pass criteria:** ALL Layer 1 (7) + ALL Layer 2 (38) + ALL regression (23) = 68 total evals pass.
+**Pass criteria:** ALL Layer 1 (7) + ALL active Layer 2 (37) + ALL regression (23) = 67 total active evals pass. If `RI-001` is intentionally included and passes, the total becomes 68.
 
 ---
 
@@ -2589,9 +2589,10 @@ Every experiment run produces a **markdown report** persisted to `workspace/proj
 
 **What each report contains:**
 - **Summary:** binary pass/fail counts, Likert mean/min/max, overall status
-- **Failures section (top of report):** full LLM judge reasoning, evidence quotes, confidence, flags for every failing eval
+- **Failures section (top of report):** full LLM judge reasoning, evidence quotes, confidence, and flags for every failing eval
 - **Passing evals:** summary table (scan, not read)
 - **Judge backend:** which model scored the evals
+- **Registry coverage:** defined, active, and deferred eval counts so the report makes the `37 active + 1 deferred` contract explicit
 
 **Dual-channel workflow for the human builder:**
 
@@ -2623,6 +2624,9 @@ python -m meta_agent.evals.research.runner --phase all --mode trace --report-dir
 
 # LangSmith experiment auto-generates report
 python -m meta_agent.evals.research.langsmith_experiment --datasets-dir datasets
+
+# Reuse an existing LangSmith dataset instead of materializing a timestamped one
+python -m meta_agent.evals.research.langsmith_experiment --datasets-dir datasets --dataset-name research-agent-eval-calibration
 ```
 
 ---
@@ -2802,13 +2806,13 @@ If evals fail:
 
 **Evals pass:**
 - [ ] All 7 Layer 1 phase gate evals pass
-- [ ] All 38 Layer 2 research-agent behavioral evals pass (20 binary + 18 Likert >= 4.0)
+- [ ] All 37 active Layer 2 research-agent behavioral evals pass by default (20 binary + 17 active Likert >= 4.0); document `RI-001` separately if it remains deferred
 - [ ] All 23 regression evals from Phases 0-2 pass
 - [ ] LangSmith experiment recorded with metadata: `phase_number=3`, `commit_hash`, `timestamp`
 
 **Experiment reports:**
 - [ ] Experiment reports exist under `evals/reports/` showing progression from checkpoint 1 through final gate
-- [ ] Final experiment report shows all 38 Layer 2 evals passing (20 binary + 18 Likert >= 4.0)
+- [ ] Final experiment report shows all active Layer 2 evals passing and explicitly reports `defined`, `active`, and `deferred` counts
 
 **Committed:**
 - [ ] Progress committed to git

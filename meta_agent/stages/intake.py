@@ -9,7 +9,7 @@ Key behaviors:
 - Orchestrator writes PRD DIRECTLY using write_file
 - Interactive eval creation experience (Section 15.11)
 - PRD at {project_dir}/artifacts/intake/prd.md with YAML frontmatter
-- Tier 1 eval suite at {project_dir}/evals/eval-suite-prd.yaml
+- Tier 1 eval suite at {project_dir}/evals/eval-suite-prd.json
 """
 
 from __future__ import annotations
@@ -78,7 +78,7 @@ class IntakeStage:
         self.project_dir = project_dir
         self.project_id = project_id
         self.prd_path = f"{project_dir}/artifacts/intake/prd.md"
-        self.eval_suite_path = f"{project_dir}/evals/eval-suite-prd.yaml"
+        self.eval_suite_path = f"{project_dir}/evals/eval-suite-prd.json"
 
     def check_entry_conditions(self) -> dict[str, Any]:
         """Check INTAKE entry conditions.

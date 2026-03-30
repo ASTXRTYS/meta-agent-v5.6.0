@@ -1,17 +1,30 @@
 from __future__ import annotations
 
 import asyncio
+from pathlib import Path
 from types import SimpleNamespace
 
-from meta_agent.evals.research.common import extract_functional_requirements, get_canonical_eval_ids
+import pytest
+
+from meta_agent.evals.research import evaluators as research_evaluators
+from meta_agent.evals.research.common import (
+    extract_functional_requirements,
+    extract_markdown_section,
+    get_canonical_eval_ids,
+    missing_research_bundle_sections,
+    present_research_bundle_sections,
+)
 from meta_agent.evals.research.dataset_builder import build_dataset
 from meta_agent.evals.research.evaluators import (
     RESEARCH_EVAL_REGISTRY,
     eval_rb_005,
+    eval_rinfra_003,
     eval_ri_002,
     eval_ri_003,
 )
+from meta_agent.evals.research.langsmith_experiment import _make_langsmith_evaluator
 from meta_agent.evals.research.langsmith_ui_profiles import EVALUATOR_PROFILES
+from meta_agent.evals.research.report import generate_report_from_experiment_results, normalize_eval_id
 from meta_agent.evals.research.runner import _check_gate, run_suite
 from meta_agent.evals.research.synthetic_trace_adapter import load_calibration_dataset
 
@@ -77,6 +90,119 @@ def test_dataset_builder_returns_raw_example_array():
     assert len(examples) == 5
     assert isinstance(examples[0]["inputs"], dict)
     assert isinstance(examples[0]["outputs"], dict)
+
+
+def test_golden_bundle_uses_v561_section_contract():
+    bundle = Path(DATASETS_DIR, "golden-path", "stage6-research-bundle.md").read_text()
+    present = present_research_bundle_sections(bundle)
+
+    assert missing_research_bundle_sections(bundle) == []
+    assert len(present) == 13
+    assert "dataset, evaluator, trace, and experiment" in extract_markdown_section(
+        bundle,
+        "Research Methodology",
+    )
+
+
+def test_rinfra_003_fails_old_bundle_shape_before_judge():
+    old_bundle = """---
+artifact: research-bundle
+project_id: meta-agent
+title: Old Bundle
+version: "1.0.0"
+status: complete
+stage: RESEARCH
+authors:
+  - research-agent
+lineage:
+  - artifacts/intake/research-agent-prd.md
+---
+
+## Executive Summary
+
+Summary.
+
+## 1. Orchestration Architecture
+
+Old content.
+
+## 2. State Management & Persistence
+
+Old content.
+"""
+    result = asyncio.run(eval_rinfra_003(_mock_run({"research_bundle_content": old_bundle}), _mock_example({})))
+    assert result["score"] in {1, 2}
+    assert "missing_required_sections" in result["flags"]
+
+
+def test_rinfra_003_accepts_v561_bundle_shape(monkeypatch: pytest.MonkeyPatch):
+    bundle = Path(DATASETS_DIR, "golden-path", "stage6-research-bundle.md").read_text()
+
+    async def fake_run_likert_judge(**kwargs):
+        assert "13/13 canonical sections found" in kwargs["specific_instructions"]
+        return {"score": 5, "comment": "schema looks complete"}
+
+    monkeypatch.setattr(research_evaluators, "run_likert_judge", fake_run_likert_judge)
+
+    result = asyncio.run(eval_rinfra_003(_mock_run({"research_bundle_content": bundle}), _mock_example({})))
+    assert result["score"] == 5
+
+
+def test_langsmith_wrapper_emits_canonical_key_and_metadata():
+    def evaluator(_run, _example):
+        return {
+            "score": 4,
+            "comment": "Good enough",
+            "reasoning": "Detailed judge reasoning",
+            "evidence": ["specific evidence"],
+            "confidence": "HIGH",
+            "flags": ["minor_gap"],
+            "details": {"judge_backend": {"provider": "anthropic", "model": "claude"}},
+        }
+
+    wrapped = _make_langsmith_evaluator("RQ-001", evaluator)
+    result = wrapped(SimpleNamespace(outputs={}), SimpleNamespace(outputs={}))
+
+    assert result["key"] == "RQ-001"
+    assert result["metadata"]["eval_id"] == "RQ-001"
+    assert result["metadata"]["reasoning"] == "Detailed judge reasoning"
+    assert result["metadata"]["details"]["judge_backend"]["provider"] == "anthropic"
+
+
+def test_report_from_langsmith_results_preserves_metadata_and_normalizes_legacy_keys():
+    fake_results = [
+        {
+            "evaluation_results": {
+                "results": [
+                    SimpleNamespace(
+                        key="eval_rq_001",
+                        score=3,
+                        comment="Needs more depth",
+                        metadata={
+                            "reasoning": "Detailed judge reasoning",
+                            "evidence": ["missing tradeoff analysis"],
+                            "confidence": "MEDIUM",
+                            "flags": ["needs_depth"],
+                            "details": {"judge_backend": {"provider": "anthropic", "model": "claude"}},
+                        },
+                    )
+                ]
+            }
+        }
+    ]
+
+    report = generate_report_from_experiment_results(
+        fake_results,
+        experiment_name="langsmith-test",
+        scenario="multi_scenario_calibration",
+    )
+
+    assert normalize_eval_id("eval_rq_001") == "RQ-001"
+    assert "### RQ-001" in report
+    assert "BELOW THRESHOLD" in report
+    assert "Detailed judge reasoning" in report
+    assert "missing tradeoff analysis" in report
+    assert "Provider:** anthropic" in report
 
 
 def test_rb_001_requires_full_coverage_or_flag():

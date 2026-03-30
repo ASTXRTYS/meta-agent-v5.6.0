@@ -379,7 +379,7 @@ class TestPM007:
     def test_passes_with_eval_suite_write_during_intake(self):
         trace = {
             "tool_calls": [
-                {"name": "write_file", "args": {"path": "evals/eval-suite-prd.yaml"}, "stage": "INTAKE"},
+                {"name": "write_file", "args": {"path": "evals/eval-suite-prd.json"}, "stage": "INTAKE"},
             ],
         }
         result = eval_pm_007_evals_proposed_during_intake(trace)

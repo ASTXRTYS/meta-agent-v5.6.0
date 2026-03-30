@@ -36,7 +36,7 @@
 #   RI-003: FAIL (no consideration of eval implications)
 #
 # Likert eval expectations (all targeting score ~2):
-#   RINFRA-003: ~2 (some sections present but major ones missing)
+#   RINFRA-003: ~2 (all required headings present, but content is shallow and incomplete)
 #   RINFRA-004: ~2 (some citations but vague, many uncited findings)
 #   RQ-001: ~2 (no decomposition file; agent jumps straight to research)
 #   RQ-002: ~2 (only researched obvious options, missed alternatives)
@@ -236,60 +236,84 @@ research_bundle:
     authors:
       - research-agent
     lineage:
-      - artifacts/intake/prd.md
+      - artifacts/intake/research-agent-prd.md
+      - evals/eval-suite-prd.json
     ---
 
     # Research Bundle
 
-    ## Summary
+    This bundle uses the required v5.6.1 headings, but the content is intentionally weak and incomplete.
 
-    This research covers the LangChain ecosystem for building a meta-agent.
-    LangGraph is the recommended framework for building complex agents.
+    ## 1. Ecosystem Options with Tradeoffs
 
-    ## LangChain / LangGraph
-
-    LangChain is a framework for building applications with LLMs. LangGraph
-    is built on top of LangChain and provides a way to build stateful
-    multi-actor applications.
-
-    LangGraph uses a StateGraph where you define nodes and edges. You can
-    create agents that use tools and maintain state across interactions.
-
-    LangGraph supports checkpointing for persistence and has a dev server
-    for local development.
+    LangGraph seems good. LangChain is also related. I did not compare Deep Agents, CrewAI, AutoGen, or sandbox options in detail.
 
     Source: https://python.langchain.com/docs/tutorials/agents/
 
-    ## Anthropic Claude
+    ## 2. Rejected Alternatives with Rationale
 
-    Claude Opus 4.6 is Anthropic's most capable model. It has a large context
-    window and supports tool use. It can be used with LangChain via the
-    langchain-anthropic package.
+    No serious rejection analysis was done. I did not document why alternatives should be rejected beyond preferring LangGraph.
 
-    Claude supports extended thinking for complex reasoning tasks.
+    ## 3. Model Capability Matrix
+
+    Claude Opus 4.6 has a large context window and supports tool use. I did not capture pricing, rate limits, or exact output-token limits.
 
     Source: https://docs.anthropic.com/en/docs/about-claude/models
 
-    ## Evaluation
+    ## 4. SME Perspectives
 
-    LangSmith provides tools for tracing and evaluating LLM applications.
-    You can create datasets and run evaluations.
-
-    Source: https://docs.smith.langchain.com/
-
-    ## Agent Patterns
-
-    Harrison Chase is the CEO of LangChain and advocates for using LangGraph
-    for complex agent systems.
+    Harrison Chase seems supportive of LangGraph, but I only looked at his profile page and did not gather specific posts or compare multiple SME viewpoints.
 
     Source: https://x.com/hwchase17
 
-    ## Recommendations
+    ## 5. Risks and Caveats
 
-    - Use LangGraph for the agent framework
-    - Use Claude Opus 4.6 as the model
-    - Use LangSmith for evaluation
-    - Use a StateGraph with checkpointing for persistence
+    Risks probably exist around complexity, persistence, and cost, but I did not research them deeply.
+
+    ## 6. Confidence Assessment per Domain
+
+    Confidence is LOW for most domains because the research is incomplete.
+
+    ## 7. Research Methodology
+
+    I read only part of the PRD, skipped the eval suite, did a few web searches, did not read skills, did not spawn sub-agents, and did not present HITL clusters. LangSmith seems relevant for trace, dataset, evaluator, and experiment workflows, but I only read the home page.
+
+    Source: https://docs.smith.langchain.com/
+
+    ## 8. Unresolved Questions for Spec-Writer
+
+    The spec-writer still needs to decide the runtime, persistence, tooling, evaluation workflow, and whether additional research is required before a sufficiency gate can pass.
+
+    ## 9. PRD Coverage Matrix
+
+    | Area | Coverage |
+    |---|---|
+    | Research bundle output | PARTIAL |
+    | Verification workflow | UNCOVERED |
+    | Spec-writer support | PARTIAL |
+    | Reporting | PARTIAL |
+    | Eval-driven development | PARTIAL |
+
+    ## 10. Unresolved Research Gaps
+
+    Major gaps remain around Deep Agents, HITL design, prompt strategy, tool contracts, safety, and production persistence.
+
+    ## 11. Skills Baseline Summary
+
+    No skills were consulted, so there is no real baseline summary.
+
+    ## 12. Gap and Contradiction Remediation Log
+
+    No remediation was performed. I noticed gaps late and did not do additional research or document a feedback loop for the spec-writer.
+
+    ## 13. Citation Index
+
+    | Source Type | URL | Supported Finding |
+    |---|---|---|
+    | Docs | https://python.langchain.com/docs/tutorials/agents/ | LangChain and LangGraph are related |
+    | Docs | https://docs.anthropic.com/en/docs/about-claude/models | Claude Opus 4.6 exists and supports tool use |
+    | Docs | https://docs.smith.langchain.com/ | LangSmith is used for evaluation |
+    | Profile | https://x.com/hwchase17 | Harrison Chase is relevant to the ecosystem |
 
   # ============================================================================
   # Analysis: Why this scores ~2 across all Likert evals
@@ -300,13 +324,11 @@ research_bundle:
     RINFRA-003_schema_quality:
       expected_score: 2
       reasoning: >
-        Some sections present (LangChain, Anthropic, Evaluation, Recommendations)
-        but major required sections missing: no Tool System analysis, no HITL
-        patterns, no prompt engineering, no workspace/sandbox comparison, no
-        safety/guardrails, no rejected alternatives, no tradeoff analysis, no
-        SME perspectives section, no risks/caveats, no cross-cutting synthesis,
-        no confidence assessment, no methodology section. Structure is a flat
-        list of summaries, not a structured research artifact.
+        All 13 required section headings are present, but the content is still
+        poor. Most sections are one-liners with no tradeoff analysis, no real
+        evidence chain, and repeated admissions that the research was not done.
+        The structure technically matches the schema, but the content quality is
+        still far below the passing bar.
 
     RINFRA-004_citation_quality:
       expected_score: 2
@@ -332,7 +354,8 @@ research_bundle:
       reasoning: >
         Only covered the most obvious options: LangGraph, Claude, LangSmith.
         No alternative framework comparison (CrewAI, AutoGen, raw LangGraph vs
-        Deep Agents). No Deep Agents SDK mentioned at all. No workspace options
+        Deep Agents). Deep Agents is only mentioned as a missing gap, not as an
+        evaluated option. No workspace options
         evaluated (Daytona, OpenSWE). No safety patterns. No prompt engineering
         patterns. Major blind spots across 6 of 9 domains.
 
@@ -362,8 +385,8 @@ research_bundle:
         A spec-writer receiving this bundle would need to redo essentially all
         the research. No architecture comparison, no persistence design options,
         no tool system details, no HITL patterns, no prompt strategy, no eval
-        workflow details, no safety patterns. The "Recommendations" section says
-        "use LangGraph" without any tradeoff analysis. The spec-writer has no
+        workflow details, no safety patterns. The bundle repeats that LangGraph
+        seems good but never provides a defensible tradeoff analysis. The spec-writer has no
         basis for making informed architectural decisions.
 
     RQ-006_sme_consultation:
@@ -452,7 +475,7 @@ research_bundle:
   # Trace summary for binary eval verification
   # ============================================================================
 
-  trace_summary:
+    trace_summary:
     total_tool_calls: 12
     read_file_calls:
       - path: "/workspace/projects/meta-agent/artifacts/intake/prd.md"
@@ -480,18 +503,5 @@ research_bundle:
     sme_handles_missed: ["@Vtrivedy10", "@sydneyrunkle", "@masondrxy", "@BraceSproul", "@RLanceMartin"]
     prd_functional_requirements_covered: ["B (partial)", "F (partial)"]
     prd_functional_requirements_missed: ["A", "C", "D", "E", "G"]
-    research_bundle_sections: 5  # Summary, LangChain, Anthropic, Evaluation, Recommendations
-    research_bundle_missing_sections:
-      - "Tool System"
-      - "HITL Patterns"
-      - "Prompt Engineering"
-      - "Workspace / Execution Environment"
-      - "Safety / Guardrails"
-      - "Rejected Alternatives"
-      - "Tradeoff Analysis"
-      - "SME Perspectives"
-      - "Risks / Caveats"
-      - "Cross-Cutting Synthesis"
-      - "Confidence Assessment"
-      - "Research Methodology"
-      - "Unresolved Questions"
+    research_bundle_sections: 13
+    research_bundle_missing_sections: []

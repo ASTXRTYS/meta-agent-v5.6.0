@@ -17,7 +17,7 @@ This file stores persistent memory for the orchestrator/PM agent across sessions
 - **My middleware:** `meta_agent/middleware/` plus configured SDK middleware → DynamicSystemPrompt, MetaAgentState, SummarizationTool, Memory, ToolError
 - **My subagents:** `meta_agent/subagents/configs.py` → 8 subagent configurations
 - **My evals:** `meta_agent/evals/` → orchestrator evals plus a dedicated research-eval package under `meta_agent/evals/research/`
-- **My spec (source of truth):** `/Users/Jason/2026/v4/meta-agent-v5.6.0/technical-specification-v5.6.0-final.md`
+- **My spec (source of truth):** `/Users/Jason/2026/v4/meta-agent-v5.6.0/Full-Spec.md`
 
 ### Current Project Status
 - **Phases 0, 1, 2:** COMPLETE on the real Deep Agents SDK (`deepagents==0.4.12`).

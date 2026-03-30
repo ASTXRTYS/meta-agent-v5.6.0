@@ -8,8 +8,13 @@ from typing import Any
 from meta_agent.evals.research.common import (
     extract_markdown_section,
     extract_functional_requirements,
+    missing_research_bundle_frontmatter_fields,
+    missing_research_bundle_sections,
     format_fr_checklist,
     make_result,
+    present_research_bundle_sections,
+    RESEARCH_BUNDLE_FRONTMATTER_FIELDS,
+    RESEARCH_BUNDLE_REQUIRED_SECTIONS,
     validate_registry_ids,
 )
 from meta_agent.evals.research.deterministic import (
@@ -132,8 +137,9 @@ def _gap_remediation_content(run: Any) -> str:
     outputs = _get_outputs(run)
     return _join_sections(
         outputs.get("gap_remediation_context", ""),
-        extract_markdown_section(bundle, "## 12. Risks & Caveats for Spec-Writer"),
-        extract_markdown_section(bundle, "### Unresolved Questions for Spec-Writer", level=3),
+        extract_markdown_section(bundle, "Unresolved Questions for Spec-Writer"),
+        extract_markdown_section(bundle, "Unresolved Research Gaps"),
+        extract_markdown_section(bundle, "Gap and Contradiction Remediation Log"),
     )
 
 
@@ -141,7 +147,8 @@ def _evaluation_implications_content(run: Any) -> str:
     bundle = _bundle_content(run)
     outputs = _get_outputs(run)
     return _join_sections(
-        extract_markdown_section(bundle, "## 6. Evaluation & Observability"),
+        extract_markdown_section(bundle, "Research Methodology"),
+        extract_markdown_section(bundle, "Skills Baseline Summary"),
         outputs.get("delegation_context", ""),
         _trace_summary_text(run),
     )
@@ -215,42 +222,42 @@ def _fr_coverage_details(run: Any, example: Any) -> dict[str, dict[str, Any]]:
     }
     return details
 
-
-REQUIRED_SECTIONS = [
-    "Executive Summary",
-    "Orchestration",
-    "State Management",
-    "Human-in-the-Loop",
-    "Tool System",
-    "Prompt",
-    "Model Capabilities",
-    "Evaluation",
-    "Safety",
-    "Rejected Alternatives",
-    "Risks",
-    "Unresolved Questions",
-]
+REQUIRED_SECTIONS = list(RESEARCH_BUNDLE_REQUIRED_SECTIONS)
 
 
 async def eval_rinfra_003(run: Any, example: Any) -> dict:
     content = _bundle_content(run)
     if not content:
         return make_result(1, "RINFRA-003: no bundle content", flags=["missing_bundle"])
-    content_lower = content.lower()
-    found = [section for section in REQUIRED_SECTIONS if section.lower() in content_lower]
+
+    frontmatter_missing = missing_research_bundle_frontmatter_fields(content)
+    found = present_research_bundle_sections(content)
+    missing_sections = missing_research_bundle_sections(content)
+
     if len(found) < 4:
         return make_result(
             1 if not found else 2,
-            f"RINFRA-003: only {len(found)}/{len(REQUIRED_SECTIONS)} sections found",
+            f"RINFRA-003: only {len(found)}/{len(REQUIRED_SECTIONS)} canonical sections found",
             evidence=found,
-            flags=["missing_required_sections"],
+            flags=["missing_required_sections", *([] if not frontmatter_missing else ["frontmatter_incomplete"])],
+            details={
+                "present_sections": found,
+                "missing_sections": missing_sections,
+                "missing_frontmatter_fields": frontmatter_missing,
+            },
         )
     return await run_likert_judge(
         eval_id="RINFRA-003",
         eval_name="Research bundle schema completeness and quality",
         anchors=_get_anchors("RINFRA-003"),
         specific_instructions=_get_instructions("RINFRA-003")
-        + f"\nPre-check: {len(found)}/{len(REQUIRED_SECTIONS)} sections found. Missing: {sorted(set(REQUIRED_SECTIONS) - set(found))}",
+        + (
+            "\nPre-check: "
+            f"{len(found)}/{len(REQUIRED_SECTIONS)} canonical sections found. "
+            f"Missing sections: {missing_sections}. "
+            f"Missing frontmatter fields: {frontmatter_missing or 'none'}. "
+            f"Required frontmatter fields: {list(RESEARCH_BUNDLE_FRONTMATTER_FIELDS)}."
+        ),
         agent_output=content,
     )
 

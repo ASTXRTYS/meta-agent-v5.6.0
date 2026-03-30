@@ -1,10 +1,10 @@
 """Eval tools for the meta-agent system.
 
-Spec Reference: Sections 8.15-8.19, 22.16, 22.17
+Spec Reference: Sections 5.10-5.12, 8.15-8.19, 22.16, 22.17
 
-Implements the first 2 of 5 eval tools needed for INTAKE (Phase 2):
-- propose_evals: Two-phase classification flow for eval suite proposal
-- create_eval_dataset: Converts eval suite YAML to LangSmith dataset
+Implements the first 2 of 5 eval tools needed for INTAKE / SPEC_GENERATION:
+- propose_evals: draft Tier 1 or Tier 2 eval suites in canonical JSON format
+- create_eval_dataset: convert eval suite JSON to LangSmith dataset examples
 
 Remaining 3 tools (run_eval_suite, get_eval_results, compare_eval_runs)
 are stubs for Phase 3+.
@@ -12,34 +12,42 @@ are stubs for Phase 3+.
 
 from __future__ import annotations
 
+import json
 import os
-from datetime import datetime, timezone
 from typing import Any
-
-try:
-    import yaml
-    HAS_YAML = True
-except ImportError:
-    yaml = None  # type: ignore[assignment]
-    HAS_YAML = False
 
 
 # ---------------------------------------------------------------------------
-# Eval suite YAML schema template — Section 5.10
+# Eval suite JSON schema template — Sections 5.10, 5.11
 # ---------------------------------------------------------------------------
 
 EVAL_SUITE_TEMPLATE = {
-    "artifact": "eval-suite-prd",
-    "version": "1.0.0",
-    "tier": 1,
-    "created_by": "orchestrator",
-    "status": "draft",
-    "lineage": ["intake-prd.md"],
+    "metadata": {
+        "artifact": "eval-suite-prd",
+        "project_id": "",
+        "version": "1.0.0",
+        "tier": 1,
+        "langsmith_dataset_name": "",
+        "created_by": "orchestrator",
+        "status": "draft",
+        "lineage": ["intake-prd.md"],
+    },
+    "evals": [],
 }
 
 VALID_CATEGORIES = {"behavioral", "acceptance", "edge_case", "user_intent"}
 VALID_STRATEGIES = {"binary", "likert", "llm-judge", "pairwise"}
 REQUIRED_EVAL_FIELDS = {"id", "name", "category", "input", "expected", "scoring"}
+REQUIRED_METADATA_FIELDS = {
+    "artifact",
+    "project_id",
+    "version",
+    "tier",
+    "langsmith_dataset_name",
+    "created_by",
+    "status",
+    "lineage",
+}
 
 
 # ---------------------------------------------------------------------------
@@ -50,28 +58,21 @@ def propose_evals(
     requirements: list[dict[str, Any]],
     tier: int,
     project_id: str,
+    created_by: str | None = None,
+    lineage: list[str] | None = None,
 ) -> dict[str, Any]:
-    """Propose an eval suite based on PRD requirements.
-
-    Two-phase classification flow per Section 8.15:
-    Phase 1: Draft requirements without type classification (id + description only)
-    Phase 2: Interactive classification with <pm_reasoning> blocks
-    Phase 3: Call with confirmed types
-
-    This function implements Phase 3 — it receives requirements with confirmed
-    types and generates the structured eval suite proposal.
+    """Propose an eval suite based on requirements.
 
     Args:
-        requirements: List of dicts with id, description, type (deterministic/qualitative).
-                     Type must be user-confirmed for ambiguous requirements.
+        requirements: List of dicts with id, description, type
+            (deterministic/qualitative).
         tier: Eval tier (1 = PRD-derived, 2 = architecture-derived).
         project_id: Project identifier for artifact path scoping.
+        created_by: Optional author override.
+        lineage: Optional lineage override.
 
     Returns:
-        Dict with eval suite proposal (YAML content, path, eval count).
-
-    Raises:
-        ValueError: If requirements list is empty or tier invalid.
+        Dict with eval suite proposal (JSON content, path, eval count).
     """
     if not requirements:
         return {"error": "Requirements list is empty", "pass": False}
@@ -79,48 +80,44 @@ def propose_evals(
     if tier not in (1, 2):
         return {"error": f"Invalid tier: {tier}. Must be 1 or 2.", "pass": False}
 
-    # Build eval entries from requirements
     evals: list[dict[str, Any]] = []
     for i, req in enumerate(requirements):
         req_id = req.get("id", f"REQ-{i+1:03d}")
         description = req.get("description", "")
         req_type = req.get("type", "deterministic")
 
-        eval_id = f"EVAL-{i+1:03d}"
-        eval_entry = _build_eval_entry(eval_id, req_id, description, req_type)
-        evals.append(eval_entry)
+        eval_id = f"EVAL-{i+1:03d}" if tier == 1 else f"ARCH-{i+1:03d}"
+        evals.append(_build_eval_entry(eval_id, req_id, description, req_type, tier=tier, requirement=req))
 
-    # Build the YAML document
     artifact_name = "eval-suite-prd" if tier == 1 else "eval-suite-architecture"
     dataset_name = f"{project_id}-tier-{tier}-evals"
+    default_lineage = (
+        ["intake-prd.md"]
+        if tier == 1
+        else ["eval-suite-prd.json", "technical-specification.md"]
+    )
+    creator = created_by or ("orchestrator" if tier == 1 else "spec-writer")
 
-    frontmatter = {
-        "artifact": artifact_name,
-        "project_id": project_id,
-        "version": "1.0.0",
-        "tier": tier,
-        "langsmith_dataset_name": dataset_name,
-        "created_by": "orchestrator",
-        "status": "draft",
-        "lineage": ["intake-prd.md"] if tier == 1 else ["technical-specification.md"],
+    document = {
+        "metadata": {
+            "artifact": artifact_name,
+            "project_id": project_id,
+            "version": "1.0.0",
+            "tier": tier,
+            "langsmith_dataset_name": dataset_name,
+            "created_by": creator,
+            "status": "draft",
+            "lineage": lineage or default_lineage,
+        },
+        "evals": evals,
     }
 
-    eval_suite = {"evals": evals}
-
-    # Generate YAML content
-    if HAS_YAML:
-        fm_yaml = yaml.dump(frontmatter, default_flow_style=False, sort_keys=False)
-        evals_yaml = yaml.dump(eval_suite, default_flow_style=False, sort_keys=False)
-        yaml_content = f"---\n{fm_yaml}---\n{evals_yaml}"
-    else:
-        yaml_content = _manual_yaml_dump(frontmatter, evals)
-
-    # Determine output path
-    eval_dir = f"evals"
-    eval_path = f"{eval_dir}/{artifact_name}.yaml"
+    json_content = json.dumps(document, indent=2) + "\n"
+    eval_path = f"evals/{artifact_name}.json"
 
     return {
-        "yaml_content": yaml_content,
+        "json_content": json_content,
+        "content": json_content,
         "path": eval_path,
         "eval_count": len(evals),
         "dataset_name": dataset_name,
@@ -134,23 +131,30 @@ def _build_eval_entry(
     req_id: str,
     description: str,
     req_type: str,
+    *,
+    tier: int = 1,
+    requirement: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Build a single eval entry from a requirement."""
-    # Determine scoring strategy based on type
-    if req_type == "deterministic":
-        strategy = "binary"
-        threshold = 1.0
-        rubric = f"Verify: {description}"
-    elif req_type == "qualitative":
-        strategy = "likert"
-        threshold = 3.5
-        rubric = f"Rate quality of: {description}"
+    if req_type == "qualitative":
+        scoring: dict[str, Any] = {
+            "strategy": "likert",
+            "threshold": 3.5,
+            "rubric": f"Rate quality of: {description}",
+            "anchors": {
+                "1": f"Fails to satisfy {req_id}: {description}",
+                "3": f"Partially satisfies {req_id}: {description}",
+                "5": f"Fully satisfies {req_id}: {description}",
+            },
+        }
     else:
-        strategy = "binary"
-        threshold = 1.0
-        rubric = f"Verify: {description}"
+        scoring = {
+            "strategy": "binary",
+            "threshold": 1.0,
+            "rubric": f"Verify: {description}",
+        }
 
-    return {
+    entry = {
         "id": eval_id,
         "name": f"Validate {req_id}: {description[:50]}",
         "category": "acceptance",
@@ -161,81 +165,72 @@ def _build_eval_entry(
         "expected": {
             "behavior": description,
         },
-        "scoring": {
-            "strategy": strategy,
-            "threshold": threshold,
-            "rubric": rubric,
-        },
+        "scoring": scoring,
     }
 
+    if tier == 2:
+        entry["architecture_decision"] = (
+            (requirement or {}).get("architecture_decision")
+            or description
+        )
 
-def _manual_yaml_dump(frontmatter: dict[str, Any], evals: list[dict[str, Any]]) -> str:
-    """Fallback YAML generation when PyYAML is not available."""
-    lines = ["---"]
-    for k, v in frontmatter.items():
-        if isinstance(v, list):
-            lines.append(f"{k}:")
-            for item in v:
-                lines.append(f"  - {item}")
-        else:
-            lines.append(f"{k}: {v}")
-    lines.append("---")
-    lines.append("evals:")
-    for ev in evals:
-        lines.append(f"  - id: {ev['id']}")
-        lines.append(f"    name: \"{ev['name']}\"")
-        lines.append(f"    category: {ev['category']}")
-        lines.append(f"    input:")
-        lines.append(f"      scenario: \"{ev['input']['scenario']}\"")
-        lines.append(f"      preconditions: {{}}")
-        lines.append(f"    expected:")
-        lines.append(f"      behavior: \"{ev['expected']['behavior']}\"")
-        lines.append(f"    scoring:")
-        lines.append(f"      strategy: {ev['scoring']['strategy']}")
-        lines.append(f"      threshold: {ev['scoring']['threshold']}")
-        lines.append(f"      rubric: \"{ev['scoring']['rubric']}\"")
-    return "\n".join(lines) + "\n"
+    return entry
+
+
+def _load_eval_suite_document(eval_suite_path: str) -> dict[str, Any]:
+    with open(eval_suite_path) as f:
+        return json.load(f)
 
 
 def validate_eval_suite(eval_suite_path: str) -> dict[str, Any]:
-    """Validate an eval suite YAML file against the schema.
-
-    Returns dict with 'valid' bool and 'errors' list.
-    """
+    """Validate an eval suite JSON file against the schema."""
     if not os.path.isfile(eval_suite_path):
         return {"valid": False, "errors": [f"File not found: {eval_suite_path}"]}
 
-    if not HAS_YAML:
-        return {"valid": False, "errors": ["yaml package not installed"]}
-
     try:
-        with open(eval_suite_path) as f:
-            content = f.read()
+        data = _load_eval_suite_document(eval_suite_path)
+        if not isinstance(data, dict):
+            return {"valid": False, "errors": ["Top-level JSON document must be an object"]}
 
-        parts = content.split("---", 2)
-        if len(parts) > 2:
-            data = yaml.safe_load(parts[-1])
-        else:
-            data = yaml.safe_load(content)
+        metadata = data.get("metadata")
+        if not isinstance(metadata, dict):
+            return {"valid": False, "errors": ["Missing or invalid 'metadata' object"]}
 
-        if not data or "evals" not in data:
-            return {"valid": False, "errors": ["No 'evals' key found"]}
+        metadata_missing = REQUIRED_METADATA_FIELDS - set(metadata.keys())
+        if metadata_missing:
+            return {
+                "valid": False,
+                "errors": [f"Metadata missing fields {sorted(metadata_missing)}"],
+            }
 
-        evals = data["evals"]
+        evals = data.get("evals")
+        if not isinstance(evals, list):
+            return {"valid": False, "errors": ["No 'evals' list found"]}
         if not evals:
             return {"valid": False, "errors": ["Empty evals list"]}
 
         errors = []
         for ev in evals:
+            if not isinstance(ev, dict):
+                errors.append("Eval entry must be an object")
+                continue
+
             missing = REQUIRED_EVAL_FIELDS - set(ev.keys())
             if missing:
                 errors.append(f"Eval {ev.get('id', '?')}: missing fields {missing}")
 
+            category = ev.get("category")
+            if category and category not in VALID_CATEGORIES:
+                errors.append(f"Eval {ev.get('id', '?')}: invalid category '{category}'")
+
             scoring = ev.get("scoring", {})
-            if isinstance(scoring, dict):
-                strategy = scoring.get("strategy")
-                if strategy and strategy not in VALID_STRATEGIES:
-                    errors.append(f"Eval {ev.get('id', '?')}: invalid strategy '{strategy}'")
+            if not isinstance(scoring, dict):
+                errors.append(f"Eval {ev.get('id', '?')}: scoring must be an object")
+                continue
+
+            strategy = scoring.get("strategy")
+            if strategy and strategy not in VALID_STRATEGIES:
+                errors.append(f"Eval {ev.get('id', '?')}: invalid strategy '{strategy}'")
 
         return {"valid": len(errors) == 0, "errors": errors}
     except Exception as e:
@@ -250,19 +245,7 @@ def create_eval_dataset(
     eval_suite_path: str,
     dataset_name: str,
 ) -> dict[str, Any]:
-    """Create a LangSmith dataset from an approved eval suite YAML.
-
-    Converts eval suite input/expected pairs into LangSmith dataset examples.
-    HITL-gated.
-
-    Args:
-        eval_suite_path: Path to the eval suite YAML file.
-        dataset_name: Name for the LangSmith dataset.
-
-    Returns:
-        Dict with dataset_id, example_count, and status.
-    """
-    # Validate the eval suite file
+    """Create a LangSmith dataset from an approved eval suite JSON file."""
     validation = validate_eval_suite(eval_suite_path)
     if not validation["valid"]:
         return {
@@ -270,15 +253,9 @@ def create_eval_dataset(
             "status": "error",
         }
 
-    # Parse the eval suite
-    with open(eval_suite_path) as f:
-        content = f.read()
-
-    parts = content.split("---", 2)
-    data = yaml.safe_load(parts[-1]) if len(parts) > 2 else yaml.safe_load(content)
+    data = _load_eval_suite_document(eval_suite_path)
     evals = data["evals"]
 
-    # Build LangSmith examples from eval entries
     examples = []
     for ev in evals:
         example = {
@@ -295,9 +272,9 @@ def create_eval_dataset(
         }
         examples.append(example)
 
-    # Try to create LangSmith dataset
     try:
         from langsmith import Client
+
         client = Client()
         dataset = client.create_dataset(dataset_name)
         for ex in examples:
@@ -313,7 +290,6 @@ def create_eval_dataset(
             "status": "created",
         }
     except ImportError:
-        # LangSmith not available — return local result
         return {
             "dataset_id": None,
             "dataset_name": dataset_name,

@@ -90,6 +90,7 @@ TOOL_REGISTRY: dict[str, list[str]] = {
     ],
     "spec-writer": [
         "write_file", "read_file", "ls", "edit_file", "glob", "grep",
+        "propose_evals",
     ],
     "plan-writer": [
         "write_file", "read_file", "ls", "edit_file", "glob", "grep",
@@ -117,7 +118,6 @@ HITL_GATED_TOOLS: set[str] = {
     "langsmith_dataset_create",
     "langsmith_eval_run",
     "create_eval_dataset",
-    "propose_evals",
 }
 
 

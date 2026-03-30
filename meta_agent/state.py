@@ -204,7 +204,7 @@ class MetaAgentState(TypedDict):
     progress_log: Annotated[list[str], operator.add]
 
     # v5.6 eval-related state fields
-    eval_suites: list[str]  # Paths to eval suite YAML files
+    eval_suites: list[str]  # Paths to eval suite JSON files
     eval_results: dict  # Mapping eval run IDs to results
     current_eval_phase: Optional[str]  # Current phase being evaluated
 

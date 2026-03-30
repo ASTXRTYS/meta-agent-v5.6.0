@@ -58,9 +58,9 @@ WORKSPACE_SECTION_TEMPLATE = """## Workspace
 - Implementation plan: {project_dir}/artifacts/planning/implementation-plan.md
 
 **Eval paths:**
-- Tier 1 evals: {project_dir}/evals/eval-suite-prd.yaml
-- Tier 2 evals: {project_dir}/evals/eval-suite-architecture.yaml
-- Eval execution map: {project_dir}/evals/eval-execution-map.yaml
+- Tier 1 evals: {project_dir}/evals/eval-suite-prd.json
+- Tier 2 evals: {project_dir}/evals/eval-suite-architecture.json
+- Eval execution map: {project_dir}/evals/eval-execution-map.json
 
 **Log paths:**
 - Decision log: {project_dir}/logs/decision-log.yaml
@@ -189,7 +189,7 @@ Follow EVAL_APPROVAL_PROTOCOL for responses.
 
     "RESEARCH": """You are in RESEARCH — the research-agent is performing deep ecosystem research.
 
-**Your goal:** Obtain a research bundle that covers all PRD requirements with evidence.
+**Your goal:** Obtain a verified research bundle that covers all PRD requirements with evidence and is usable by the spec-writer without redoing broad discovery.
 
 **Your role in this stage:** You DELEGATE to the research-agent. You do not perform research yourself.
 
@@ -200,21 +200,24 @@ Follow EVAL_APPROVAL_PROTOCOL for responses.
 **Your protocol:**
 
 1. Delegate to research-agent with clear instructions:
-   - Provide the PRD path
-   - Specify that all PRD requirements must be addressed
-   - Request a PRD Coverage Matrix in the output
+   - Provide the PRD path and Tier 1 eval suite path
+   - Require the persisted decomposition artifact before outward research
+   - Require the 10-phase research protocol, parallel `task` usage, HITL research clusters, and the 13-section bundle schema
+   - Require these artifacts: `research-decomposition.md`, `sub-findings/*.md`, `research-clusters.md`, `research-bundle.md`
 
-2. When the research-agent returns, delegate to verification-agent to confirm coverage.
+2. When the research-agent returns, delegate to verification-agent to cross-check the research bundle against the PRD.
 
-3. Present research findings to user for approval.
+3. If verification fails, route the revision request back to research-agent. Do not transition forward on a failed verification verdict.
 
-4. On approval, transition to SPEC_GENERATION.
+4. Present the verified research bundle to the user for approval.
+
+5. On approval, transition to SPEC_GENERATION.
 
 **Tools available:** read_file, write_file, request_approval, record_decision, transition_stage, task (for delegation)""",
 
     "SPEC_GENERATION": """You are in SPEC_GENERATION — the spec-writer-agent is producing the technical specification.
 
-**Your goal:** Obtain a complete technical specification with Tier 2 (architecture-derived) evals.
+**Your goal:** Obtain a complete technical specification with a PRD Traceability Matrix and Tier 2 architecture-derived evals.
 
 **Your role in this stage:** You DELEGATE to the spec-writer-agent.
 
@@ -228,19 +231,21 @@ Follow EVAL_APPROVAL_PROTOCOL for responses.
    - PRD path
    - Research bundle path
    - Tier 1 eval suite path
-   - Instructions to identify architecture-introduced testable properties and propose Tier 2 evals
+   - Instructions to produce `technical-specification.md`, a PRD Traceability Matrix, and `eval-suite-architecture.json`
 
-2. When spec-writer returns, delegate to verification-agent.
+2. If spec-writer says the research bundle is insufficient, route the targeted request back to research-agent, then retry spec generation. Cap this feedback loop at 3 cycles before escalating.
 
-3. Delegate to document-renderer for DOCX/PDF.
+3. When spec-writer returns a draft, delegate to verification-agent to cross-check the spec against the PRD and research bundle.
 
-4. Transition to SPEC_REVIEW.
+4. Delegate to document-renderer for DOCX/PDF once verification passes.
+
+5. Transition to SPEC_REVIEW.
 
 **Tools available:** read_file, write_file, record_decision, transition_stage, task""",
 
     "SPEC_REVIEW": """You are in SPEC_REVIEW — the user is reviewing the technical specification.
 
-**Your goal:** Get explicit approval for the spec and Tier 2 evals.
+**Your goal:** Get explicit approval for the technical specification and the Tier 2 eval suite.
 
 **Entry condition:** Technical specification and Tier 2 eval suite exist.
 
@@ -248,7 +253,7 @@ Follow EVAL_APPROVAL_PROTOCOL for responses.
 
 **Your protocol:**
 
-Present spec summary and Tier 2 eval table. Follow same approval flow as PRD_REVIEW.
+Present the technical-specification summary, the PRD Traceability Matrix status, and the Tier 2 eval table. Follow the same approval flow as PRD_REVIEW.
 
 **Tools available:** read_file, write_file, request_approval, record_decision, transition_stage""",
 
@@ -260,7 +265,7 @@ Present spec summary and Tier 2 eval table. Follow same approval flow as PRD_REV
 
 **Entry condition:** Approved specification exists.
 
-**Exit condition:** Implementation plan written with eval-execution-map.yaml, ready for review.
+**Exit condition:** Implementation plan written with eval-execution-map.json, ready for review.
 
 **Your protocol:**
 
@@ -269,7 +274,7 @@ Present spec summary and Tier 2 eval table. Follow same approval flow as PRD_REV
    - Tier 1 and Tier 2 eval suite paths
    - Instructions to map evals to phases and define phase gate thresholds
 
-2. The plan-writer produces eval-execution-map.yaml — it does NOT create new evals, only routes existing ones.
+2. The plan-writer produces eval-execution-map.json — it does NOT create new evals, only routes existing ones.
 
 3. Delegate to verification-agent.
 

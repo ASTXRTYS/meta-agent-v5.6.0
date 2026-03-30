@@ -21,6 +21,7 @@ from meta_agent.prompts.eval_mindset import EVAL_MINDSET_SECTION
 from meta_agent.prompts.scoring_strategy import SCORING_STRATEGY_SECTION
 from meta_agent.prompts.eval_approval_protocol import EVAL_APPROVAL_PROTOCOL
 from meta_agent.prompts.orchestrator import construct_orchestrator_prompt
+from meta_agent.prompts.research_agent import construct_research_agent_prompt
 from meta_agent.state import WorkflowStage
 
 
@@ -199,3 +200,30 @@ class TestConstructOrchestratorPrompt:
             "INTAKE", "/workspace/projects/test", "test"
         )
         assert "\n\n---\n\n" in prompt
+
+
+class TestConstructResearchAgentPrompt:
+    """Tests for construct_research_agent_prompt."""
+
+    def test_uses_markdown_source_prompt(self):
+        prompt = construct_research_agent_prompt(
+            "/workspace/projects/test", "test"
+        )
+        assert "You are a specialized deep research agent" in prompt
+        assert "You are not a search engine. You are a researcher." in prompt
+
+    def test_normalizes_legacy_prompt_paths(self):
+        prompt = construct_research_agent_prompt(
+            "/workspace/projects/test", "test"
+        )
+        assert "artifacts/research/research-decomposition.md" in prompt
+        assert "artifacts/research/research-bundle.md" in prompt
+        assert "/artifacts/research/decomposition.md" not in prompt
+        assert "/artifacts/research/bundle.md" not in prompt
+
+    def test_includes_runtime_alignment_addendum(self):
+        prompt = construct_research_agent_prompt(
+            "/workspace/projects/test", "test"
+        )
+        assert "Canonical 10-Phase Runtime Protocol" in prompt
+        assert "Citation Index" in prompt

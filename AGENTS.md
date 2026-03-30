@@ -126,7 +126,7 @@ make evals         # Run all evals
 
 Phases 0, 1, and 2 are complete and running on the real Deep Agents SDK (`deepagents==0.4.12`). The orchestrator produces a real `CompiledStateGraph` via `create_deep_agent()` and successfully invokes model providers through the configured runtime.
 
-The research-agent runtime itself is not implemented yet, but the research-agent evaluation stack now exists under `meta_agent/evals/research/`. That package implements the canonical 38 research evals, 5 synthetic calibration scenarios, structured judge outputs, LangSmith SDK experiment execution, and UI-ready judge profiles. The latest frozen synthetic calibration baseline reached `185/185` pass/fail agreement and `182/185` exact agreement. This means the measuring instrument is ready before the research-agent runtime exists; no real-agent experiment has been run yet.
+The research-agent runtime itself is not implemented yet, but the research-agent evaluation stack now exists under `meta_agent/evals/research/`. That package implements 38 canonical research eval definitions, with 37 active in the default run path and `RI-001` intentionally deferred, plus 5 synthetic calibration scenarios, structured judge outputs, LangSmith SDK experiment execution, and UI-ready judge profiles. The measurement contract in that package is now aligned to the v5.6.1 13-section research-bundle schema. A historical frozen synthetic calibration baseline reached `185/185` pass/fail agreement and `182/185` exact agreement before this contract repair; rerun the calibration flow before treating that baseline as current. No real-agent performance experiment has run yet because the research-agent runtime is still unimplemented.
 
 ## How It Works
 
@@ -200,8 +200,8 @@ meta_agent/
 
 ## Spec and Plan Documents
 
-- **Technical Specification (source of truth):** `/Users/Jason/2026/v4/meta-agent-v5.6.0/technical-specification-v5.6.0-final.md`
-- **Development Plan:** `/Users/Jason/2026/v4/meta-agent-v5.6.0/development-plan-v5.6.0.md`
+- **Technical Specification (source of truth):** `/Users/Jason/2026/v4/meta-agent-v5.6.0/Full-Spec.md` (v5.6.1)
+- **Development Plan:** `/Users/Jason/2026/v4/meta-agent-v5.6.0/Full-Development-Plan.md` (updated 2026-03-29)
 - **Implementation Deviation Record:** `/Users/Jason/2026/v4/meta-agent-v5.6.0/DEVIATION_RECORD.md`
 
 ## LangSmith Datasets (Pre-loaded)
@@ -215,4 +215,31 @@ meta_agent/
 - Seed artifacts live under `/workspace/projects/meta-agent/` and are expanded into a 5-scenario calibration dataset by `meta_agent.evals.research.synthetic_trace_adapter`.
 - Build the raw LangSmith-ready dataset with `python -m meta_agent.evals.research.dataset_builder --datasets-dir datasets --output /tmp/research-agent-eval-calibration.json`.
 - Run the synthetic calibration experiment with `python -m meta_agent.evals.research.langsmith_experiment --datasets-dir datasets`.
+- The default LangSmith experiment path materializes a timestamped dataset from the local canonical examples. Pass `--dataset-name <existing-dataset>` to reuse an already-uploaded LangSmith dataset instead.
+- The registry contains 38 defined evals, reported as 37 active + 1 deferred unless `--include-deferred` is used.
 - The frozen calibration baseline validates evaluator behavior only. It does not measure the real research-agent runtime because that runtime is still unimplemented.
+
+## Experiment Reporting (New)
+
+The research eval package now supports dual-channel reporting:
+- **Local Markdown Reports:** Detailed human-readable reports with failure analysis, judge reasoning, evidence summaries, confidence, flags, and experiment metadata. Generated automatically with `--report-dir` flag.
+- **LangSmith UI:** Full traceability, filtering, and deep-dive analysis capabilities.
+
+### Report Generation Commands
+```bash
+# Runner with markdown reports
+python -m meta_agent.evals.research.runner --mode trace --report-dir reports
+
+# LangSmith experiment with markdown reports
+python -m meta_agent.evals.research.langsmith_experiment --datasets-dir datasets --report-dir reports
+
+# LangSmith experiment reusing an existing dataset
+python -m meta_agent.evals.research.langsmith_experiment --datasets-dir datasets --dataset-name research-agent-eval-calibration --report-dir reports
+```
+
+Reports are persisted under `workspace/projects/meta-agent/evals/reports/` and include:
+- Executive summary with pass/fail counts
+- Registry coverage totals (`defined`, `active`, `deferred`)
+- Detailed failure blocks with judge reasoning, evidence, confidence, and flags
+- Passing evaluations summary table
+- Experiment metadata and configuration, including scenario labeling for multi-scenario LangSmith calibration runs

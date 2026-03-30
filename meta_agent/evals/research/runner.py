@@ -81,6 +81,16 @@ PHASE_GATES = {
 }
 
 
+def _registry_counts() -> dict[str, int]:
+    deferred = sum(1 for meta in RESEARCH_EVAL_REGISTRY.values() if meta["type"] == "deferred")
+    defined = len(RESEARCH_EVAL_REGISTRY)
+    return {
+        "defined_eval_count": defined,
+        "active_eval_count": defined - deferred,
+        "deferred_eval_count": deferred,
+    }
+
+
 async def _run_eval(eval_id: str, fn: Any, run: MockRun, example: MockExample) -> dict:
     try:
         if inspect.iscoroutinefunction(fn):
@@ -361,13 +371,21 @@ def main() -> None:
     if results_list:
         phase_label = args.phase if args.phase != "all" else "all"
         experiment_name = f"research-{args.mode}-phase-{phase_label}-{args.scenario}"
+        registry_counts = _registry_counts()
         generate_report(
             results_list,
             experiment_name=experiment_name,
             scenario=args.scenario,
             mode=args.mode,
             report_dir=report_dir,
-            extra_metadata={"phases": phase_label, "data_dir": args.data},
+            extra_metadata={
+                "phase_number": 3,
+                "phase_name": "RESEARCH",
+                "phases": phase_label,
+                "data_dir": args.data,
+                "dataset_source": "local_synthetic_trace_adapter",
+                **registry_counts,
+            },
         )
 
     if not result.get("passed", False):

@@ -4,7 +4,7 @@
 
 - Date: 2026-03-23
 - Project: `meta-agent-v5.6.0`
-- Spec source of truth: `/Users/Jason/2026/v4/meta-agent-v5.6.0/technical-specification-v5.6.0-final.md`
+- Spec source of truth: `/Users/Jason/2026/v4/meta-agent-v5.6.0/Full-Spec.md`
 - Trigger: runtime failures observed in LangGraph Studio and `/runs/wait` path
 
 ## Deviation 1: Dynamic prompt middleware execution model
