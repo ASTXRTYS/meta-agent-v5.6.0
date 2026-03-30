@@ -24,7 +24,7 @@ This document is the authoritative development plan for the local-first meta-age
 - `meta-agent-phase-1-orchestrator` (18 examples, ID: `70f34716-7d60-4042-a565-c086b063809d`)
 - `meta-agent-phase-2-intake-prd` (11 scenarios, ID: `b7c0535f-c17f-48bd-8663-e2dda2bd8f07`)
 
-**2026-03-29 implementation status note:** The research-agent evaluation stack is now implemented in `meta_agent/evals/research/`. It contains 38 canonical research eval definitions, five synthetic calibration scenarios, a LangSmith SDK experiment harness, and judge profiles. The default run path treats this as `37 active + 1 deferred` because `RI-001` remains intentionally deferred unless explicitly included. The measurement contract is aligned to the v5.6.1 13-section research-bundle schema. A historical frozen synthetic calibration run reached `185/185` threshold agreement and `182/185` exact agreement before the schema/reporting remediation; rerun calibration before treating that baseline as current. This is evaluator readiness only: the research-agent runtime itself is not built yet, so no real-agent performance experiment has run.
+**2026-03-29 implementation status note:** The research-agent evaluation stack is now implemented in `meta_agent/evals/research/`. It contains 38 canonical research eval definitions, five synthetic calibration scenarios, a LangSmith SDK experiment harness, and judge profiles. The default run path treats this as `37 active + 1 deferred` because `RI-001` remains intentionally deferred unless explicitly included. The measurement contract is aligned to the v5.6.1 17-section research-bundle schema. A historical frozen synthetic calibration run reached `185/185` threshold agreement and `182/185` exact agreement before the schema/reporting remediation; rerun calibration before treating that baseline as current. This is evaluator readiness only: the research-agent runtime itself is not built yet, so no real-agent performance experiment has run.
 
 **Phase SOP (Standard Operating Procedure):** Every phase follows a strict structure:
 1. **Overview** â€” what the phase builds, dependencies, spec references
@@ -37,6 +37,46 @@ This document is the authoritative development plan for the local-first meta-age
    - Pass criteria
    - Remediation protocol
    - Phase complete checklist
+
+---
+
+## 1.5 Project Status Summary
+
+**Overall Completion: ~50%**
+
+### Phase-by-Phase Status
+
+| Phase | Status | Completion | Key Achievements | Next Steps |
+|-------|--------|------------|------------------|------------|
+| **Phase 0** | ✅ COMPLETE | 100% | State model, middleware scaffold, eval infrastructure | - |
+| **Phase 1** | ✅ COMPLETE | 100% | Real Deep Agents SDK integration, orchestrator graph, 14+ tools | - |
+| **Phase 2** | ✅ COMPLETE | 100% | INTAKE/PRD_REVIEW stages, HITL integration, 23 evals passing | - |
+| **Phase 3** | 🔄 IN PROGRESS | ~35% | Research eval stack (38 evals), stage validators, prompts | Build runtime agents |
+| **Phase 4** | ⏸️ NOT STARTED | 0% | - | Complete Phase 3 |
+| **Phase 5** | ⏸️ NOT STARTED | 0% | - | Complete Phase 4 |
+
+### Current Focus: Phase 3 Runtime Implementation
+
+**Foundations Complete:**
+- ✅ Stage validators (ResearchStage, SpecGenerationStage, SpecReviewStage)
+- ✅ Research evaluation infrastructure (38 canonical evals)
+- ✅ System prompts with 17-section research bundle schema
+- ✅ State schema extensions for Phase 3
+
+**Remaining Work:**
+- ⏳ Research-agent runtime (10-phase protocol execution)
+- ⏳ Verification-agent runtime
+- ⏳ Spec-writer-agent runtime
+- ⏳ Stage wiring (RESEARCH → SPEC_GENERATION → SPEC_REVIEW)
+
+### Progress Tracking Legend
+
+- ✅ **COMPLETE** - All evals passing, phase fully functional
+- 🔄 **IN PROGRESS** - Implementation underway, partial completion
+- ⏸️ **NOT STARTED** - Blocked by prerequisite phases
+- [x] - Task completed
+- [ ] - Task incomplete
+- ⏳ - In progress
 
 ---
 
@@ -121,7 +161,7 @@ The CLI is an implementation convenience, not a spec requirement. The primary in
 
 ---
 
-### Phase 0: Scaffolding
+### Phase 0: Scaffolding ✅ COMPLETE
 
 #### 0.1 Overview
 
@@ -880,14 +920,14 @@ If evals fail:
 
 ##### 0.3.7 Phase Complete Checklist
 
-- [ ] All 4 Phase 0 evals pass (INFRA-001 through INFRA-004)
-- [ ] No regression evals needed (first phase)
-- [ ] LangSmith experiment recorded with metadata: `phase_number=0`, `commit_hash`, `timestamp`
-- [ ] Progress committed to git
+- [x] All 4 Phase 0 evals pass (INFRA-001 through INFRA-004)
+- [x] No regression evals needed (first phase)
+- [x] LangSmith experiment recorded with metadata: `phase_number=0`, `commit_hash`, `timestamp`
+- [x] Progress committed to git
 
 ---
 
-### Phase 1: State + Orchestrator
+### Phase 1: State + Orchestrator ✅ COMPLETE
 
 #### 1.1 Overview
 
@@ -1339,14 +1379,14 @@ If evals fail:
 
 ##### 1.3.7 Phase Complete Checklist
 
-- [ ] All 6 Phase 1 evals pass (INFRA-005 through INFRA-008, STAGE-001, STAGE-002)
-- [ ] All 4 regression evals from Phase 0 pass (INFRA-001 through INFRA-004)
-- [ ] LangSmith experiment recorded with metadata: `phase_number=1`, `commit_hash`, `timestamp`
-- [ ] Progress committed to git
+- [x] All 6 Phase 1 evals pass (INFRA-005 through INFRA-008, STAGE-001, STAGE-002)
+- [x] All 4 regression evals from Phase 0 pass (INFRA-001 through INFRA-004)
+- [x] LangSmith experiment recorded with metadata: `phase_number=1`, `commit_hash`, `timestamp`
+- [x] Progress committed to git
 
 ---
 
-### Phase 2: INTAKE + PRD
+### Phase 2: INTAKE + PRD ✅ COMPLETE
 
 #### 2.1 Overview
 
@@ -1999,14 +2039,14 @@ If evals fail:
 
 ##### 2.3.7 Phase Complete Checklist
 
-- [ ] All 13 Phase 2 evals pass (PM-001 through PM-008, STAGE-003, GUARD-001 through GUARD-004)
-- [ ] All 10 regression evals from Phase 0+1 pass
-- [ ] LangSmith experiment recorded with metadata: `phase_number=2`, `commit_hash`, `timestamp`
-- [ ] Progress committed to git
+- [x] All 13 Phase 2 evals pass (PM-001 through PM-008, STAGE-003, GUARD-001 through GUARD-004)
+- [x] All 10 regression evals from Phase 0+1 pass
+- [x] LangSmith experiment recorded with metadata: `phase_number=2`, `commit_hash`, `timestamp`
+- [x] Progress committed to git
 
 ---
 
-### Phase 3: Research + Spec
+### Phase 3: Research + Spec 🔄 IN PROGRESS (~35%)
 
 #### 3.1 Overview
 
@@ -2017,6 +2057,22 @@ Phase 3 implements the research-agent, verification-agent, spec-writer-agent, an
 **Dependencies:** Phase 2 (INTAKE/PRD_REVIEW stages, eval tools, document renderer)
 
 **Spec Section References:** Sections 3.3â€“3.5, 5.3â€“5.3.2, 5.4, 5.11, 6.1â€“6.1.6, 6.2, 6.8, 8.15, 19.3, 19.6, 19.7
+
+#### 3.1.1 Phase 3 Progress Status
+
+**Foundations ✅ COMPLETE:**
+- [x] Stage validators (ResearchStage, SpecGenerationStage, SpecReviewStage)
+- [x] Research evaluation infrastructure (38 canonical evals)
+- [x] System prompts with 17-section research bundle schema
+- [x] State schema extensions for Phase 3
+- [x] Eval runner with phased checkpoints (A/B/C)
+- [x] Synthetic calibration scenarios (5 scenarios)
+
+**Runtime Implementation ⏳ IN PROGRESS:**
+- [ ] Research-agent runtime (10-phase protocol execution)
+- [ ] Verification-agent runtime
+- [ ] Spec-writer-agent runtime
+- [ ] Stage wiring (RESEARCH → SPEC_GENERATION → SPEC_REVIEW)
 
 ---
 
@@ -2104,7 +2160,7 @@ Phase 3 implements the research-agent, verification-agent, spec-writer-agent, an
 
 - **Structured synthesis (Protocol Phase 9)** â€" Implement per Sections 6.1.2 Phase 9 and 5.3:
   - Synthesize all findings organized by TOPIC (not by source or sub-agent)
-  - Research bundle at `{project_dir}/artifacts/research/research-bundle.md` with all 13 required sections per Section 5.3
+  - Research bundle at `{project_dir}/artifacts/research/research-bundle.md` with all 17 required sections per Section 5.3
   - YAML frontmatter with lineage tracing to all input artifacts
   - Every finding must have a citation with source type and URL; every cited URL must appear in trace as a `web_fetch` call
   - Eval coverage: RINFRA-001â€"004, RQ-002, RQ-003, RQ-004, RQ-005, RQ-011, RI-002, RI-003
@@ -2532,7 +2588,7 @@ python -m meta_agent.evals.research.runner --phase C --mode trace --scenario gol
 
 **Checkpoint 4: After Protocol Phases 9â€"10 (synthesis + reflection loop) â€" Full suite**
 
-Run after: Topic-organized synthesis, 13-section research bundle, internal reflection loop, all artifacts written.
+Run after: Topic-organized synthesis, 17-section research bundle, internal reflection loop, all artifacts written.
 
 ```bash
 # Full suite â€" 37 active evals by default, all phases
@@ -2784,33 +2840,41 @@ If evals fail:
 
 ##### 3.3.7 Phase Complete Checklist
 
-**Runtime artifacts exist:**
+**Foundations ✅ COMPLETE:**
+- [x] Stage validators implemented (ResearchStage, SpecGenerationStage, SpecReviewStage)
+- [x] Research evaluation infrastructure (38 canonical evals)
+- [x] System prompts with 17-section research bundle schema
+- [x] State schema extensions for Phase 3
+- [x] Eval runner with phased checkpoints (A/B/C)
+- [x] Synthetic calibration scenarios (5 scenarios)
+
+**Runtime artifacts ⏳ IN PROGRESS:**
 - [ ] `artifacts/research/research-decomposition.md` exists with domains, PRD citations, eval mappings, progress tracker
 - [ ] `artifacts/research/sub-findings/*.md` exist (at least 1 sub-agent output)
 - [ ] `artifacts/research/research-clusters.md` exists with themed clusters and approval status
-- [ ] `artifacts/research/research-bundle.md` exists with all 13 required sections (Section 5.3)
+- [ ] `artifacts/research/research-bundle.md` exists with all 17 required sections (Section 5.3)
 - [ ] `.agents/research-agent/AGENTS.md` updated with research summary
 - [ ] `artifacts/spec/technical-specification.md` exists with PRD Traceability Matrix
 - [ ] `evals/eval-suite-architecture.json` exists (Tier 2 evals)
 
-**Agents implemented:**
+**Agents implemented ⏳ IN PROGRESS:**
 - [ ] research-agent instantiated as Deep Agent with 10-phase protocol (Section 6.1.2)
 - [ ] verification-agent instantiated as Deep Agent with cross-check protocol
 - [ ] spec-writer-agent instantiated as Deep Agent with reflection loop and Tier 2 eval creation
 
-**Stage wiring complete:**
+**Stage wiring complete ⏳ IN PROGRESS:**
 - [ ] RESEARCH stage: orchestrator delegates to research-agent, two HITL checkpoints fire, verification-agent runs
 - [ ] SPEC_GENERATION stage: orchestrator delegates to spec-writer, verification-agent runs, document-renderer produces DOCX/PDF
 - [ ] SPEC_REVIEW stage: user approves both spec AND Tier 2 evals (hard gate)
 - [ ] Feedback loop: spec-writer can request additional research via orchestrator
 
-**Evals pass:**
+**Evals pass ⏳ IN PROGRESS:**
 - [ ] All 7 Layer 1 phase gate evals pass
 - [ ] All 37 active Layer 2 research-agent behavioral evals pass by default (20 binary + 17 active Likert >= 4.0); document `RI-001` separately if it remains deferred
 - [ ] All 23 regression evals from Phases 0-2 pass
 - [ ] LangSmith experiment recorded with metadata: `phase_number=3`, `commit_hash`, `timestamp`
 
-**Experiment reports:**
+**Experiment reports ⏳ IN PROGRESS:**
 - [ ] Experiment reports exist under `evals/reports/` showing progression from checkpoint 1 through final gate
 - [ ] Final experiment report shows all active Layer 2 evals passing and explicitly reports `defined`, `active`, and `deferred` counts
 
@@ -2819,7 +2883,7 @@ If evals fail:
 
 ---
 
-### Phase 4: Planning + Execution
+### Phase 4: Planning + Execution ⏸️ NOT STARTED
 
 #### 4.1 Overview
 
@@ -3218,7 +3282,7 @@ If evals fail:
 
 ---
 
-### Phase 5: Memory + Polish
+### Phase 5: Memory + Polish ⏸️ NOT STARTED
 
 #### 5.1 Overview
 

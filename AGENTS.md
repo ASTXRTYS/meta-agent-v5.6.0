@@ -124,9 +124,15 @@ make evals         # Run all evals
 
 ## Project Status
 
+**Current Progress:** See Section 1.5 "Project Status Summary" in `Full-Development-Plan.md` for detailed phase-by-phase progress tracking.
+
 Phases 0, 1, and 2 are complete and running on the real Deep Agents SDK (`deepagents==0.4.12`). The orchestrator produces a real `CompiledStateGraph` via `create_deep_agent()` and successfully invokes model providers through the configured runtime.
 
-The research-agent runtime itself is not implemented yet, but the research-agent evaluation stack now exists under `meta_agent/evals/research/`. That package implements 38 canonical research eval definitions, with 37 active in the default run path and `RI-001` intentionally deferred, plus 5 synthetic calibration scenarios, structured judge outputs, LangSmith SDK experiment execution, and UI-ready judge profiles. The measurement contract in that package is now aligned to the v5.6.1 13-section research-bundle schema. A historical frozen synthetic calibration baseline reached `185/185` pass/fail agreement and `182/185` exact agreement before this contract repair; rerun the calibration flow before treating that baseline as current. No real-agent performance experiment has run yet because the research-agent runtime is still unimplemented.
+**Phase 3 is IN PROGRESS (~35% complete).** Foundations are complete (stage validators, eval measurement stack, state schema extensions, research-agent prompt), but the live research-agent runtime has not been built yet. Seven test failures were identified on 2026-03-30 and are being remediated in a coordinated 5-stream effort. See `PHASE3_PROGRESS_REPORT.md` for details and `DEVIATION_RECORD.md` (Deviations 11-16) for root cause analysis.
+
+The research-agent evaluation stack exists under `meta_agent/evals/research/`. That package implements 38 canonical research eval definitions, with 37 active in the default run path and `RI-001` intentionally deferred, plus 5 synthetic calibration scenarios, structured judge outputs, LangSmith SDK experiment execution, and UI-ready judge profiles. The measurement contract in that package is now aligned to the v5.6.1 17-section research-bundle schema. A historical frozen synthetic calibration baseline reached `185/185` pass/fail agreement and `182/185` exact agreement before this contract repair; rerun the calibration flow before treating that baseline as current. No real-agent performance experiment has run yet because the research-agent runtime is still unimplemented.
+
+**Note to agents:** As you work on this project, update the progress tracking in `Full-Development-Plan.md` to reflect completed work. See the "Progress Tracking" section below for instructions.
 
 ## How It Works
 
@@ -197,6 +203,48 @@ meta_agent/
 - **Phase 3:** Research + Spec runtime implementation (research-agent, verification-agent, spec-writer as real SubAgents). The evaluation stack for this phase already exists; the runtime agent does not.
 - **Phase 4:** Planning + Execution (plan-writer, code-agent with 3 nested sub-agents)
 - **Phase 5:** End-to-end evaluation + audit UX. LangSmith experiment plumbing exists, but the orchestrator still does not provide a user-friendly end-to-end eval/testing workflow.
+
+---
+
+## Progress Tracking
+
+**For Agents Working on This Project:**
+
+The `Full-Development-Plan.md` includes progress tracking that shows what's complete, in progress, and not started. As you complete work, you **must** update this document to reflect the current state.
+
+### How to Update Progress
+
+1. **Phase Headers:** Update status badges as phases are completed
+   - `⏸️ NOT STARTED` → `🔄 IN PROGRESS` → `✅ COMPLETE`
+
+2. **Task Checklists:** Mark tasks as complete using `[x]` instead of `[ ]`
+   - Found in each phase's "Phase Complete Checklist" section
+
+3. **Project Status Summary:** Update completion percentages and current focus
+   - Located in Section 1.5 of the development plan
+
+4. **Phase-Specific Progress:** Update progress sections for the current phase
+   - Example: Phase 3 has separate "Foundations" vs "Runtime Implementation" sections
+
+### When to Update
+
+- **After completing any implementation task** (e.g., implementing a tool, middleware, or stage)
+- **When evals pass** - Update the relevant eval checklist items
+- **When starting a new phase** - Change the header from `⏸️ NOT STARTED` to `🔄 IN PROGRESS`
+- **Before committing work** - Ensure progress tracking reflects your changes
+
+### Progress Tracking Legend
+
+- ✅ **COMPLETE** - All evals passing, phase fully functional
+- 🔄 **IN PROGRESS** - Implementation underway, partial completion
+- ⏸️ **NOT STARTED** - Blocked by prerequisite phases
+- [x] - Task completed
+- [ ] - Task incomplete
+- ⏳ - In progress
+
+**Important:** The development plan is the single source of truth for project status. Keeping it accurate ensures any agent can quickly understand what's done and what remains.
+
+---
 
 ## Spec and Plan Documents
 
