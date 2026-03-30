@@ -108,7 +108,7 @@ This version aligns the specification with the enhanced research-agent PRD (`wor
 
 [v5.6.1] C3 — Section 3.3 (RESEARCH stage) rewritten with PRD-aligned entry/exit conditions, 5 output artifacts (decomposition, sub-findings, clusters, bundle, AGENTS.md), HITL research cluster checkpoint, expanded tool list including `task` for sub-agent delegation, and detailed behavioral description.
 
-[v5.6.1] C4 — Section 5.3 (Research Bundle Schema) expanded from 6 sections to 13 topic-organized required sections per PRD FR J. Added YAML frontmatter lineage requirements.
+[v5.6.1] C4 — Section 5.3 (Research Bundle Schema) expanded from 6 sections to 17 topic-organized required sections per PRD FR J. Added YAML frontmatter lineage requirements.
 
 [v5.6.1] C5 — New Section 5.3.1: Research Decomposition Schema. Defines the persisted decomposition artifact structure per PRD FR B.
 
@@ -527,21 +527,25 @@ The PRD artifact contains frontmatter and required sections: Product Summary, Go
 
 [v5.6.1] Required YAML frontmatter fields: `artifact` (value: `research-bundle`), `project_id`, `title`, `version`, `status`, `stage` (value: `RESEARCH`), `authors`, `lineage` (list of input artifact paths including PRD and eval suite).
 
-[v5.6.1] Required sections (13 total, organized by topic):
+[v5.6.1] Required sections (17 total, organized by topic):
 
 1. **Ecosystem Options with Tradeoffs** — For each PRD requirement area, the available ecosystem options with explicit tradeoffs, evidence-backed analysis, and comparative assessment.
 2. **Rejected Alternatives with Rationale** — Options evaluated and rejected, with specific reasons tied to PRD requirements or constraints.
 3. **Model Capability Matrix** — Full capability matrix for the current frontier model: context window, max output tokens, supported modalities, tool use capabilities, extended thinking, native tools, pricing, and rate limits.
-4. **SME Perspectives** — Perspectives from configured subject matter experts (Twitter/X handles), contextualized by tying them to findings from docs, skills, and API references. Includes consensus and disagreement analysis.
-5. **Risks and Caveats** — Technical risks, ecosystem risks, and caveats discovered during research, with severity assessment.
-6. **Confidence Assessment per Domain** — Per-domain confidence level (HIGH/MEDIUM/LOW) with justification based on evidence quality and coverage.
-7. **Research Methodology** — Documentation of the research process: skills consulted, web searches performed, sub-agent topology used, SME handles consulted, compaction events, and total tool call summary.
-8. **Unresolved Questions for Spec-Writer** — Explicit questions the research could not resolve, with recommended approaches for the spec-writer.
-9. **PRD Coverage Matrix** — Every PRD requirement mapped to research findings with coverage status (COVERED/PARTIAL/UNCOVERED). v5.4 Addition.
-10. **Unresolved Research Gaps** — Any PARTIAL or UNCOVERED items with explanation and recommended next steps. v5.4 Addition.
-11. **Skills Baseline Summary** — Key findings from pre-loaded skills consultation, organized by skill, with gaps identified that drove web research.
-12. **Gap and Contradiction Remediation Log** — Catalog of gaps and contradictions found across sub-agent findings, root cause analysis, remediation actions taken, resolution status, and evidence chains.
-13. **Citation Index** — Every cited source with source type (official docs, API reference, tweet, blog post, source code, skill file), URL or file path, and the finding(s) it supports. Every cited URL must appear in the trace as a `web_fetch` call.
+4. **Technology Decision Trees** — Decision frameworks organized by PRD requirement area, with PRD requirements as decision criteria, branch conditions based on research findings, and recommended paths with evidence references.
+5. **Tool/Framework Capability Maps** — For each library, framework, or tool relevant to the PRD: what it does, when to use it, known limitations, and version-specific considerations.
+6. **Pattern & Best Practice Catalog** — Real-world usage patterns, production patterns, performance considerations, and implementation guidance drawn from source code analysis, documentation, and community practice.
+7. **Integration Dependency Matrix** — How different components interact, version constraints, compatibility requirements, and transitive dependency considerations.
+8. **SME Perspectives** — Perspectives from configured subject matter experts (Twitter/X handles), contextualized by tying them to findings from docs, skills, and API references. Includes consensus and disagreement analysis.
+9. **Risks and Caveats** — Technical risks, ecosystem risks, and caveats discovered during research, with severity assessment.
+10. **Confidence Assessment per Domain** — Per-domain confidence level (HIGH/MEDIUM/LOW) with justification based on evidence quality and coverage.
+11. **Research Methodology** — Documentation of the research process: skills consulted, web searches performed, sub-agent topology used, SME handles consulted, compaction events, and total tool call summary.
+12. **Unresolved Questions for Spec-Writer** — Explicit questions the research could not resolve, with recommended approaches for the spec-writer.
+13. **PRD Coverage Matrix** — Every PRD requirement mapped to research findings with coverage status (COVERED/PARTIAL/UNCOVERED). v5.4 Addition.
+14. **Unresolved Research Gaps** — Any PARTIAL or UNCOVERED items with explanation and recommended next steps. v5.4 Addition.
+15. **Skills Baseline Summary** — Key findings from pre-loaded skills consultation, organized by skill, with gaps identified that drove web research.
+16. **Gap and Contradiction Remediation Log** — Catalog of gaps and contradictions found across sub-agent findings, root cause analysis, remediation actions taken, resolution status, and evidence chains.
+17. **Citation Index** — Every cited source with source type (official docs, API reference, tweet, blog post, source code, skill file), URL or file path, and the finding(s) it supports. Every cited URL must appear in the trace as a `web_fetch` call.
 
 ### 5.3.1 Research Decomposition Schema
 

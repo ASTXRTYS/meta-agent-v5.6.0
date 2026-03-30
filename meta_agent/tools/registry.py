@@ -19,6 +19,7 @@ from meta_agent.tools import (
     record_decision,
     record_assumption,
     request_approval,
+    request_eval_approval,
     toggle_participation,
     execute_command,
     langgraph_dev_server,
@@ -36,6 +37,7 @@ from meta_agent.tools import (
     record_decision_tool,
     record_assumption_tool,
     request_approval_tool,
+    request_eval_approval_tool,
     toggle_participation_tool,
     execute_command_tool,
     langgraph_dev_server_tool,
@@ -61,6 +63,7 @@ TOOL_FUNCTIONS: dict[str, Callable[..., Any]] = {
     "record_decision": record_decision,
     "record_assumption": record_assumption,
     "request_approval": request_approval,
+    "request_eval_approval": request_eval_approval,
     "toggle_participation": toggle_participation,
     "execute_command": execute_command,
     "langgraph_dev_server": langgraph_dev_server,
@@ -80,7 +83,8 @@ TOOL_REGISTRY: dict[str, list[str]] = {
     "orchestrator": [
         "write_file", "read_file", "ls", "edit_file", "glob", "grep",
         "transition_stage", "record_decision", "record_assumption",
-        "request_approval", "toggle_participation", "execute_command",
+        "request_approval", "request_eval_approval", "toggle_participation",
+        "execute_command",
         "propose_evals", "create_eval_dataset", "run_eval_suite",
         "get_eval_results", "compare_eval_runs",
     ],
@@ -114,7 +118,8 @@ TOOL_REGISTRY: dict[str, list[str]] = {
 # Tools that are HITL-gated
 HITL_GATED_TOOLS: set[str] = {
     "execute_command",
-    "request_approval",
+    "transition_stage",
+    "request_eval_approval",
     "langsmith_dataset_create",
     "langsmith_eval_run",
     "create_eval_dataset",

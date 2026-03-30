@@ -52,14 +52,14 @@ SPECIFIC_INSTRUCTIONS: dict[str, str] = {
     "RINFRA-003": (
         "WHAT TO EVALUATE: The structural completeness and content quality of the research bundle.\n\n"
         f"REQUIRED YAML FRONTMATTER FIELDS: {', '.join(RESEARCH_BUNDLE_FRONTMATTER_FIELDS)}.\n\n"
-        f"REQUIRED SECTIONS (13): {', '.join(RESEARCH_BUNDLE_REQUIRED_SECTIONS)}.\n\n"
+        f"REQUIRED SECTIONS (17): {', '.join(RESEARCH_BUNDLE_REQUIRED_SECTIONS)}.\n\n"
         "LOOK FOR:\n"
-        "- Are all 13 required sections present as distinct H2 headings?\n"
+        "- Are all 17 required sections present as distinct H2 headings?\n"
         "- Is the YAML frontmatter complete and aligned to the research-bundle contract?\n"
         "- Does each section have substantive content (not just a title or one-liner)?\n"
         "- Are sections internally structured with sub-headings, tables, or lists?\n\n"
         "RED FLAGS (score <= 2): Missing frontmatter fields; missing more than 3 required sections; flat structure with no sub-headings.\n\n"
-        "SCORE-4 MINIMUM: All 13 sections present with multi-paragraph content; frontmatter complete; at least 8 sections have sub-structure."
+        "SCORE-4 MINIMUM: All 17 sections present with multi-paragraph content; frontmatter complete; at least 8 sections have sub-structure."
     ),
 
     "RINFRA-004": (

@@ -209,7 +209,7 @@ class TestConstructResearchAgentPrompt:
         prompt = construct_research_agent_prompt(
             "/workspace/projects/test", "test"
         )
-        assert "You are a specialized deep research agent" in prompt
+        assert "You are the research-agent for the meta-agent system" in prompt
         assert "You are not a search engine. You are a researcher." in prompt
 
     def test_normalizes_legacy_prompt_paths(self):

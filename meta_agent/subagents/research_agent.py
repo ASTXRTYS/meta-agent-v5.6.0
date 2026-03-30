@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 import os
 import re
+import time
+import uuid
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Iterable, Mapping
@@ -17,11 +20,12 @@ from deepagents.middleware.summarization import (
     SummarizationToolMiddleware,
 )
 from langchain_core.runnables import RunnableLambda
-
 from meta_agent.backend import create_checkpointer, create_store
 from meta_agent.middleware.tool_error_handler import ToolErrorMiddleware
 from meta_agent.model import get_model_config
 from meta_agent.prompts.research_agent import construct_research_agent_prompt
+from meta_agent.safety import RECURSION_LIMITS
+from meta_agent.tracing import traceable
 from meta_agent.tools import (
     get_server_side_tools,
     record_assumption_tool,
@@ -84,6 +88,55 @@ def _read_text(path: str) -> str:
         return f.read()
 
 
+def _default_eval_project_dir(project_id: str) -> str:
+    return os.path.join(_repo_root(), "workspace", "projects", project_id)
+
+
+def _localize_workspace_path(path: str | None, *, project_dir: str, project_id: str) -> str:
+    if not path:
+        return path or ""
+    workspace_prefix = f"/workspace/projects/{project_id}/"
+    normalized = path.replace("\\", "/")
+    if normalized.startswith(workspace_prefix):
+        suffix = normalized[len(workspace_prefix) :]
+        return os.path.join(project_dir, suffix)
+    if normalized.startswith("/workspace/"):
+        return os.path.join(_repo_root(), normalized[len("/workspace/") :])
+    return path
+
+
+def _materialize_if_missing(path: str, content: str) -> None:
+    if not path or os.path.isfile(path) or not content:
+        return
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "w") as f:
+        f.write(content)
+
+
+def _resolve_skills_dirs(skills_paths: list[str] | None) -> list[str]:
+    repo_root = _repo_root()
+    default_dirs = [
+        os.path.join(repo_root, "skills", "langchain", "config", "skills"),
+        os.path.join(repo_root, "skills", "anthropic", "skills"),
+        os.path.join(repo_root, "skills", "langsmith", "config", "skills"),
+    ]
+    if not skills_paths:
+        return default_dirs
+
+    resolved: list[str] = []
+    for path in skills_paths:
+        normalized = str(path).rstrip("/")
+        if normalized == "/skills/langchain":
+            resolved.append(os.path.join(repo_root, "skills", "langchain", "config", "skills"))
+        elif normalized == "/skills/anthropic":
+            resolved.append(os.path.join(repo_root, "skills", "anthropic", "skills"))
+        elif normalized == "/skills/langsmith":
+            resolved.append(os.path.join(repo_root, "skills", "langsmith", "config", "skills"))
+        else:
+            resolved.append(path)
+    return resolved
+
+
 def _message_tool_calls(message: Any) -> list[dict[str, Any]]:
     if hasattr(message, "tool_calls") and isinstance(message.tool_calls, list):
         return list(message.tool_calls)
@@ -135,6 +188,32 @@ def collect_tool_calls(
                 }
             )
         timestamp += 1.0
+    return tool_calls
+
+
+def collect_tool_calls_from_events(
+    events: Iterable[Mapping[str, Any]],
+    *,
+    project_dir: str,
+    project_id: str,
+) -> list[dict[str, Any]]:
+    """Extract ordered tool calls from live LangGraph events."""
+    tool_calls: list[dict[str, Any]] = []
+    fallback_timestamp = 1.0
+    for event in events:
+        if event.get("event") != "on_tool_start":
+            continue
+        data = event.get("data", {}) or {}
+        raw_args = data.get("input", data.get("kwargs", {}))
+        args = raw_args if isinstance(raw_args, dict) else {"input": raw_args}
+        tool_calls.append(
+            {
+                "name": str(event.get("name") or "unknown"),
+                "args": _normalize_arg_paths(args, project_dir=project_dir, project_id=project_id),
+                "timestamp": float(event.get("metadata", {}).get("observed_at", fallback_timestamp)),
+            }
+        )
+        fallback_timestamp += 1.0
     return tool_calls
 
 
@@ -517,6 +596,11 @@ def create_research_agent_runnable(
     )
 
     def _invoke(state: dict[str, Any], config: dict[str, Any] | None = None) -> dict[str, Any]:
+        # Apply recursion limit per spec Section 19.5
+        if config is None:
+            config = {}
+        config["recursion_limit"] = RECURSION_LIMITS["research-agent"]
+        
         raw_result = graph.invoke(state, config=config)
         return normalize_research_outputs(
             raw_result,
@@ -526,6 +610,11 @@ def create_research_agent_runnable(
         )
 
     async def _ainvoke(state: dict[str, Any], config: dict[str, Any] | None = None) -> dict[str, Any]:
+        # Apply recursion limit per spec Section 19.5
+        if config is None:
+            config = {}
+        config["recursion_limit"] = RECURSION_LIMITS["research-agent"]
+        
         raw_result = await graph.ainvoke(state, config=config)
         return normalize_research_outputs(
             raw_result,
@@ -558,6 +647,38 @@ def create_research_agent_subagent(
     }
 
 
+def run_research_agent_live(inputs: dict[str, Any]) -> dict[str, Any]:
+    """Live-run adapter from dataset inputs to normalized evaluator outputs.
+
+    Used by the eval runner in trace mode and LangSmith trace experiments.
+    Invokes the real research-agent runtime instead of synthetic replay.
+    """
+    project_id = str(inputs.get("project_id", "meta-agent"))
+    project_dir = str(
+        inputs.get("project_dir")
+        or inputs.get("config", {}).get("project_dir")
+        or _default_eval_project_dir(project_id)
+    )
+    prd_path = inputs.get("prd_path")
+    if prd_path:
+        prd_path = _localize_workspace_path(str(prd_path), project_dir=project_dir, project_id=project_id) or None
+    eval_suite_path = inputs.get("eval_suite_path")
+    if eval_suite_path:
+        eval_suite_path = _localize_workspace_path(str(eval_suite_path), project_dir=project_dir, project_id=project_id) or None
+
+    return run_research_agent(
+        project_dir=project_dir,
+        project_id=project_id,
+        prd_path=prd_path,
+        eval_suite_path=eval_suite_path,
+        prd_content=inputs.get("prd_content"),
+        eval_suite_content=inputs.get("eval_suite_content"),
+        skills_paths=inputs.get("skills_paths"),
+        twitter_handles=inputs.get("twitter_handles"),
+        extra_state={**(inputs.get("extra_state") or {}), "auto_approve_hitl": True},
+    )
+
+
 def run_research_agent(
     *,
     project_dir: str,
@@ -576,12 +697,24 @@ def run_research_agent(
         project_id=project_id,
         skills_dirs=skills_paths,
     )
+    resolved_prd = prd_path or get_research_runtime_paths(project_dir, project_id).prd_path
+    resolved_eval = eval_suite_path or get_research_runtime_paths(project_dir, project_id).eval_suite_path
+    initial_message = {
+        "role": "user",
+        "content": (
+            f"You are the research agent. An approved PRD exists at "
+            f"{resolved_prd} and the Tier 1 eval suite is at "
+            f"{resolved_eval}. The project ID is {project_id}. "
+            f"Execute the full 10-phase research protocol. "
+            f"Produce all 5 required output artifacts."
+        ),
+    }
     state = {
         "project_id": project_id,
         "current_stage": "RESEARCH",
-        "messages": [],
-        "prd_path": prd_path or get_research_runtime_paths(project_dir, project_id).prd_path,
-        "eval_suite_path": eval_suite_path or get_research_runtime_paths(project_dir, project_id).eval_suite_path,
+        "messages": [initial_message],
+        "prd_path": resolved_prd,
+        "eval_suite_path": resolved_eval,
         "prd_content": prd_content or "",
         "eval_suite_content": eval_suite_content or "",
         "skills_paths": list(skills_paths or []),
@@ -593,4 +726,6 @@ def run_research_agent(
     }
     if extra_state:
         state.update(extra_state)
-    return runnable.invoke(state)
+    thread_id = f"eval-{uuid.uuid4()}"
+    config = {"configurable": {"thread_id": thread_id}, "recursion_limit": 100}
+    return runnable.invoke(state, config=config)

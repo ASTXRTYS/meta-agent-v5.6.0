@@ -15,16 +15,17 @@ from pathlib import Path
 from typing import Any
 
 
-# Per-agent middleware stacks per Section 2.2.1 and Section 6.x
-# All agents: ToolErrorMiddleware
-# code-agent, test-agent, observation-agent: + CompletionGuardMiddleware
-# research-agent: + SummarizationToolMiddleware, SkillsMiddleware
-# Orchestrator: full stack (see graph.py)
+# Explicit middleware only. Deep Agents auto-attach TodoList, Filesystem,
+# SubAgent, Summarization, prompt caching, and patch-call middleware.
+# Skills are provisioned through the `skills=` parameter, not listed here as
+# explicit middleware. These metadata entries should describe only the
+# additional, explicitly configured runtime pieces.
 
 SUBAGENT_MIDDLEWARE: dict[str, list[str]] = {
     "research-agent": [
         "ToolErrorMiddleware",
         "SummarizationToolMiddleware",
+        "MemoryMiddleware",
         "SkillsMiddleware",
     ],
     "spec-writer": [
@@ -67,8 +68,12 @@ SUBAGENT_CONFIGS: dict[str, dict[str, Any]] = {
         "effort": "max",
         "recursion_limit": 100,
         "middleware": SUBAGENT_MIDDLEWARE["research-agent"],
+        "auto_tools": [
+            "write_todos", "read_file", "write_file", "edit_file",
+            "ls", "glob", "grep", "task", "compact_conversation",
+        ],
         "tools": [
-            "write_file", "read_file", "ls", "edit_file", "glob", "grep",
+            "request_approval", "record_decision", "record_assumption",
             "web_search", "web_fetch",
         ],
         "server_side_tools": ["web_search", "web_fetch"],
@@ -81,7 +86,7 @@ SUBAGENT_CONFIGS: dict[str, dict[str, Any]] = {
         "recursion_limit": 50,
         "middleware": SUBAGENT_MIDDLEWARE["spec-writer"],
         "tools": [
-            "write_file", "read_file", "ls", "edit_file", "glob", "grep",
+            "propose_evals",
         ],
         "thinking": {"type": "adaptive"},
         "output_config": {"effort": "high"},
@@ -91,9 +96,7 @@ SUBAGENT_CONFIGS: dict[str, dict[str, Any]] = {
         "effort": "high",
         "recursion_limit": 50,
         "middleware": SUBAGENT_MIDDLEWARE["plan-writer"],
-        "tools": [
-            "write_file", "read_file", "ls", "edit_file", "glob", "grep",
-        ],
+        "tools": [],
         "thinking": {"type": "adaptive"},
         "output_config": {"effort": "high"},
     },
@@ -115,9 +118,7 @@ SUBAGENT_CONFIGS: dict[str, dict[str, Any]] = {
         "effort": "max",
         "recursion_limit": 50,
         "middleware": SUBAGENT_MIDDLEWARE["verification-agent"],
-        "tools": [
-            "read_file", "ls", "glob", "grep",
-        ],
+        "tools": [],
         "thinking": {"type": "adaptive"},
         "output_config": {"effort": "max"},
     },
@@ -254,6 +255,8 @@ def build_orchestrator_subagents(
     from meta_agent.prompts.plan_writer import construct_plan_writer_prompt
     from meta_agent.prompts.code_agent import construct_code_agent_prompt
     from meta_agent.subagents.research_agent import create_research_agent_subagent
+    from meta_agent.subagents.verification_agent_runtime import create_verification_agent_subagent
+    from meta_agent.subagents.spec_writer_agent import create_spec_writer_agent_subagent
 
     mw_instances = _resolve_middleware_instances()
 
@@ -318,6 +321,26 @@ def build_orchestrator_subagents(
         if agent_name == "research-agent":
             subagents.append(
                 create_research_agent_subagent(
+                    project_dir=project_dir,
+                    project_id=project_id,
+                    skills_dirs=skills_dirs,
+                )
+            )
+            continue
+
+        if agent_name == "verification-agent":
+            subagents.append(
+                create_verification_agent_subagent(
+                    project_dir=project_dir,
+                    project_id=project_id,
+                    skills_dirs=skills_dirs,
+                )
+            )
+            continue
+
+        if agent_name == "spec-writer":
+            subagents.append(
+                create_spec_writer_agent_subagent(
                     project_dir=project_dir,
                     project_id=project_id,
                     skills_dirs=skills_dirs,

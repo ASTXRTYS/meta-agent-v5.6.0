@@ -147,14 +147,14 @@ def _judge_backends(default_model: str | None = None) -> list[tuple[str, str]]:
         if override_provider == "openai":
             model = override_model or os.getenv("RESEARCH_EVAL_OPENAI_MODEL", "gpt-4o-mini")
         elif override_provider == "anthropic":
-            model = override_model or default_model or "claude-sonnet-4-20250514"
+            model = override_model or default_model or "claude-opus-4-6"
         else:
             model = override_model or default_model or ""
         return [(override_provider, model)]
 
     backends: list[tuple[str, str]] = []
     if os.getenv("ANTHROPIC_API_KEY"):
-        backends.append(("anthropic", default_model or "claude-sonnet-4-20250514"))
+        backends.append(("anthropic", default_model or "claude-opus-4-6"))
     if os.getenv("OPENAI_API_KEY"):
         backends.append(("openai", os.getenv("RESEARCH_EVAL_OPENAI_MODEL", "gpt-4o-mini")))
     return backends
@@ -204,7 +204,7 @@ async def run_likert_judge(
     specific_instructions: str,
     agent_output: str,
     reference_excerpt: str = "",
-    model: str | None = "claude-sonnet-4-20250514",
+    model: str | None = "claude-opus-4-6",
     temperature: float = 0.0,
 ) -> dict:
     """Run a Likert-scale LLM judge and return LangSmith-compatible result."""
@@ -270,7 +270,7 @@ async def run_binary_judge(
     pass_criteria: str,
     trace_data: str,
     additional_context: str = "",
-    model: str | None = "claude-sonnet-4-20250514",
+    model: str | None = "claude-opus-4-6",
     temperature: float = 0.0,
 ) -> dict:
     """Run a binary LLM judge and return LangSmith-compatible result."""

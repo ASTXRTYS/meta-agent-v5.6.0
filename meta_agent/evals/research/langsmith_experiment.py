@@ -52,7 +52,15 @@ def _canonical_examples(datasets_dir: str) -> list[dict[str, Any]]:
 
 
 def _run_target(inputs: dict[str, Any]) -> dict[str, Any]:
+    """Calibration target: passthrough synthetic outputs."""
     return inputs["_target_outputs"]
+
+
+def _run_target_live(inputs: dict[str, Any]) -> dict[str, Any]:
+    """Trace target: invoke the real research-agent runtime."""
+    from meta_agent.subagents.research_agent import run_research_agent_live
+
+    return run_research_agent_live(inputs)
 
 
 def _make_langsmith_evaluator(eval_id: str, fn: Callable[..., Any]) -> Callable[..., dict[str, Any]]:
@@ -124,21 +132,23 @@ def run_experiment(
     dataset_name: str | None = None,
     include_deferred: bool = False,
     report_dir: str | None = None,
+    mode: str = "calibration",
 ) -> dict[str, Any]:
     _load_env()
     client = Client()
 
     timestamp = str(int(time.time()))
-    experiment_name = f"{experiment_prefix}-{timestamp}"
+    mode_label = "trace" if mode == "trace" else "calibration"
+    experiment_name = f"{experiment_prefix}-{mode_label}-{timestamp}"
 
     examples = _canonical_examples(datasets_dir)
     scenario_types = sorted({example["metadata"].get("scenario_type", "unknown") for example in examples})
     if dataset_name:
         dataset_source = "existing_langsmith_dataset"
     else:
-        dataset_name = f"{dataset_prefix}-{timestamp}"
-        dataset_source = "local_synthetic_materialization"
-        client.create_dataset(dataset_name, description="Research agent calibration dataset")
+        dataset_name = f"{dataset_prefix}-{mode_label}-{timestamp}"
+        dataset_source = "local_synthetic_materialization" if mode == "calibration" else "live_runtime_materialization"
+        client.create_dataset(dataset_name, description=f"Research agent {mode_label} dataset")
         client.create_examples(
             dataset_name=dataset_name,
             inputs=[example["inputs"] for example in examples],
@@ -153,6 +163,13 @@ def run_experiment(
         evaluators.append(_make_langsmith_evaluator(eval_id, meta["fn"]))
 
     registry_counts = _registry_counts()
+
+    # Metadata distinguishes calibration from live runtime
+    if mode == "trace":
+        mode_metadata = {"mode": "trace", "source": "live_runtime"}
+    else:
+        mode_metadata = {"mode": "calibration", "source": "synthetic"}
+
     evaluate_metadata = {
         "phase_number": PHASE_NUMBER,
         "phase_name": PHASE_NAME,
@@ -164,10 +181,14 @@ def run_experiment(
         "include_deferred": include_deferred,
         "active_eval_count": registry_counts["active_eval_count"],
         "deferred_eval_count": registry_counts["deferred_eval_count"],
+        **mode_metadata,
     }
 
+    # Select target function based on mode
+    target_fn = _run_target_live if mode == "trace" else _run_target
+
     results = evaluate(
-        _run_target,
+        target_fn,
         data=dataset_name,
         evaluators=evaluators,
         experiment_prefix=experiment_name,
@@ -181,7 +202,7 @@ def run_experiment(
     generate_report_from_experiment_results(
         results,
         experiment_name=experiment_name,
-        scenario="multi_scenario_calibration",
+        scenario="multi_scenario_calibration" if mode == "calibration" else "live_trace",
         report_dir=report_dir,
         extra_metadata={
             **evaluate_metadata,
@@ -193,6 +214,7 @@ def run_experiment(
     return {
         "dataset_name": dataset_name,
         "experiment_name": results.experiment_name,
+        "mode": mode_label,
     }
 
 
@@ -208,6 +230,12 @@ def main() -> None:
     parser.add_argument("--experiment-prefix", default="research-eval-calibration")
     parser.add_argument("--include-deferred", action="store_true")
     parser.add_argument(
+        "--mode",
+        default="calibration",
+        choices=["calibration", "trace"],
+        help="Experiment mode: calibration (synthetic replay) or trace (live runtime).",
+    )
+    parser.add_argument(
         "--report-dir",
         default=None,
         help="Directory to save markdown experiment report (default: workspace/projects/meta-agent/evals/reports/)",
@@ -221,6 +249,7 @@ def main() -> None:
         dataset_name=args.dataset_name,
         include_deferred=args.include_deferred,
         report_dir=args.report_dir,
+        mode=args.mode,
     )
     print(result)
 

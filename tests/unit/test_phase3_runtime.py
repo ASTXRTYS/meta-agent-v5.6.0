@@ -11,6 +11,23 @@ from meta_agent.subagents.research_agent import (
     normalize_research_outputs,
 )
 from meta_agent.subagents.verification_agent import parse_verification_verdict
+from meta_agent.subagents.verification_agent_runtime import normalize_verification_outputs
+from meta_agent.subagents.spec_writer_agent import (
+    _extract_status_block,
+    normalize_spec_writer_outputs,
+    get_spec_writer_runtime_paths,
+)
+from meta_agent.evals.phase3_gate import (
+    eval_research_001,
+    eval_research_002,
+    eval_research_003,
+    eval_spec_001,
+    eval_spec_002,
+    eval_spec_003,
+    eval_spec_004,
+    RESEARCH_BUNDLE_REQUIRED_SECTIONS,
+    SPEC_REQUIRED_SECTIONS,
+)
 
 
 def _write(path: str, content: str) -> None:
@@ -154,10 +171,22 @@ def test_parse_verification_verdict():
 def test_research_stage_exit_conditions(tmp_path):
     stage = ResearchStage(str(tmp_path), "demo")
     _write(stage.decomposition_path, "decomposition")
-    _write(stage.research_bundle_path, "bundle")
+    _write(stage.research_clusters_path, "clusters")
+    _write(stage.research_bundle_path, (
+        "# Research Bundle\n\n"
+        "## PRD Coverage Matrix\n\ncoverage here\n\n"
+        "## Unresolved Research Gaps\n\ngaps here\n\n"
+        "## Citation Index\n\ncitations here\n"
+    ))
+    _write(stage.agents_md_path, "# research-agent memory")
+    os.makedirs(stage.sub_findings_dir, exist_ok=True)
+    _write(os.path.join(stage.sub_findings_dir, "finding-1.md"), "finding")
     state = {
         "current_research_path": stage.research_bundle_path,
-        "approval_history": [{"artifact": stage.research_bundle_path, "action": "approved"}],
+        "approval_history": [
+            {"artifact": stage.research_clusters_path, "action": "approved"},
+            {"artifact": stage.research_bundle_path, "action": "approved"},
+        ],
         "verification_results": {"research_bundle": {"status": "pass"}},
     }
     result = stage.check_exit_conditions(state)
@@ -169,11 +198,16 @@ def test_spec_generation_stage_exit_conditions(tmp_path):
     _write(stage.prd_path, "prd")
     _write(stage.research_bundle_path, "bundle")
     _write(stage.spec_path, "spec")
-    _write(stage.arch_eval_suite_path, json.dumps({"metadata": {}, "evals": []}))
+    _write(stage.tier1_eval_suite_path, json.dumps({"metadata": {"tier": 1}, "evals": []}))
+    _write(stage.arch_eval_suite_path, json.dumps({
+        "metadata": {"artifact": "eval-suite-architecture", "tier": 2, "created_by": "spec-writer"},
+        "evals": [],
+    }))
     state = {
         "current_spec_path": stage.spec_path,
-        "eval_suites": [stage.arch_eval_suite_path],
+        "eval_suites": [stage.tier1_eval_suite_path, stage.arch_eval_suite_path],
         "verification_results": {"technical_specification": {"status": "pass"}},
+        "spec_generation_feedback_cycles": 0,
     }
     result = stage.check_exit_conditions(state)
     assert result["met"] is True
@@ -191,3 +225,363 @@ def test_spec_review_stage_exit_conditions(tmp_path):
     }
     result = stage.check_exit_conditions(state)
     assert result["met"] is True
+
+
+# ---------------------------------------------------------------------------
+# Verification-agent runtime normalization
+# ---------------------------------------------------------------------------
+
+
+def test_verification_agent_normalize_outputs_valid_verdict(tmp_path):
+    """normalize_verification_outputs extracts a valid JSON verdict from messages."""
+    verdict_json = json.dumps({
+        "artifact_type": "research_bundle",
+        "source_path": "artifacts/intake/prd.md",
+        "status": "pass",
+        "coverage_summary": "All areas covered",
+        "gaps": [],
+        "recommended_action": "none",
+    })
+    raw_result = {
+        "messages": [
+            {"content": "Analyzing the research bundle..."},
+            {"content": f"```json\n{verdict_json}\n```"},
+        ],
+    }
+    outputs = normalize_verification_outputs(
+        raw_result,
+        project_dir=str(tmp_path),
+        project_id="demo",
+    )
+    assert outputs["status"] == "pass"
+    assert outputs["artifact_type"] == "research_bundle"
+    assert outputs["source_path"] == "artifacts/intake/prd.md"
+    assert outputs["coverage_summary"] == "All areas covered"
+    assert outputs["gaps"] == []
+    assert outputs["recommended_action"] == "none"
+    assert "raw_result" in outputs
+
+
+def test_verification_agent_normalize_outputs_no_verdict(tmp_path):
+    """normalize_verification_outputs falls back to blocked when no parseable verdict."""
+    raw_result = {
+        "messages": [
+            {"content": "I could not complete verification."},
+        ],
+    }
+    outputs = normalize_verification_outputs(
+        raw_result,
+        project_dir=str(tmp_path),
+        project_id="demo",
+    )
+    assert outputs["status"] == "blocked"
+    assert outputs["artifact_type"] == "unknown"
+    assert len(outputs["gaps"]) > 0
+
+
+# ---------------------------------------------------------------------------
+# Spec-writer normalization
+# ---------------------------------------------------------------------------
+
+
+def test_spec_writer_normalize_outputs_complete(tmp_path):
+    """normalize_spec_writer_outputs detects 'complete' status from fenced JSON."""
+    project_dir = str(tmp_path)
+    paths = get_spec_writer_runtime_paths(project_dir, "demo")
+
+    # Create the artifacts the normalizer will read
+    _write(paths.spec_path, "# Technical Specification\ncontent here")
+    _write(paths.tier2_eval_suite_path, json.dumps({"evals": []}))
+
+    status_block = json.dumps({"status": "complete"})
+    raw_result = {
+        "messages": [
+            {"type": "ai", "content": f"Here is the spec.\n\n```json\n{status_block}\n```"},
+        ],
+    }
+    outputs = normalize_spec_writer_outputs(
+        raw_result,
+        project_dir=project_dir,
+        project_id="demo",
+    )
+    assert outputs["status"] == "complete"
+    assert outputs["needs_additional_research"] is False
+    assert outputs["spec_path"] == paths.spec_path
+    assert outputs["tier2_eval_suite_path"] == paths.tier2_eval_suite_path
+    # Agent memory file should be written
+    assert os.path.isfile(paths.agents_md_path)
+
+
+def test_spec_writer_normalize_outputs_needs_research(tmp_path):
+    """normalize_spec_writer_outputs detects 'needs_additional_research' status."""
+    project_dir = str(tmp_path)
+    paths = get_spec_writer_runtime_paths(project_dir, "demo")
+
+    _write(paths.spec_path, "# Partial spec")
+
+    status_block = json.dumps({
+        "status": "needs_additional_research",
+        "needs_additional_research": True,
+        "additional_research_request": "Need more info on auth flows",
+    })
+    raw_result = {
+        "messages": [
+            {"type": "ai", "content": f"```json\n{status_block}\n```"},
+        ],
+    }
+    outputs = normalize_spec_writer_outputs(
+        raw_result,
+        project_dir=project_dir,
+        project_id="demo",
+    )
+    assert outputs["status"] == "needs_additional_research"
+    assert outputs["needs_additional_research"] is True
+    assert outputs["additional_research_request"] == "Need more info on auth flows"
+
+
+def test_spec_writer_normalize_outputs_missing_status(tmp_path):
+    """normalize_spec_writer_outputs handles missing status block gracefully."""
+    project_dir = str(tmp_path)
+    paths = get_spec_writer_runtime_paths(project_dir, "demo")
+
+    _write(paths.spec_path, "# Spec content")
+
+    raw_result = {
+        "messages": [
+            {"type": "ai", "content": "Here is the specification. No JSON status block."},
+        ],
+    }
+    outputs = normalize_spec_writer_outputs(
+        raw_result,
+        project_dir=project_dir,
+        project_id="demo",
+    )
+    # With no status block, status defaults to "complete" (not needs_research)
+    assert outputs["status"] == "complete"
+    assert outputs["needs_additional_research"] is False
+    # Agent memory file should still be created
+    assert os.path.isfile(paths.agents_md_path)
+
+
+# ---------------------------------------------------------------------------
+# Phase 3 gate evals — binary
+# ---------------------------------------------------------------------------
+
+
+def test_phase3_gate_evals_binary_research_001(tmp_path):
+    """RESEARCH-001: passes when bundle exists, fails when missing."""
+    project_dir = str(tmp_path)
+
+    # Fail case: no bundle
+    result = eval_research_001(project_dir)
+    assert result["pass"] is False
+    assert result["score"] == 0.0
+
+    # Pass case: bundle exists
+    bundle_path = os.path.join(project_dir, "artifacts", "research", "research-bundle.md")
+    _write(bundle_path, "# Research Bundle\n")
+    result = eval_research_001(project_dir)
+    assert result["pass"] is True
+    assert result["score"] == 1.0
+
+
+def test_phase3_gate_evals_binary_research_002(tmp_path):
+    """RESEARCH-002: passes when bundle has PRD Coverage Matrix heading."""
+    project_dir = str(tmp_path)
+    bundle_path = os.path.join(project_dir, "artifacts", "research", "research-bundle.md")
+
+    # Fail case: bundle without the heading
+    _write(bundle_path, "# Research Bundle\n\n## Some Other Section\ncontent\n")
+    result = eval_research_002(project_dir)
+    assert result["pass"] is False
+    assert result["score"] == 0.0
+
+    # Pass case: bundle with the heading
+    _write(bundle_path, "# Research Bundle\n\n## PRD Coverage Matrix\ncoverage content\n")
+    result = eval_research_002(project_dir)
+    assert result["pass"] is True
+    assert result["score"] == 1.0
+
+
+def test_phase3_gate_evals_binary_spec_001(tmp_path):
+    """SPEC-001: passes when spec exists, fails when missing."""
+    project_dir = str(tmp_path)
+
+    # Fail case
+    result = eval_spec_001(project_dir)
+    assert result["pass"] is False
+    assert result["score"] == 0.0
+
+    # Pass case
+    spec_path = os.path.join(project_dir, "artifacts", "spec", "technical-specification.md")
+    _write(spec_path, "# Technical Specification\n")
+    result = eval_spec_001(project_dir)
+    assert result["pass"] is True
+    assert result["score"] == 1.0
+
+
+def test_phase3_gate_evals_binary_spec_002(tmp_path):
+    """SPEC-002: passes when spec has PRD Traceability Matrix with 100% coverage text."""
+    project_dir = str(tmp_path)
+    spec_path = os.path.join(project_dir, "artifacts", "spec", "technical-specification.md")
+
+    # Fail case: no traceability matrix heading
+    _write(spec_path, "# Technical Specification\n\n## Architecture\ncontent\n")
+    result = eval_spec_002(project_dir)
+    assert result["pass"] is False
+
+    # Fail case: heading present but no 100% coverage assertion
+    _write(spec_path, (
+        "# Technical Specification\n\n"
+        "## PRD Traceability Matrix\n\nPartial coverage only.\n"
+    ))
+    result = eval_spec_002(project_dir)
+    assert result["pass"] is False
+
+    # Pass case: heading + 100% coverage assertion
+    _write(spec_path, (
+        "# Technical Specification\n\n"
+        "## PRD Traceability Matrix\n\nAll requirements mapped. 100% coverage achieved.\n"
+    ))
+    result = eval_spec_002(project_dir)
+    assert result["pass"] is True
+    assert result["score"] == 1.0
+
+
+def test_phase3_gate_evals_binary_spec_003(tmp_path):
+    """SPEC-003: passes when eval-suite-architecture.json exists and is valid JSON."""
+    project_dir = str(tmp_path)
+    eval_path = os.path.join(project_dir, "evals", "eval-suite-architecture.json")
+
+    # Fail case: file missing
+    result = eval_spec_003(project_dir)
+    assert result["pass"] is False
+    assert result["score"] == 0.0
+
+    # Fail case: file exists but invalid JSON
+    _write(eval_path, "not valid json {{{")
+    result = eval_spec_003(project_dir)
+    assert result["pass"] is False
+    assert result["score"] == 0.0
+
+    # Pass case: valid JSON
+    _write(eval_path, json.dumps({"metadata": {"tier": 2}, "evals": []}))
+    result = eval_spec_003(project_dir)
+    assert result["pass"] is True
+    assert result["score"] == 1.0
+
+
+# ---------------------------------------------------------------------------
+# Phase 3 gate evals — Likert
+# ---------------------------------------------------------------------------
+
+
+def test_phase3_gate_evals_likert_research_003(tmp_path):
+    """RESEARCH-003: score=5 when all 17 sections + 3 PRD req IDs present."""
+    project_dir = str(tmp_path)
+    bundle_path = os.path.join(project_dir, "artifacts", "research", "research-bundle.md")
+
+    # Build a bundle with all 17 required sections and 3 PRD requirement IDs
+    sections = "\n\n".join(
+        f"## {section}\ncontent for {section}" for section in RESEARCH_BUNDLE_REQUIRED_SECTIONS
+    )
+    prd_refs = "\nFR-A FR-B FR-C\n"
+    _write(bundle_path, f"# Research Bundle\n\n{sections}\n{prd_refs}\n")
+
+    result = eval_research_003(project_dir)
+    assert result["score"] == 5.0
+    assert result["pass"] is True
+
+
+def test_phase3_gate_evals_likert_spec_004(tmp_path):
+    """SPEC-004: score=5 when all 17 sections + YAML frontmatter present."""
+    project_dir = str(tmp_path)
+    spec_path = os.path.join(project_dir, "artifacts", "spec", "technical-specification.md")
+
+    # Build a spec with YAML frontmatter and all required sections
+    frontmatter = "---\nartifact: technical-specification\nversion: 1.0.0\n---\n\n"
+    sections = "\n\n".join(
+        f"## {section}\ncontent for {section}" for section in SPEC_REQUIRED_SECTIONS
+    )
+    _write(spec_path, f"{frontmatter}# Technical Specification\n\n{sections}\n")
+
+    result = eval_spec_004(project_dir)
+    assert result["score"] == 5.0
+    assert result["pass"] is True
+
+
+# ---------------------------------------------------------------------------
+# _extract_status_block helper
+# ---------------------------------------------------------------------------
+
+
+def test_spec_writer_extract_status_block_fenced_json():
+    """_extract_status_block extracts JSON from a ```json ... ``` block."""
+    text = 'Some preamble.\n\n```json\n{"status": "complete", "notes": "all done"}\n```\n\nEpilogue.'
+    result = _extract_status_block(text)
+    assert result["status"] == "complete"
+    assert result["notes"] == "all done"
+
+
+def test_spec_writer_extract_status_block_bare_fence():
+    """_extract_status_block extracts JSON from a bare ``` ... ``` block."""
+    text = 'Preamble.\n\n```\n{"status": "needs_additional_research"}\n```\n'
+    result = _extract_status_block(text)
+    assert result["status"] == "needs_additional_research"
+
+
+def test_spec_writer_extract_status_block_none():
+    """_extract_status_block returns empty dict when no status block found."""
+    text = "There is no JSON here at all. Just plain prose."
+    result = _extract_status_block(text)
+    assert result == {}
+
+
+def test_run_research_agent_live_injects_auto_approve_hitl():
+    """run_research_agent_live() must inject auto_approve_hitl=True via extra_state."""
+    from unittest.mock import patch, MagicMock
+
+    from meta_agent.subagents.research_agent import run_research_agent_live
+
+    captured_kwargs = {}
+
+    def _capture_run(**kwargs):
+        captured_kwargs.update(kwargs)
+        return {"messages": []}
+
+    with patch("meta_agent.subagents.research_agent.run_research_agent", side_effect=_capture_run):
+        try:
+            run_research_agent_live({"project_id": "test", "project_dir": "/tmp/test"})
+        except Exception:
+            pass  # normalization may fail on empty result; we only need the captured call
+
+    assert "extra_state" in captured_kwargs
+    assert captured_kwargs["extra_state"].get("auto_approve_hitl") is True
+
+
+def test_run_research_agent_live_preserves_caller_extra_state():
+    """run_research_agent_live() must preserve caller-provided extra_state keys."""
+    from unittest.mock import patch
+
+    from meta_agent.subagents.research_agent import run_research_agent_live
+
+    captured_kwargs = {}
+
+    def _capture_run(**kwargs):
+        captured_kwargs.update(kwargs)
+        return {"messages": []}
+
+    inputs = {
+        "project_id": "test",
+        "project_dir": "/tmp/test",
+        "extra_state": {"custom_key": "custom_value"},
+    }
+
+    with patch("meta_agent.subagents.research_agent.run_research_agent", side_effect=_capture_run):
+        try:
+            run_research_agent_live(inputs)
+        except Exception:
+            pass
+
+    assert captured_kwargs["extra_state"]["auto_approve_hitl"] is True
+    assert captured_kwargs["extra_state"]["custom_key"] == "custom_value"

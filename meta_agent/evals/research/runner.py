@@ -15,6 +15,49 @@ from meta_agent.evals.research.report import generate_report
 from meta_agent.evals.research.synthetic_trace_adapter import load_calibration_dataset
 
 
+# ---------------------------------------------------------------------------
+# Trace-mode phase slices (per development plan section 3.2.8)
+# ---------------------------------------------------------------------------
+# Phase A: after protocol phases 1-2  (PRD consumption + decomposition) — 9 evals
+# Phase B: after protocol phases 3-4  (skills + sub-agent delegation) — 9 evals
+# Phase C: after protocol phases 5-8  (gap remediation + HITL + deep-dive + SME) — 9 evals
+# Phase all: after protocol phases 9-10 (full suite)
+# Per development plan Section 3.2.8
+EVAL_PHASE_SLICES: dict[str, list[str]] = {
+    "A": [
+        "RS-001", "RS-002", "RS-003", "RS-004",
+        "RINFRA-001", "RINFRA-002",
+        "RB-001", "RB-002", "RB-003",
+    ],
+    "B": [
+        "RB-004", "RB-007", "RB-008", "RB-009", "RB-010",
+        "RQ-007", "RQ-008", "RQ-009", "RQ-010",
+    ],
+    "C": [
+        "RB-005", "RB-006", "RB-011",
+        "RQ-006", "RQ-012", "RQ-013",
+        "RR-001", "RR-002", "RR-003",
+    ],
+}
+
+# Convenience aliases
+PHASE_A_EVALS = EVAL_PHASE_SLICES["A"]
+PHASE_B_EVALS = EVAL_PHASE_SLICES["B"]
+
+
+def _get_phase_slice_eval_ids(phase_slice: str) -> set[str] | None:
+    """Return the eval IDs for a trace-mode phase slice, or None for 'all'."""
+    if phase_slice.upper() == "ALL":
+        return None
+    phase_slice = phase_slice.upper()
+    if phase_slice == "C":
+        return set(EVAL_PHASE_SLICES["C"])
+    ids = EVAL_PHASE_SLICES.get(phase_slice)
+    if ids is not None:
+        return set(ids)
+    return None
+
+
 class MockRun:
     def __init__(self, outputs: dict):
         self.outputs = outputs
@@ -167,10 +210,14 @@ async def run_phase(
     *,
     verbose: bool = True,
     evaluation_mode: str = "calibration",
+    slice_filter: set[str] | None = None,
 ) -> tuple[list[dict], bool]:
     evals_in_phase = {
         eval_id: meta for eval_id, meta in RESEARCH_EVAL_REGISTRY.items() if meta["phase"] == phase
     }
+    # Apply trace-mode phase slice filter when provided
+    if slice_filter is not None:
+        evals_in_phase = {eid: m for eid, m in evals_in_phase.items() if eid in slice_filter}
 
     if verbose:
         gate_info = PHASE_GATES.get(phase, {})
@@ -220,6 +267,14 @@ def _calibration_summary(all_results: list[dict], example_data: dict[str, Any]) 
     }
 
 
+def _build_trace_mode_example(inputs: dict[str, Any]) -> tuple[MockRun, MockExample]:
+    """Invoke the live research-agent runtime and build evaluator inputs."""
+    from meta_agent.subagents.research_agent import run_research_agent_live
+
+    live_outputs = run_research_agent_live(inputs)
+    return MockRun(live_outputs), MockExample(inputs, live_outputs)
+
+
 async def run_suite(
     data_dir: str,
     *,
@@ -228,14 +283,24 @@ async def run_suite(
     verbose: bool = True,
     scenario: str = "golden_path",
     evaluation_mode: str = "calibration",
+    phase_slice: str = "all",
 ) -> dict:
     dataset = load_calibration_dataset(data_dir)
     if not dataset:
         return {"error": "No calibration data found", "passed": False}
 
     example_data = next((example for example in dataset if example["metadata"].get("scenario_type") == scenario), dataset[0])
-    run = MockRun(example_data["outputs"])
-    example = MockExample(example_data["inputs"], example_data["outputs"])
+
+    if evaluation_mode == "trace":
+        # Trace mode: invoke the live research-agent runtime
+        if verbose:
+            print(f"Scenario inputs: {scenario}")
+            print(f"Mode: trace (live runtime)")
+        run, example = _build_trace_mode_example(example_data["inputs"])
+    else:
+        # Calibration mode: use synthetic replay (UNCHANGED)
+        run = MockRun(example_data["outputs"])
+        example = MockExample(example_data["inputs"], example_data["outputs"])
 
     if verbose:
         print(f"Scenario: {example_data['metadata'].get('scenario_name', 'unknown')}")
@@ -243,10 +308,15 @@ async def run_suite(
         print(f"Expected Likert range: {example_data['metadata'].get('expected_likert_range', 'N/A')}")
         print(f"Expected binary pass rate: {example_data['metadata'].get('expected_binary_pass_rate', 'N/A')}")
 
+    # Resolve phase slice filter for trace mode
+    slice_filter = _get_phase_slice_eval_ids(phase_slice) if evaluation_mode == "trace" else None
+
     if single_eval:
         meta = RESEARCH_EVAL_REGISTRY.get(single_eval)
         if not meta:
             return {"error": f"Unknown eval: {single_eval}", "passed": False}
+        if slice_filter is not None and single_eval not in slice_filter:
+            return {"error": f"Eval {single_eval} not in phase slice {phase_slice}", "passed": False}
         result = await _run_eval(single_eval, meta["fn"], run, example)
         if verbose:
             _print_result(result, meta["type"])
@@ -267,6 +337,7 @@ async def run_suite(
             example,
             verbose=verbose,
             evaluation_mode=evaluation_mode,
+            slice_filter=slice_filter,
         )
         all_results.extend(results)
         if evaluation_mode == "trace" and not gate_passed:
@@ -295,6 +366,7 @@ async def run_suite(
         if integration_failures:
             overall_passed = False
         summary["integration_failures"] = integration_failures
+        summary["phase_slice"] = phase_slice
 
     summary["passed"] = overall_passed
 
@@ -319,6 +391,8 @@ async def run_suite(
                 1 for result in all_results if RESEARCH_EVAL_REGISTRY.get(result["eval_id"], {}).get("type") == "deterministic"
             )
             print(f"  Deterministic: {deterministic_pass}/{deterministic_total} passed")
+            if phase_slice != "all":
+                print(f"  Phase slice: {phase_slice}")
         print(f"  Overall: {'PASSED' if overall_passed else 'FAILED'}")
 
     return summary
@@ -341,6 +415,12 @@ def main() -> None:
         ],
     )
     parser.add_argument("--mode", default="calibration", choices=["calibration", "trace"])
+    parser.add_argument(
+        "--phase-slice",
+        default="all",
+        choices=["A", "B", "C", "all"],
+        help="Trace-mode phase slice: A, B, C, or all (default: all). Only used when --mode=trace.",
+    )
     parser.add_argument("--quiet", action="store_true")
     parser.add_argument(
         "--report-dir",
@@ -358,6 +438,7 @@ def main() -> None:
             single_eval=args.eval,
             scenario=args.scenario,
             evaluation_mode=args.mode,
+            phase_slice=args.phase_slice if args.mode == "trace" else "all",
             verbose=not args.quiet,
         )
     )

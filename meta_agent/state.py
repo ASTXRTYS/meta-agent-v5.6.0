@@ -207,6 +207,9 @@ class MetaAgentState(TypedDict):
     eval_suites: list[str]  # Paths to eval suite JSON files
     eval_results: dict  # Mapping eval run IDs to results
     current_eval_phase: Optional[str]  # Current phase being evaluated
+    verification_results: dict  # Verification verdicts by artifact type
+    spec_generation_feedback_cycles: int  # Orchestrator-mediated research/spec retries
+    pending_research_gap_request: Optional[str]  # Targeted research request from spec-writer
 
 
 def create_initial_state(project_id: str) -> dict:
@@ -233,4 +236,7 @@ def create_initial_state(project_id: str) -> dict:
         "eval_suites": [],
         "eval_results": {},
         "current_eval_phase": None,
+        "verification_results": {},
+        "spec_generation_feedback_cycles": 0,
+        "pending_research_gap_request": None,
     }

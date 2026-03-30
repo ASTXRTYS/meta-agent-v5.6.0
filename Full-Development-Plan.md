@@ -42,7 +42,7 @@ This document is the authoritative development plan for the local-first meta-age
 
 ## 1.5 Project Status Summary
 
-**Overall Completion: ~50%**
+**Overall Completion: ~60%**
 
 ### Phase-by-Phase Status
 
@@ -51,11 +51,11 @@ This document is the authoritative development plan for the local-first meta-age
 | **Phase 0** | ✅ COMPLETE | 100% | State model, middleware scaffold, eval infrastructure | - |
 | **Phase 1** | ✅ COMPLETE | 100% | Real Deep Agents SDK integration, orchestrator graph, 14+ tools | - |
 | **Phase 2** | ✅ COMPLETE | 100% | INTAKE/PRD_REVIEW stages, HITL integration, 23 evals passing | - |
-| **Phase 3** | 🔄 IN PROGRESS | ~35% | Research eval stack (38 evals), stage validators, prompts | Build runtime agents |
+| **Phase 3** | 🔄 IN PROGRESS | ~75% | Research eval stack (38 evals), stage validators, prompts, runtime agents (research/verification/spec-writer), Phase 3 gate evals (7), eval run function | End-to-end stage wiring validation, live experiment run |
 | **Phase 4** | ⏸️ NOT STARTED | 0% | - | Complete Phase 3 |
 | **Phase 5** | ⏸️ NOT STARTED | 0% | - | Complete Phase 4 |
 
-### Current Focus: Phase 3 Runtime Implementation
+### Current Focus: Phase 3 End-to-End Validation
 
 **Foundations Complete:**
 - ✅ Stage validators (ResearchStage, SpecGenerationStage, SpecReviewStage)
@@ -63,11 +63,19 @@ This document is the authoritative development plan for the local-first meta-age
 - ✅ System prompts with 17-section research bundle schema
 - ✅ State schema extensions for Phase 3
 
+**Runtime Agents Complete:**
+- ✅ Research-agent standalone runtime (create_deep_agent, normalization, eval bridge)
+- ✅ Verification-agent standalone runtime (cross-check protocol, verdict normalization)
+- ✅ Spec-writer standalone runtime (reflection loop, feedback loop, Tier 2 eval support)
+- ✅ All 3 runtimes wired into orchestrator via configs.py
+- ✅ Phase 3 gate evals implemented (7 Layer 1 evals)
+- ✅ Eval run function bridge for langsmith.evaluate() with checkpoint mapping
+- ✅ 478 unit tests passing
+
 **Remaining Work:**
-- ⏳ Research-agent runtime (10-phase protocol execution)
-- ⏳ Verification-agent runtime
-- ⏳ Spec-writer-agent runtime
-- ⏳ Stage wiring (RESEARCH → SPEC_GENERATION → SPEC_REVIEW)
+- ⏳ End-to-end live experiment run (requires API keys)
+- ⏳ Stage wiring validation (RESEARCH → SPEC_GENERATION → SPEC_REVIEW)
+- ⏳ HITL checkpoint verification in live runtime
 
 ### Progress Tracking Legend
 
@@ -2068,11 +2076,19 @@ Phase 3 implements the research-agent, verification-agent, spec-writer-agent, an
 - [x] Eval runner with phased checkpoints (A/B/C)
 - [x] Synthetic calibration scenarios (5 scenarios)
 
-**Runtime Implementation ⏳ IN PROGRESS:**
-- [ ] Research-agent runtime (10-phase protocol execution)
-- [ ] Verification-agent runtime
-- [ ] Spec-writer-agent runtime
-- [ ] Stage wiring (RESEARCH → SPEC_GENERATION → SPEC_REVIEW)
+**Runtime Implementation ✅ COMPLETE:**
+- [x] Research-agent runtime (standalone Deep Agent with create_deep_agent(), normalization, eval bridge) — `meta_agent/subagents/research_agent.py`
+- [x] Verification-agent runtime (standalone Deep Agent with cross-check protocol, verdict normalization) — `meta_agent/subagents/verification_agent_runtime.py`
+- [x] Spec-writer runtime (standalone Deep Agent with reflection loop, feedback loop, Tier 2 eval support) — `meta_agent/subagents/spec_writer_agent.py`
+- [x] All 3 runtimes wired into orchestrator via `configs.py` build_orchestrator_subagents()
+- [x] Phase 3 gate evals (7 Layer 1 evals) — `meta_agent/evals/phase3_gate.py`
+- [x] Eval run function bridge for langsmith.evaluate() — `meta_agent/evals/research/run_function.py`
+- [x] 478 unit tests passing (15 new Phase 3 runtime tests)
+
+**End-to-End Validation ⏳ IN PROGRESS:**
+- [ ] Stage wiring live validation (RESEARCH → SPEC_GENERATION → SPEC_REVIEW)
+- [ ] HITL checkpoint verification in live runtime
+- [ ] Live experiment run with LangSmith recording
 
 ---
 
@@ -2857,10 +2873,10 @@ If evals fail:
 - [ ] `artifacts/spec/technical-specification.md` exists with PRD Traceability Matrix
 - [ ] `evals/eval-suite-architecture.json` exists (Tier 2 evals)
 
-**Agents implemented ⏳ IN PROGRESS:**
-- [ ] research-agent instantiated as Deep Agent with 10-phase protocol (Section 6.1.2)
-- [ ] verification-agent instantiated as Deep Agent with cross-check protocol
-- [ ] spec-writer-agent instantiated as Deep Agent with reflection loop and Tier 2 eval creation
+**Agents implemented ✅ COMPLETE:**
+- [x] research-agent instantiated as Deep Agent with 10-phase protocol (Section 6.1.2) — `meta_agent/subagents/research_agent.py`
+- [x] verification-agent instantiated as Deep Agent with cross-check protocol — `meta_agent/subagents/verification_agent_runtime.py`
+- [x] spec-writer-agent instantiated as Deep Agent with reflection loop and Tier 2 eval creation — `meta_agent/subagents/spec_writer_agent.py`
 
 **Stage wiring complete ⏳ IN PROGRESS:**
 - [ ] RESEARCH stage: orchestrator delegates to research-agent, two HITL checkpoints fire, verification-agent runs

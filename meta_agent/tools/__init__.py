@@ -19,10 +19,12 @@ import os
 import re
 import subprocess
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Annotated, Any
 
 from langchain_core.messages import ToolMessage
 from langchain_core.tools import InjectedToolCallId, tool
+from langgraph.prebuilt import InjectedState
 from langgraph.types import Command, interrupt
 
 from meta_agent.state import (
@@ -34,6 +36,7 @@ from meta_agent.state import (
     is_valid_transition,
 )
 from meta_agent.safety import validate_command, validate_path
+from meta_agent.stages import ResearchStage, SpecGenerationStage, SpecReviewStage
 from meta_agent.tracing import traceable
 
 
@@ -95,6 +98,106 @@ def _check_exit_conditions(state: dict[str, Any], from_stage: str) -> list[str]:
     return unmet
 
 
+def _coerce_state(state: Any) -> dict[str, Any]:
+    if isinstance(state, dict):
+        return state
+    if hasattr(state, "items"):
+        return dict(state)
+    return {}
+
+
+def _path_project_dir(path: str | None) -> str | None:
+    if not path:
+        return None
+    parts = Path(path).parts
+    for marker in ("artifacts", "evals", ".agents"):
+        if marker in parts:
+            idx = parts.index(marker)
+            return str(Path(*parts[:idx])) or os.sep
+    return None
+
+
+def _resolve_project_dir(state: dict[str, Any]) -> str:
+    for key in ("current_prd_path", "current_research_path", "current_spec_path", "current_plan_path"):
+        resolved = _path_project_dir(str(state.get(key) or ""))
+        if resolved:
+            return resolved
+    project_id = str(state.get("project_id") or "").strip()
+    repo_root = Path(__file__).resolve().parents[2]
+    if project_id:
+        return str(repo_root / "workspace" / "projects" / project_id)
+    return str(repo_root)
+
+
+def _get_stage_validator(stage_name: str, state: dict[str, Any]) -> Any | None:
+    validators = {
+        WorkflowStage.RESEARCH.value: ResearchStage,
+        WorkflowStage.SPEC_GENERATION.value: SpecGenerationStage,
+        WorkflowStage.SPEC_REVIEW.value: SpecReviewStage,
+    }
+    validator_cls = validators.get(stage_name)
+    if not validator_cls:
+        return None
+    return validator_cls(
+        project_dir=_resolve_project_dir(state),
+        project_id=str(state.get("project_id") or ""),
+    )
+
+
+def _validate_transition_for_tool(
+    state: dict[str, Any],
+    target_stage: str,
+) -> tuple[list[str], list[str]]:
+    current = state.get("current_stage", WorkflowStage.INTAKE.value)
+    exit_unmet: list[str] = []
+    entry_unmet: list[str] = []
+
+    if target_stage != WorkflowStage.AUDIT.value and current != WorkflowStage.AUDIT.value:
+        validator = _get_stage_validator(current, state)
+        if validator is not None:
+            exit_result = validator.check_exit_conditions(state)
+            exit_unmet = list(exit_result.get("unmet", []))
+        else:
+            exit_unmet = _check_exit_conditions(state, current)
+
+        target_validator = _get_stage_validator(target_stage, state)
+        if target_validator is not None:
+            entry_result = target_validator.check_entry_conditions(state)
+            entry_unmet = list(entry_result.get("unmet", []))
+
+    return exit_unmet, entry_unmet
+
+
+def _parse_approval_response(user_response: Any) -> tuple[str, str]:
+    if isinstance(user_response, dict):
+        raw_action = str(
+            user_response.get("action")
+            or user_response.get("status")
+            or user_response.get("decision")
+            or ""
+        ).strip().lower()
+        comments = str(
+            user_response.get("comments")
+            or user_response.get("comment")
+            or user_response.get("feedback")
+            or ""
+        ).strip()
+    else:
+        raw_action = ""
+        comments = str(user_response or "").strip()
+        lowered = comments.casefold()
+        if lowered in {"approve", "approved", "yes", "y"} or lowered.startswith("approve"):
+            raw_action = "approved"
+        elif "reject" in lowered or lowered in {"no", "n"}:
+            raw_action = "rejected"
+        elif any(token in lowered for token in ("revise", "revision", "edit", "change", "update")):
+            raw_action = "revised"
+
+    if raw_action not in ApprovalEntry.VALID_ACTIONS:
+        raw_action = "approved" if not comments else "revised"
+    return raw_action, comments
+
+
 # ---------------------------------------------------------------------------
 # 8.1 transition_stage — Section 8.1
 # ---------------------------------------------------------------------------
@@ -134,7 +237,8 @@ def transition_stage(
         )
 
     if target_stage != WorkflowStage.AUDIT.value and current != WorkflowStage.AUDIT.value:
-        unmet = _check_exit_conditions(state, current)
+        exit_unmet, entry_unmet = _validate_transition_for_tool(state, target_stage)
+        unmet = exit_unmet + entry_unmet
         if unmet:
             raise PreconditionError(
                 f"Exit conditions not met for {current}: {'; '.join(unmet)}"
@@ -216,6 +320,35 @@ def request_approval(
     interrupt_payload = {
         "action": "request_approval",
         "artifact_path": artifact_path,
+        "summary": summary,
+        "stage": current_stage,
+    }
+
+    return {"interrupt": interrupt_payload}
+
+
+# ---------------------------------------------------------------------------
+# 8.18 request_eval_approval — Section 8.18
+# ---------------------------------------------------------------------------
+
+def request_eval_approval(
+    state: dict[str, Any],
+    eval_suite_path: str,
+    summary: str,
+) -> dict[str, Any]:
+    """Trigger a HITL interrupt for user review of an eval suite.
+
+    Raises:
+        FileNotFoundError: If the eval suite path does not exist.
+    """
+    if not os.path.exists(eval_suite_path):
+        raise FileNotFoundError(f"Eval suite not found: {eval_suite_path}")
+
+    current_stage = state.get("current_stage", "INTAKE")
+
+    interrupt_payload = {
+        "action": "request_eval_approval",
+        "eval_suite_path": eval_suite_path,
         "summary": summary,
         "stage": current_stage,
     }
@@ -464,6 +597,7 @@ def transition_stage_tool(
     target_stage: str,
     reason: str,
     tool_call_id: Annotated[str, InjectedToolCallId],
+    state: Annotated[dict[str, Any] | None, InjectedState] = None,
 ) -> Command:
     """Move the workflow from the current stage to a target stage.
 
@@ -473,6 +607,9 @@ def transition_stage_tool(
         target_stage: Target stage name (e.g. PRD_REVIEW, RESEARCH).
         reason: Reason for the transition.
     """
+    current_state = _coerce_state(state)
+    current_stage = current_state.get("current_stage", WorkflowStage.INTAKE.value)
+
     # Validate stage name
     try:
         WorkflowStage(target_stage)
@@ -482,13 +619,33 @@ def transition_stage_tool(
             "messages": [ToolMessage(msg, tool_call_id=tool_call_id)],
         })
 
-    # NOTE: Full validation (is_valid_transition, exit conditions) requires
-    # the current state which is not directly available to tools.
-    # The transition_stage() raw function does this validation.
-    # For now, we do basic validation and trust the middleware/graph
-    # state for current_stage tracking.
+    if not is_valid_transition(current_stage, target_stage):
+        msg = json.dumps(
+            {
+                "action": "transition_stage",
+                "error": f"Transition from {current_stage} to {target_stage} is not allowed",
+                "status": "error",
+            }
+        )
+        return Command(update={"messages": [ToolMessage(msg, tool_call_id=tool_call_id)]})
+
+    exit_unmet, entry_unmet = _validate_transition_for_tool(current_state, target_stage)
+    if exit_unmet or entry_unmet:
+        msg = json.dumps(
+            {
+                "action": "transition_stage",
+                "error": "Stage transition blocked by unmet conditions",
+                "current_stage": current_stage,
+                "target_stage": target_stage,
+                "unmet_exit_conditions": exit_unmet,
+                "unmet_entry_conditions": entry_unmet,
+                "status": "error",
+            }
+        )
+        return Command(update={"messages": [ToolMessage(msg, tool_call_id=tool_call_id)]})
+
     entry = DecisionEntry.create(
-        stage="",  # Will be set contextually; graph state has current_stage
+        stage=current_stage,
         decision=f"Transition to {target_stage}",
         rationale=reason,
         alternatives=[],
@@ -515,6 +672,7 @@ def record_decision_tool(
     alternatives: str = "",
     *,
     tool_call_id: Annotated[str, InjectedToolCallId],
+    state: Annotated[dict[str, Any] | None, InjectedState] = None,
 ) -> Command:
     """Record a PM decision with rationale. Persists to the decision log in graph state.
 
@@ -525,7 +683,7 @@ def record_decision_tool(
     """
     alts = [a.strip() for a in alternatives.split(",") if a.strip()] if alternatives else []
     entry = DecisionEntry.create(
-        stage="",  # Actual stage tracked in graph state
+        stage=_coerce_state(state).get("current_stage", WorkflowStage.INTAKE.value),
         decision=decision,
         rationale=rationale,
         alternatives=alts,
@@ -550,6 +708,7 @@ def record_assumption_tool(
     context: str,
     *,
     tool_call_id: Annotated[str, InjectedToolCallId],
+    state: Annotated[dict[str, Any] | None, InjectedState] = None,
 ) -> Command:
     """Record an assumption for later validation. Persists to the assumption log in graph state.
 
@@ -558,7 +717,7 @@ def record_assumption_tool(
         context: Context or supporting evidence.
     """
     entry = AssumptionEntry.create(
-        stage="",
+        stage=_coerce_state(state).get("current_stage", WorkflowStage.INTAKE.value),
         assumption=assumption,
         status="open",
         resolution=context,
@@ -583,6 +742,7 @@ def request_approval_tool(
     summary: str,
     *,
     tool_call_id: Annotated[str, InjectedToolCallId],
+    state: Annotated[dict[str, Any] | None, InjectedState] = None,
 ) -> Command:
     """Request user approval for an artifact. Triggers a real HITL interrupt.
 
@@ -590,26 +750,102 @@ def request_approval_tool(
         artifact_path: Path to the artifact to review.
         summary: Brief summary of what needs approval.
     """
-    # Trigger a real HITL interrupt — execution pauses here until resumed
-    user_response = interrupt({
-        "action": "request_approval",
-        "artifact_path": artifact_path,
-        "summary": summary,
-    })
+    current_state = _coerce_state(state)
+    current_stage = current_state.get("current_stage", WorkflowStage.INTAKE.value)
+
+    if current_state.get("auto_approve_hitl"):
+        user_response: Any = {
+            "action": "approved",
+            "comments": "Auto-approved in eval mode.",
+        }
+    else:
+        # Trigger a real HITL interrupt — execution pauses here until resumed
+        user_response = interrupt({
+            "action": "request_approval",
+            "artifact_path": artifact_path,
+            "summary": summary,
+            "stage": current_stage,
+        })
+
+    action, comments = _parse_approval_response(user_response)
 
     entry = ApprovalEntry.create(
-        stage="",
+        stage=current_stage,
         artifact=artifact_path,
-        action="approved",
+        action=action,
         reviewer="user",
-        comments=str(user_response),
+        comments=comments,
     )
 
     msg = json.dumps({
         "action": "request_approval",
         "artifact_path": artifact_path,
         "summary": summary,
-        "user_response": str(user_response),
+        "user_response": user_response,
+        "approval_action": action,
+        "status": "ok",
+    })
+
+    return Command(update={
+        "approval_history": [entry],
+        "messages": [ToolMessage(msg, tool_call_id=tool_call_id)],
+    })
+
+
+@tool
+def request_eval_approval_tool(
+    eval_suite_path: str,
+    summary: str,
+    *,
+    tool_call_id: Annotated[str, InjectedToolCallId],
+    state: Annotated[dict[str, Any] | None, InjectedState] = None,
+) -> Command:
+    """Request user approval for an eval suite. Triggers a real HITL interrupt.
+
+    This is the canonical eval approval tool per spec Section 8.18.
+    Used during PRD_REVIEW for Tier 1 eval suite approval and
+    during SPEC_REVIEW for Tier 2 eval suite approval.
+
+    Args:
+        eval_suite_path: Path to the eval suite JSON file.
+        summary: Brief summary of what needs approval.
+    """
+    if not os.path.exists(eval_suite_path):
+        raise FileNotFoundError(f"Eval suite not found: {eval_suite_path}")
+
+    current_state = _coerce_state(state)
+    current_stage = current_state.get("current_stage", WorkflowStage.INTAKE.value)
+
+    if current_state.get("auto_approve_hitl"):
+        user_response: Any = {
+            "action": "approved",
+            "comments": "Auto-approved in eval mode.",
+        }
+    else:
+        # Trigger a real HITL interrupt — execution pauses here until resumed
+        user_response = interrupt({
+            "action": "request_eval_approval",
+            "eval_suite_path": eval_suite_path,
+            "summary": summary,
+            "stage": current_stage,
+        })
+
+    action, comments = _parse_approval_response(user_response)
+
+    entry = ApprovalEntry.create(
+        stage=current_stage,
+        artifact=eval_suite_path,
+        action=action,
+        reviewer="user",
+        comments=comments,
+    )
+
+    msg = json.dumps({
+        "action": "request_eval_approval",
+        "eval_suite_path": eval_suite_path,
+        "summary": summary,
+        "user_response": user_response,
+        "approval_action": action,
         "status": "ok",
     })
 
@@ -648,6 +884,7 @@ def execute_command_tool(
     working_dir: str = "/workspace/",
     *,
     tool_call_id: Annotated[str, InjectedToolCallId],
+    state: Annotated[dict[str, Any] | None, InjectedState] = None,
 ) -> Command:
     """Execute a shell command. Always requires user approval via HITL interrupt.
 
@@ -655,6 +892,7 @@ def execute_command_tool(
         command: The shell command to execute.
         working_dir: Working directory for the command.
     """
+    current_state = _coerce_state(state)
     work_dir = working_dir or os.getcwd()
     validation = validate_command(command, work_dir)
 
@@ -664,14 +902,18 @@ def execute_command_tool(
             "messages": [ToolMessage(msg, tool_call_id=tool_call_id)],
         })
 
-    # Trigger HITL interrupt for command approval
-    user_response = interrupt({
-        "action": "execute_command",
-        "command": command,
-        "working_dir": work_dir,
-        "timeout": validation["timeout"],
-        "warnings": validation.get("warnings", []),
-    })
+    # Auto-approve in eval mode to prevent HITL hangs
+    if current_state.get("auto_approve_hitl"):
+        user_response: Any = {"action": "approved", "comments": "Auto-approved in eval mode."}
+    else:
+        # Trigger HITL interrupt for command approval
+        user_response = interrupt({
+            "action": "execute_command",
+            "command": command,
+            "working_dir": work_dir,
+            "timeout": validation["timeout"],
+            "warnings": validation.get("warnings", []),
+        })
 
     # After approval, execute the command
     result = _run_command(command, work_dir, validation["timeout"])
@@ -816,6 +1058,7 @@ LANGCHAIN_TOOLS = [
     record_decision_tool,
     record_assumption_tool,
     request_approval_tool,
+    request_eval_approval_tool,
     toggle_participation_tool,
     execute_command_tool,
     langgraph_dev_server_tool,

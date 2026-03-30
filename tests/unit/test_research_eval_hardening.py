@@ -97,7 +97,7 @@ def test_golden_bundle_uses_v561_section_contract():
     present = present_research_bundle_sections(bundle)
 
     assert missing_research_bundle_sections(bundle) == []
-    assert len(present) == 13
+    assert len(present) == 17
     assert "dataset, evaluator, trace, and experiment" in extract_markdown_section(
         bundle,
         "Research Methodology",
@@ -139,7 +139,7 @@ def test_rinfra_003_accepts_v561_bundle_shape(monkeypatch: pytest.MonkeyPatch):
     bundle = Path(DATASETS_DIR, "golden-path", "stage6-research-bundle.md").read_text()
 
     async def fake_run_likert_judge(**kwargs):
-        assert "13/13 canonical sections found" in kwargs["specific_instructions"]
+        assert "17/17 canonical sections found" in kwargs["specific_instructions"]
         return {"score": 5, "comment": "schema looks complete"}
 
     monkeypatch.setattr(research_evaluators, "run_likert_judge", fake_run_likert_judge)
@@ -347,3 +347,117 @@ def test_langsmith_ui_profiles_only_emit_canonical_ids():
     assert "RB-005" in profile_ids
     assert "RB-005a" not in profile_ids
     assert "RB-005b" not in profile_ids
+
+
+# ---------------------------------------------------------------------------
+# Stream 3: Trace-mode adapter and runner tests
+# ---------------------------------------------------------------------------
+
+
+def test_run_research_agent_live_exists_and_has_correct_signature():
+    """Verify run_research_agent_live is importable and has the correct signature."""
+    import inspect
+
+    from meta_agent.subagents.research_agent import run_research_agent_live
+
+    assert callable(run_research_agent_live)
+    sig = inspect.signature(run_research_agent_live)
+    params = list(sig.parameters.keys())
+    assert params == ["inputs"], f"Expected single 'inputs' param, got {params}"
+    # Verify the annotation is dict[str, Any]
+    ann = sig.parameters["inputs"].annotation
+    # Accept both dict[str, Any] and inspect.Parameter.empty
+    assert ann is not inspect.Parameter.empty, "inputs parameter should be annotated"
+
+
+def test_run_research_agent_live_accepts_dataset_input_keys():
+    """Verify the adapter handles the dataset input format without crashing on key extraction."""
+    from meta_agent.subagents.research_agent import run_research_agent_live
+
+    # We do NOT invoke the live runtime (would need a running agent).
+    # Instead, verify the function accepts the canonical input shape by
+    # checking it doesn't raise on key extraction before the runtime call.
+    sample_inputs = {
+        "prd_path": "/workspace/projects/meta-agent/artifacts/intake/research-agent-prd.md",
+        "eval_suite_path": "/workspace/projects/meta-agent/evals/eval-suite-prd.json",
+        "project_id": "meta-agent",
+        "skills_paths": ["/skills/langchain/"],
+        "twitter_handles": [],
+        "config": {"model": "claude-opus-4-6"},
+    }
+    # Patch run_research_agent to avoid actual runtime invocation
+    from unittest.mock import patch
+
+    mock_output = {
+        "research_bundle_content": "mock bundle",
+        "decomposition_content": "mock decomp",
+        "trace_summary": {},
+        "skill_interactions": [],
+        "delegation_context": "",
+        "gap_remediation_context": "",
+        "hitl_cluster_content": "",
+        "citation_claim_support": [],
+        "citation_urls": [],
+        "state_out": {},
+        "output_state": {},
+    }
+    with patch("meta_agent.subagents.research_agent.run_research_agent", return_value=mock_output):
+        result = run_research_agent_live(sample_inputs)
+    assert isinstance(result, dict)
+    assert result == mock_output
+
+
+def test_runner_supports_trace_mode():
+    """Verify the runner module exposes trace-mode constants/functions."""
+    from meta_agent.evals.research import runner
+
+    assert hasattr(runner, "EVAL_PHASE_SLICES")
+    assert hasattr(runner, "PHASE_A_EVALS")
+    assert hasattr(runner, "PHASE_B_EVALS")
+    assert isinstance(runner.EVAL_PHASE_SLICES, dict)
+    assert "A" in runner.EVAL_PHASE_SLICES
+    assert "B" in runner.EVAL_PHASE_SLICES
+    assert "C" in runner.EVAL_PHASE_SLICES
+
+
+def test_runner_phase_slice_returns_correct_eval_ids():
+    """Verify _get_phase_slice_eval_ids returns the expected sets."""
+    from meta_agent.evals.research.runner import (
+        EVAL_PHASE_SLICES,
+        _get_phase_slice_eval_ids,
+    )
+
+    # Phase A should return the A slice
+    a_ids = _get_phase_slice_eval_ids("A")
+    assert a_ids == set(EVAL_PHASE_SLICES["A"])
+
+    # Phase B should return the B slice
+    b_ids = _get_phase_slice_eval_ids("B")
+    assert b_ids == set(EVAL_PHASE_SLICES["B"])
+
+    # Phase C should return everything not in A or B (excluding deferred)
+    c_ids = _get_phase_slice_eval_ids("C")
+    assert c_ids is not None
+    assert len(c_ids) > 0
+    assert c_ids.isdisjoint(a_ids)
+    assert c_ids.isdisjoint(b_ids)
+
+    # 'all' returns None (no filter)
+    assert _get_phase_slice_eval_ids("all") is None
+
+
+def test_langsmith_experiment_supports_trace_mode():
+    """Verify langsmith_experiment exposes the live target function."""
+    from meta_agent.evals.research.langsmith_experiment import (
+        _run_target,
+        _run_target_live,
+        run_experiment,
+    )
+    import inspect
+
+    # _run_target_live should be callable
+    assert callable(_run_target_live)
+
+    # run_experiment should accept a mode parameter
+    sig = inspect.signature(run_experiment)
+    assert "mode" in sig.parameters

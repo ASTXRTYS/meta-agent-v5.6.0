@@ -77,7 +77,47 @@ Rejected alternatives are still valuable reference points for the spec-writer. T
 
 `langchain-anthropic>=1.3.0` supports `ChatAnthropic`, structured output, streaming, and tool binding. The spec-writer should assume Anthropic remains the default provider for the orchestrator and research-agent unless future eval data shows a better cost-quality frontier.
 
-## 4. SME Perspectives
+## 4. Technology Decision Trees
+
+| Decision Point | Option A | Option B | Recommendation | Rationale |
+|---|---|---|---|---|
+| Orchestration pattern | Supervisor (LangGraph) | Autonomous swarm | Supervisor | Deterministic stage transitions and HITL gates require explicit routing. |
+| State backend | SQLite checkpointer | In-memory checkpointer | In-memory for v1 | Simpler dev loop; migrate to SQLite when persistence across restarts is needed. |
+| Tool execution | Native tool calling | ReAct-style prompting | Native tool calling | Claude Opus 4.6 supports native tool use with lower latency and higher reliability. |
+| Sub-agent communication | Artifact-based (filesystem) | Message-passing | Artifact-based | Aligns with Deep Agents filesystem middleware and enables offline inspection. |
+
+## 5. Tool/Framework Capability Maps
+
+| Framework/Tool | Core Capability | Limitation | Version Constraint |
+|---|---|---|---|
+| LangGraph | State machine orchestration, persistence, HITL | Recursion limits can bite deep workflows | `>=0.2.60` |
+| Deep Agents SDK | Harness creation, skill loading, sub-agent delegation | Pre-1.0 API surface may shift | `>=0.1.0` |
+| LangChain Core | Tool binding, structured output, middleware | Direct use is lower-level than LangGraph | `>=0.3.29` |
+| LangSmith | Tracing, datasets, evaluators, experiments | Rate limits on concurrent experiment runs | `>=0.3.42` |
+| langchain-anthropic | ChatAnthropic, prompt caching, extended thinking | Provider-specific; not portable | `>=1.3.0` |
+
+## 6. Pattern & Best Practice Catalog
+
+| Pattern | Source | When to Apply | Key Constraint |
+|---|---|---|---|
+| Supervisor multi-agent | LangGraph docs, Deep Agents orchestration skill | When stages need deterministic routing and HITL gates | Requires checkpointer for interrupt/resume |
+| Artifact-first state handoff | Deep Agents memory skill | When sub-agents produce outputs consumed by later stages | File paths must be tracked in state |
+| Skills-first research posture | Framework selection skill | Before any external web research | Read all relevant skills before fetching URLs |
+| Eval-driven development loop | LangSmith evaluator skill | After every implementation phase | Canonical eval IDs must propagate through the report chain |
+| Prompt composition middleware | LangChain middleware skill | When system prompts need stage-aware dynamic sections | Keep stable prefixes for prompt caching |
+
+## 7. Integration Dependency Matrix
+
+| Component A | Component B | Integration Type | Risk | Notes |
+|---|---|---|---|---|
+| Orchestrator | Research-agent | Sub-agent delegation via `task` tool | LOW | Deep Agents SDK handles lifecycle |
+| Research-agent | LangSmith | Trace export and experiment capture | LOW | SDK-native integration |
+| Checkpointer | HITL middleware | Interrupt/resume state persistence | MEDIUM | Requires matching thread_id across resume |
+| Filesystem middleware | Sub-agent outputs | Artifact read/write coordination | LOW | Path conventions must be consistent |
+| Eval harness | LangSmith datasets | Dataset materialization and reuse | LOW | Support both preloaded and timestamped datasets |
+| Verification-agent | Research bundle | Cross-check against PRD | LOW | Bundle schema must match spec contract |
+
+## 8. SME Perspectives
 
 | SME | Observed Perspective | Impact on Design |
 |---|---|---|
@@ -90,7 +130,7 @@ Rejected alternatives are still valuable reference points for the spec-writer. T
 
 Consensus: use Deep Agents and LangGraph as the core, keep the workflow eval-driven, and treat middleware plus filesystem artifacts as first-class system boundaries. Disagreement is mostly around timing: production sandboxing and stronger persistent backends are desirable, but they do not need to block v1.
 
-## 5. Risks and Caveats
+## 9. Risks and Caveats
 
 | Risk | Severity | Caveat | Mitigation |
 |---|---|---|---|
@@ -101,7 +141,7 @@ Consensus: use Deep Agents and LangGraph as the core, keep the workflow eval-dri
 | Shared persistent memory misuse | MEDIUM | Confusing checkpointer state with long-term store can leak cross-thread assumptions. | Treat checkpointer and store as separate layers and document routing clearly. |
 | Dataset drift | MEDIUM | Changing evaluator names or artifact schemas can invalidate historical comparisons. | Preserve canonical eval IDs and include experiment metadata on every run. |
 
-## 6. Confidence Assessment per Domain
+## 10. Confidence Assessment per Domain
 
 | Domain | Confidence | Basis |
 |---|---|---|
@@ -114,7 +154,7 @@ Consensus: use Deep Agents and LangGraph as the core, keep the workflow eval-dri
 | Model/provider choice | MEDIUM-HIGH | Anthropic capability data is strong, but cost-quality tuning still requires experiments. |
 | Production hardening | MEDIUM | The architectural direction is clear, but production persistence and sandboxing remain future work. |
 
-## 7. Research Methodology
+## 11. Research Methodology
 
 The research process followed the same staged method the future runtime must implement:
 
@@ -134,7 +174,7 @@ Evidence summary:
 
 This section matters directly to eval implementation because it records the sources of truth the spec-writer and later code-agent should inherit when building phase-gate experiments.
 
-## 8. Unresolved Questions for Spec-Writer
+## 12. Unresolved Questions for Spec-Writer
 
 1. Effort tuning: should the orchestrator stay at `max` effort while subordinate agents use `high`, or is a uniform `max` setting justified by eval quality?
 2. Store backend roadmap: should the v1 technical specification lock in `InMemoryStore`, or should it define a production migration path to a durable store now?
@@ -144,11 +184,11 @@ This section matters directly to eval implementation because it records the sour
 
 The research recommendation is to let the spec-writer decide these via an explicit sufficiency gate. If the bundle is insufficient, the feedback loop should request additional research rather than guessing.
 
-## 9. PRD Coverage Matrix
+## 13. PRD Coverage Matrix
 
 | PRD Requirement | Coverage | Supporting Findings |
 |---|---|---|
-| A. Research bundle output | COVERED | Sections 1-13 define the required research artifact shape and source grounding. |
+| A. Research bundle output | COVERED | Sections 1-17 define the required research artifact shape and source grounding. |
 | B. Verification-agent bundle validation | COVERED | Sections 5, 7, and 12 define validation expectations and contradiction handling. |
 | C. Spec-writer generation | COVERED | Sections 1, 2, 3, 6, and 8 give the spec-writer the major architectural decision inputs. |
 | D. Dual-channel experiment reporting | COVERED | Section 7 confirms markdown plus LangSmith experiment/report flow. |
@@ -160,7 +200,7 @@ The research recommendation is to let the spec-writer decide these via an explic
 | J. Eval-driven development workflow | COVERED | Sections 1, 7, and 12 describe implement -> experiment -> iterate as the default loop. |
 | K. Configuration and metadata tracking | COVERED | Sections 5, 7, and 12 require explicit metadata and lineage tracking. |
 
-## 10. Unresolved Research Gaps
+## 14. Unresolved Research Gaps
 
 | Gap | Status | Recommended Next Step |
 |---|---|---|
@@ -170,7 +210,7 @@ The research recommendation is to let the spec-writer decide these via an explic
 
 No PRD requirement area is fully uncovered, but these gaps should remain visible so the spec-writer does not accidentally treat them as already resolved.
 
-## 11. Skills Baseline Summary
+## 15. Skills Baseline Summary
 
 | Skill | Key Finding | Gap It Closed |
 |---|---|---|
@@ -185,19 +225,19 @@ No PRD requirement area is fully uncovered, but these gaps should remain visible
 
 Skills were consulted before external research whenever possible. Web research was used to verify the skill guidance against current primary sources, not to replace it.
 
-## 12. Gap and Contradiction Remediation Log
+## 16. Gap and Contradiction Remediation Log
 
 | Gap or Contradiction | Root Cause | Remediation Action | Resolution |
 |---|---|---|---|
 | LangSmith report path dropped canonical eval IDs | Evaluator wrapper relied on function name fallback instead of explicit `key`. | Verified SDK behavior, then specified canonical `key` propagation. | Resolved. |
 | LangSmith markdown reports lost judge detail | Wrapper returned only `score` and `comment`. | Route structured reasoning, evidence, confidence, flags, and judge backend through evaluator metadata. | Resolved. |
-| Research bundle schema drifted from the v5.6.1 spec | Eval helpers still encoded the old 12-section bundle. | Replace ad hoc heading checks with a shared 13-section schema helper. | Resolved. |
+| Research bundle schema drifted from the v5.6.1 spec | Eval helpers still encoded the old 12-section bundle. | Replace ad hoc heading checks with a shared 17-section schema helper. | Resolved. |
 | Documentation overstated "all 38 pass" | `RI-001` remains deferred in the default run path. | Keep `RI-001` deferred but document `37 active + 1 deferred` explicitly. | Resolved. |
 | Dataset flow in docs and harness diverged | Harness always materialized timestamped datasets, docs implied a preloaded-only path. | Support both: reuse an existing dataset when named, otherwise materialize locally. | Resolved. |
 
 If future runtime experiments reveal new gaps, the expected feedback loop is: flag the contradiction, request additional research if needed, and keep the spec-writer aware of the unresolved questions rather than burying them.
 
-## 13. Citation Index
+## 17. Citation Index
 
 | Source Type | URL or Path | Supports Finding |
 |---|---|---|

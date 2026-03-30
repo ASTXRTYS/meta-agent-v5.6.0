@@ -74,11 +74,18 @@ class TestTransitionStage:
         assert entry.decision == "Transition to PRD_REVIEW"
         assert entry.rationale == "ready"
 
-    def test_backward_transition_after_approval(self):
+    def test_backward_transition_after_approval(self, tmp_path):
+        # Create files required by RESEARCH entry conditions
+        prd_path = tmp_path / "artifacts" / "intake" / "prd.md"
+        prd_path.parent.mkdir(parents=True, exist_ok=True)
+        prd_path.write_text("PRD content")
+        eval_path = tmp_path / "evals" / "eval-suite-prd.json"
+        eval_path.parent.mkdir(parents=True, exist_ok=True)
+        eval_path.write_text('{"metadata": {}, "evals": []}')
+
         state = create_initial_state("test")
         state["current_stage"] = "PRD_REVIEW"
-        # Backward transitions don't require exit conditions for PRD_REVIEW
-        # but PRD_REVIEW requires approval_recorded
+        state["current_prd_path"] = str(prd_path)
         state["approval_history"] = [
             ApprovalEntry.create("PRD_REVIEW", "prd.md", "approved", "user")
         ]
@@ -347,7 +354,7 @@ class TestCommandPattern:
 
     def test_langchain_tools_count(self):
         from meta_agent.tools import LANGCHAIN_TOOLS
-        assert len(LANGCHAIN_TOOLS) == 16
+        assert len(LANGCHAIN_TOOLS) == 17
 
 
 class TestMetaAgentStateMiddleware:
@@ -381,7 +388,14 @@ class TestMetaAgentStateMiddleware:
     def test_before_agent_preserves_existing(self):
         from meta_agent.middleware.meta_state import MetaAgentStateMiddleware
         mw = MetaAgentStateMiddleware()
-        state = {"current_stage": "RESEARCH", "active_participation_mode": True, "project_id": "foo"}
+        state = {
+            "current_stage": "RESEARCH",
+            "active_participation_mode": True,
+            "project_id": "foo",
+            "verification_results": {},
+            "spec_generation_feedback_cycles": 0,
+            "pending_research_gap_request": None,
+        }
         updates = mw.before_agent(state, None)
         assert updates is None  # No updates needed
 
@@ -391,3 +405,12 @@ class TestMetaAgentStateMiddleware:
         channels = list(graph.channels.keys())
         for field in ["current_stage", "decision_log", "approval_history", "assumption_log"]:
             assert field in channels, f"{field} not in graph channels"
+
+
+class TestRequestEvalApprovalTool:
+    """Tests for request_eval_approval_tool."""
+
+    def test_request_eval_approval_tool_exists(self):
+        from meta_agent.tools import LANGCHAIN_TOOLS
+        tool_names = [t.name for t in LANGCHAIN_TOOLS]
+        assert "request_eval_approval_tool" in tool_names

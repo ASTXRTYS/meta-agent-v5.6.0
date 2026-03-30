@@ -60,6 +60,9 @@ class MetaAgentStateSchema(AgentState):
     eval_suites: NotRequired[list[str]]
     eval_results: NotRequired[dict]
     current_eval_phase: NotRequired[Optional[str]]
+    verification_results: NotRequired[dict]
+    spec_generation_feedback_cycles: NotRequired[int]
+    pending_research_gap_request: NotRequired[Optional[str]]
 
 
 class MetaAgentStateMiddleware(AgentMiddleware):
@@ -87,5 +90,11 @@ class MetaAgentStateMiddleware(AgentMiddleware):
             updates["project_id"] = ""
         if "active_participation_mode" not in state_dict:
             updates["active_participation_mode"] = False
+        if "verification_results" not in state_dict:
+            updates["verification_results"] = {}
+        if "spec_generation_feedback_cycles" not in state_dict:
+            updates["spec_generation_feedback_cycles"] = 0
+        if "pending_research_gap_request" not in state_dict:
+            updates["pending_research_gap_request"] = None
 
         return updates if updates else None

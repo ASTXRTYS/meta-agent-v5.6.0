@@ -52,7 +52,7 @@ WORKSPACE_SECTION_TEMPLATE = """## Workspace
 **Project ID:** {project_id}
 
 **Artifact paths:**
-- PRD: {project_dir}/artifacts/intake/prd.md
+- PRD: use `current_prd_path` from state; common default is {project_dir}/artifacts/intake/prd.md
 - Research bundle: {project_dir}/artifacts/research/research-bundle.md
 - Technical spec: {project_dir}/artifacts/spec/technical-specification.md
 - Implementation plan: {project_dir}/artifacts/planning/implementation-plan.md
@@ -193,25 +193,27 @@ Follow EVAL_APPROVAL_PROTOCOL for responses.
 
 **Your role in this stage:** You DELEGATE to the research-agent. You do not perform research yourself.
 
-**Entry condition:** Approved PRD exists.
+**Entry condition:** Approved PRD exists and the approved Tier 1 eval suite exists at `eval-suite-prd.json`.
 
-**Exit condition:** Research bundle written, verified by verification-agent, and approved by user.
+**Exit condition:** Research decomposition, sub-findings, research clusters, research bundle, and research-agent memory update all exist. The bundle is verified by verification-agent and approved by the user.
 
 **Your protocol:**
 
 1. Delegate to research-agent with clear instructions:
    - Provide the PRD path and Tier 1 eval suite path
    - Require the persisted decomposition artifact before outward research
-   - Require the 10-phase research protocol, parallel `task` usage, HITL research clusters, and the 13-section bundle schema
-   - Require these artifacts: `research-decomposition.md`, `sub-findings/*.md`, `research-clusters.md`, `research-bundle.md`
+   - Require the 10-phase research protocol, skills-first posture, parallel `task` usage, HITL research clusters, and the 17-section bundle schema
+   - Require these artifacts: `research-decomposition.md`, `sub-findings/*.md`, `research-clusters.md`, `research-bundle.md`, `.agents/research-agent/AGENTS.md`
 
 2. When the research-agent returns, delegate to verification-agent to cross-check the research bundle against the PRD.
 
 3. If verification fails, route the revision request back to research-agent. Do not transition forward on a failed verification verdict.
 
-4. Present the verified research bundle to the user for approval.
+4. Ensure the final bundle approval happens after the research-agent's cluster-approval checkpoint has already occurred within the research run.
 
-5. On approval, transition to SPEC_GENERATION.
+5. Present the verified research bundle to the user for approval.
+
+6. On approval, transition to SPEC_GENERATION.
 
 **Tools available:** read_file, write_file, request_approval, record_decision, transition_stage, task (for delegation)""",
 
@@ -221,9 +223,9 @@ Follow EVAL_APPROVAL_PROTOCOL for responses.
 
 **Your role in this stage:** You DELEGATE to the spec-writer-agent.
 
-**Entry condition:** Approved PRD and research bundle exist.
+**Entry condition:** Approved PRD, approved research bundle, and approved Tier 1 eval suite exist.
 
-**Exit condition:** Technical specification written, Tier 2 evals proposed, verified, and ready for review.
+**Exit condition:** Technical specification written, Tier 2 evals proposed in JSON, verification passes, and document-renderer has been invoked for rendered outputs.
 
 **Your protocol:**
 
@@ -231,7 +233,7 @@ Follow EVAL_APPROVAL_PROTOCOL for responses.
    - PRD path
    - Research bundle path
    - Tier 1 eval suite path
-   - Instructions to produce `technical-specification.md`, a PRD Traceability Matrix, and `eval-suite-architecture.json`
+   - Instructions to produce `technical-specification.md`, a PRD Traceability Matrix, `eval-suite-architecture.json`, and the required final status block
 
 2. If spec-writer says the research bundle is insufficient, route the targeted request back to research-agent, then retry spec generation. Cap this feedback loop at 3 cycles before escalating.
 
@@ -239,7 +241,9 @@ Follow EVAL_APPROVAL_PROTOCOL for responses.
 
 4. Delegate to document-renderer for DOCX/PDF once verification passes.
 
-5. Transition to SPEC_REVIEW.
+5. Persist the Tier 2 eval suite path in state.
+
+6. Transition to SPEC_REVIEW.
 
 **Tools available:** read_file, write_file, record_decision, transition_stage, task""",
 
@@ -253,7 +257,14 @@ Follow EVAL_APPROVAL_PROTOCOL for responses.
 
 **Your protocol:**
 
-Present the technical-specification summary, the PRD Traceability Matrix status, and the Tier 2 eval table. Follow the same approval flow as PRD_REVIEW.
+Present the technical-specification summary, the PRD Traceability Matrix status, and the Tier 2 eval table.
+
+Request approval twice:
+
+1. technical specification approval
+2. Tier 2 eval suite approval
+
+Do not transition until both approvals are recorded as `approved`.
 
 **Tools available:** read_file, write_file, request_approval, record_decision, transition_stage""",
 
