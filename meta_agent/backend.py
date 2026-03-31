@@ -71,7 +71,7 @@ def create_bare_filesystem_backend() -> SdkFilesystemBackend:
 
     This matches the production deepagents-cli pattern.
     """
-    return SdkFilesystemBackend()
+    return SdkFilesystemBackend(virtual_mode=False)
 
 
 def create_checkpointer() -> MemorySaver:
