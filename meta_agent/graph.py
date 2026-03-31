@@ -9,16 +9,16 @@ Middleware order (per Section 22.4):
   0. DynamicSystemPromptMiddleware (explicit — reads current_stage from state)
   1. MetaAgentStateMiddleware (explicit — extends state schema)
   2. TodoListMiddleware (auto — added by create_deep_agent)
-  3. FilesystemMiddleware (auto — added by create_deep_agent)
-  4. SubAgentMiddleware (auto — added by create_deep_agent)
-  5. SummarizationMiddleware (auto — added by create_deep_agent)
-  6. AnthropicPromptCachingMiddleware (auto — added by create_deep_agent)
-  7. PatchToolCallsMiddleware (auto — added by create_deep_agent)
+  3. MemoryMiddleware (explicit — per-agent AGENTS.md loading)
+  4. SkillsMiddleware (explicit — on-demand SKILL.md loading)
+  5. FilesystemMiddleware (auto — added by create_deep_agent)
+  6. SubAgentMiddleware (auto — added by create_deep_agent)
+  7. SummarizationMiddleware (auto — added by create_deep_agent)
   8. SummarizationToolMiddleware (explicit — agent-controlled compact_conversation)
-  9. MemoryMiddleware (explicit — per-agent AGENTS.md loading)
- 10. ToolErrorMiddleware (explicit)
- 11. HumanInTheLoopMiddleware (auto via interrupt_on parameter)
- 12. SkillsMiddleware (explicit via skills= parameter — on-demand SKILL.md loading)
+  9. AnthropicPromptCachingMiddleware (auto — added by create_deep_agent)
+ 10. PatchToolCallsMiddleware (auto — added by create_deep_agent)
+ 11. ToolErrorMiddleware (explicit)
+ 12. HumanInTheLoopMiddleware (auto via interrupt_on parameter)
 """
 
 from __future__ import annotations
@@ -29,10 +29,10 @@ from typing import Any
 from deepagents import create_deep_agent
 from deepagents.backends import FilesystemBackend as SdkFilesystemBackend
 from deepagents.middleware.summarization import (
-    SummarizationMiddleware,
-    SummarizationToolMiddleware,
+    create_summarization_tool_middleware,
 )
 from deepagents.middleware.memory import MemoryMiddleware
+from deepagents.middleware.skills import SkillsMiddleware
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.store.memory import InMemoryStore
 
@@ -116,9 +116,10 @@ def create_graph(
     )
 
     # SummarizationToolMiddleware — agent-controlled compact_conversation
-    # Per Plan 1.2.1 / Spec 8.11: requires a SummarizationMiddleware instance.
-    summarization_mw = SummarizationMiddleware(model=cfg.model_name, backend=bare_fs)
-    summarization_tool_mw = SummarizationToolMiddleware(summarization_mw)
+    # Uses composite_backend for /conversation_history/ offloading
+    summarization_tool_mw = create_summarization_tool_middleware(
+        cfg.model_name, composite_backend
+    )
 
     # MemoryMiddleware — per-agent AGENTS.md loading (Spec 22.4, Section 13.4.6)
     # Orchestrator loads its own AGENTS.md; isolation rule: no cross-agent memory.
@@ -134,24 +135,6 @@ def create_graph(
         memory_sources.append(global_agents_md)
     memory_mw = MemoryMiddleware(backend=bare_fs, sources=memory_sources)
 
-    # ToolErrorMiddleware
-    tool_error_mw = ToolErrorMiddleware()
-
-    # Build explicit middleware list (order matters per Section 22.4)
-    explicit_middleware = [
-        dynamic_prompt_mw,     # 0. Dynamic system prompt (MUST be first)
-        meta_state_mw,         # 1. Extends state schema
-        summarization_tool_mw, # 8. Agent-controlled compact_conversation
-        memory_mw,             # 9. Per-agent AGENTS.md loading
-        tool_error_mw,         # 10. ToolError (catches tool exceptions)
-    ]
-
-    # Build interrupt_on config for HITL-gated tools
-    interrupt_on = {
-        tool_name: True
-        for tool_name in HITL_GATED_TOOLS
-    }
-
     # Resolve skills directories (Section 11, 22.4)
     # All 31 skills from LangChain, LangSmith, and Anthropic repos are available
     # to the orchestrator via SkillsMiddleware for on-demand SKILL.md loading.
@@ -162,6 +145,29 @@ def create_graph(
         str(repo_root / "skills" / "langsmith" / "config" / "skills"),  # 3 skills
         str(repo_root / "skills" / "anthropic" / "skills"),             # 17 skills
     ]
+
+    # SkillsMiddleware — explicit, with bare FS for absolute SKILL.md paths
+    # Per CLI pattern: SkillsMiddleware uses its own bare FilesystemBackend
+    skills_mw = SkillsMiddleware(backend=bare_fs, sources=skills_dirs)
+
+    # ToolErrorMiddleware
+    tool_error_mw = ToolErrorMiddleware()
+
+    # Build explicit middleware list (order matters per Section 22.4)
+    explicit_middleware = [
+        dynamic_prompt_mw,     # 0. Dynamic system prompt (MUST be first)
+        meta_state_mw,         # 1. Extends state schema
+        memory_mw,             # 3. Per-agent AGENTS.md loading
+        skills_mw,             # 4. Skills loading from SKILL.md files
+        summarization_tool_mw, # 5. Agent-controlled compact_conversation
+        tool_error_mw,         # 6. ToolError (catches tool exceptions)
+    ]
+
+    # Build interrupt_on config for HITL-gated tools
+    interrupt_on = {
+        tool_name: True
+        for tool_name in HITL_GATED_TOOLS
+    }
 
     # Build SDK-compatible subagent definitions (Section 6, 22.3)
     subagents = build_orchestrator_subagents(
@@ -197,7 +203,6 @@ def create_graph(
         store=store,
         backend=composite_backend,
         interrupt_on=interrupt_on,
-        skills=skills_dirs,
         name="meta-agent-orchestrator",
     )
 
