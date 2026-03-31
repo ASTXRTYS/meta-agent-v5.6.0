@@ -640,3 +640,57 @@ The repository needed (1) before Phase 3 runtime implementation could begin in a
 - The evaluation stack is ready for Phase 3 runtime integration.
 - No real-agent performance claims are made yet, because the research-agent runtime has not been built.
 - Documentation must clearly distinguish seed artifacts from the runtime-generated calibration dataset and must stop implying that LLM-as-judge work is still entirely deferred in external offline evaluation.
+
+---
+
+## Section 20: CompositeBackend Architecture Fix
+
+- **Date:** 2026-03-31
+- **Trigger:** Research-agent experiment (trace 019d404a) revealed 0 web searches, 78 file reads, middleware not firing
+- **Root Cause:** Section 4.2 was incorrectly implemented with custom backend classes
+
+### What Was Wrong
+
+1. **Custom dead-code backend classes**: backend.py defined StateBackend, FilesystemBackend, StoreBackend, and CompositeBackend with get()/put()/delete() methods. The Deep Agents SDK's FilesystemMiddleware calls BackendProtocol methods (ls_info, read, write, edit, grep_raw, glob_info) — none of which existed on the custom classes. They were never used by the SDK at all.
+
+2. **MemoryMiddleware received wrong backend**: All agents passed the project-rooted, virtual_mode=True FilesystemBackend to MemoryMiddleware. With virtual_mode, absolute disk paths (like /Users/.../AGENTS.md) are resolved relative to root_dir and rejected. The agent never loaded its AGENTS.md.
+
+3. **SkillsMiddleware auto-attached with wrong backend**: Skills were passed via skills= parameter to create_deep_agent(). The SDK auto-attaches SkillsMiddleware using the agent's main backend — the virtual_mode one. SKILL.md files at absolute paths were misresolved.
+
+4. **SummarizationToolMiddleware manually constructed**: Manual SummarizationMiddleware() + SummarizationToolMiddleware() construction bypassed the SDK's factory function. No /conversation_history/ route existed for offloading.
+
+5. **Missing offloading routes**: No /large_tool_results/ or /conversation_history/ routes in the backend, so context offloading had nowhere to write.
+
+6. **SDK version mismatch**: Installed deepagents==0.2.7 is missing all middleware modules (MemoryMiddleware, SkillsMiddleware, SummarizationMiddleware). The correct version is >=0.4.3 (0.4.12 on PyPI). graph.py cannot even be imported with 0.2.7.
+
+### What Was Fixed
+
+1. **backend.py rewritten**: Custom classes removed. Added create_composite_backend(repo_root) factory returning a lambda that produces SDK-native CompositeBackend with 4 routes:
+   - (default) → FilesystemBackend(root_dir, virtual_mode=True) — real disk
+   - /memories/ → StoreBackend(rt) — cross-session persistent
+   - /large_tool_results/ → StateBackend(rt) — ephemeral offloading
+   - /conversation_history/ → StateBackend(rt) — summarization offloading
+
+2. **create_bare_filesystem_backend()**: New factory for MemoryMiddleware and SkillsMiddleware — bare FilesystemBackend() with no root_dir or virtual_mode, allowing absolute path access. Matches production deepagents-cli pattern.
+
+3. **Explicit SkillsMiddleware**: Replaced skills= parameter with SkillsMiddleware(backend=bare_fs, sources=skills_dirs) in middleware list for all agents.
+
+4. **All 4 agents updated**: Orchestrator (graph.py), research_agent.py, spec_writer_agent.py, verification_agent_runtime.py all use the same corrected pattern.
+
+5. **Full-Spec.md Section 4.2 updated**: Corrected to document SDK-native CompositeBackend with lambda factory pattern and 4 routes.
+
+### Connection to Experiment Failures
+
+The research-agent experiment (trace 019d404a) showed:
+- **0 web_search calls**: Agent stayed local because middleware wasn't loading skills that instruct web research behavior
+- **78 read_file calls**: Agent brute-forced /skills/ directory because SkillsMiddleware wasn't loading SKILL.md files (wrong backend)
+- **No summarization**: SummarizationToolMiddleware had no conversation_history route to offload to
+- **No AGENTS.md loading**: MemoryMiddleware couldn't read absolute paths through virtual_mode backend
+
+All these failures trace back to the backend/middleware configuration bugs documented here.
+
+### Spec References
+- Section 4.2 (CompositeBackend Design) — corrected
+- Section 22.4 (Middleware ordering)
+- Section 11 (Skills)
+- Section 13.4.6 (MemoryMiddleware)
