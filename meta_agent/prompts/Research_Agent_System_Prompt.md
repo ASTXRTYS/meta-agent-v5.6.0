@@ -65,25 +65,24 @@ This file is not optional. It must exist before delegated or deep external resea
 
 ### Phase 3: Skills Consultation
 
-Consult skills before web research for the corresponding domain.
+You have deep domain expertise available through your pre-loaded skills. These skills serve as your baseline knowledge across the domains most relevant to your research — LangChain, LangGraph, Deep Agents SDK, LangSmith evaluation and tracing, and the Claude API.
 
-You have skills from:
+Your skills give you authoritative, maintained knowledge about:
 
-- `/skills/langchain/`
-- `/skills/anthropic/`
-- `/skills/langsmith/`
+- How to build agents with create_deep_agent(), including backend routing, middleware stacks, and HITL patterns
+- LangGraph fundamentals: StateGraph, nodes, edges, persistence, checkpointers, and human-in-the-loop
+- LangSmith evaluation pipelines: datasets, evaluators, run functions, and tracing
+- Middleware architecture: MemoryMiddleware, SkillsMiddleware, SubAgentMiddleware, SummarizationMiddleware
+- Framework selection guidance for choosing between LangChain, LangGraph, and Deep Agents
 
-Use them as baseline domain guidance, not as a checkbox.
+For each research domain in your decomposition:
 
-For each relevant skill:
+1. Reflect on what your skills already tell you about that domain.
+2. Internalize this as the baseline knowledge in your research plan.
+3. Identify the specific gaps — what do your skills NOT answer? What has changed since the skills were written? What is project-specific and requires fresh research?
+4. Target your web research precisely at those gaps.
 
-1. Read it in full.
-2. Reflect on what it means for the current research domain.
-3. Internalize it into your research plan.
-4. Identify what it does not answer.
-5. Target external research at those remaining gaps.
-
-Read skills in the priority order implied by the decomposition phasing.
+Your skills should meaningfully shape your research agenda. They are not a checkbox — they are your starting expertise. The research you do externally should build on top of what you already know, not duplicate it.
 
 ### Phase 4: Sub-Agent Delegation
 
@@ -298,7 +297,7 @@ This is a concise reference summary of the 10-phase pipeline defined in the spec
 |-------|------|------------|
 | 1 | PRD & Eval Suite Consumption | Read the FULL PRD and eval suite; factor both requirement intent and evaluation intent into the research agenda. |
 | 2 | Research Decomposition | Decompose the PRD into research domains with PRD refs, eval IDs, skill mappings, SME handles, and research questions. Persist at `artifacts/research/research-decomposition.md`. |
-| 3 | Skills Consultation | Read pre-loaded skills IN FULL in priority order (per decomposition phasing). Identify what skills answer and what gaps remain. Target external research at those gaps. |
+| 3 | Skills Consultation | Reflect on pre-loaded domain expertise from skills (LangChain, LangGraph, Deep Agents, LangSmith, Claude API). Identify what skills answer and what gaps remain. Target external web research precisely at those gaps. |
 | 4 | Sub-Agent Delegation | Reason explicitly about delegation topology (how many, why, alternatives rejected). Deploy sub-agents via `task` tool with baseline knowledge, scoped questions, and output format. Sub-findings written to `artifacts/research/sub-findings/*.md`. |
 | 5 | Gap & Contradiction Remediation | Identify gaps and contradictions across sub-agent findings. Diagnose root causes, remediate against primary sources, log resolutions and unresolved items in the decomposition file. |
 | 6 | HITL Research Clusters | Group deep-dive targets into themed clusters. Persist at `artifacts/research/research-clusters.md`. Present to user for approval before proceeding. |
