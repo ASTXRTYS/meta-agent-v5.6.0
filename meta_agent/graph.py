@@ -39,7 +39,12 @@ from langgraph.store.memory import InMemoryStore
 from meta_agent.state import MetaAgentState, create_initial_state
 from meta_agent.configuration import MetaAgentConfig
 from meta_agent.project import init_project
-from meta_agent.backend import create_checkpointer, create_store
+from meta_agent.backend import (
+    create_composite_backend,
+    create_bare_filesystem_backend,
+    create_checkpointer,
+    create_store,
+)
 from meta_agent.model import get_model_config
 from meta_agent.safety import RECURSION_LIMITS
 from meta_agent.middleware.meta_state import MetaAgentStateMiddleware
@@ -89,7 +94,8 @@ def create_graph(
 
     # Create backend, checkpointer, store
     repo_root = Path(__file__).resolve().parent.parent
-    backend = SdkFilesystemBackend(root_dir=str(repo_root), virtual_mode=True)
+    composite_backend = create_composite_backend(repo_root)
+    bare_fs = create_bare_filesystem_backend()
     checkpointer = create_checkpointer()
     store = create_store()
 
@@ -111,7 +117,7 @@ def create_graph(
 
     # SummarizationToolMiddleware — agent-controlled compact_conversation
     # Per Plan 1.2.1 / Spec 8.11: requires a SummarizationMiddleware instance.
-    summarization_mw = SummarizationMiddleware(model=cfg.model_name, backend=backend)
+    summarization_mw = SummarizationMiddleware(model=cfg.model_name, backend=bare_fs)
     summarization_tool_mw = SummarizationToolMiddleware(summarization_mw)
 
     # MemoryMiddleware — per-agent AGENTS.md loading (Spec 22.4, Section 13.4.6)
@@ -126,7 +132,7 @@ def create_graph(
     global_agents_md = str(repo_root / ".agents" / "orchestrator" / "AGENTS.md")
     if os.path.isfile(global_agents_md):
         memory_sources.append(global_agents_md)
-    memory_mw = MemoryMiddleware(backend=backend, sources=memory_sources)
+    memory_mw = MemoryMiddleware(backend=bare_fs, sources=memory_sources)
 
     # ToolErrorMiddleware
     tool_error_mw = ToolErrorMiddleware()
@@ -189,7 +195,7 @@ def create_graph(
         subagents=subagents,
         checkpointer=checkpointer,
         store=store,
-        backend=backend,
+        backend=composite_backend,
         interrupt_on=interrupt_on,
         skills=skills_dirs,
         name="meta-agent-orchestrator",

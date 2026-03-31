@@ -2,133 +2,76 @@
 
 Spec References: Sections 4.2, 4.3
 
-Uses real deepagents SDK backends:
-- FilesystemBackend from deepagents.backends
-- InMemoryStore from langgraph.store.memory
-- MemorySaver (InMemorySaver) from langgraph.checkpoint.memory
+Uses SDK-native backends from deepagents.backends:
+- CompositeBackend: routes file operations by path prefix
+- FilesystemBackend: real disk access with virtual_mode security
+- StateBackend: thread-scoped ephemeral storage
+- StoreBackend: cross-session persistent storage via LangGraph Store
+
+Also provides:
+- MemorySaver from langgraph.checkpoint.memory (dev checkpointer)
+- InMemoryStore from langgraph.store.memory (dev store)
 """
 
 from __future__ import annotations
 
-import os
-from typing import Any
+from pathlib import Path
+from typing import Any, Callable
 
-from deepagents.backends import FilesystemBackend as SdkFilesystemBackend
+from deepagents.backends import (
+    CompositeBackend as SdkCompositeBackend,
+    FilesystemBackend as SdkFilesystemBackend,
+    StateBackend as SdkStateBackend,
+    StoreBackend as SdkStoreBackend,
+)
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.store.memory import InMemoryStore
 
 
-class StateBackend:
-    """Ephemeral state backend tied to the current thread."""
+def create_composite_backend(
+    repo_root: Path | str,
+) -> Callable[..., SdkCompositeBackend]:
+    """Create a CompositeBackend factory lambda for create_deep_agent().
 
-    def __init__(self) -> None:
-        self._store: dict[str, Any] = {}
+    Returns a callable that accepts runtime context and produces a
+    CompositeBackend with four routes:
+    - (default) -> FilesystemBackend: real disk under repo_root
+    - /memories/ -> StoreBackend: cross-session persistent memory
+    - /large_tool_results/ -> StateBackend: ephemeral large output offloading
+    - /conversation_history/ -> StateBackend: conversation history offloading
 
-    def get(self, key: str) -> Any:
-        return self._store.get(key)
+    Args:
+        repo_root: Absolute path to the project root directory.
 
-    def put(self, key: str, value: Any) -> None:
-        self._store[key] = value
+    Returns:
+        A lambda suitable for backend= parameter of create_deep_agent().
+    """
+    root_str = str(repo_root)
 
-    def delete(self, key: str) -> None:
-        self._store.pop(key, None)
-
-    def list_keys(self, prefix: str = "") -> list[str]:
-        return [k for k in self._store if k.startswith(prefix)]
-
-
-class FilesystemBackend:
-    """Backend that wraps the real deepagents FilesystemBackend for /workspace/ paths."""
-
-    def __init__(self, root: str = ".", virtual_mode: bool = True) -> None:
-        self.root = root
-        self.virtual_mode = virtual_mode
-        self._sdk_backend = SdkFilesystemBackend(
-            root_dir=root,
-            virtual_mode=virtual_mode,
+    def _factory(rt: Any) -> SdkCompositeBackend:
+        return SdkCompositeBackend(
+            default=SdkFilesystemBackend(root_dir=root_str, virtual_mode=True),
+            routes={
+                "/memories/": SdkStoreBackend(rt),
+                "/large_tool_results/": SdkStateBackend(rt),
+                "/conversation_history/": SdkStateBackend(rt),
+            },
         )
 
-    @property
-    def sdk_backend(self) -> SdkFilesystemBackend:
-        """Access the underlying SDK backend for create_deep_agent()."""
-        return self._sdk_backend
-
-    def resolve_path(self, key: str) -> str:
-        """Convert a virtual key to a real filesystem path."""
-        relative = key
-        if relative.startswith("/workspace/"):
-            relative = relative[len("/workspace/"):]
-        return os.path.join(self.root, relative)
-
-    def get(self, key: str) -> str | None:
-        path = self.resolve_path(key)
-        if os.path.isfile(path):
-            with open(path) as f:
-                return f.read()
-        return None
-
-    def put(self, key: str, value: str) -> None:
-        path = self.resolve_path(key)
-        os.makedirs(os.path.dirname(path), exist_ok=True)
-        with open(path, "w") as f:
-            f.write(value)
-
-    def delete(self, key: str) -> None:
-        path = self.resolve_path(key)
-        if os.path.isfile(path):
-            os.remove(path)
+    return _factory
 
 
-class StoreBackend:
-    """Backend wrapping InMemoryStore for /memories/ paths."""
+def create_bare_filesystem_backend() -> SdkFilesystemBackend:
+    """Create a bare FilesystemBackend for middleware (Memory, Skills).
 
-    def __init__(self, store: InMemoryStore | None = None) -> None:
-        self.store = store or InMemoryStore()
-        self._kv: dict[str, Any] = {}
+    Returns a FilesystemBackend with no root_dir restriction and no
+    virtual_mode, allowing it to read files from absolute disk paths.
+    This is needed by MemoryMiddleware and SkillsMiddleware to read
+    AGENTS.md and SKILL.md files from their absolute locations.
 
-    def get(self, key: str) -> Any:
-        return self._kv.get(key)
-
-    def put(self, key: str, value: Any) -> None:
-        self._kv[key] = value
-
-    def delete(self, key: str) -> None:
-        self._kv.pop(key, None)
-
-
-class CompositeBackend:
-    """Routes storage requests by path prefix.
-
-    - /workspace/ -> FilesystemBackend (maps to real disk)
-    - /memories/  -> StoreBackend (InMemoryStore for V1)
-    - default     -> StateBackend (ephemeral, tied to current thread)
+    This matches the production deepagents-cli pattern.
     """
-
-    def __init__(
-        self,
-        filesystem_backend: FilesystemBackend | None = None,
-        store_backend: StoreBackend | None = None,
-        state_backend: StateBackend | None = None,
-    ) -> None:
-        self.filesystem = filesystem_backend or FilesystemBackend()
-        self.store = store_backend or StoreBackend()
-        self.state = state_backend or StateBackend()
-
-    def _route(self, key: str) -> FilesystemBackend | StoreBackend | StateBackend:
-        if key.startswith("/workspace/"):
-            return self.filesystem
-        if key.startswith("/memories/"):
-            return self.store
-        return self.state
-
-    def get(self, key: str) -> Any:
-        return self._route(key).get(key)
-
-    def put(self, key: str, value: Any) -> None:
-        self._route(key).put(key, value)
-
-    def delete(self, key: str) -> None:
-        self._route(key).delete(key)
+    return SdkFilesystemBackend()
 
 
 def create_checkpointer() -> MemorySaver:
