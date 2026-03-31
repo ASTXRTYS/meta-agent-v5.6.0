@@ -16,8 +16,7 @@ from deepagents import create_deep_agent
 from deepagents.middleware.memory import MemoryMiddleware
 from deepagents.middleware.skills import SkillsMiddleware
 from deepagents.middleware.summarization import (
-    SummarizationMiddleware,
-    SummarizationToolMiddleware,
+    create_summarization_tool_middleware,
 )
 from langchain_core.runnables import RunnableLambda
 from meta_agent.backend import (
@@ -552,8 +551,11 @@ def create_research_agent_graph(
     composite_backend = create_composite_backend(repo_root)
     bare_fs = create_bare_filesystem_backend()
 
-    summarization_mw = SummarizationMiddleware(model=cfg["model_string"], backend=bare_fs)
-    summarization_tool_mw = SummarizationToolMiddleware(summarization_mw)
+    # SummarizationToolMiddleware — agent-controlled compact_conversation
+    # Uses composite_backend for /conversation_history/ offloading
+    summarization_tool_mw = create_summarization_tool_middleware(
+        cfg["model_string"], composite_backend
+    )
 
     memory_sources = []
     project_agents_md = os.path.join(project_dir, ".agents", "research-agent", "AGENTS.md")
