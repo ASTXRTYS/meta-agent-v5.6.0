@@ -13,14 +13,19 @@ from pathlib import Path
 from typing import Any, Iterable, Mapping
 
 from deepagents import create_deep_agent
-from deepagents.backends import FilesystemBackend as SdkFilesystemBackend
 from deepagents.middleware.memory import MemoryMiddleware
+from deepagents.middleware.skills import SkillsMiddleware
 from deepagents.middleware.summarization import (
     SummarizationMiddleware,
     SummarizationToolMiddleware,
 )
 from langchain_core.runnables import RunnableLambda
-from meta_agent.backend import create_checkpointer, create_store
+from meta_agent.backend import (
+    create_bare_filesystem_backend,
+    create_checkpointer,
+    create_composite_backend,
+    create_store,
+)
 from meta_agent.middleware.tool_error_handler import ToolErrorMiddleware
 from meta_agent.model import get_model_config
 from meta_agent.prompts.research_agent import construct_research_agent_prompt
@@ -544,9 +549,10 @@ def create_research_agent_graph(
     """Create the internal research-agent graph."""
     cfg = get_model_config("research-agent")
     repo_root = Path(__file__).resolve().parents[2]
-    backend = SdkFilesystemBackend(root_dir=str(repo_root), virtual_mode=True)
+    composite_backend = create_composite_backend(repo_root)
+    bare_fs = create_bare_filesystem_backend()
 
-    summarization_mw = SummarizationMiddleware(model=cfg["model_string"], backend=backend)
+    summarization_mw = SummarizationMiddleware(model=cfg["model_string"], backend=bare_fs)
     summarization_tool_mw = SummarizationToolMiddleware(summarization_mw)
 
     memory_sources = []
@@ -556,7 +562,10 @@ def create_research_agent_graph(
     global_agents_md = str(repo_root / ".agents" / "research-agent" / "AGENTS.md")
     if os.path.isfile(global_agents_md):
         memory_sources.append(global_agents_md)
-    memory_mw = MemoryMiddleware(backend=backend, sources=memory_sources)
+    memory_mw = MemoryMiddleware(backend=bare_fs, sources=memory_sources)
+
+    resolved_skills = _resolve_skills_dirs(skills_dirs)
+    skills_mw = SkillsMiddleware(backend=bare_fs, sources=resolved_skills)
 
     tools = [
         request_approval_tool,
@@ -572,12 +581,12 @@ def create_research_agent_graph(
         middleware=[
             summarization_tool_mw,
             memory_mw,
+            skills_mw,
             ToolErrorMiddleware(),
         ],
-        backend=backend,
+        backend=composite_backend,
         checkpointer=create_checkpointer(),
         store=create_store(),
-        skills=list(skills_dirs or []),
         name="research-agent-runtime",
     )
 
