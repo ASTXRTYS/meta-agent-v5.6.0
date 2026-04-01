@@ -101,7 +101,7 @@ The orchestrator starts in the INTAKE stage. Send it a product idea and it will 
 ### 5. Run Tests
 
 ```bash
-make test          # Run all 410 unit tests
+make test          # Run all 471 unit tests
 make evals-p0      # Run Phase 0 evals (INFRA-001 through INFRA-004)
 make evals-p1      # Run Phase 1 evals (INFRA-005–008, STAGE-001–002)
 make evals-p2      # Run Phase 2 evals (PM-001–008, STAGE-003, GUARD-001–004)
@@ -128,7 +128,7 @@ make evals         # Run all evals
 
 Phases 0, 1, and 2 are complete and running on the real Deep Agents SDK (`deepagents==0.4.12`). The orchestrator produces a real `CompiledStateGraph` via `create_deep_agent()` and successfully invokes model providers through the configured runtime.
 
-**Phase 3 is IN PROGRESS (~75% complete).** All three runtime agents are implemented as standalone Deep Agents (research-agent, verification-agent, spec-writer) and wired into the orchestrator. Phase 3 gate evals (7 Layer 1 evals) and the eval run function bridge are complete. 478 unit tests pass. Remaining work: end-to-end live experiment run, stage wiring validation, and HITL checkpoint verification.
+**Phase 3 is IN PROGRESS (~80% complete).** All three runtime agents are implemented as standalone Deep Agents (research-agent, verification-agent, spec-writer) and wired into the orchestrator. Phase 3 gate evals (7 Layer 1 evals) and the eval run function bridge are complete. 471 unit tests pass. Remaining work: end-to-end live experiment run, stage wiring validation, and HITL checkpoint verification.
 
 The research-agent evaluation stack exists under `meta_agent/evals/research/`. That package implements 38 canonical research eval definitions, with 37 active in the default run path and `RI-001` intentionally deferred, plus 5 synthetic calibration scenarios, structured judge outputs, LangSmith SDK experiment execution, and UI-ready judge profiles. The measurement contract in that package is now aligned to the v5.6.1 17-section research-bundle schema. A historical frozen synthetic calibration baseline reached `185/185` pass/fail agreement and `182/185` exact agreement before this contract repair; rerun the calibration flow before treating that baseline as current. No real-agent performance experiment has run yet because the research-agent runtime is still unimplemented.
 
@@ -155,7 +155,7 @@ These are **auto-attached** by the SDK — we do NOT instantiate them:
 | Parameter | Value | Spec Reference |
 |---|---|---|
 | `model` | `"claude-opus-4-6"` (from env) | Section 10.5 |
-| `system_prompt` | `construct_orchestrator_prompt()` output | Section 7.3 |
+| `system_prompt` | `construct_pm_prompt()` output | Section 7.3 |
 | `tools` | Custom tools from `meta_agent/tools/` (registered as `@tool`) | Sections 8.1–8.14 |
 | `middleware` | `[DynamicSystemPromptMiddleware, MetaAgentStateMiddleware, SummarizationToolMiddleware, MemoryMiddleware, ToolErrorMiddleware]` | Sections 22.4, 22.12 |
 | `backend` | `FilesystemBackend(root_dir=<repo_root>, virtual_mode=True)` | Section 4.2 |
@@ -211,7 +211,7 @@ meta_agent/
 ### Experiment Context
 - **Trace ID**: 019d404a-8275-7cb3-81a7-4bc166c13cb1 (LangSmith)
 - **Date**: 2026-03-30
-- **PRD**: workspace/projects/meta-agent/artifacts/intake/research-agent-prd.md
+- **PRD**: .agents/pm/projects/meta-agent/artifacts/intake/research-agent-prd.md
 - **Status**: Experiment cut off before research phase began
 
 ### Issues Discovered
@@ -310,7 +310,7 @@ The `Full-Development-Plan.md` includes progress tracking that shows what's comp
 
 ## Research Eval Calibration
 
-- Seed artifacts live under `/workspace/projects/meta-agent/` and are expanded into a 5-scenario calibration dataset by `meta_agent.evals.research.synthetic_trace_adapter`.
+- Seed artifacts live under `.agents/pm/projects/meta-agent/` and are expanded into a 5-scenario calibration dataset by `meta_agent.evals.research.synthetic_trace_adapter`.
 - Build the raw LangSmith-ready dataset with `python -m meta_agent.evals.research.dataset_builder --datasets-dir datasets --output /tmp/research-agent-eval-calibration.json`.
 - Run the synthetic calibration experiment with `python -m meta_agent.evals.research.langsmith_experiment --datasets-dir datasets`.
 - The default LangSmith experiment path materializes a timestamped dataset from the local canonical examples. Pass `--dataset-name <existing-dataset>` to reuse an already-uploaded LangSmith dataset instead.
@@ -335,7 +335,7 @@ python -m meta_agent.evals.research.langsmith_experiment --datasets-dir datasets
 python -m meta_agent.evals.research.langsmith_experiment --datasets-dir datasets --dataset-name research-agent-eval-calibration --report-dir reports
 ```
 
-Reports are persisted under `workspace/projects/meta-agent/evals/reports/` and include:
+Reports are persisted under `.agents/pm/projects/meta-agent/evals/reports/` and include:
 - Executive summary with pass/fail counts
 - Registry coverage totals (`defined`, `active`, `deferred`)
 - Detailed failure blocks with judge reasoning, evidence, confidence, and flags

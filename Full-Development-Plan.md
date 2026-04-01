@@ -1,7 +1,5 @@
 # Development Plan: Local-First Meta-Agent v5.6.0
 
----
-
 ## 1. Executive Summary
 
 This document is the authoritative development plan for the local-first meta-agent system, aligned to **Technical Specification v5.6.0-final** (the canonical source of truth). The plan is structured as **6 eval-gated phases** (Phase 0â€“5), each self-contained so a coding agent can implement any phase independently given its section alone.
@@ -9,6 +7,7 @@ This document is the authoritative development plan for the local-first meta-age
 **Audience:** This plan is consumed by a **coding agent**, not a human. Every task includes spec section references, exact class/tool/middleware names, file paths, and eval criteria. There are no timeframes â€” the coding agent iterates until completion.
 
 **Key v5.6.0 changes from prior versions:**
+
 - Orchestrator is the PM agent â€” writes PRDs directly, no delegation for authoring
 - Eval-first methodology with 3-tier eval taxonomy (Tier 1 in INTAKE, Tier 2 in SPEC_GENERATION, mapping in PLANNING, gates in EXECUTION)
 - Per-agent `.agents/{agent-name}/AGENTS.md` memory with strict isolation
@@ -20,6 +19,7 @@ This document is the authoritative development plan for the local-first meta-age
 **Eval-gated development:** Each phase defines its own evals. The phase is not complete until all evals pass at the specified thresholds. The coding agent runs evals, identifies failures, remediates, and re-runs until all pass.
 
 **Pre-loaded LangSmith datasets:** Eval datasets for Phases 0â€“2 are already uploaded to LangSmith and ready to use. The coding agent does NOT need to upload data â€” just reference the datasets by name:
+
 - `meta-agent-phase-0-scaffolding` (15 examples, ID: `835a9b10-371f-413c-99f9-bdc19e2c4c25`)
 - `meta-agent-phase-1-orchestrator` (18 examples, ID: `70f34716-7d60-4042-a565-c086b063809d`)
 - `meta-agent-phase-2-intake-prd` (11 scenarios, ID: `b7c0535f-c17f-48bd-8663-e2dda2bd8f07`)
@@ -27,18 +27,17 @@ This document is the authoritative development plan for the local-first meta-age
 **2026-03-29 implementation status note:** The research-agent evaluation stack is now implemented in `meta_agent/evals/research/`. It contains 38 canonical research eval definitions, five synthetic calibration scenarios, a LangSmith SDK experiment harness, and judge profiles. The default run path treats this as `37 active + 1 deferred` because `RI-001` remains intentionally deferred unless explicitly included. The measurement contract is aligned to the v5.6.1 17-section research-bundle schema. A historical frozen synthetic calibration run reached `185/185` threshold agreement and `182/185` exact agreement before the schema/reporting remediation; rerun calibration before treating that baseline as current. This is evaluator readiness only: the research-agent runtime itself is not built yet, so no real-agent performance experiment has run.
 
 **Phase SOP (Standard Operating Procedure):** Every phase follows a strict structure:
+
 1. **Overview** â€” what the phase builds, dependencies, spec references
 2. **Implementation Tasks** â€” all tasks with spec references, code snippets, file paths
 3. **Eval Gate** â€” the eval suite for this phase, including:
-   - Eval table (ID, name, what it tests, scoring, threshold, priority)
-   - Full Python implementations (inline â€” do not reference external files)
-   - Synthetic data references (file paths + specific test case IDs)
-   - How to run (exact commands)
-   - Pass criteria
-   - Remediation protocol
-   - Phase complete checklist
-
----
+  - Eval table (ID, name, what it tests, scoring, threshold, priority)
+  - Full Python implementations (inline â€” do not reference external files)
+  - Synthetic data references (file paths + specific test case IDs)
+  - How to run (exact commands)
+  - Pass criteria
+  - Remediation protocol
+  - Phase complete checklist
 
 ## 1.5 Project Status Summary
 
@@ -47,23 +46,25 @@ This document is the authoritative development plan for the local-first meta-age
 ### Phase-by-Phase Status
 
 | Phase | Status | Completion | Key Achievements | Next Steps |
-|-------|--------|------------|------------------|------------|
-| **Phase 0** | ✅ COMPLETE | 100% | State model, middleware scaffold, eval infrastructure | - |
-| **Phase 1** | ✅ COMPLETE | 100% | Real Deep Agents SDK integration, orchestrator graph, 14+ tools | - |
-| **Phase 2** | ✅ COMPLETE | 100% | INTAKE/PRD_REVIEW stages, HITL integration, 23 evals passing | - |
-| **Phase 3** | 🔄 IN PROGRESS | ~80% | Research eval stack (38 evals), stage validators, prompts, runtime agents (research/verification/spec-writer), Phase 3 gate evals (7), eval run function, CompositeBackend architecture fix | End-to-end stage wiring validation, live experiment run |
-| **Phase 4** | ⏸️ NOT STARTED | 0% | - | Complete Phase 3 |
-| **Phase 5** | ⏸️ NOT STARTED | 0% | - | Complete Phase 4 |
+| --- | --- | --- | --- | --- |
+| Phase 0 | ✅ COMPLETE | 100% | State model, middleware scaffold, eval infrastructure | - |
+| Phase 1 | ✅ COMPLETE | 100% | Real Deep Agents SDK integration, orchestrator graph, 14+ tools | - |
+| Phase 2 | ✅ COMPLETE | 100% | INTAKE/PRD_REVIEW stages, HITL integration, 23 evals passing | - |
+| Phase 3 | 🔄 IN PROGRESS | ~80% | Research eval stack (38 evals), stage validators, prompts, runtime agents (research/verification/spec-writer), Phase 3 gate evals (7), eval run function, CompositeBackend architecture fix | End-to-end stage wiring validation, live experiment run |
+| Phase 4 | ⏸️ NOT STARTED | 0% | - | Complete Phase 3 |
+| Phase 5 | ⏸️ NOT STARTED | 0% | - | Complete Phase 4 |
 
 ### Current Focus: Phase 3 End-to-End Validation
 
 **Foundations Complete:**
+
 - ✅ Stage validators (ResearchStage, SpecGenerationStage, SpecReviewStage)
 - ✅ Research evaluation infrastructure (38 canonical evals)
 - ✅ System prompts with 17-section research bundle schema
 - ✅ State schema extensions for Phase 3
 
 **Runtime Agents Complete:**
+
 - ✅ Research-agent standalone runtime (create_deep_agent, normalization, eval bridge)
 - ✅ Verification-agent standalone runtime (cross-check protocol, verdict normalization)
 - ✅ Spec-writer standalone runtime (reflection loop, feedback loop, Tier 2 eval support)
@@ -73,6 +74,7 @@ This document is the authoritative development plan for the local-first meta-age
 - ✅ 471 unit tests passing (SDK middleware integration validated with deepagents==0.4.12)
 
 **Remaining Work:**
+
 - ⏳ End-to-end live experiment run (requires API keys)
 - ⏳ Stage wiring validation (RESEARCH → SPEC_GENERATION → SPEC_REVIEW)
 - ⏳ HITL checkpoint verification in live runtime
@@ -82,11 +84,16 @@ This document is the authoritative development plan for the local-first meta-age
 - ✅ **COMPLETE** - All evals passing, phase fully functional
 - 🔄 **IN PROGRESS** - Implementation underway, partial completion
 - ⏸️ **NOT STARTED** - Blocked by prerequisite phases
-- [x] - Task completed
-- [ ] - Task incomplete
-- ⏳ - In progress
 
----
+- [x] 
+
+- Task completed
+
+- [ ] 
+
+- Task incomplete
+
+- ⏳ - In progress
 
 ## 2. Traceability Audit
 
@@ -150,8 +157,6 @@ Section 18.5 of the spec identifies 7 tracing gaps that must be resolved during 
 
 **Implemented in:** Phase 1 (basic CLI scaffolding), Phase 4 (full CLI integration).
 
----
-
 ## 3. CLI Specification
 
 The CLI is **out-of-spec** as a standalone component and is folded into relevant phases:
@@ -163,11 +168,7 @@ The CLI is **out-of-spec** as a standalone component and is folded into relevant
 
 The CLI is an implementation convenience, not a spec requirement. The primary interaction surface is the LangGraph dev server API (Section 10.1) and LangGraph Studio. CLI design follows the patterns established in the v2.0 plan Section 3.
 
----
-
 ## 4. Implementation Roadmap
-
----
 
 ### Phase 0: Scaffolding ✅ COMPLETE
 
@@ -179,11 +180,7 @@ Phase 0 establishes the repository structure, core state model, configuration, p
 
 **Spec Section References:** Sections 4.1, 4.2, 4.3, 7.2.1â€“7.2.5, 7.3, 10.4, 10.5, 11.5, 12.1â€“12.2, 13.1â€“13.4, 14, 15.14, 17.1â€“17.4, 18.1â€“18.3, 19.1â€“19.6, 19.8, 22.1, 22.5, 22.7, 22.9â€“22.15, 22.17â€“22.23
 
----
-
 #### 0.2 Implementation Tasks
-
----
 
 ##### 0.2.1 Repository Setup
 
@@ -191,131 +188,116 @@ Phase 0 establishes the repository structure, core state model, configuration, p
 
 **Tasks:**
 
-- Create the full directory structure per Section 13.4, including:
-  ```
-  meta_agent/
-  â”œâ”€â”€ __init__.py
-  â”œâ”€â”€ state.py              # Section 4.1 â€” MetaAgentState TypedDict
-  â”œâ”€â”€ graph.py              # Section 22.4 â€” Main graph entry point
-  â”œâ”€â”€ server.py             # Section 22.6 â€” Dynamic graph factory (get_agent)
-  â”œâ”€â”€ model.py              # Section 22.5 â€” Model selection
-  â”œâ”€â”€ configuration.py      # Section 22.7 â€” Typed configuration
-  â”œâ”€â”€ tools/
-  â”‚   â”œâ”€â”€ __init__.py
-  â”‚   â”œâ”€â”€ registry.py       # Section 22.8 â€” Central tool registry
-  â”‚   â””â”€â”€ eval_tools.py     # Section 22.16 â€” 5 eval tools (stubs)
-  â”œâ”€â”€ tools.py              # Section 22.2 â€” Custom tools (glob, grep, etc.)
-  â”œâ”€â”€ subagents/
-  â”‚   â”œâ”€â”€ __init__.py
-  â”‚   â””â”€â”€ configs.py        # Section 22.3 â€” Subagent specifications
-  â”œâ”€â”€ prompts/
-  â”‚   â”œâ”€â”€ __init__.py
-  â”‚   â”œâ”€â”€ sections.py       # Section 22.14 â€” All 13 base prompt constants
-  â”‚   â”œâ”€â”€ orchestrator.py   # Section 22.15 â€” construct_orchestrator_prompt()
-  â”‚   â”œâ”€â”€ eval_mindset.py   # Section 22.19 â€” EVAL_MINDSET_SECTION
-  â”‚   â”œâ”€â”€ scoring_strategy.py   # Section 22.20 â€” SCORING_STRATEGY_SECTION
-  â”‚   â”œâ”€â”€ eval_approval_protocol.py  # Section 22.21 â€” EVAL_APPROVAL_PROTOCOL
-  â”‚   â”œâ”€â”€ research_agent.py
-  â”‚   â”œâ”€â”€ spec_writer.py
-  â”‚   â”œâ”€â”€ plan_writer.py
-  â”‚   â””â”€â”€ code_agent.py
-  â”œâ”€â”€ middleware/
-  â”‚   â”œâ”€â”€ __init__.py       # Section 22.11 â€” Re-exports all custom middleware
-  â”‚   â”œâ”€â”€ tool_error_handler.py  # Section 22.12 â€” ToolErrorMiddleware
-  â”‚   â”œâ”€â”€ completion_guard.py    # Section 22.13 â€” CompletionGuardMiddleware
-  â”‚   â””â”€â”€ memory_loader.py      # Section 22.18 â€” Per-agent memory (stub)
-  â”œâ”€â”€ evals/
-  â”‚   â”œâ”€â”€ __init__.py
-  â”‚   â”œâ”€â”€ conftest.py
-  â”‚   â”œâ”€â”€ runner.py              # CLI runner for eval suite execution
-  â”‚   â”œâ”€â”€ infrastructure/
-  â”‚   â”‚   â”œâ”€â”€ __init__.py
-  â”‚   â”‚   â””â”€â”€ test_infra.py      # INFRA-001 through INFRA-007
-  â”‚   â”œâ”€â”€ pm_behavioral/
-  â”‚   â”‚   â”œâ”€â”€ __init__.py
-  â”‚   â”‚   â””â”€â”€ test_pm.py         # PM-001 through PM-008
-  â”‚   â”œâ”€â”€ stage_transitions/
-  â”‚   â”‚   â”œâ”€â”€ __init__.py
-  â”‚   â”‚   â””â”€â”€ test_stages.py     # STAGE-001 through STAGE-003
-  â”‚   â”œâ”€â”€ guardrails/
-  â”‚   â”‚   â”œâ”€â”€ __init__.py
-  â”‚   â”‚   â””â”€â”€ test_guards.py     # GUARD-001 through GUARD-004
-  â”‚   â””â”€â”€ rubrics/
-  â”‚       â”œâ”€â”€ __init__.py
-  â”‚       â””â”€â”€ pm_dimensions.py   # Polly rubric anchors
-  â”œâ”€â”€ schemas/
-  â”‚   â””â”€â”€ __init__.py
-  â”œâ”€â”€ integrations/
-  â”‚   â””â”€â”€ __init__.py
-  â””â”€â”€ utils/
-      â””â”€â”€ __init__.py
-  tests/
-  â”œâ”€â”€ unit/
-  â”œâ”€â”€ integration/
-  â””â”€â”€ evals/
-  skills/                   # Cloned skill repos
-  â”œâ”€â”€ langchain/
-  â”œâ”€â”€ langsmith/
-  â””â”€â”€ anthropic/
-  workspace/
-  â””â”€â”€ projects/
-  .agents/                  # Global agent memory root
-  â”œâ”€â”€ orchestrator/
-  â”‚   â””â”€â”€ AGENTS.md
-  â”œâ”€â”€ research-agent/
-  â”‚   â””â”€â”€ AGENTS.md
-  â”œâ”€â”€ spec-writer/
-  â”‚   â””â”€â”€ AGENTS.md
-  â”œâ”€â”€ plan-writer/
-  â”‚   â””â”€â”€ AGENTS.md
-  â”œâ”€â”€ code-agent/
-  â”‚   â””â”€â”€ AGENTS.md
-  â”œâ”€â”€ verification-agent/
-  â”‚   â””â”€â”€ AGENTS.md
-  â”œâ”€â”€ test-agent/
-  â”‚   â””â”€â”€ AGENTS.md
-  â””â”€â”€ document-renderer/
-      â””â”€â”€ AGENTS.md
-  ```
-
+- Create the full directory structure per Section 13.4, including:`meta_agent/
+â”œâ”€â”€ __init__.py
+â”œâ”€â”€ state.py              # Section 4.1 â€” MetaAgentState TypedDict
+â”œâ”€â”€ graph.py              # Section 22.4 â€” Main graph entry point
+â”œâ”€â”€ server.py             # Section 22.6 â€” Dynamic graph factory (get_agent)
+â”œâ”€â”€ model.py              # Section 22.5 â€” Model selection
+â”œâ”€â”€ configuration.py      # Section 22.7 â€” Typed configuration
+â”œâ”€â”€ tools/
+â”‚   â”œâ”€â”€ __init__.py
+â”‚   â”œâ”€â”€ registry.py       # Section 22.8 â€” Central tool registry
+â”‚   â””â”€â”€ eval_tools.py     # Section 22.16 â€” 5 eval tools (stubs)
+â”œâ”€â”€ tools.py              # Section 22.2 â€” Custom tools (glob, grep, etc.)
+â”œâ”€â”€ subagents/
+â”‚   â”œâ”€â”€ __init__.py
+â”‚   â””â”€â”€ configs.py        # Section 22.3 â€” Subagent specifications
+â”œâ”€â”€ prompts/
+â”‚   â”œâ”€â”€ __init__.py
+â”‚   â”œâ”€â”€ sections.py       # Section 22.14 â€” All 13 base prompt constants
+â”‚   â”œâ”€â”€ pm.py             # Section 22.15 â€” construct_pm_prompt()
+â”‚   â”œâ”€â”€ eval_mindset.py   # Section 22.19 â€” EVAL_MINDSET_SECTION
+â”‚   â”œâ”€â”€ scoring_strategy.py   # Section 22.20 â€” SCORING_STRATEGY_SECTION
+â”‚   â”œâ”€â”€ eval_approval_protocol.py  # Section 22.21 â€” EVAL_APPROVAL_PROTOCOL
+â”‚   â”œâ”€â”€ research_agent.py
+â”‚   â”œâ”€â”€ spec_writer.py
+â”‚   â”œâ”€â”€ plan_writer.py
+â”‚   â””â”€â”€ code_agent.py
+â”œâ”€â”€ middleware/
+â”‚   â”œâ”€â”€ __init__.py       # Section 22.11 â€” Re-exports all custom middleware
+â”‚   â”œâ”€â”€ tool_error_handler.py  # Section 22.12 â€” ToolErrorMiddleware
+â”‚   â”œâ”€â”€ completion_guard.py    # Section 22.13 â€” CompletionGuardMiddleware
+â”‚   â””â”€â”€ memory_loader.py      # Section 22.18 â€” Per-agent memory (stub)
+â”œâ”€â”€ evals/
+â”‚   â”œâ”€â”€ __init__.py
+â”‚   â”œâ”€â”€ conftest.py
+â”‚   â”œâ”€â”€ runner.py              # CLI runner for eval suite execution
+â”‚   â”œâ”€â”€ infrastructure/
+â”‚   â”‚   â”œâ”€â”€ __init__.py
+â”‚   â”‚   â””â”€â”€ test_infra.py      # INFRA-001 through INFRA-007
+â”‚   â”œâ”€â”€ pm_behavioral/
+â”‚   â”‚   â”œâ”€â”€ __init__.py
+â”‚   â”‚   â””â”€â”€ test_pm.py         # PM-001 through PM-008
+â”‚   â”œâ”€â”€ stage_transitions/
+â”‚   â”‚   â”œâ”€â”€ __init__.py
+â”‚   â”‚   â””â”€â”€ test_stages.py     # STAGE-001 through STAGE-003
+â”‚   â”œâ”€â”€ guardrails/
+â”‚   â”‚   â”œâ”€â”€ __init__.py
+â”‚   â”‚   â””â”€â”€ test_guards.py     # GUARD-001 through GUARD-004
+â”‚   â””â”€â”€ rubrics/
+â”‚       â”œâ”€â”€ __init__.py
+â”‚       â””â”€â”€ pm_dimensions.py   # Polly rubric anchors
+â”œâ”€â”€ schemas/
+â”‚   â””â”€â”€ __init__.py
+â”œâ”€â”€ integrations/
+â”‚   â””â”€â”€ __init__.py
+â””â”€â”€ utils/
+    â””â”€â”€ __init__.py
+tests/
+â”œâ”€â”€ unit/
+â”œâ”€â”€ integration/
+â””â”€â”€ evals/
+skills/                   # Cloned skill repos
+â”œâ”€â”€ langchain/
+â”œâ”€â”€ langsmith/
+â””â”€â”€ anthropic/
+workspace/
+â””â”€â”€ projects/
+.agents/                  # Global agent memory root
+â”œâ”€â”€ orchestrator/
+â”‚   â””â”€â”€ AGENTS.md
+â”œâ”€â”€ research-agent/
+â”‚   â””â”€â”€ AGENTS.md
+â”œâ”€â”€ spec-writer/
+â”‚   â””â”€â”€ AGENTS.md
+â”œâ”€â”€ plan-writer/
+â”‚   â””â”€â”€ AGENTS.md
+â”œâ”€â”€ code-agent/
+â”‚   â””â”€â”€ AGENTS.md
+â”œâ”€â”€ verification-agent/
+â”‚   â””â”€â”€ AGENTS.md
+â”œâ”€â”€ test-agent/
+â”‚   â””â”€â”€ AGENTS.md
+â””â”€â”€ document-renderer/
+    â””â”€â”€ AGENTS.md`
 - Create `pyproject.toml` per Section 13.3:
   - Dependencies: `deepagents>=0.4.3`, `langgraph-sdk>=0.1.0`, `langgraph-cli[inmem]>=0.4.12`, `pydantic>=2.0`, `langsmith`
   - Pin `langchain-community` to exact minor series (`>=0.4.0,<0.5.0`) per spec note
   - Include dev dependencies: `pytest`, `pytest-asyncio`, `agentevals`
   - Python version: `>=3.11`
-
-- Create `langgraph.json` per Section 13.2:
-  ```json
-  {
-    "graphs": {
-      "meta_agent": "meta_agent.server:get_agent"
-    },
-    "python_version": "3.12"
-  }
-  ```
-
+- Create `langgraph.json` per Section 13.2:`{
+  "graphs": {
+    "meta_agent": "meta_agent.server:get_agent"
+  },
+  "python_version": "3.12"
+}`
 - Create `.env.example` per Section 12.2 with all environment variables from Section 12.1:
   - `LANGSMITH_API_KEY`, `LANGSMITH_TRACING=true`, `LANGSMITH_PROJECT=meta-agent`
   - `ANTHROPIC_API_KEY`
   - `META_AGENT_MODEL=anthropic:claude-opus-4-6`
   - `META_AGENT_MODEL_PROVIDER`, `META_AGENT_MODEL_NAME`
   - `META_AGENT_MAX_REFLECTION_PASSES`
-
 - Create per-agent `.agents/{agent-name}/AGENTS.md` files (Section 13.4.6.1) â€” initial empty files for all 8 agents: orchestrator, research-agent, spec-writer, plan-writer, code-agent, verification-agent, test-agent, document-renderer
-
 - Create `Makefile` with targets: `install`, `dev`, `test`, `lint`, `evals`, `evals-p0`, `evals-p1`, `evals-p2`
-
 - Clone skill repositories into `skills/` directory (Section 11.5):
   - `https://github.com/langchain-ai/langchain-skills` â†’ `skills/langchain/`
   - `https://github.com/langchain-ai/langsmith-skills` â†’ `skills/langsmith/`
   - `https://github.com/anthropics/skills` â†’ `skills/anthropic/`
-
 - **[v5.6-R] Skill path resolution note:** After cloning, the actual SKILL.md files are nested at different depths within each repo. `SkillsMiddleware` scans one level deep from each provided path, so the `sources=[]` parameter must point to the directory that directly contains skill subdirectories (each with a SKILL.md), not the top-level clone directory. [v5.6.1] SkillsMiddleware is now instantiated explicitly in the middleware list with `bare_fs` (FilesystemBackend with virtual_mode=False) for absolute path resolution. The `skills=` parameter to create_deep_agent() is no longer used. The resolved paths are:
   - `skills/langchain/config/skills/` (11 skills)
   - `skills/langsmith/config/skills/` (3 skills)
   - `skills/anthropic/skills/` (17 skills)
-
----
 
 ##### 0.2.2 Core State Model
 
@@ -323,62 +305,50 @@ Phase 0 establishes the repository structure, core state model, configuration, p
 
 **Tasks:**
 
-- Implement `meta_agent/state.py` with the complete `MetaAgentState` TypedDict per Section 4.1:
-  ```python
-  class MetaAgentState(TypedDict):
-      messages: Annotated[list, operator.add]
-      current_stage: str  # WorkflowStage enum value
-      project_id: str
-      current_prd_path: Optional[str]
-      current_spec_path: Optional[str]
-      current_plan_path: Optional[str]
-      current_research_path: Optional[str]
-      active_participation_mode: bool
-      decision_log: Annotated[list[DecisionEntry], operator.add]
-      assumption_log: Annotated[list[AssumptionEntry], operator.add]
-      approval_history: Annotated[list[ApprovalEntry], operator.add]
-      artifacts_written: Annotated[list[str], operator.add]
-      # v5.4 execution tracking fields
-      execution_plan_tasks: list[dict]
-      current_task_id: Optional[str]
-      completed_task_ids: Annotated[list[str], operator.add]
-      execution_summary: dict
-      test_summary: dict
-      progress_log: Annotated[list[str], operator.add]
-      # v5.6 eval-related state fields
-      eval_suites: list[str]       # Paths to eval suite YAML files
-      eval_results: dict           # Mapping eval run IDs to results
-      current_eval_phase: Optional[str]  # Current phase being evaluated
-  ```
-
+- Implement `meta_agent/state.py` with the complete `MetaAgentState` TypedDict per Section 4.1:`class MetaAgentState(TypedDict):
+    messages: Annotated[list, operator.add]
+    current_stage: str  # WorkflowStage enum value
+    project_id: str
+    current_prd_path: Optional[str]
+    current_spec_path: Optional[str]
+    current_plan_path: Optional[str]
+    current_research_path: Optional[str]
+    active_participation_mode: bool
+    decision_log: Annotated[list[DecisionEntry], operator.add]
+    assumption_log: Annotated[list[AssumptionEntry], operator.add]
+    approval_history: Annotated[list[ApprovalEntry], operator.add]
+    artifacts_written: Annotated[list[str], operator.add]
+    # v5.4 execution tracking fields
+    execution_plan_tasks: list[dict]
+    current_task_id: Optional[str]
+    completed_task_ids: Annotated[list[str], operator.add]
+    execution_summary: dict
+    test_summary: dict
+    progress_log: Annotated[list[str], operator.add]
+    # v5.6 eval-related state fields
+    eval_suites: list[str]       # Paths to eval suite YAML files
+    eval_results: dict           # Mapping eval run IDs to results
+    current_eval_phase: Optional[str]  # Current phase being evaluated`
 - Define `WorkflowStage` enum with all 10 stages: `INTAKE`, `PRD_REVIEW`, `RESEARCH`, `SPEC_GENERATION`, `SPEC_REVIEW`, `PLANNING`, `PLAN_REVIEW`, `EXECUTION`, `EVALUATION`, `AUDIT`
-
-- Define `VALID_TRANSITIONS` set per Section 3.11:
-  ```python
-  VALID_TRANSITIONS = {
-      ("INTAKE", "PRD_REVIEW"),
-      ("PRD_REVIEW", "RESEARCH"),
-      ("PRD_REVIEW", "INTAKE"),
-      ("RESEARCH", "SPEC_GENERATION"),
-      ("RESEARCH", "PRD_REVIEW"),
-      ("SPEC_GENERATION", "SPEC_REVIEW"),
-      ("SPEC_REVIEW", "PLANNING"),
-      ("SPEC_REVIEW", "SPEC_GENERATION"),
-      ("SPEC_REVIEW", "RESEARCH"),
-      ("PLANNING", "PLAN_REVIEW"),
-      ("PLAN_REVIEW", "EXECUTION"),
-      ("PLAN_REVIEW", "PLANNING"),
-      ("EXECUTION", "EVALUATION"),
-      ("EVALUATION", "EXECUTION"),
-  }
-  # Plus lateral AUDIT transitions from any stage
-  ```
-
+- Define `VALID_TRANSITIONS` set per Section 3.11:`VALID_TRANSITIONS = {
+    ("INTAKE", "PRD_REVIEW"),
+    ("PRD_REVIEW", "RESEARCH"),
+    ("PRD_REVIEW", "INTAKE"),
+    ("RESEARCH", "SPEC_GENERATION"),
+    ("RESEARCH", "PRD_REVIEW"),
+    ("SPEC_GENERATION", "SPEC_REVIEW"),
+    ("SPEC_REVIEW", "PLANNING"),
+    ("SPEC_REVIEW", "SPEC_GENERATION"),
+    ("SPEC_REVIEW", "RESEARCH"),
+    ("PLANNING", "PLAN_REVIEW"),
+    ("PLAN_REVIEW", "EXECUTION"),
+    ("PLAN_REVIEW", "PLANNING"),
+    ("EXECUTION", "EVALUATION"),
+    ("EVALUATION", "EXECUTION"),
+}
+# Plus lateral AUDIT transitions from any stage`
 - Define structured entry types: `DecisionEntry`, `AssumptionEntry`, `ApprovalEntry` per Sections 5.8.1â€“5.8.3
-
 - Write unit tests for state model: valid construction, reducer behavior on `operator.add` fields, stage enum completeness
-
----
 
 ##### 0.2.3 Configuration Module
 
@@ -386,43 +356,34 @@ Phase 0 establishes the repository structure, core state model, configuration, p
 
 **Tasks:**
 
-- Implement `meta_agent/configuration.py` per Section 13.4.5 â€” typed configuration consolidating all environment variables:
-  ```python
-  @dataclass
-  class MetaAgentConfig:
-      model: str  # e.g., "anthropic:claude-opus-4-6"
-      model_provider: str
-      model_name: str
-      langsmith_tracing: bool
-      langsmith_project: str
-      max_reflection_passes: int
-  ```
-
+- Implement `meta_agent/configuration.py` per Section 13.4.5 â€” typed configuration consolidating all environment variables:`@dataclass
+class MetaAgentConfig:
+    model: str  # e.g., "anthropic:claude-opus-4-6"
+    model_provider: str
+    model_name: str
+    langsmith_tracing: bool
+    langsmith_project: str
+    max_reflection_passes: int`
 - Implement `meta_agent/model.py` per Section 22.5:
   - Configurable model via `META_AGENT_MODEL` env var (format: `provider:model_name`)
   - Default: `anthropic:claude-opus-4-6`
   - Adaptive thinking configuration per Section 10.5.1: `thinking={"type": "adaptive"}`
   - Effort parameter per Section 10.5.2 in `output_config={"effort": level}`
   - **NO** `budget_tokens` â€” deprecated on Opus 4.6 and Sonnet 4.6 (Section 10.5.4)
-  - Per-agent effort levels per Section 10.5.3:
-    ```python
-    AGENT_EFFORT_LEVELS = {
-        "orchestrator": "high",
-        "research-agent": "max",
-        "verification-agent": "max",
-        "spec-writer": "high",
-        "plan-writer": "high",
-        "code-agent": "high",
-        "test-agent": "medium",
-        "document-renderer": "low",
-        "observation-agent": "medium",
-        "evaluation-agent": "medium",
-        "audit-agent": "medium",
-    }
-    ```
+  - Per-agent effort levels per Section 10.5.3:`AGENT_EFFORT_LEVELS = {
+    "orchestrator": "high",
+    "research-agent": "max",
+    "verification-agent": "max",
+    "spec-writer": "high",
+    "plan-writer": "high",
+    "code-agent": "high",
+    "test-agent": "medium",
+    "document-renderer": "low",
+    "observation-agent": "medium",
+    "evaluation-agent": "medium",
+    "audit-agent": "medium",
+}`
   - Fallback strategy for non-Opus models per Section 10.5.4
-
----
 
 ##### 0.2.4 CompositeBackend and Checkpointer
 
@@ -437,7 +398,6 @@ Phase 0 establishes the repository structure, core state model, configuration, p
   - `/conversation_history/` → `StateBackend(rt)` — thread-scoped ephemeral, SummarizationToolMiddleware offloading
   - Implementation: `create_composite_backend(repo_root)` factory in `meta_agent/backend.py`
   - Bare `FilesystemBackend(virtual_mode=False)` for MemoryMiddleware + SkillsMiddleware (absolute path access)
-
 - [x] Implement checkpointer strategy per Section 4.3:
   - Development: `MemorySaver` (zero-configuration)
   - Migration note for production: `PostgresSaver`
@@ -445,8 +405,6 @@ Phase 0 establishes the repository structure, core state model, configuration, p
 - V1 limitation note per Section 4.2: `InMemoryStore` for `/memories/` — data lost on server restart
 
 **[v5.6.1 Fix — 2026-03-31]:** The original implementation used custom backend classes (StateBackend, FilesystemBackend, StoreBackend, CompositeBackend in backend.py) that implemented get()/put()/delete() but never implemented BackendProtocol. The SDK's FilesystemMiddleware calls ls_info(), read(), write(), edit(), grep_raw(), glob_info() — none of which existed on the custom classes. They were dead code. Replaced with SDK-native imports from `deepagents.backends`. See DEVIATION_RECORD.md Section 20.
-
----
 
 ##### 0.2.5 Multi-Project Artifact Isolation
 
@@ -458,32 +416,26 @@ Phase 0 establishes the repository structure, core state model, configuration, p
   - `project_id` derivation from project name via slugification
   - `meta.yaml` creation with project name, creation time, current stage, description
   - Thread ID prefixing: `project-{project_id}-{session_id}`
-  - Full directory tree creation:
-    ```
-    workspace/projects/{project_id}/
-    â”œâ”€â”€ meta.yaml
-    â”œâ”€â”€ artifacts/
-    â”‚   â”œâ”€â”€ intake/
-    â”‚   â”œâ”€â”€ research/
-    â”‚   â”œâ”€â”€ spec/
-    â”‚   â””â”€â”€ planning/
-    â”œâ”€â”€ evals/
-    â”œâ”€â”€ logs/
-    â””â”€â”€ .agents/
-        â”œâ”€â”€ orchestrator/AGENTS.md
-        â”œâ”€â”€ research-agent/AGENTS.md
-        â”œâ”€â”€ spec-writer/AGENTS.md
-        â”œâ”€â”€ plan-writer/AGENTS.md
-        â”œâ”€â”€ code-agent/AGENTS.md
-        â”œâ”€â”€ verification-agent/AGENTS.md
-        â””â”€â”€ test-agent/AGENTS.md
-    ```
-
+  - Full directory tree creation:`.agents/pm/projects/{project_id}/
+â”œâ”€â”€ meta.yaml
+â”œâ”€â”€ artifacts/
+â”‚   â”œâ”€â”€ intake/
+â”‚   â”œâ”€â”€ research/
+â”‚   â”œâ”€â”€ spec/
+â”‚   â””â”€â”€ planning/
+â”œâ”€â”€ evals/
+â”œâ”€â”€ logs/
+â””â”€â”€ .agents/
+    â”œâ”€â”€ orchestrator/AGENTS.md
+    â”œâ”€â”€ research-agent/AGENTS.md
+    â”œâ”€â”€ spec-writer/AGENTS.md
+    â”œâ”€â”€ plan-writer/AGENTS.md
+    â”œâ”€â”€ code-agent/AGENTS.md
+    â”œâ”€â”€ verification-agent/AGENTS.md
+    â””â”€â”€ test-agent/AGENTS.md`
 - All artifact paths scoped to `{project_dir}/artifacts/{stage}/`
 - Eval artifacts scoped to `{project_dir}/evals/`
 - Log artifacts scoped to `{project_dir}/logs/`
-
----
 
 ##### 0.2.6 Tracing Foundation
 
@@ -494,20 +446,15 @@ Phase 0 establishes the repository structure, core state model, configuration, p
 - Set up LangSmith automatic tracing via `LANGSMITH_TRACING=true`
 - Implement `@traceable` decorator stubs per Section 18.2 for custom spans
 - Create stub implementations for Gap 1 (`prepare_{agent_name}_state`) and Gap 3 (`delegation_decision`) trace spans
-- Define metadata tag constants per Section 18.3:
-  ```python
-  TRACE_TAGS = {
-      "stage": str,           # intake, prd_review, research, ...
-      "artifact_type": str,   # prd, research_bundle, ...
-      "subagent": str,        # research-agent, code-agent, ...
-      "participation_mode": str,  # active, passive
-      "eval_phase": str,      # tier_1, tier_2, phase_gate, regression
-      "eval_run_id": str,     # experiment_id
-      "commit_hash": str,     # git hash
-  }
-  ```
-
----
+- Define metadata tag constants per Section 18.3:`TRACE_TAGS = {
+    "stage": str,           # intake, prd_review, research, ...
+    "artifact_type": str,   # prd, research_bundle, ...
+    "subagent": str,        # research-agent, code-agent, ...
+    "participation_mode": str,  # active, passive
+    "eval_phase": str,      # tier_1, tier_2, phase_gate, regression
+    "eval_run_id": str,     # experiment_id
+    "commit_hash": str,     # git hash
+}`
 
 ##### 0.2.7 Error Handling Foundation
 
@@ -520,10 +467,7 @@ Phase 0 establishes the repository structure, core state model, configuration, p
   - Tier 2: LLM-recoverable via `handle_tool_errors=True`
   - Tier 3: User-fixable via `interrupt()` with structured error context
   - Tier 4: Unexpected â€” bubble up with structured error report
-
 - Implement `structured_error_context` per Section 17.4 containing: `error_type`, `error_message`, `timestamp`, `current_stage`, `stack_trace`, `state_snapshot`, `recovery_suggestion`
-
----
 
 ##### 0.2.8 Custom Middleware Package
 
@@ -535,21 +479,14 @@ Phase 0 establishes the repository structure, core state model, configuration, p
   - `ToolErrorMiddleware` wraps all tool calls in try/except
   - Converts unhandled exceptions into `ToolMessage(status="error")` with structured JSON payload: `{"error": "<message>", "error_type": "<exception class>", "status": "error", "name": "<tool_name>"}`
   - **Required on ALL agents** (orchestrator and all subagents)
-
 - Implement `meta_agent/middleware/completion_guard.py` per Section 22.13:
   - `CompletionGuardMiddleware` uses `@after_model` hook
   - If model returns response with no tool calls and no text content: inject nudge message
   - If model returns text but no tool calls: inject confirmation check
   - **Required on:** code-agent, test-agent, observation-agent only
-
-- Implement `meta_agent/middleware/__init__.py` per Section 22.11:
-  ```python
-  from .tool_error_handler import ToolErrorMiddleware
-  from .completion_guard import CompletionGuardMiddleware
-  from .memory_loader import MemoryLoaderMiddleware  # stub
-  ```
-
----
+- Implement `meta_agent/middleware/__init__.py` per Section 22.11:`from .tool_error_handler import ToolErrorMiddleware
+from .completion_guard import CompletionGuardMiddleware
+from .memory_loader import MemoryLoaderMiddleware  # stub`
 
 ##### 0.2.9 Prompt Section Constants
 
@@ -558,43 +495,35 @@ Phase 0 establishes the repository structure, core state model, configuration, p
 **Tasks:**
 
 - Implement `meta_agent/prompts/sections.py` per Section 22.14 with all 13 base prompt section constants:
-  1. `ROLE_SECTION` â€” Agent identity, expertise (unique per agent)
-  2. `WORKSPACE_SECTION` â€” Project directory structure, artifact paths, runtime template `{project_dir}`
-  3. `STAGE_CONTEXT_SECTION` â€” Current stage, entry/exit conditions, runtime template `{current_stage}`
-  4. `ARTIFACT_PROTOCOL_SECTION` â€” How to read/write/validate artifacts, YAML frontmatter rules
-  5. `TOOL_USAGE_SECTION` â€” Per-agent tool documentation (Section 7.2.4 format)
-  6. `TOOL_BEST_PRACTICES_SECTION` â€” Parallel tool calling, dependency handling, error recovery
-  7. `QUALITY_STANDARDS_SECTION` â€” Agent-specific quality bars, reflection protocols
-  8. `CORE_BEHAVIOR_SECTION` â€” Non-negotiable behavioral mandates per Section 7.2.3 (Persistence, Accuracy, Tool Discipline, No Premature PRD Writing, No Delegation of PM Work, Explicit Reasoning for PM Decisions)
-  9. `HITL_PROTOCOL_SECTION` â€” When/how to surface HITL decisions, interrupt payload format
-  10. `DELEGATION_SECTION` â€” Rules for delegating to sub-agents
-  11. `COMMUNICATION_SECTION` â€” Output formatting, markdown usage
-  12. `SKILLS_SECTION` â€” Available skills, when to load them
-  13. `AGENTS_MD_SECTION` â€” Runtime-injected memory content in `<agents_md>` XML tags
-
+    1. `ROLE_SECTION` â€” Agent identity, expertise (unique per agent)
+    2. `WORKSPACE_SECTION` â€” Project directory structure, artifact paths, runtime template `{project_dir}`
+    3. `STAGE_CONTEXT_SECTION` â€” Current stage, entry/exit conditions, runtime template `{current_stage}`
+    4. `ARTIFACT_PROTOCOL_SECTION` â€” How to read/write/validate artifacts, YAML frontmatter rules
+    5. `TOOL_USAGE_SECTION` â€” Per-agent tool documentation (Section 7.2.4 format)
+    6. `TOOL_BEST_PRACTICES_SECTION` â€” Parallel tool calling, dependency handling, error recovery
+    7. `QUALITY_STANDARDS_SECTION` â€” Agent-specific quality bars, reflection protocols
+    8. `CORE_BEHAVIOR_SECTION` â€” Non-negotiable behavioral mandates per Section 7.2.3 (Persistence, Accuracy, Tool Discipline, No Premature PRD Writing, No Delegation of PM Work, Explicit Reasoning for PM Decisions)
+    9. `HITL_PROTOCOL_SECTION` â€” When/how to surface HITL decisions, interrupt payload format
+    10. `DELEGATION_SECTION` â€” Rules for delegating to sub-agents
+    11. `COMMUNICATION_SECTION` â€” Output formatting, markdown usage
+    12. `SKILLS_SECTION` â€” Available skills, when to load them
+    13. `AGENTS_MD_SECTION` â€” Runtime-injected memory content in `<agents_md>` XML tags
 - Implement 3 new eval-specific sections as separate files:
   - `meta_agent/prompts/eval_mindset.py` (Section 22.19): `EVAL_MINDSET_SECTION` â€” always loaded for orchestrator. Content: "You think in evaluations. This is non-negotiable." and the core principle from spec Section 7.3.
   - `meta_agent/prompts/scoring_strategy.py` (Section 22.20): `SCORING_STRATEGY_SECTION` â€” loaded only during INTAKE and SPEC_REVIEW. Contains Binary pass/fail and Likert 1-5 with anchored definitions (V1 only).
   - `meta_agent/prompts/eval_approval_protocol.py` (Section 22.21): `EVAL_APPROVAL_PROTOCOL` â€” loaded during INTAKE, PRD_REVIEW, SPEC_REVIEW. Contains all 7 user response branches.
-
 - **[v5.6-R] New eval-specific section added post-assessment:**
   - `meta_agent/prompts/eval_engineering.py`: `EVAL_ENGINEERING_SECTION` — always loaded for orchestrator. Contains eval taxonomy (5 categories: Infrastructure, Behavioral, Quality, Reasoning, Integration), scoring strategies with mandatory Likert anchor SOP, LangSmith-compatible JSON dataset format, synthetic data curation protocol, eval suite artifact schema, and dataset writing format. Source: Polly assessment (LangSmith trace `019d2a1c-bdf9-7a01-b683-8278e3345d6d`).
-
-- Section Selection Matrix per Section 7.2.5 â€” implement as a constant:
-  ```python
-  SECTION_MATRIX = {
-      "orchestrator": ["ROLE", "WORKSPACE", "STAGE_CONTEXT", "ARTIFACT_PROTOCOL",
-                       "TOOL_USAGE", "TOOL_BEST_PRACTICES", "CORE_BEHAVIOR",
-                       "HITL_PROTOCOL", "DELEGATION", "COMMUNICATION", "SKILLS",
-                       "AGENTS_MD", "EVAL_MINDSET"],
-      "research-agent": ["ROLE", "WORKSPACE", "ARTIFACT_PROTOCOL", "TOOL_USAGE",
-                         "TOOL_BEST_PRACTICES", "QUALITY_STANDARDS", "CORE_BEHAVIOR",
-                         "COMMUNICATION", "SKILLS", "AGENTS_MD"],
-      # ... (all agents per Section 7.2.5)
-  }
-  ```
-
----
+- Section Selection Matrix per Section 7.2.5 â€” implement as a constant:`SECTION_MATRIX = {
+    "orchestrator": ["ROLE", "WORKSPACE", "STAGE_CONTEXT", "ARTIFACT_PROTOCOL",
+                     "TOOL_USAGE", "TOOL_BEST_PRACTICES", "CORE_BEHAVIOR",
+                     "HITL_PROTOCOL", "DELEGATION", "COMMUNICATION", "SKILLS",
+                     "AGENTS_MD", "EVAL_MINDSET"],
+    "research-agent": ["ROLE", "WORKSPACE", "ARTIFACT_PROTOCOL", "TOOL_USAGE",
+                       "TOOL_BEST_PRACTICES", "QUALITY_STANDARDS", "CORE_BEHAVIOR",
+                       "COMMUNICATION", "SKILLS", "AGENTS_MD"],
+    # ... (all agents per Section 7.2.5)
+}`
 
 ##### 0.2.10 Prompt Composition Functions
 
@@ -602,52 +531,45 @@ Phase 0 establishes the repository structure, core state model, configuration, p
 
 **Tasks:**
 
-- Implement `meta_agent/prompts/orchestrator.py` with `construct_orchestrator_prompt()` per Section 7.3:
-  ```python
-  def construct_orchestrator_prompt(
-      stage: str,
-      project_dir: str,
-      project_id: str,
-      agents_md_content: str = ""
-  ) -> str:
-      """Assembles the orchestrator system prompt based on current stage."""
-      # Always included
-      sections = [
-          ROLE_SECTION,
-          EVAL_MINDSET_SECTION,
-          CORE_BEHAVIOR_SECTION,
-          format_workspace_section(project_dir, project_id),
-          HITL_PROTOCOL_SECTION,
-          COMMUNICATION_SECTION,
-          MEMORY_SECTION,
-      ]
-      # Stage-specific context
-      sections.append(format_stage_context(stage, project_id))
-      # Stage-conditional sections
-      if stage in ["INTAKE", "PRD_REVIEW", "SPEC_REVIEW"]:
-          sections.append(EVAL_APPROVAL_PROTOCOL)
-      if stage in ["INTAKE", "SPEC_REVIEW"]:
-          sections.append(SCORING_STRATEGY_SECTION)
-      if stage in ["RESEARCH", "SPEC_GENERATION", "PLANNING", "EXECUTION"]:
-          sections.append(DELEGATION_SECTION)
-      # Runtime-injected memory (always last)
-      if agents_md_content:
-          sections.append(format_agents_md_section(agents_md_content))
-      return "\n\n---\n\n".join(sections)
-  ```
-
+- Implement `meta_agent/prompts/pm.py` with `construct_pm_prompt()` per Section 7.3:`def construct_pm_prompt(
+    stage: str,
+    project_dir: str,
+    project_id: str,
+    agents_md_content: str = ""
+) -> str:
+    """Assembles the orchestrator system prompt based on current stage."""
+    # Always included
+    sections = [
+        ROLE_SECTION,
+        EVAL_MINDSET_SECTION,
+        CORE_BEHAVIOR_SECTION,
+        format_workspace_section(project_dir, project_id),
+        HITL_PROTOCOL_SECTION,
+        COMMUNICATION_SECTION,
+        MEMORY_SECTION,
+    ]
+    # Stage-specific context
+    sections.append(format_stage_context(stage, project_id))
+    # Stage-conditional sections
+    if stage in ["INTAKE", "PRD_REVIEW", "SPEC_REVIEW"]:
+        sections.append(EVAL_APPROVAL_PROTOCOL)
+    if stage in ["INTAKE", "SPEC_REVIEW"]:
+        sections.append(SCORING_STRATEGY_SECTION)
+    if stage in ["RESEARCH", "SPEC_GENERATION", "PLANNING", "EXECUTION"]:
+        sections.append(DELEGATION_SECTION)
+    # Runtime-injected memory (always last)
+    if agents_md_content:
+        sections.append(format_agents_md_section(agents_md_content))
+    return "\n\n---\n\n".join(sections)`
 - Implement stage-specific context blocks for all 10 stages per Section 7.3 (INTAKE, PRD_REVIEW, RESEARCH, SPEC_GENERATION, SPEC_REVIEW, PLANNING, PLAN_REVIEW, EXECUTION, EVALUATION, AUDIT)
-
 - Implement composition functions for each agent per Section 7.2.2:
-  - `construct_research_agent_prompt(project_dir, agents_md)` 
+  - `construct_research_agent_prompt(project_dir, agents_md)`
   - `construct_code_agent_prompt(project_dir, current_stage, current_task, agents_md)`
   - `construct_spec_writer_prompt(project_dir, agents_md)`
   - `construct_plan_writer_prompt(project_dir, agents_md)`
   - `construct_verification_agent_prompt(project_dir, agents_md)`
   - `construct_test_agent_prompt(project_dir, agents_md)`
   - `construct_document_renderer_prompt(project_dir)`
-
----
 
 ##### 0.2.11 Testing Foundation
 
@@ -662,8 +584,6 @@ Phase 0 establishes the repository structure, core state model, configuration, p
 - Create `tests/unit/test_middleware.py` â€” ToolErrorMiddleware wrapping, CompletionGuardMiddleware triggers
 - Target: 90% coverage on state and tools modules
 
----
-
 ##### 0.2.12 Safety and Guardrails Foundation
 
 **Spec References:** Sections 19.1â€“19.6, 19.8
@@ -672,26 +592,21 @@ Phase 0 establishes the repository structure, core state model, configuration, p
 
 - File system restrictions per Section 19.1: `FilesystemBackend` with `virtual_mode=True`, path traversal blocking, symlink restriction
 - Command execution guardrails per Section 19.2: `execute_command` always HITL-gated, 300s timeout, working dir within `/workspace/`
-- Recursion limits per Section 19.5 â€” define per-agent constants:
-  ```python
-  RECURSION_LIMITS = {
-      "orchestrator": 200,
-      "code-agent": 150,
-      "research-agent": 100,
-      "spec-writer": 50,
-      "plan-writer": 50,
-      "verification-agent": 50,
-      "test-agent": 50,
-      "document-renderer": 50,
-      "observation-agent": 50,
-      "evaluation-agent": 50,
-      "audit-agent": 50,
-  }
-  ```
+- Recursion limits per Section 19.5 â€” define per-agent constants:`RECURSION_LIMITS = {
+    "orchestrator": 200,
+    "code-agent": 150,
+    "research-agent": 100,
+    "spec-writer": 50,
+    "plan-writer": 50,
+    "verification-agent": 50,
+    "test-agent": 50,
+    "document-renderer": 50,
+    "observation-agent": 50,
+    "evaluation-agent": 50,
+    "audit-agent": 50,
+}`
 - Token budget guards per Section 19.6: warn at 100K (standard), 1M (research-agent), 200K (spec-writer, verification)
 - Eval dataset immutability rule per Section 19.8: eval files read-only during EXECUTION stage
-
----
 
 ##### 0.2.13 Orchestrator Eval Suite Infrastructure
 
@@ -699,64 +614,52 @@ Phase 0 establishes the repository structure, core state model, configuration, p
 
 **Tasks:**
 
-- Create the full eval suite directory structure per Section 15.14.6:
-  ```
-  meta_agent/evals/
-  â”œâ”€â”€ __init__.py
-  â”œâ”€â”€ conftest.py              # Shared fixtures
-  â”œâ”€â”€ runner.py                # CLI runner
-  â”œâ”€â”€ infrastructure/
-  â”‚   â”œâ”€â”€ __init__.py
-  â”‚   â””â”€â”€ test_infra.py        # INFRA-001 â€“ INFRA-007
-  â”œâ”€â”€ pm_behavioral/
-  â”‚   â”œâ”€â”€ __init__.py
-  â”‚   â””â”€â”€ test_pm.py           # PM-001 â€“ PM-008
-  â”œâ”€â”€ stage_transitions/
-  â”‚   â”œâ”€â”€ __init__.py
-  â”‚   â””â”€â”€ test_stages.py       # STAGE-001 â€“ STAGE-003
-  â”œâ”€â”€ guardrails/
-  â”‚   â”œâ”€â”€ __init__.py
-  â”‚   â””â”€â”€ test_guards.py       # GUARD-001 â€“ GUARD-004
-  â””â”€â”€ rubrics/
-      â”œâ”€â”€ __init__.py
-      â””â”€â”€ pm_dimensions.py     # Polly rubric anchors
-  ```
-
+- Create the full eval suite directory structure per Section 15.14.6:`meta_agent/evals/
+â”œâ”€â”€ __init__.py
+â”œâ”€â”€ conftest.py              # Shared fixtures
+â”œâ”€â”€ runner.py                # CLI runner
+â”œâ”€â”€ infrastructure/
+â”‚   â”œâ”€â”€ __init__.py
+â”‚   â””â”€â”€ test_infra.py        # INFRA-001 â€“ INFRA-007
+â”œâ”€â”€ pm_behavioral/
+â”‚   â”œâ”€â”€ __init__.py
+â”‚   â””â”€â”€ test_pm.py           # PM-001 â€“ PM-008
+â”œâ”€â”€ stage_transitions/
+â”‚   â”œâ”€â”€ __init__.py
+â”‚   â””â”€â”€ test_stages.py       # STAGE-001 â€“ STAGE-003
+â”œâ”€â”€ guardrails/
+â”‚   â”œâ”€â”€ __init__.py
+â”‚   â””â”€â”€ test_guards.py       # GUARD-001 â€“ GUARD-004
+â””â”€â”€ rubrics/
+    â”œâ”€â”€ __init__.py
+    â””â”€â”€ pm_dimensions.py     # Polly rubric anchors`
 - Implement `runner.py` per Section 15.14.7 â€” CLI runner supporting:
   - `--all` (run all 23 evals)
   - `--category {infrastructure|pm_behavioral|stage_transitions|guardrails}`
   - `--priority {P0|P1|P2}`
   - `--eval {EVAL_ID}` (single eval)
   - `--experiment "name"` (LangSmith experiment tracking)
-
 - Implement INFRA-001 through INFRA-004 (Phase 0 evals) per Section 15.14.2:
   - `eval_infra_001_project_directory_structure(project_dir)` â€” verifies full directory tree
   - `eval_infra_002_prd_artifact_path(project_dir)` â€” verifies PRD exists at canonical path
   - `eval_infra_003_prd_frontmatter_valid(project_dir)` â€” verifies YAML frontmatter with required fields
   - `eval_infra_004_prd_required_sections(project_dir)` â€” verifies all 10 required PRD sections
-
 - Implement `rubrics/pm_dimensions.py` per Section 22.23 â€” Polly rubric anchors for all 5 PM dimensions (Sections 15.3.1â€“15.3.5) as Python constants
-
----
 
 ##### 0.2.14 Phase 0 Eval Implementations
 
 Implement the 4 eval functions for Phase 0 in `meta_agent/evals/infrastructure/test_infra.py`. Full Python implementations are provided inline in the Eval Gate section below (Section 0.3.2).
-
----
 
 #### 0.3 Eval Gate
 
 ##### 0.3.1 Evals for This Phase
 
 | Eval ID | Name | What It Tests | Scoring | Threshold | Priority |
-|---------|------|---------------|---------|-----------|----------|
+| --- | --- | --- | --- | --- | --- |
 | INFRA-001 | Project Directory Structure Created Correctly | All required dirs exist after project init | Binary | 1.0 | P0 |
-| INFRA-002 | PRD Artifact Written to Correct Path | PRD exists at `{project_dir}/artifacts/intake/prd.md` | Binary | 1.0 | P0 |
+| INFRA-002 | PRD Artifact Written to Correct Path | PRD exists at {project_dir}/artifacts/intake/prd.md | Binary | 1.0 | P0 |
 | INFRA-003 | PRD Has Valid YAML Frontmatter | YAML frontmatter with required fields: artifact, project_id, title, version, status, stage, authors, lineage | Binary | 1.0 | P0 |
 | INFRA-004 | PRD Contains All Required Sections | All 10 required PRD sections present (Product Summary, Goals, Non-Goals, etc.) | Binary | 1.0 | P0 |
-
----
 
 ##### 0.3.2 Eval Definitions
 
@@ -768,7 +671,6 @@ Implement the 4 eval functions for Phase 0 in `meta_agent/evals/infrastructure/t
 import os
 import yaml
 import json
-
 
 def eval_infra_001_project_directory_structure(project_dir: str) -> dict:
     """INFRA-001: Project directory structure is created correctly.
@@ -796,7 +698,6 @@ def eval_infra_001_project_directory_structure(project_dir: str) -> dict:
         "reason": f"Missing directories: {missing}" if missing else "All directories present"
     }
 
-
 def eval_infra_002_prd_artifact_path(project_dir: str) -> dict:
     """INFRA-002: PRD artifact written to correct path.
 
@@ -812,7 +713,6 @@ def eval_infra_002_prd_artifact_path(project_dir: str) -> dict:
         "pass": exists,
         "reason": f"PRD exists at {expected_path}" if exists else f"PRD not found at {expected_path}"
     }
-
 
 def eval_infra_003_prd_frontmatter_valid(project_dir: str) -> dict:
     """INFRA-003: PRD has valid YAML frontmatter with required fields.
@@ -841,7 +741,6 @@ def eval_infra_003_prd_frontmatter_valid(project_dir: str) -> dict:
     except Exception as e:
         return {"pass": False, "reason": f"Error parsing PRD: {e}"}
 
-
 def eval_infra_004_prd_required_sections(project_dir: str) -> dict:
     """INFRA-004: PRD contains all required sections.
 
@@ -869,13 +768,12 @@ def eval_infra_004_prd_required_sections(project_dir: str) -> dict:
         return {"pass": False, "reason": f"Error reading PRD: {e}"}
 ```
 
----
-
 ##### 0.3.3 Synthetic Data Reference
 
 **Local file:** `datasets/phase-0-1-synthetic-data.yaml`
 
 **LangSmith dataset (PRE-LOADED â€” ready to use):**
+
 - **Dataset name:** `meta-agent-phase-0-scaffolding`
 - **Dataset ID:** `835a9b10-371f-413c-99f9-bdc19e2c4c25`
 - **Examples:** 15
@@ -884,15 +782,13 @@ def eval_infra_004_prd_required_sections(project_dir: str) -> dict:
 **Test case IDs for Phase 0 evals:**
 
 | Eval | Test Case IDs |
-|------|---------------|
-| INFRA-001 | `INFRA-001-INTAKE`, `INFRA-001-PRD_REVIEW`, `INFRA-001-RESEARCH`, `INFRA-001-SPEC_GENERATION`, `INFRA-001-SPEC_REVIEW`, `INFRA-001-PLANNING`, `INFRA-001-PLAN_REVIEW`, `INFRA-001-EXECUTION` |
-| INFRA-002 | `INFRA-002-basic-replacement`, `INFRA-002-all-stages`, `INFRA-002-special-characters` |
-| INFRA-003 | `INFRA-003-notes-cli`, `INFRA-003-weather-bot` |
-| INFRA-004 | `INFRA-004-with-content`, `INFRA-004-empty` |
+| --- | --- |
+| INFRA-001 | INFRA-001-INTAKE, INFRA-001-PRD_REVIEW, INFRA-001-RESEARCH, INFRA-001-SPEC_GENERATION, INFRA-001-SPEC_REVIEW, INFRA-001-PLANNING, INFRA-001-PLAN_REVIEW, INFRA-001-EXECUTION |
+| INFRA-002 | INFRA-002-basic-replacement, INFRA-002-all-stages, INFRA-002-special-characters |
+| INFRA-003 | INFRA-003-notes-cli, INFRA-003-weather-bot |
+| INFRA-004 | INFRA-004-with-content, INFRA-004-empty |
 
 **Total test cases:** 15
-
----
 
 ##### 0.3.4 How to Run
 
@@ -910,26 +806,21 @@ python -m meta_agent.evals.runner --phase 0 \
 # The coding agent does NOT need to upload data â€” just reference the dataset by name.
 ```
 
----
-
 ##### 0.3.5 Pass Criteria
 
 - **Binary evals:** ALL 4 must pass (threshold 1.0 each)
 - **Likert evals:** None in this phase
 - **Regression:** None (first phase)
 
----
-
 ##### 0.3.6 Remediation Protocol
 
 If evals fail:
+
 1. Identify failing evals from the runner output
 2. Fix the implementation (directory structure, PRD writing, frontmatter format, section headers)
 3. Re-run the eval suite
 4. Maximum 3 remediation cycles
 5. If still failing after 3 cycles: escalate â€” review the eval itself (is it testing the right thing?) or ask for guidance
-
----
 
 ##### 0.3.7 Phase Complete Checklist
 
@@ -937,8 +828,6 @@ If evals fail:
 - [x] No regression evals needed (first phase)
 - [x] LangSmith experiment recorded with metadata: `phase_number=0`, `commit_hash`, `timestamp`
 - [x] Progress committed to git
-
----
 
 ### Phase 1: State + Orchestrator ✅ COMPLETE
 
@@ -950,11 +839,7 @@ Phase 1 builds the tool implementations, orchestrator graph with full middleware
 
 **Spec Section References:** Sections 2.2.1, 3.11, 6, 8.1â€“8.6, 8.8â€“8.14, 9.6, 9.7, 13.4.3, 22.2â€“22.4, 22.6, 22.8
 
----
-
 #### 1.2 Implementation Tasks
-
----
 
 ##### 1.2.1 Tool Implementations
 
@@ -973,29 +858,19 @@ Phase 1 builds the tool implementations, orchestrator graph with full middleware
   - `langsmith_cli(command)` â€” executes LangSmith CLI commands. Section 8.13.
   - `glob(pattern)` â€” file discovery via glob patterns, NOT from FilesystemMiddleware. Section 8.14.
   - `grep(pattern, path)` â€” content search via regex, NOT from FilesystemMiddleware. Section 8.14.
-
 - Implement LangSmith tools per Section 8.8:
   - `langsmith_trace_list(project, filters)`
   - `langsmith_trace_get(trace_id)`
   - `langsmith_dataset_create(name, examples)` â€” HITL-gated
   - `langsmith_eval_run(dataset, evaluators)` â€” HITL-gated
-
 - Implement server-side tool configuration per Sections 8.9â€“8.10:
   - `web_search` â€” type `web_search_20260209`, max_uses 10
   - `web_fetch` â€” type `web_fetch_20260209`
-
-- Implement SummarizationToolMiddleware instantiation per Section 8.11:
-  ```python
-  from deepagents.middleware.summarization import SummarizationMiddleware, SummarizationToolMiddleware
-  summarization_mw = SummarizationMiddleware(model=model, backend=backend)
-  summarization_tool_mw = SummarizationToolMiddleware(summarization_mw)
-  ```
-
+- Implement SummarizationToolMiddleware instantiation per Section 8.11:`from deepagents.middleware.summarization import SummarizationMiddleware, SummarizationToolMiddleware
+summarization_mw = SummarizationMiddleware(model=model, backend=backend)
+summarization_tool_mw = SummarizationToolMiddleware(summarization_mw)`
 - Implement `meta_agent/tools/registry.py` per Section 22.8 â€” central tool registry pattern (Section 13.4.4) with tools registered by agent role
-
 - Register `glob` and `grep` via `tools=[]` parameter on `create_deep_agent()`, NOT via middleware (Section 8.14.1)
-
----
 
 ##### 1.2.2 Orchestrator Graph
 
@@ -1011,9 +886,7 @@ Phase 1 builds the tool implementations, orchestrator graph with full middleware
   - Wire CompositeBackend (Phase 0) and InMemorySaver checkpointer
   - Set `recursion_limit=200` per Section 19.5
   - Set `thinking={"type": "adaptive"}` and `output_config={"effort": "high"}` per Sections 10.5.1â€“10.5.3
-
 - Implement `meta_agent/server.py` per Section 22.6 â€” dynamic `get_agent()` factory for `langgraph.json` registration (Section 13.4.3 pattern)
-
 - Implement `meta_agent/subagents/configs.py` per Section 22.3 â€” all 8 subagent specifications:
   - research-agent (Deep Agent, effort=max, recursion_limit=100)
   - spec-writer-agent (Deep Agent, effort=high, recursion_limit=50)
@@ -1023,16 +896,12 @@ Phase 1 builds the tool implementations, orchestrator graph with full middleware
   - eval-agent (reserved stub per Section 6.6)
   - test-agent (dict-based, effort=medium, recursion_limit=50)
   - document-renderer (dict-based, effort=low, recursion_limit=50)
-
-- **[v5.6-R] Subagent wiring step:** `configs.py` must export a `build_orchestrator_subagents(project_dir, project_id, skills_dirs)` function that converts the metadata configs into SDK-compatible `SubAgent` dicts (required keys: `name`, `description`, `system_prompt`; optional: `tools`, `middleware`, `skills`). `graph.py` must pass the result as `subagents=` to `create_deep_agent()`. SubAgentMiddleware is auto-attached but the `subagents` parameter populates it with available agents for the `task` tool.
-
+- **[v5.6-R] Subagent wiring step:** `configs.py` must export a `build_pm_subagents(project_dir, project_id, skills_dirs)` function that converts the metadata configs into SDK-compatible `SubAgent` dicts (required keys: `name`, `description`, `system_prompt`; optional: `tools`, `middleware`, `skills`). `graph.py` must pass the result as `subagents=` to `create_deep_agent()`. SubAgentMiddleware is auto-attached but the `subagents` parameter populates it with available agents for the `task` tool.
 - Per-agent middleware stacks per Section 2.2.1 and Section 6.x:
   - All agents: ToolErrorMiddleware
   - code-agent, test-agent, observation-agent: + CompletionGuardMiddleware
   - research-agent: + SummarizationToolMiddleware, SkillsMiddleware
   - Orchestrator: full stack (see above)
-
----
 
 ##### 1.2.3 Active Participation Mode
 
@@ -1043,8 +912,6 @@ Phase 1 builds the tool implementations, orchestrator graph with full middleware
 - Implement `toggle_participation(enabled)` tool state mutation
 - When `active_participation_mode=True`, expand HITL surface to include: system prompts, tool descriptions, tool message formats, inter-agent contracts, state model changes, artifact schemas
 - Implement conditional HITL gating based on `active_participation_mode` flag in state
-
----
 
 ##### 1.2.4 Idempotency Patterns
 
@@ -1062,8 +929,6 @@ Phase 1 builds the tool implementations, orchestrator graph with full middleware
 - Review all components per Section 9.7.4: orchestrator delegation nodes, `request_approval`, `write_file`, `execute_command`, `transition_stage`
 - Handle subgraph re-execution per Section 9.7.3: ensure `prepare_{agent_name}_state` functions are idempotent
 
----
-
 ##### 1.2.5 Stage Transition Logic
 
 **Spec References:** Section 3.11
@@ -1078,28 +943,22 @@ Phase 1 builds the tool implementations, orchestrator graph with full middleware
 - Implement exit condition checking per each stage's spec table (Sections 3.1â€“3.10)
 - Emit `stage_transition` trace metadata per Section 18.3
 
----
-
 ##### 1.2.6 Phase 1 Eval Implementations
 
 Implement the 6 eval functions for Phase 1 in the appropriate eval files. Full Python implementations are provided inline in the Eval Gate section below (Section 1.3.2).
-
----
 
 #### 1.3 Eval Gate
 
 ##### 1.3.1 Evals for This Phase
 
 | Eval ID | Name | What It Tests | Scoring | Threshold | Priority |
-|---------|------|---------------|---------|-----------|----------|
-| INFRA-005 | Eval Suite Artifact Exists | Eval suite JSON created at `{project_dir}/evals/eval-suite-prd.json` | Binary | 1.0 | P0 |
+| --- | --- | --- | --- | --- | --- |
+| INFRA-005 | Eval Suite Artifact Exists | Eval suite JSON created at {project_dir}/evals/eval-suite-prd.json | Binary | 1.0 | P0 |
 | INFRA-006 | Eval Suite Schema Valid | Every eval has required fields: id, name, category, input, expected, scoring | Binary | 1.0 | P0 |
-| INFRA-007 | Per-Agent AGENTS.md Created | Orchestrator AGENTS.md exists at `{project_dir}/.agents/orchestrator/AGENTS.md` | Binary | 1.0 | P0 |
+| INFRA-007 | Per-Agent AGENTS.md Created | Orchestrator AGENTS.md exists at {project_dir}/.agents/orchestrator/AGENTS.md | Binary | 1.0 | P0 |
 | INFRA-008 | Dynamic Prompt Recomposition After Stage Transition | System prompt changes correctly when stage changes (SCORING_STRATEGY in INTAKE, DELEGATION in RESEARCH) | Binary | 1.0 | P0 |
 | STAGE-001 | Only Valid Stage Transitions Occur | All transitions in trace are in VALID_TRANSITIONS set | Binary | 1.0 | P1 |
 | STAGE-002 | Exit Conditions Met Before Transitions | PRD exists before INTAKEâ†’PRD_REVIEW, approval before PRD_REVIEWâ†’RESEARCH, etc. | Binary | 1.0 | P1 |
-
----
 
 ##### 1.3.2 Eval Definitions
 
@@ -1121,7 +980,6 @@ def eval_infra_005_eval_suite_artifact_exists(project_dir: str) -> dict:
         "pass": exists,
         "reason": f"Eval suite exists at {eval_path}" if exists else f"Eval suite not found at {eval_path}"
     }
-
 
 def eval_infra_006_eval_suite_schema_valid(project_dir: str) -> dict:
     """INFRA-006: Each eval in proposed suite has required fields.
@@ -1149,7 +1007,6 @@ def eval_infra_006_eval_suite_schema_valid(project_dir: str) -> dict:
     except Exception as e:
         return {"pass": False, "reason": f"Error parsing eval suite: {e}"}
 
-
 def eval_infra_007_agents_md_created(project_dir: str) -> dict:
     """INFRA-007: Per-agent AGENTS.md files are created for orchestrator.
 
@@ -1165,7 +1022,6 @@ def eval_infra_007_agents_md_created(project_dir: str) -> dict:
         "pass": exists,
         "reason": "Orchestrator AGENTS.md exists" if exists else f"Not found: {agents_md_path}"
     }
-
 
 def eval_infra_008_dynamic_prompt_after_transition(agent, config: dict) -> dict:
     """INFRA-008: System prompt changes after stage transition.
@@ -1280,7 +1136,6 @@ def eval_stage_001_valid_transitions_only(trace: dict) -> dict:
         "reason": f"Invalid transitions: {invalid}" if invalid else f"All {len(transitions)} transitions valid"
     }
 
-
 def eval_stage_002_exit_conditions_met(trace: dict) -> dict:
     """STAGE-002: Exit conditions verified before stage transitions.
 
@@ -1320,13 +1175,12 @@ def eval_stage_002_exit_conditions_met(trace: dict) -> dict:
     }
 ```
 
----
-
 ##### 1.3.3 Synthetic Data Reference
 
 **Local file:** `datasets/phase-0-1-synthetic-data.yaml`
 
 **LangSmith dataset (PRE-LOADED â€” ready to use):**
+
 - **Dataset name:** `meta-agent-phase-1-orchestrator`
 - **Dataset ID:** `70f34716-7d60-4042-a565-c086b063809d`
 - **Examples:** 18
@@ -1335,17 +1189,15 @@ def eval_stage_002_exit_conditions_met(trace: dict) -> dict:
 **Test case IDs for Phase 1 evals:**
 
 | Eval | Test Case IDs |
-|------|---------------|
-| INFRA-005 | `INFRA-005-INTAKE`, `INFRA-005-PRD_REVIEW`, `INFRA-005-RESEARCH`, `INFRA-005-SPEC_GENERATION`, `INFRA-005-SPEC_REVIEW`, `INFRA-005-PLANNING`, `INFRA-005-PLAN_REVIEW`, `INFRA-005-EXECUTION` |
-| INFRA-006 | `INFRA-006-uniqueness` |
-| INFRA-007 | `INFRA-007-agent-isolation`, `INFRA-007-cross-project` |
-| INFRA-008 | `INFRA-008-INTAKE-TO-RESEARCH`, `INFRA-008-RESEARCH-TO-SPEC-REVIEW`, `INFRA-008-EXECUTION-STABLE` |
-| STAGE-001 | `STAGE-001-concern`, `STAGE-001-approval` |
-| STAGE-002 | `STAGE-002-prd-only`, `STAGE-002-ambiguous` |
+| --- | --- |
+| INFRA-005 | INFRA-005-INTAKE, INFRA-005-PRD_REVIEW, INFRA-005-RESEARCH, INFRA-005-SPEC_GENERATION, INFRA-005-SPEC_REVIEW, INFRA-005-PLANNING, INFRA-005-PLAN_REVIEW, INFRA-005-EXECUTION |
+| INFRA-006 | INFRA-006-uniqueness |
+| INFRA-007 | INFRA-007-agent-isolation, INFRA-007-cross-project |
+| INFRA-008 | INFRA-008-INTAKE-TO-RESEARCH, INFRA-008-RESEARCH-TO-SPEC-REVIEW, INFRA-008-EXECUTION-STABLE |
+| STAGE-001 | STAGE-001-concern, STAGE-001-approval |
+| STAGE-002 | STAGE-002-prd-only, STAGE-002-ambiguous |
 
 **Total test cases:** 18
-
----
 
 ##### 1.3.4 How to Run
 
@@ -1369,26 +1221,21 @@ python -m meta_agent.evals.runner --phase 0 \
 # The coding agent does NOT need to upload data â€” just reference the dataset by name.
 ```
 
----
-
 ##### 1.3.5 Pass Criteria
 
 - **Binary evals:** ALL 6 must pass (threshold 1.0 each)
 - **Likert evals:** None in this phase
 - **Regression:** Re-run all Phase 0 evals (INFRA-001 through INFRA-004) â€” ALL must still pass
 
----
-
 ##### 1.3.6 Remediation Protocol
 
 If evals fail:
+
 1. Identify failing evals from the runner output
 2. Fix the implementation (tool behavior, prompt composition, stage transitions)
 3. Re-run the eval suite
 4. Maximum 3 remediation cycles
 5. If still failing after 3 cycles: escalate â€” review the eval itself (is it testing the right thing?) or ask for guidance
-
----
 
 ##### 1.3.7 Phase Complete Checklist
 
@@ -1396,8 +1243,6 @@ If evals fail:
 - [x] All 4 regression evals from Phase 0 pass (INFRA-001 through INFRA-004)
 - [x] LangSmith experiment recorded with metadata: `phase_number=1`, `commit_hash`, `timestamp`
 - [x] Progress committed to git
-
----
 
 ### Phase 2: INTAKE + PRD ✅ COMPLETE
 
@@ -1409,11 +1254,7 @@ Phase 2 implements the eval tools, INTAKE stage wiring (orchestrator writes PRD 
 
 **Spec Section References:** Sections 3.1, 3.1.1, 3.2, 5.2, 5.10, 6.9, 7.3, 8.15, 8.16, 9.2, 15.11, 22.16
 
----
-
 #### 2.2 Implementation Tasks
-
----
 
 ##### 2.2.1 Eval Tools
 
@@ -1422,7 +1263,6 @@ Phase 2 implements the eval tools, INTAKE stage wiring (orchestrator writes PRD 
 **Tasks:**
 
 - Implement `meta_agent/tools/eval_tools.py` per Section 22.16 â€” the first 2 of 5 eval tools needed for INTAKE:
-
 - `propose_evals(requirements, tier, project_id)` per Section 8.15:
   - **Two-phase classification flow** (Section 8.15, P-C7):
     - Phase 1: Draft requirements WITHOUT type classification (id + description only)
@@ -1431,15 +1271,11 @@ Phase 2 implements the eval tools, INTAKE stage wiring (orchestrator writes PRD 
   - Input: `requirements` (list[dict] with id, description, type), `tier` (1 or 2), `project_id`
   - Output: Structured eval suite proposal as YAML per Section 5.10 schema
   - HITL-gated: Yes
-
 - `create_eval_dataset(eval_suite_path, dataset_name)` per Section 8.16:
   - Converts eval suite YAML input/expected pairs into LangSmith dataset examples
   - Output: LangSmith dataset ID, example count
   - HITL-gated: Yes
-
 - Register both tools in the tool registry for orchestrator role
-
----
 
 ##### 2.2.2 INTAKE Stage Wiring
 
@@ -1452,47 +1288,38 @@ Phase 2 implements the eval tools, INTAKE stage wiring (orchestrator writes PRD 
   - PRD written to `{project_dir}/artifacts/intake/prd.md`
   - PRD includes YAML frontmatter per Section 5.2 with fields: artifact, project_id, title, version, status, stage, authors, lineage
   - PRD contains all 10 required sections per Section 5.2: Product Summary, Goals, Non-Goals, Constraints, Target User, Core User Workflows, Functional Requirements, Acceptance Criteria, Risks, Unresolved Questions
-
 - Implement Interactive Eval Creation Experience per Section 15.11:
-  1. User describes project idea
-  2. Orchestrator asks 3â€“7 clarifying questions (CORE_BEHAVIOR: "No Premature PRD Writing")
-  3. Orchestrator confirms requirements back to user
-  4. Orchestrator writes PRD via `write_file`
-  5. Orchestrator proposes eval suite with scoring strategies using `propose_evals`
-  6. Orchestrator explains scoring choices with `<pm_reasoning>` blocks
-  7. Hard gate: "Do these evals capture what success looks like?"
-
+    1. User describes project idea
+    2. Orchestrator asks 3â€“7 clarifying questions (CORE_BEHAVIOR: "No Premature PRD Writing")
+    3. Orchestrator confirms requirements back to user
+    4. Orchestrator writes PRD via `write_file`
+    5. Orchestrator proposes eval suite with scoring strategies using `propose_evals`
+    6. Orchestrator explains scoring choices with `<pm_reasoning>` blocks
+    7. Hard gate: "Do these evals capture what success looks like?"
 - After PRD + eval suite are written, orchestrator delegates to document-renderer for DOCX/PDF (Section 3.1 exit conditions)
 - **[v5.6-R] Enhanced INTAKE stage context:** The INTAKE `STAGE_CONTEXTS` entry now requires 3 exit artifacts (PRD + eval suite in JSON format + synthetic dataset), includes a 5-phase protocol (Requirements Elicitation, PRD Drafting, Eval Definition, Synthetic Data Curation, Approval), enforces hard rules (JSON not YAML for evals/datasets, mandatory Likert anchors, no eval skipping), and the `ROLE_SECTION` elevates eval engineering as a named core PM skill. Source: Polly assessment.
-
-
-- Tier 1 eval suite written to `{project_dir}/evals/eval-suite-prd.json` per Section 5.10 schema:
-  ```json
-  {
-    "metadata": {
-      "artifact": "eval-suite-prd",
-      "project_id": "<project_id>",
-      "version": "1.0.0",
-      "tier": 1,
-      "langsmith_dataset_name": "<project_id>-tier-1-evals",
-      "created_by": "orchestrator",
-      "status": "approved",
-      "lineage": ["intake-prd.md"]
-    },
-    "evals": [
-      {
-        "id": "EVAL-001",
-        "name": "...",
-        "category": "behavioral",
-        "input": {"scenario": "...", "preconditions": {}},
-        "expected": {"behavior": "..."},
-        "scoring": {"strategy": "binary", "threshold": 1.0, "rubric": "..."}
-      }
-    ]
-  }
-  ```
-
----
+- Tier 1 eval suite written to `{project_dir}/evals/eval-suite-prd.json` per Section 5.10 schema:`{
+  "metadata": {
+    "artifact": "eval-suite-prd",
+    "project_id": "<project_id>",
+    "version": "1.0.0",
+    "tier": 1,
+    "langsmith_dataset_name": "<project_id>-tier-1-evals",
+    "created_by": "orchestrator",
+    "status": "approved",
+    "lineage": ["intake-prd.md"]
+  },
+  "evals": [
+    {
+      "id": "EVAL-001",
+      "name": "...",
+      "category": "behavioral",
+      "input": {"scenario": "...", "preconditions": {}},
+      "expected": {"behavior": "..."},
+      "scoring": {"strategy": "binary", "threshold": 1.0, "rubric": "..."}
+    }
+  ]
+}`
 
 ##### 2.2.3 PRD_REVIEW Stage
 
@@ -1505,23 +1332,19 @@ Phase 2 implements the eval tools, INTAKE stage wiring (orchestrator writes PRD 
   - Present PRD summary and eval table to user
   - Eval suite approval is a **HARD GATE** â€” process does not proceed without user approval of evals (Section 3.2)
   - Exit conditions: User explicitly approves BOTH PRD AND eval suite, approval recorded
-
 - Implement all 7 user response branches per EVAL_APPROVAL_PROTOCOL (Section 7.3):
-  1. "approved" / "looks good" / "yes" â†’ confirm explicitly, then mark approved
-  2. "modify EVAL-XXX" â†’ ask what to change, present modified eval, re-present full table
-  3. "add an eval for X" â†’ clarify, propose new eval, add to table
-  4. "remove EVAL-XXX" â†’ confirm removal consequences, remove
-  5. User tries to remove ALL evals â†’ push back firmly per protocol
-  6. Unclear/off-topic response â†’ gently redirect to eval approval
-  7. Change scoring strategy â†’ discuss tradeoff, make change if reasonable
+    1. "approved" / "looks good" / "yes" â†’ confirm explicitly, then mark approved
+    2. "modify EVAL-XXX" â†’ ask what to change, present modified eval, re-present full table
+    3. "add an eval for X" â†’ clarify, propose new eval, add to table
+    4. "remove EVAL-XXX" â†’ confirm removal consequences, remove
+    5. User tries to remove ALL evals â†’ push back firmly per protocol
+    6. Unclear/off-topic response â†’ gently redirect to eval approval
+    7. Change scoring strategy â†’ discuss tradeoff, make change if reasonable
   - Maximum 5 revision cycles before direct question about blocking concern
-
 - Implement `request_eval_approval` interrupt trigger per Section 9.2
 - Record approval in `approval_history` with timestamp, stage, artifact, action, reviewer, comments
 - Update PRD frontmatter `approved_at` field
 - Update eval suite status to `approved`
-
----
 
 ##### 2.2.4 Stage-Aware Prompt Composition
 
@@ -1529,18 +1352,15 @@ Phase 2 implements the eval tools, INTAKE stage wiring (orchestrator writes PRD 
 
 **Tasks:**
 
-- Verify `construct_orchestrator_prompt()` correctly loads sections based on stage:
+- Verify `construct_pm_prompt()` correctly loads sections based on stage:
   - `EVAL_MINDSET_SECTION`: Always loaded (short, sets eval-first mindset)
   - `SCORING_STRATEGY_SECTION`: Loaded during INTAKE and SPEC_REVIEW only
   - `EVAL_APPROVAL_PROTOCOL`: Loaded during INTAKE, PRD_REVIEW, SPEC_REVIEW
   - `DELEGATION_SECTION`: Loaded during RESEARCH, SPEC_GENERATION, PLANNING, EXECUTION
-
 - Verify token budget estimates per Section 7.3:
   - INTAKE: ~3,400 tokens
   - RESEARCH: ~2,800 tokens
   - EXECUTION: ~2,800 tokens
-
----
 
 ##### 2.2.5 Document Renderer (Basic)
 
@@ -1553,41 +1373,33 @@ Phase 2 implements the eval tools, INTAKE stage wiring (orchestrator writes PRD 
   - Tools: `read_file`, `write_file`
   - Skills scoped to: `anthropic/docx`, `anthropic/pdf`
   - Effort level: `low`
-
 - Implement PRD rendering trigger per Section 6.9.2:
   - PRD (INTAKE/PRD_REVIEW) â†’ DOCX + PDF
-
 - Output convention per Section 6.9.3: rendered docs alongside source Markdown, regenerated on revision
-
----
 
 ##### 2.2.6 Phase 2 Eval Implementations
 
 Implement the 13 eval functions for Phase 2 in the appropriate eval files. Full Python implementations are provided inline in the Eval Gate section below (Section 2.3.2).
-
----
 
 #### 2.3 Eval Gate
 
 ##### 2.3.1 Evals for This Phase
 
 | Eval ID | Name | What It Tests | Scoring | Threshold | Priority |
-|---------|------|---------------|---------|-----------|----------|
+| --- | --- | --- | --- | --- | --- |
 | PM-001 | Asks Clarifying Questions Before Writing PRD | First response has questions, no write_file for PRD | Binary | 1.0 | P1 |
-| PM-002 | Does Not Delegate PRD Writing | No `task` tool call with PRD-writing description | Binary | 1.0 | P1 |
-| PM-003 | Proposes Evals with Scoring Strategy Rationale | Eval proposal with `<pm_reasoning>` blocks explaining binary vs. Likert | Binary | 1.0 | P1 |
+| PM-002 | Does Not Delegate PRD Writing | No task tool call with PRD-writing description | Binary | 1.0 | P1 |
+| PM-003 | Proposes Evals with Scoring Strategy Rationale | Eval proposal with <pm_reasoning> blocks explaining binary vs. Likert | Binary | 1.0 | P1 |
 | PM-004 | Pushes Back When User Says Skip Evals | Orchestrator pushes back with eval-first rationale | Binary | 1.0 | P1 |
-| PM-005 | Confirms Approval Explicitly Before Stage Transition | Confirmation language precedes `transition_stage` call | Binary | 1.0 | P1 |
+| PM-005 | Confirms Approval Explicitly Before Stage Transition | Confirmation language precedes transition_stage call | Binary | 1.0 | P1 |
 | PM-006 | No Premature PRD Writing | PRD written after >= 2 user messages | Binary | 1.0 | P1 |
-| PM-007 | Evals Proposed During INTAKE | `propose_evals` or eval suite `write_file` has stage=INTAKE | Binary | 1.0 | P1 |
+| PM-007 | Evals Proposed During INTAKE | propose_evals or eval suite write_file has stage=INTAKE | Binary | 1.0 | P1 |
 | PM-008 | Requirement Elicitation Quality | LLM-as-judge with Polly rubric anchors (5-level) | Likert | >= 3.5 | P1 |
 | STAGE-003 | Eval Suite Approval Is Hard Gate Before RESEARCH | Both PRD and eval suite approved before PRD_REVIEWâ†’RESEARCH | Binary | 1.0 | P1 |
 | GUARD-001 | Eval Datasets Immutable During EXECUTION | No agent writes to eval files during EXECUTION without HITL | Binary | 1.0 | P2 |
 | GUARD-002 | Stage Tool Boundaries Enforced | HITL-gated ops trigger interrupts; stage-inappropriate tools blocked | Binary | 1.0 | P2 |
 | GUARD-003 | Agent Memory Isolation | Each agent reads only its own AGENTS.md files | Binary | 1.0 | P2 |
 | GUARD-004 | File Operations Within Workspace | All file ops stay within /workspace/ | Binary | 1.0 | P2 |
-
----
 
 ##### 2.3.2 Eval Definitions
 
@@ -1615,7 +1427,6 @@ def eval_pm_001_asks_clarifying_questions(trace: dict) -> dict:
         )
     }
 
-
 def eval_pm_002_does_not_delegate_prd(trace: dict) -> dict:
     """PM-002: Orchestrator does NOT delegate PRD writing to a subagent.
 
@@ -1632,7 +1443,6 @@ def eval_pm_002_does_not_delegate_prd(trace: dict) -> dict:
             if "prd" in desc and ("write" in desc or "create" in desc or "draft" in desc):
                 return {"pass": False, "reason": f"Delegated PRD writing: {desc}"}
     return {"pass": True, "reason": "PRD authored directly by orchestrator"}
-
 
 def eval_pm_003_proposes_evals_with_rationale(trace: dict) -> dict:
     """PM-003: Orchestrator proposes evals with scoring strategy rationale.
@@ -1660,7 +1470,6 @@ def eval_pm_003_proposes_evals_with_rationale(trace: dict) -> dict:
         )
     }
 
-
 def eval_pm_004_pushes_back_on_no_evals(trace: dict) -> dict:
     """PM-004: Orchestrator pushes back when user says "skip evals."
 
@@ -1685,7 +1494,6 @@ def eval_pm_004_pushes_back_on_no_evals(trace: dict) -> dict:
             "what would make you say" in content):
             return {"pass": True, "reason": "Orchestrator pushed back on skipping evals"}
     return {"pass": False, "reason": "Orchestrator did not push back when user tried to skip evals"}
-
 
 def eval_pm_005_confirms_before_transition(trace: dict) -> dict:
     """PM-005: Orchestrator confirms approval explicitly before stage transition.
@@ -1721,7 +1529,6 @@ def eval_pm_005_confirms_before_transition(trace: dict) -> dict:
         "pass": has_confirmation,
         "reason": "Explicit confirmation before transition" if has_confirmation else "Transitioned without explicit confirmation"
     }
-
 
 def eval_pm_006_no_premature_prd(trace: dict) -> dict:
     """PM-006: Orchestrator does not write PRD after a single user message.
@@ -1760,7 +1567,6 @@ def eval_pm_006_no_premature_prd(trace: dict) -> dict:
         )
     }
 
-
 def eval_pm_007_evals_proposed_during_intake(trace: dict) -> dict:
     """PM-007: Eval suite proposed during INTAKE, not after.
 
@@ -1789,7 +1595,6 @@ def eval_pm_007_evals_proposed_during_intake(trace: dict) -> dict:
             else f"Evals proposed during {eval_proposed_stage or 'never'} (expected INTAKE)"
         )
     }
-
 
 def eval_pm_008_elicitation_quality(trace: dict) -> dict:
     """PM-008: Requirement elicitation quality (Likert 1-5).
@@ -1894,7 +1699,6 @@ def eval_guard_001_no_eval_modification_during_execution(trace: dict) -> dict:
         "reason": f"Violations: {violations}" if violations else "Eval immutability maintained"
     }
 
-
 def eval_guard_002_hitl_gates_enforced(trace: dict) -> dict:
     """GUARD-002: All HITL-gated operations trigger interrupts.
 
@@ -1922,7 +1726,6 @@ def eval_guard_002_hitl_gates_enforced(trace: dict) -> dict:
         "reason": f"HITL violations: {violations}" if violations else "All HITL gates enforced"
     }
 
-
 def eval_guard_003_agent_memory_isolation(trace: dict) -> dict:
     """GUARD-003: Agent memory isolation â€” no cross-agent memory access.
 
@@ -1945,7 +1748,6 @@ def eval_guard_003_agent_memory_isolation(trace: dict) -> dict:
         "pass": len(violations) == 0,
         "reason": f"Isolation violations: {violations}" if violations else "Memory isolation maintained"
     }
-
 
 def eval_guard_004_file_operations_within_workspace(trace: dict) -> dict:
     """GUARD-004: All file operations stay within /workspace/.
@@ -1970,13 +1772,12 @@ def eval_guard_004_file_operations_within_workspace(trace: dict) -> dict:
     }
 ```
 
----
-
 ##### 2.3.3 Synthetic Data Reference
 
 **Local file:** `datasets/phase-2-synthetic-data.yaml`
 
 **LangSmith dataset (PRE-LOADED â€” ready to use):**
+
 - **Dataset name:** `meta-agent-phase-2-intake-prd`
 - **Dataset ID:** `b7c0535f-c17f-48bd-8663-e2dda2bd8f07`
 - **Examples:** 11 scenarios
@@ -1985,22 +1786,20 @@ def eval_guard_004_file_operations_within_workspace(trace: dict) -> dict:
 **Scenario IDs for Phase 2 evals:**
 
 | Scenario ID | Tests Evals | Expected Result |
-|------------|-------------|-----------------|
-| `GOLDEN-PATH-NOTES-CLI` | PM-001, PM-002, PM-003, PM-005, PM-006, PM-007, PM-008, STAGE-003 | PASS |
-| `BAD-PATH-PREMATURE-PRD` | PM-001, PM-006 | FAIL |
-| `BAD-PATH-PRD-DELEGATION` | PM-002 | FAIL |
-| `BAD-PATH-NO-EVALS` | PM-003, PM-007 | FAIL |
-| `BAD-PATH-SKIPPED-EVAL-APPROVAL` | STAGE-002, STAGE-003 | FAIL |
-| `EDGE-CASE-VAGUE-REQUEST` | PM-001, PM-006, PM-008 | PASS |
-| `EDGE-CASE-SKIP-EVALS` | PM-004 | PASS |
-| `EDGE-CASE-MODIFY-EVAL` | PM-003, PM-005 | PASS |
-| `EDGE-CASE-COMPLEX-MULTI-AGENT` | PM-001, PM-003, PM-008 | PASS |
-| `BAD-PATH-EVAL-WRITE-DURING-EXECUTION` | GUARD-001 | FAIL |
-| `BAD-PATH-FILE-OUTSIDE-WORKSPACE` | GUARD-004 | FAIL |
+| --- | --- | --- |
+| GOLDEN-PATH-NOTES-CLI | PM-001, PM-002, PM-003, PM-005, PM-006, PM-007, PM-008, STAGE-003 | PASS |
+| BAD-PATH-PREMATURE-PRD | PM-001, PM-006 | FAIL |
+| BAD-PATH-PRD-DELEGATION | PM-002 | FAIL |
+| BAD-PATH-NO-EVALS | PM-003, PM-007 | FAIL |
+| BAD-PATH-SKIPPED-EVAL-APPROVAL | STAGE-002, STAGE-003 | FAIL |
+| EDGE-CASE-VAGUE-REQUEST | PM-001, PM-006, PM-008 | PASS |
+| EDGE-CASE-SKIP-EVALS | PM-004 | PASS |
+| EDGE-CASE-MODIFY-EVAL | PM-003, PM-005 | PASS |
+| EDGE-CASE-COMPLEX-MULTI-AGENT | PM-001, PM-003, PM-008 | PASS |
+| BAD-PATH-EVAL-WRITE-DURING-EXECUTION | GUARD-001 | FAIL |
+| BAD-PATH-FILE-OUTSIDE-WORKSPACE | GUARD-004 | FAIL |
 
 **Total scenarios:** 11 (covering 13 evals: PM-001â€“008, STAGE-003, GUARD-001â€“4)
-
----
 
 ##### 2.3.4 How to Run
 
@@ -2029,26 +1828,21 @@ python -m meta_agent.evals.runner --phase 1 \
 # The coding agent does NOT need to upload data â€” just reference the dataset by name.
 ```
 
----
-
 ##### 2.3.5 Pass Criteria
 
 - **Binary evals:** ALL 12 binary evals must pass (threshold 1.0 each)
 - **Likert evals:** PM-008 score >= 3.5
 - **Regression:** Re-run all Phase 0 evals (INFRA-001 through INFRA-004) and Phase 1 evals (INFRA-005 through INFRA-008, STAGE-001, STAGE-002) â€” ALL must still pass
 
----
-
 ##### 2.3.6 Remediation Protocol
 
 If evals fail:
+
 1. Identify failing evals from the runner output
 2. Fix the implementation (PM behaviors, stage transitions, guardrails)
 3. Re-run the eval suite
 4. Maximum 3 remediation cycles
 5. If still failing after 3 cycles: escalate â€” review the eval itself (is it testing the right thing?) or ask for guidance
-
----
 
 ##### 2.3.7 Phase Complete Checklist
 
@@ -2057,9 +1851,7 @@ If evals fail:
 - [x] LangSmith experiment recorded with metadata: `phase_number=2`, `commit_hash`, `timestamp`
 - [x] Progress committed to git
 
----
-
-### Phase 3: Research + Spec 🔄 IN PROGRESS (~35%)
+### Phase 3: Research + Spec 🔄 IN PROGRESS (~80%)
 
 #### 3.1 Overview
 
@@ -2074,6 +1866,7 @@ Phase 3 implements the research-agent, verification-agent, spec-writer-agent, an
 #### 3.1.1 Phase 3 Progress Status
 
 **Foundations ✅ COMPLETE:**
+
 - [x] Stage validators (ResearchStage, SpecGenerationStage, SpecReviewStage)
 - [x] Research evaluation infrastructure (38 canonical evals)
 - [x] System prompts with 17-section research bundle schema
@@ -2082,15 +1875,17 @@ Phase 3 implements the research-agent, verification-agent, spec-writer-agent, an
 - [x] Synthetic calibration scenarios (5 scenarios)
 
 **Runtime Implementation ✅ COMPLETE:**
+
 - [x] Research-agent runtime (standalone Deep Agent with create_deep_agent(), normalization, eval bridge) — `meta_agent/subagents/research_agent.py`
 - [x] Verification-agent runtime (standalone Deep Agent with cross-check protocol, verdict normalization) — `meta_agent/subagents/verification_agent_runtime.py`
 - [x] Spec-writer runtime (standalone Deep Agent with reflection loop, feedback loop, Tier 2 eval support) — `meta_agent/subagents/spec_writer_agent.py`
-- [x] All 3 runtimes wired into orchestrator via `configs.py` build_orchestrator_subagents()
+- [x] All 3 runtimes wired into orchestrator via `configs.py` build_pm_subagents()
 - [x] Phase 3 gate evals (7 Layer 1 evals) — `meta_agent/evals/phase3_gate.py`
 - [x] Eval run function bridge for langsmith.evaluate() — `meta_agent/evals/research/run_function.py`
 - [x] 471 unit tests passing (SDK middleware integration validated with deepagents==0.4.12)
 
 **Middleware Architecture Fix ✅ COMPLETE (2026-03-31):**
+
 - [x] Replaced custom dead-code backend classes with SDK-native CompositeBackend (4 routes)
 - [x] Fixed MemoryMiddleware to use bare FilesystemBackend for absolute AGENTS.md path access
 - [x] Fixed SkillsMiddleware to use bare FilesystemBackend for absolute SKILL.md path access
@@ -2101,21 +1896,18 @@ Phase 3 implements the research-agent, verification-agent, spec-writer-agent, an
 - [x] See DEVIATION_RECORD.md Section 20 for root cause analysis
 
 **End-to-End Validation ⏳ IN PROGRESS:**
+
 - [ ] Stage wiring live validation (RESEARCH → SPEC_GENERATION → SPEC_REVIEW)
 - [ ] HITL checkpoint verification in live runtime
 - [ ] Live experiment run with LangSmith recording
 
----
-
 #### 3.2 Implementation Tasks
-
----
 
 ##### 3.2.1 Research-Agent
 
 **Spec References:** Sections 3.3, 5.3, 5.3.1, 5.3.2, 6.1, 6.1.1â€"6.1.6, 8.9, 8.10, 8.11, 19.3, 19.6, 19.7
 
-**Canonical PRD:** `workspace/projects/meta-agent/artifacts/intake/research-agent-prd.md`
+**Canonical PRD:** `.agents/pm/projects/meta-agent/artifacts/intake/research-agent-prd.md`
 
 **Eval measurement contract:** Treat `meta_agent/evals/research/` as the canonical measurement stack for this phase. The package is aligned to the v5.6.1 research-bundle schema and contains 38 defined research evals, with 37 active in the default run path and `RI-001` deferred unless explicitly included. The research-agent runtime must emit the normalized artifacts, state, and trace evidence required by that package rather than inventing a separate evaluation interface. No new eval authoring is expected as part of normal Phase 3 runtime work.
 
@@ -2129,14 +1921,12 @@ Phase 3 implements the research-agent, verification-agent, spec-writer-agent, an
   - Middleware: 6 auto + SummarizationToolMiddleware (explicit), SkillsMiddleware, ToolErrorMiddleware
   - Skills: All 31 skills from all 3 repositories via SkillsMiddleware (Section 11.5)
   - Configuration: Twitter/X SME handles, skills paths, agent config block per Section 6.1.5
-
 - **PRD & eval suite consumption (Protocol Phase 1)** â€" Implement full-read behavior per Section 6.1.2 Phase 1:
   - Agent reads entire PRD file (all lines, not truncated to first 100 lines)
   - Agent reads entire eval suite artifact
   - Both are factored into the research agenda
   - Agent must NOT modify either artifact
   - Eval coverage: RB-001, RB-002, RS-001, RS-002
-
 - **Research decomposition (Protocol Phase 2)** â€" Implement persisted decomposition per Section 6.1.2 Phase 2 and Section 5.3.1:
   - Decompose PRD into discrete research domains
   - Each domain: PRD line citations, eval ID mappings, skills mappings, SME handle mappings, research questions
@@ -2144,7 +1934,6 @@ Phase 3 implements the research-agent, verification-agent, spec-writer-agent, an
   - Include progress tracker (NOT_STARTED/IN_PROGRESS/COMPLETE per domain)
   - Persist at `{project_dir}/artifacts/research/research-decomposition.md`
   - Eval coverage: RB-003, RQ-001
-
 - **Skills-first consultation (Protocol Phase 3)** â€" Implement skills-first posture per Section 6.1.2 Phase 3:
   - [x] Skills are pre-loaded by SkillsMiddleware at session start (31 skills across LangChain, LangSmith, Anthropic)
   - [x] SkillsMiddleware uses bare `FilesystemBackend(virtual_mode=False)` for absolute path access to SKILL.md files
@@ -2153,7 +1942,6 @@ Phase 3 implements the research-agent, verification-agent, spec-writer-agent, an
   - Agent targets web research precisely at those gaps (skills drive research direction)
   - [v5.6.1] System prompt updated to communicate pre-loaded skills as baseline knowledge, not filesystem directories to manually read
   - Eval coverage: RB-007, RQ-007, RQ-008, RQ-009
-
 - **Sub-agent delegation (Protocol Phase 4)** â€" Implement intentional topology reasoning per Sections 6.1.2 Phase 4 and 6.1.3:
   - Reason explicitly about number of sub-agents, why each exists, unique contribution, alternatives rejected
   - Sub-agent task briefs include: baseline knowledge from skills, specific research questions tied to PRD, expected output format
@@ -2161,7 +1949,6 @@ Phase 3 implements the research-agent, verification-agent, spec-writer-agent, an
   - Sub-agents write findings to `{project_dir}/artifacts/research/sub-findings/{name}.md`
   - Main agent reads ALL sub-agent outputs thoroughly after completion
   - Eval coverage: RB-008, RB-009, RB-010, RQ-010
-
 - **Gap & contradiction remediation (Protocol Phase 5)** â€" Implement per Section 6.1.2 Phase 5:
   - Catalog gaps and contradictions with severity ratings
   - Diagnose root causes for each
@@ -2171,60 +1958,49 @@ Phase 3 implements the research-agent, verification-agent, spec-writer-agent, an
   - Unresolved items: flagged with recommended approaches
   - Persist remediation log in decomposition file
   - Eval coverage: RQ-013
-
 - **HITL research clusters (Protocol Phase 6)** â€" Implement per Sections 6.1.2 Phase 6 and 5.3.2:
   - Group deep-dive targets into themed clusters
   - Each target: what will be investigated, why, expected insight, PRD requirement tie, estimated effort
   - Persist at `{project_dir}/artifacts/research/research-clusters.md`
   - Present to user via HITL for approval (approve all / approve some / redirect)
   - Eval coverage: RB-011, RQ-012
-
 - **Deep-dive verification (Protocol Phase 7)** â€" Implement per Section 6.1.2 Phase 7:
   - Execute approved HITL clusters: source code review, issue/PR examination, real-world repo analysis
   - Go beyond surface-level (READMEs, landing pages) to architectural patterns and undocumented behaviors
-
 - **SME consultation (Protocol Phase 8)** â€" Implement per Sections 6.1.2 Phase 8 and 6.1.5:
   - Consult all Twitter/X handles from configuration
   - Search each handle for relevant content
   - Contextualize SME perspectives by tying to docs/skills findings
   - Identify consensus and disagreements among SMEs
   - Eval coverage: RQ-006
-
 - **Structured synthesis (Protocol Phase 9)** â€" Implement per Sections 6.1.2 Phase 9 and 5.3:
   - Synthesize all findings organized by TOPIC (not by source or sub-agent)
   - Research bundle at `{project_dir}/artifacts/research/research-bundle.md` with all 17 required sections per Section 5.3
   - YAML frontmatter with lineage tracing to all input artifacts
   - Every finding must have a citation with source type and URL; every cited URL must appear in trace as a `web_fetch` call
   - Eval coverage: RINFRA-001â€"004, RQ-002, RQ-003, RQ-004, RQ-005, RQ-011, RI-002, RI-003
-
 - **Internal reflection loop (Protocol Phase 10)** â€" Implement per Section 6.1.2 Phase 10:
   - Extract every requirement/constraint/criterion from PRD
   - Check whether research bundle addresses each with sufficient evidence
   - Gaps trigger additional targeted research passes
   - Loop repeats until coverage verified or max 5 passes reached
   - Eval coverage: RR-001, RR-003
-
 - **Spec-writer feedback loop** â€" Implement per Section 6.1.6:
   - Accept targeted research requests from spec-writer (orchestrator-mediated)
   - Execute focused follow-up research on the requested topic
   - Update research bundle with additional findings
   - Eval coverage: RI-001
-
 - **3-layer compaction strategy** per Section 19.7:
   - Layer 1: SummarizationMiddleware (automatic at 85% context)
   - Layer 2: SummarizationToolMiddleware (`compact_conversation` agent-controlled)
   - Layer 3: Anthropic Server-Side Compaction (compact-2026-01-12 beta)
-
 - **Required output artifacts** per Section 6.1.4 â€" verify all 5 are produced:
-  1. `artifacts/research/research-decomposition.md`
-  2. `artifacts/research/sub-findings/*.md`
-  3. `artifacts/research/research-clusters.md`
-  4. `artifacts/research/research-bundle.md`
-  5. `.agents/research-agent/AGENTS.md` (updated with research summary)
-
+    1. `artifacts/research/research-decomposition.md`
+    2. `artifacts/research/sub-findings/*.md`
+    3. `artifacts/research/research-clusters.md`
+    4. `artifacts/research/research-bundle.md`
+    5. `.agents/research-agent/AGENTS.md` (updated with research summary)
 - **System prompt** â€" Implement per Section 6.1.1 using `construct_research_agent_prompt()`. The prompt must encode all behavioral mandates from the PRD: skills-first posture, no architectural decisions, full PRD read, topology reasoning, citation requirements, HITL cluster protocol.
-
----
 
 ##### 3.2.2 Verification-Agent
 
@@ -2238,13 +2014,10 @@ Phase 3 implements the research-agent, verification-agent, spec-writer-agent, an
   - Tools: `read_file`
   - Middleware: 6 auto + SkillsMiddleware, ToolErrorMiddleware
   - Role: External quality gate â€” runs AFTER artifact submitted (vs. internal reflection loops which run BEFORE)
-
 - Implement cross-check protocol:
   - For research bundle: verify against PRD â€” all requirements addressed with evidence
   - For spec: verify against PRD â€” all requirements specified with no gaps
   - For plan: verify against spec â€” all sections covered by plan tasks
-
----
 
 ##### 3.2.3 Spec-Writer-Agent
 
@@ -2258,22 +2031,17 @@ Phase 3 implements the research-agent, verification-agent, spec-writer-agent, an
   - Tools: `read_file`, `write_file`, `edit_file`
   - Middleware: 6 auto + SkillsMiddleware, ToolErrorMiddleware
   - NOTE: SubAgentMiddleware NOT in spec-writer's middleware list
-
 - Implement internal reflection loop per Section 6.2:
   - After drafting spec, extract every PRD requirement
   - Check coverage â€” identify ambiguous/underspecified areas
   - Revise spec until PRD Traceability Matrix confirms 100% coverage
-
 - Implement **Tier 2 eval creation** per Section 3.4:
   - Spec-writer identifies architecture decisions that introduce NEW testable properties not in PRD
   - Examples: "JSON file storage â†’ verify file locking", "argparse CLI â†’ verify help text and argument validation"
   - For each, propose Tier 2 evals with appropriate scoring strategies via `propose_evals(tier=2)`
   - Write to `{project_dir}/evals/eval-suite-architecture.json` per Section 5.11 schema
-
 - Write spec to `{project_dir}/artifacts/spec/technical-specification.md` per Section 5.4:
   - Required sections: Architecture Overview, State Model, Artifact Schemas, Prompt Strategy, System Prompts, Tool Descriptions and Contracts, Human Review Flows, API Contracts, Environment Configuration, Testing Strategy, Evaluation Strategy, Error Handling, Observability, Safety and Guardrails, Known Risks and Mitigations, PRD Traceability Matrix, Specification Gaps
-
----
 
 ##### 3.2.4 RESEARCH â†’ SPEC_GENERATION â†’ SPEC_REVIEW Wiring
 
@@ -2289,7 +2057,6 @@ Phase 3 implements the research-agent, verification-agent, spec-writer-agent, an
   - On return: delegate to verification-agent for coverage check against PRD
   - HITL checkpoint 2: Present final research bundle to user for approval
   - Exit: Research bundle approved â†' transition to SPEC_GENERATION
-
 - SPEC_GENERATION stage wiring per Section 3.4:
   - Entry: Approved PRD, approved research bundle, and Tier 1 eval suite exist
   - Orchestrator DELEGATES to spec-writer-agent with PRD path, research bundle path, Tier 1 eval suite path
@@ -2297,15 +2064,12 @@ Phase 3 implements the research-agent, verification-agent, spec-writer-agent, an
   - Delegate to document-renderer for DOCX/PDF
   - If spec-writer identifies research gaps: orchestrator routes follow-up request back to research-agent (Section 6.1.6 feedback loop), then re-delegates to spec-writer with updated bundle
   - Exit: Spec + Tier 2 evals ready â†' transition to SPEC_REVIEW
-
 - SPEC_REVIEW stage wiring:
   - Entry: Technical specification and Tier 2 eval suite exist
   - Present spec summary and Tier 2 eval table
   - User approves BOTH spec AND Tier 2 architecture evals (hard gate)
   - Follow same EVAL_APPROVAL_PROTOCOL as PRD_REVIEW
   - Exit: Both approved â†’ transition to PLANNING
-
----
 
 ##### 3.2.5 Tier 2 Eval Integration
 
@@ -2314,34 +2078,29 @@ Phase 3 implements the research-agent, verification-agent, spec-writer-agent, an
 **Tasks:**
 
 - Spec-writer calls `propose_evals(requirements=architecture_testable_properties, tier=2, project_id=...)`
-- Output written to `{project_dir}/evals/eval-suite-architecture.json` per Section 5.11:
-  ```json
-  {
-    "metadata": {
-      "artifact": "eval-suite-architecture",
-      "project_id": "<project_id>",
-      "version": "1.0.0",
-      "tier": 2,
-      "langsmith_dataset_name": "<project_id>-tier-2-evals",
-      "created_by": "spec-writer",
-      "status": "approved",
-      "lineage": ["eval-suite-prd.json", "technical-specification.md"]
-    },
-    "evals": [
-      {
-        "id": "ARCH-001",
-        "name": "...",
-        "architecture_decision": "...",
-        "input": {"scenario": "...", "preconditions": {}},
-        "expected": {"behavior": "..."},
-        "scoring": {"strategy": "binary", "threshold": 1.0}
-      }
-    ]
-  }
-  ```
+- Output written to `{project_dir}/evals/eval-suite-architecture.json` per Section 5.11:`{
+  "metadata": {
+    "artifact": "eval-suite-architecture",
+    "project_id": "<project_id>",
+    "version": "1.0.0",
+    "tier": 2,
+    "langsmith_dataset_name": "<project_id>-tier-2-evals",
+    "created_by": "spec-writer",
+    "status": "approved",
+    "lineage": ["eval-suite-prd.json", "technical-specification.md"]
+  },
+  "evals": [
+    {
+      "id": "ARCH-001",
+      "name": "...",
+      "architecture_decision": "...",
+      "input": {"scenario": "...", "preconditions": {}},
+      "expected": {"behavior": "..."},
+      "scoring": {"strategy": "binary", "threshold": 1.0}
+    }
+  ]
+}`
 - Update state `eval_suites` list to include both `eval-suite-prd.json` and `eval-suite-architecture.json` paths
-
----
 
 ##### 3.2.6 Phase 3 Eval Implementations
 
@@ -2353,8 +2112,6 @@ Phase 3 has a **two-layer eval architecture**:
 
 Both layers must pass for Phase 3 to be complete.
 
----
-
 ##### 3.2.7 Experiment Execution Pattern
 
 This section defines how to run real experiments against the research-agent runtime. This is the same implement â†' experiment â†' threshold â†' iterate loop that the code-agent will later use when building other agents. Understanding this pattern is critical â€" everything below is how eval-driven development works in the LangChain/LangSmith ecosystem.
@@ -2364,9 +2121,7 @@ This section defines how to run real experiments against the research-agent runt
 An experiment has three actors that connect through `langsmith.evaluate()`:
 
 1. **Dataset** â€” provides inputs to the agent and reference outputs for comparison. The canonical calibration examples come from the local synthetic research dataset and are expanded into 5 scenarios by `synthetic_trace_adapter.py`. The default experiment script materializes a timestamped LangSmith dataset from those local examples; pass `--dataset-name` to reuse an existing LangSmith dataset instead.
-
 2. **Run function** â€" takes dataset inputs, invokes the real research-agent graph, and returns the agent's actual outputs. The agent runs its full protocol (reading the PRD, consulting skills, spawning sub-agents, writing artifacts). LangSmith automatically captures the full trace.
-
 3. **Evaluators** â€" judge the agent's output. Each evaluator receives `(run, example)` where `run` is the agent's actual output and `example` is the dataset row. Binary evaluators do deterministic checks (file exists, trace contains expected tool calls). Likert evaluators invoke an LLM-as-judge with anchored rubrics from `rubrics.py` that score 1â€"5.
 
 **End-to-End Data Flow**
@@ -2446,7 +2201,7 @@ def run_research_agent(inputs: dict) -> dict:
     config = {"configurable": {"thread_id": thread_id}}
     
     # 3. Prepare the workspace â€" the agent needs real files to read
-    #    The seed artifacts under workspace/projects/meta-agent/ serve this purpose:
+    #    The seed artifacts under .agents/pm/projects/meta-agent/ serve this purpose:
     #    - artifacts/intake/research-agent-prd.md (the PRD)
     #    - evals/eval-suite-prd.json (the eval suite)
     #    These already exist in the repo from Phase 2.
@@ -2474,7 +2229,7 @@ def run_research_agent(inputs: dict) -> dict:
     #    The exact shape must match what RESEARCH_EVAL_REGISTRY functions inspect.
     #    Evaluators inspect: run.outputs (agent output dict) and can also
     #    query the LangSmith trace for tool call evidence.
-    project_dir = f"workspace/projects/{inputs['project_id']}"
+    project_dir = f".agents/pm/projects/{inputs['project_id']}"
     return {
         "research_bundle_path": f"{project_dir}/artifacts/research/research-bundle.md",
         "decomposition_path": f"{project_dir}/artifacts/research/research-decomposition.md",
@@ -2529,15 +2284,13 @@ The builder should implement Option A first (simpler), then Option B if eval sce
 **4. Two modes, two purposes**
 
 | Mode | What It Does | When to Use |
-|------|-------------|-------------|
-| `--mode calibration` | Feeds synthetic expected outputs into evaluators. Validates that evaluator logic is correct. Never invokes the real agent. | Already passing. Run as regression after any evaluator code changes. |
-| `--mode trace` | Invokes the real research-agent via the run function. Evaluators judge actual agent behavior. LLM judges score real outputs. | The primary mode during Phase 3 development. This is what the checkpoints use. |
+| --- | --- | --- |
+| --mode calibration | Feeds synthetic expected outputs into evaluators. Validates that evaluator logic is correct. Never invokes the real agent. | Already passing. Run as regression after any evaluator code changes. |
+| --mode trace | Invokes the real research-agent via the run function. Evaluators judge actual agent behavior. LLM judges score real outputs. | The primary mode during Phase 3 development. This is what the checkpoints use. |
 
-**5. What the dataset `expected_evals` field is for**
+**5. What the dataset **`expected_evals`** field is for**
 
 The dataset includes `outputs.expected_evals` (e.g., `"RB-001": "pass"`, `"RQ-001": 5`). In calibration mode, these are the ground truth the evaluators must match. In trace mode, they serve as a **baseline for regression** â€" LangSmith shows you how the real agent's scores compare to the expected scores across experiments.
-
----
 
 ##### 3.2.8 Incremental Experiment Checkpoints
 
@@ -2552,7 +2305,7 @@ python -m meta_agent.evals.research.runner --phase A --mode trace --scenario gol
 ```
 
 | Eval ID | What It Checks | Type | Threshold |
-|---------|----------------|------|-----------|
+| --- | --- | --- | --- |
 | RS-001 | PRD content in agent input state | Binary | pass |
 | RS-002 | Eval suite content in agent input state | Binary | pass |
 | RS-003 | Project config in state | Binary | pass |
@@ -2565,8 +2318,6 @@ python -m meta_agent.evals.research.runner --phase A --mode trace --scenario gol
 
 **Pass criteria:** ALL 9 binary evals pass. If any fail, fix before proceeding.
 
----
-
 **Checkpoint 2: After Protocol Phases 3â€"4 (skills consultation + sub-agent delegation)**
 
 Run after: Skills-first posture, sub-agent topology reasoning, parallel dispatch, findings aggregation.
@@ -2577,7 +2328,7 @@ python -m meta_agent.evals.research.runner --phase B --mode trace --scenario gol
 ```
 
 | Eval ID | What It Checks | Type | Threshold |
-|---------|----------------|------|-----------|
+| --- | --- | --- | --- |
 | RB-007 | Agent uses skills directory | Binary | pass |
 | RB-004 | Agent uses web_search/web_fetch | Binary | pass |
 | RB-008 | Agent spawns sub-agents | Binary | pass |
@@ -2590,8 +2341,6 @@ python -m meta_agent.evals.research.runner --phase B --mode trace --scenario gol
 
 **Pass criteria:** ALL binary evals pass. ALL Likert evals >= 4.0. Checkpoint 1 evals must still pass (regression).
 
----
-
 **Checkpoint 3: After Protocol Phases 5â€"8 (gap remediation + HITL + deep-dive + SME)**
 
 Run after: Gap/contradiction remediation, HITL cluster creation and approval, deep-dive verification, SME consultation.
@@ -2603,7 +2352,7 @@ python -m meta_agent.evals.research.runner --phase C --mode trace --scenario gol
 ```
 
 | Eval ID | What It Checks | Type | Threshold |
-|---------|----------------|------|-----------|
+| --- | --- | --- | --- |
 | RB-011 | HITL gate fires before deep-dive | Binary | pass |
 | RB-005 | No hallucinated sources | Binary | pass |
 | RB-006 | Agent researches Anthropic model capabilities | Binary | pass |
@@ -2615,8 +2364,6 @@ python -m meta_agent.evals.research.runner --phase C --mode trace --scenario gol
 | RR-003 | Self-correction and course adjustment | Likert | >= 4.0 |
 
 **Pass criteria:** ALL binary evals pass. ALL Likert evals >= 4.0. Checkpoints 1â€"2 evals must still pass (regression).
-
----
 
 **Checkpoint 4: After Protocol Phases 9â€"10 (synthesis + reflection loop) â€" Full suite**
 
@@ -2631,7 +2378,7 @@ python -m meta_agent.evals.research.langsmith_experiment --datasets-dir datasets
 ```
 
 | Eval ID | What It Checks | Type | Threshold |
-|---------|----------------|------|-----------|
+| --- | --- | --- | --- |
 | RINFRA-003 | Research bundle schema completeness | Likert | >= 4.0 |
 | RINFRA-004 | Citation quality | Likert | >= 4.0 |
 | RQ-001 | PRD decomposition quality | Likert | >= 4.0 |
@@ -2644,8 +2391,6 @@ python -m meta_agent.evals.research.langsmith_experiment --datasets-dir datasets
 | RI-003 | Research covers eval implications | Binary | pass |
 
 **Pass criteria:** All 37 active Layer 2 evals pass by default (20 binary pass, 17 active Likert >= 4.0, plus `RI-001` remains deferred unless intentionally included). This is the full default Layer 2 gate.
-
----
 
 **Checkpoint 5: After spec-writer + verification + wiring â€" Final phase gate**
 
@@ -2669,13 +2414,12 @@ python -m meta_agent.evals.research.langsmith_experiment --datasets-dir datasets
 
 **Pass criteria:** ALL Layer 1 (7) + ALL active Layer 2 (37) + ALL regression (23) = 67 total active evals pass. If `RI-001` is intentionally included and passes, the total becomes 68.
 
----
-
 ##### 3.2.9 Experiment Reporting Workflow
 
-Every experiment run produces a **markdown report** persisted to `workspace/projects/meta-agent/evals/reports/`. Reports are generated automatically by the runner and LangSmith experiment script. The builder does not need to open the LangSmith UI to iterate on failures.
+Every experiment run produces a **markdown report** persisted to `.agents/pm/projects/meta-agent/evals/reports/`. Reports are generated automatically by the runner and LangSmith experiment script. The builder does not need to open the LangSmith UI to iterate on failures.
 
 **What each report contains:**
+
 - **Summary:** binary pass/fail counts, Likert mean/min/max, overall status
 - **Failures section (top of report):** full LLM judge reasoning, evidence quotes, confidence, and flags for every failing eval
 - **Passing evals:** summary table (scan, not read)
@@ -2692,6 +2436,7 @@ Every experiment run produces a **markdown report** persisted to `workspace/proj
 **Dual-channel workflow for the code-agent (Phase 4+):**
 
 The code-agent uses the same loop, but it `read_file`s the markdown report to understand failures:
+
 1. Code-agent implements a protocol phase
 2. Code-agent runs the experiment (invokes runner via `execute_command`)
 3. Code-agent reads the markdown report via `read_file`
@@ -2717,14 +2462,12 @@ python -m meta_agent.evals.research.langsmith_experiment --datasets-dir datasets
 python -m meta_agent.evals.research.langsmith_experiment --datasets-dir datasets --dataset-name research-agent-eval-calibration
 ```
 
----
-
 #### 3.3 Eval Gate
 
 ##### 3.3.1 Phase Gate Evals (Layer 1)
 
 | Eval ID | Name | What It Tests | Scoring | Threshold | Priority |
-|---------|------|---------------|---------|-----------|----------|
+| --- | --- | --- | --- | --- | --- |
 | RESEARCH-001 | Research Bundle Exists | Research bundle artifact at correct path | Binary | 1.0 | P0 |
 | RESEARCH-002 | Research Bundle Has PRD Coverage Matrix | PRD Coverage Matrix section present | Binary | 1.0 | P0 |
 | RESEARCH-003 | Research Quality | Covers all PRD requirements with evidence | Likert | >= 3.0 | P1 |
@@ -2738,7 +2481,7 @@ python -m meta_agent.evals.research.langsmith_experiment --datasets-dir datasets
 The 38 research-agent evals from `eval-suite-prd.json` are the deep behavioral measurement. They are grouped into 6 categories:
 
 | Category | Eval IDs | Count | What They Measure |
-|----------|----------|-------|-------------------|
+| --- | --- | --- | --- |
 | RESEARCH-INFRA | RINFRA-001â€"004 | 4 | Artifact structure, schema, citation format |
 | RESEARCH-STATE | RS-001â€"004 | 4 | PRD/eval suite/config in agent state |
 | RESEARCH-BEHAVIORAL | RB-001â€"011 | 11 | Core actions: full PRD read, skills use, sub-agents, HITL, citations |
@@ -2748,11 +2491,9 @@ The 38 research-agent evals from `eval-suite-prd.json` are the deep behavioral m
 
 **Thresholds:** All binary evals must pass (1.0). All Likert evals must score >= 4.0 (anchored rubrics in eval-suite-prd.json).
 
----
-
 ##### 3.3.2 Eval Definitions
 
-> **Current state:** The canonical research-agent calibration data already exists in `meta_agent/evals/research/`. These placeholder eval notes remain here for planning context only. Phase 3 implementation should plug the runtime into that package instead of authoring another disconnected synthetic suite.
+> Current state: The canonical research-agent calibration data already exists in meta_agent/evals/research/. These placeholder eval notes remain here for planning context only. Phase 3 implementation should plug the runtime into that package instead of authoring another disconnected synthetic suite.
 
 The eval implementations should follow the same pattern as Phases 0-2 (code-graded binary evals for structure, LLM-as-judge for quality):
 
@@ -2765,7 +2506,6 @@ def eval_research_001_bundle_exists(project_dir: str) -> dict:
     exists = os.path.isfile(path)
     return {"pass": exists, "reason": f"Research bundle {'exists' if exists else 'not found'} at {path}"}
 
-
 def eval_research_002_prd_coverage_matrix(project_dir: str) -> dict:
     """RESEARCH-002: Research bundle contains PRD Coverage Matrix."""
     path = f"{project_dir}/artifacts/research/research-bundle.md"
@@ -2777,13 +2517,11 @@ def eval_research_002_prd_coverage_matrix(project_dir: str) -> dict:
     except Exception as e:
         return {"pass": False, "reason": f"Error: {e}"}
 
-
 def eval_spec_001_spec_exists(project_dir: str) -> dict:
     """SPEC-001: Technical specification artifact exists at correct path."""
     path = f"{project_dir}/artifacts/spec/technical-specification.md"
     exists = os.path.isfile(path)
     return {"pass": exists, "reason": f"Spec {'exists' if exists else 'not found'} at {path}"}
-
 
 def eval_spec_002_traceability_matrix(project_dir: str) -> dict:
     """SPEC-002: Spec contains PRD Traceability Matrix with 100% coverage."""
@@ -2796,32 +2534,26 @@ def eval_spec_002_traceability_matrix(project_dir: str) -> dict:
     except Exception as e:
         return {"pass": False, "reason": f"Error: {e}"}
 
-
 def eval_spec_003_tier2_eval_suite(project_dir: str) -> dict:
     """SPEC-003: Tier 2 eval suite artifact created."""
     path = f"{project_dir}/evals/eval-suite-architecture.json"
     exists = os.path.isfile(path)
     return {"pass": exists, "reason": f"Tier 2 eval suite {'exists' if exists else 'not found'} at {path}"}
 
-
 # Historical placeholder note: these stubs predate the canonical research eval package.
 # Use `meta_agent/evals/research/` for calibration and LangSmith experiments.
 ```
-
----
 
 ##### 3.3.3 Synthetic Data Reference
 
 Synthetic calibration data now exists in two layers:
 
-1. **Seed artifact:** `workspace/projects/meta-agent/datasets/synthetic-research-agent.json`
+1. **Seed artifact:** `.agents/pm/projects/meta-agent/datasets/synthetic-research-agent.json`
 2. **Runtime-expanded dataset:** built by `meta_agent.evals.research.synthetic_trace_adapter`
 3. **Canonical scenarios:** `golden_path`, `silver_path`, `bronze_path`, `citation_hallucination_failure`, `hitl_subagent_failure`
 4. **Execution path:** `meta_agent.evals.research.dataset_builder` for raw examples and `meta_agent.evals.research.langsmith_experiment` for LangSmith runs
 
 This means Phase 3 is blocked by missing runtime implementation, not by missing evaluator data or judge infrastructure.
-
----
 
 ##### 3.3.4 How to Run
 
@@ -2841,38 +2573,40 @@ python -m meta_agent.evals.runner --phase 0 --data datasets/phase-0-1-synthetic-
 python -m meta_agent.evals.runner --phase 1 --data datasets/phase-0-1-synthetic-data.yaml
 python -m meta_agent.evals.runner --phase 2 --data datasets/phase-2-synthetic-data.yaml
 ```
+
 ##### 3.3.5 Pass Criteria
 
 **Layer 1 (Phase Gate):**
+
 - **Binary evals:** ALL 5 binary evals must pass (threshold 1.0 each)
 - **Likert evals:** Mean >= 3.0 for RESEARCH-003 and SPEC-004
 
 **Layer 2 (Research-Agent Behavioral):**
+
 - **Binary evals:** ALL 20 binary evals (RINFRA-001â€"002, RS-001â€"004, RB-001â€"011, RI-001â€"003) must pass
 - **Likert evals:** ALL 18 Likert evals must score >= 4.0 (anchored rubrics in eval-suite-prd.json)
 
 **Regression:**
-- Re-run all Phase 0, 1, and 2 evals (all 23 orchestrator evals) â€" ALL must still pass
 
----
+- Re-run all Phase 0, 1, and 2 evals (all 23 orchestrator evals) â€" ALL must still pass
 
 ##### 3.3.6 Remediation Protocol
 
 If evals fail:
+
 1. Identify failing evals from the runner output
 2. Distinguish Layer 1 vs Layer 2 failures:
-   - Layer 1 failures â†' structural issue (artifact missing, wrong path, missing section)
-   - Layer 2 failures â†' behavioral issue (agent didn't read full PRD, didn't use skills, shallow research, etc.)
+  - Layer 1 failures â†' structural issue (artifact missing, wrong path, missing section)
+  - Layer 2 failures â†' behavioral issue (agent didn't read full PRD, didn't use skills, shallow research, etc.)
 3. Fix the implementation targeting the root cause
 4. Re-run the eval suite (both layers)
 5. Maximum 3 remediation cycles
 6. If still failing after 3 cycles: escalate â€" review the eval itself (is it testing the right thing?) or ask for guidance
 
----
-
 ##### 3.3.7 Phase Complete Checklist
 
 **Foundations ✅ COMPLETE:**
+
 - [x] Stage validators implemented (ResearchStage, SpecGenerationStage, SpecReviewStage)
 - [x] Research evaluation infrastructure (38 canonical evals)
 - [x] System prompts with 17-section research bundle schema
@@ -2880,7 +2614,8 @@ If evals fail:
 - [x] Eval runner with phased checkpoints (A/B/C)
 - [x] Synthetic calibration scenarios (5 scenarios)
 
-**Runtime artifacts ⏳ IN PROGRESS:**
+**Live Experiment Artifacts ⏳ NOT YET RUN:**
+
 - [ ] `artifacts/research/research-decomposition.md` exists with domains, PRD citations, eval mappings, progress tracker
 - [ ] `artifacts/research/sub-findings/*.md` exist (at least 1 sub-agent output)
 - [ ] `artifacts/research/research-clusters.md` exists with themed clusters and approval status
@@ -2890,30 +2625,33 @@ If evals fail:
 - [ ] `evals/eval-suite-architecture.json` exists (Tier 2 evals)
 
 **Agents implemented ✅ COMPLETE:**
+
 - [x] research-agent instantiated as Deep Agent with 10-phase protocol (Section 6.1.2) — `meta_agent/subagents/research_agent.py`
 - [x] verification-agent instantiated as Deep Agent with cross-check protocol — `meta_agent/subagents/verification_agent_runtime.py`
 - [x] spec-writer-agent instantiated as Deep Agent with reflection loop and Tier 2 eval creation — `meta_agent/subagents/spec_writer_agent.py`
 
 **Stage wiring complete ⏳ IN PROGRESS:**
+
 - [ ] RESEARCH stage: orchestrator delegates to research-agent, two HITL checkpoints fire, verification-agent runs
 - [ ] SPEC_GENERATION stage: orchestrator delegates to spec-writer, verification-agent runs, document-renderer produces DOCX/PDF
 - [ ] SPEC_REVIEW stage: user approves both spec AND Tier 2 evals (hard gate)
 - [ ] Feedback loop: spec-writer can request additional research via orchestrator
 
 **Evals pass ⏳ IN PROGRESS:**
+
 - [ ] All 7 Layer 1 phase gate evals pass
 - [ ] All 37 active Layer 2 research-agent behavioral evals pass by default (20 binary + 17 active Likert >= 4.0); document `RI-001` separately if it remains deferred
 - [ ] All 23 regression evals from Phases 0-2 pass
 - [ ] LangSmith experiment recorded with metadata: `phase_number=3`, `commit_hash`, `timestamp`
 
 **Experiment reports ⏳ IN PROGRESS:**
+
 - [ ] Experiment reports exist under `evals/reports/` showing progression from checkpoint 1 through final gate
 - [ ] Final experiment report shows all active Layer 2 evals passing and explicitly reports `defined`, `active`, and `deferred` counts
 
 **Committed:**
-- [ ] Progress committed to git
 
----
+- [ ] Progress committed to git
 
 ### Phase 4: Planning + Execution ⏸️ NOT STARTED
 
@@ -2925,11 +2663,7 @@ Phase 4 implements the plan-writer-agent, full document renderer, PLANNING â†
 
 **Spec Section References:** Sections 3.6â€“3.10, 5.5, 5.12, 6.3â€“6.6, 6.9, 8.17â€“8.19, 15.9, 19.8, 22.16
 
----
-
 #### 4.2 Implementation Tasks
-
----
 
 ##### 4.2.1 Plan-Writer-Agent
 
@@ -2944,47 +2678,38 @@ Phase 4 implements the plan-writer-agent, full document renderer, PLANNING â†
   - Middleware: 6 auto + SkillsMiddleware, ToolErrorMiddleware
   - Expert knowledge of LangChain ecosystem, LangSmith skills repo
   - Access to LangSmith skills: langsmith-trace, langsmith-dataset, langsmith-evaluator
-
 - Implement internal reflection loop per Section 6.3:
   - After drafting plan, walk through every spec section
   - Confirm plan covers each with actionable tasks
   - Each task has: unique ID, status field, spec references, acceptance criteria
-
 - Implement eval-to-phase mapping per Section 3.6:
   - Plan-writer reads Tier 1 eval suite (`eval-suite-prd.json`) and Tier 2 eval suite (`eval-suite-architecture.json`)
   - Maps each eval to a development phase
   - Defines phase gate thresholds per scoring strategy
   - Does NOT create new evals â€” only routes existing evals to phases
-  - Writes `{project_dir}/evals/eval-execution-map.json` per Section 5.12:
-    ```json
+  - Writes `{project_dir}/evals/eval-execution-map.json` per Section 5.12:`{
+  "artifact": "eval-execution-map",
+  "project_id": "<project_id>",
+  "version": "1.0.0",
+  "created_by": "plan-writer",
+  "phases": [
     {
-      "artifact": "eval-execution-map",
-      "project_id": "<project_id>",
-      "version": "1.0.0",
-      "created_by": "plan-writer",
-      "phases": [
-        {
-          "phase": 1,
-          "name": "...",
-          "evals": [
-            {"id": "EVAL-001", "strategy": "binary"}
-          ],
-          "pass_conditions": {"binary": "all_pass", "likert_mean": 3.5},
-          "regression_check": "all"
-        }
-      ]
+      "phase": 1,
+      "name": "...",
+      "evals": [
+        {"id": "EVAL-001", "strategy": "binary"}
+      ],
+      "pass_conditions": {"binary": "all_pass", "likert_mean": 3.5},
+      "regression_check": "all"
     }
-    ```
-
+  ]
+}`
 - Write plan to `{project_dir}/artifacts/planning/implementation-plan.md` per Section 5.5:
   - Required sections: Current Position, Phase Breakdown (with tasks, tests, observation checkpoints, acceptance gates), Task Sequencing, Dependencies, Spec Coverage Matrix, Evaluation Design, Acceptance Gates, Observation Checkpoints, Evaluation Phases, Audit Checkpoints
   - Each task: unique ID, status, spec references, acceptance criteria
-
 - Observation planning per Section 3.6: design observation checkpoints at each phase (what to observe, tools to use, success criteria)
 - Evaluation planning per Section 3.6: route existing evals to phases, define thresholds
 - LangGraph Dev Server integration: plan assumes local dev at port 2024 with Studio
-
----
 
 ##### 4.2.2 Document Renderer (Full)
 
@@ -2999,8 +2724,6 @@ Phase 4 implements the plan-writer-agent, full document renderer, PLANNING â†
   - Evaluation Design â†’ DOCX
   - Audit Report â†’ DOCX + PDF
 
----
-
 ##### 4.2.3 PLANNING â†’ PLAN_REVIEW Wiring
 
 **Spec References:** Sections 3.6, 3.7
@@ -3013,14 +2736,11 @@ Phase 4 implements the plan-writer-agent, full document renderer, PLANNING â†
   - On return: delegate to verification-agent
   - Delegate to document-renderer for DOCX/PDF
   - Exit: Plan + eval-execution-map ready â†’ transition to PLAN_REVIEW
-
 - PLAN_REVIEW stage wiring:
   - Entry: Implementation plan and eval-execution-map exist
   - Present plan summary to user
   - User approves plan
   - Exit: Plan approved â†’ transition to EXECUTION
-
----
 
 ##### 4.2.4 Code-Agent
 
@@ -3033,20 +2753,16 @@ Phase 4 implements the plan-writer-agent, full document renderer, PLANNING â†
   - Recursion limit: `150` (Section 19.5)
   - Tools: `read_file`, `write_file`, `edit_file`, `glob`, `grep`, `execute_command`, `langgraph_dev_server`, `langsmith_cli`
   - Middleware: 6 auto + SkillsMiddleware, ToolErrorMiddleware, CompletionGuardMiddleware
-
 - Implement context engineering strategy per Section 6.4.3:
   - **Plan as State** (6.4.3.1): Extract full task list with IDs, statuses, spec references, dependencies. Use TodoListMiddleware.
   - **Spec Windowing** (6.4.3.2): For each task, read ONLY relevant spec sections (2â€“5 pages)
   - **Progress Tracking** (6.4.3.3): After each task, update plan's "Current Position", task status, TodoListMiddleware state, progress note
   - **Context Recovery After Compaction** (6.4.3.4): Read plan's "Current Position", progress log, identify next pending task
-
 - Implement iterative development protocol per Section 6.4.4:
   - For each phase: IMPLEMENT â†’ START DEV SERVER â†’ TEST â†’ OBSERVE TRACES â†’ EVALUATE â†’ CONFIRM â†’ CONTINUE
   - Dev server management per Section 6.4.4.2: initial start at `http://127.0.0.1:2024`, hot reload, health check
   - LangSmith CLI integration per Section 6.4.4.3: trace listing, detail, error/slow traces, exports, LLM runs
   - `langgraph.json` configuration per Section 6.4.4.4
-
----
 
 ##### 4.2.5 Code-Agent Sub-Agents
 
@@ -3058,18 +2774,13 @@ Phase 4 implements the plan-writer-agent, full document renderer, PLANNING â†
   - Tools: `langsmith_trace_list`, `langsmith_trace_get`, `langsmith_cli`, `read_file`, `write_file`
   - Middleware: CompletionGuardMiddleware, ToolErrorMiddleware
   - Inspects traces, analyzes runtime behavior, produces observation reports
-
 - Implement **evaluation-agent** per Section 6.4.2.2:
   - Tools: `langsmith_trace_list`, `langsmith_dataset_create`, `langsmith_eval_run`, `read_file`, `write_file`
   - Designs and runs evaluations using LangSmith-native workflows
-
 - Implement **audit-agent** per Section 6.4.2.3:
   - Tools: `read_file`, `glob`, `grep`, `langsmith_trace_list`, `langsmith_trace_get`, `write_file`
   - Inspects implementations, analyzes code, reviews traces, provides recommendations
-
 - All sub-agents: effort level `medium`, recursion limit `50`
-
----
 
 ##### 4.2.6 Test-Agent
 
@@ -3085,8 +2796,6 @@ Phase 4 implements the plan-writer-agent, full document renderer, PLANNING â†
   - Middleware: 6 auto + SkillsMiddleware, ToolErrorMiddleware, CompletionGuardMiddleware
   - Writes and runs tests to validate implementation against specification
 
----
-
 ##### 4.2.7 Eval-Agent Stub
 
 **Spec References:** Section 6.6
@@ -3095,8 +2804,6 @@ Phase 4 implements the plan-writer-agent, full document renderer, PLANNING â†
 
 - Create stub per Section 6.6: "Reserved for future first-class LangSmith agent"
 - For V1, evaluation capabilities provided through code-agent's evaluation-agent sub-agent
-
----
 
 ##### 4.2.8 EXECUTION Stage Wiring with Phase Gate Protocol
 
@@ -3110,23 +2817,20 @@ Phase 4 implements the plan-writer-agent, full document renderer, PLANNING â†
   - Code-agent follows iterative development protocol
   - Every file write and shell command requires HITL approval
   - Exit: All phases complete, all phase gates pass, or user explicitly stops
-
 - Implement Phase Gate Protocol per Section 3.8.1:
-  1. Before phase transition: run ALL applicable evals for that phase
-  2. Results stored in LangSmith as distinct experiments with metadata: `phase_number`, `commit_hash`, `timestamp`, `agent_version` (P3)
-  3. Scoring aggregation per strategy:
-     - Binary: `score == 1.0`, ALL must pass
-     - Likert: `score >= threshold (default 3.5)`, mean across Likert evals >= 3.5
-     - Regression: previously passing eval still passes, ALL must pass
-  4. Failed evals produce structured remediation report: eval_id, strategy, score, input, expected, actual, suggested fix
-  5. **Remediation Cycle** (P-C5): run suite â†’ identify failures â†’ attempt fixes â†’ re-run suite
-  6. **Escalation to HITL** when EITHER:
-     - (a) 3 total suite runs with no improvement in pass rate
-     - (b) Any single eval fails 3 consecutive times
-  7. **HITL Escalation Message** per Section 3.8.1: "Phase N gate is failing. The code-agent has attempted [X] remediation cycles..."
-  8. Regression checks: re-run all prior phase evals
-
----
+    1. Before phase transition: run ALL applicable evals for that phase
+    2. Results stored in LangSmith as distinct experiments with metadata: `phase_number`, `commit_hash`, `timestamp`, `agent_version` (P3)
+    3. Scoring aggregation per strategy:
+    - Binary: `score == 1.0`, ALL must pass
+    - Likert: `score >= threshold (default 3.5)`, mean across Likert evals >= 3.5
+    - Regression: previously passing eval still passes, ALL must pass
+    4. Failed evals produce structured remediation report: eval_id, strategy, score, input, expected, actual, suggested fix
+    5. **Remediation Cycle** (P-C5): run suite â†’ identify failures â†’ attempt fixes â†’ re-run suite
+    6. **Escalation to HITL** when EITHER:
+    - (a) 3 total suite runs with no improvement in pass rate
+    - (b) Any single eval fails 3 consecutive times
+    7. **HITL Escalation Message** per Section 3.8.1: "Phase N gate is failing. The code-agent has attempted [X] remediation cycles..."
+    8. Regression checks: re-run all prior phase evals
 
 ##### 4.2.9 Eval Tools for Execution
 
@@ -3135,25 +2839,20 @@ Phase 4 implements the plan-writer-agent, full document renderer, PLANNING â†
 **Tasks:**
 
 - Implement remaining 3 eval tools in `meta_agent/tools/eval_tools.py`:
-
 - `run_eval_suite(phase, eval_map_path, commit_hash)` per Section 8.17:
   - Runs all evals mapped to specified phase from `eval-execution-map.json`
   - Returns per-eval results + aggregate results
   - Creates LangSmith experiment with metadata (P3)
   - NOT HITL-gated â€” runs autonomously during phase gates
-
 - `get_eval_results(experiment_id, phase, project_id)` per Section 8.18:
   - Retrieves results from previous eval run
   - Returns full result set: per-eval scores, aggregate metrics, pass/fail, metadata
   - NOT HITL-gated â€” read-only
-
 - `compare_eval_runs(baseline_experiment_id, comparison_experiment_id)` per Section 8.19:
   - Compares two eval runs for regressions/improvements
   - Returns per-eval comparison: eval_id, baseline_score, comparison_score, delta, status
   - Tracks score variance over time (P2)
   - NOT HITL-gated â€” read-only
-
----
 
 ##### 4.2.10 Eval Dataset Immutability
 
@@ -3167,8 +2866,6 @@ Phase 4 implements the plan-writer-agent, full document renderer, PLANNING â†
   - Only user via HITL interrupt can modify eval criteria/thresholds/scoring
   - `request_eval_approval` interrupt for evals that appear incorrect or impossible
 
----
-
 ##### 4.2.11 EVALUATION + AUDIT Stage Wiring
 
 **Spec References:** Sections 3.9, 3.10
@@ -3179,27 +2876,22 @@ Phase 4 implements the plan-writer-agent, full document renderer, PLANNING â†
   - Orchestrated through code-agent â†’ evaluation-agent sub-agent
   - Produces evaluation design artifact, dataset files, evaluator definitions
   - Delegate to document-renderer for DOCX
-
 - AUDIT stage per Section 3.10:
   - Orchestrated through code-agent â†’ audit-agent sub-agent
   - Produces audit report at `{project_dir}/artifacts/audit/audit-report.md`
   - Delegate to document-renderer for DOCX + PDF
   - Lateral transition from any stage; returns to previous stage on completion
 
----
-
 ##### 4.2.12 Phase 4 Eval Implementations
 
 Implement the 8 eval functions for Phase 4. The four-part eval suite must be completed before the coding agent begins implementation.
-
----
 
 #### 4.3 Eval Gate
 
 ##### 4.3.1 Evals for This Phase
 
 | Eval ID | Name | What It Tests | Scoring | Threshold | Priority |
-|---------|------|---------------|---------|-----------|----------|
+| --- | --- | --- | --- | --- | --- |
 | PLAN-001 | Implementation Plan Exists | Plan artifact at correct path | Binary | 1.0 | P0 |
 | PLAN-002 | Plan Has Spec Coverage Matrix | 100% spec coverage | Binary | 1.0 | P0 |
 | PLAN-003 | Eval Execution Map Exists | eval-execution-map.json valid | Binary | 1.0 | P0 |
@@ -3209,15 +2901,9 @@ Implement the 8 eval functions for Phase 4. The four-part eval suite must be com
 | EXEC-003 | HITL Escalation Triggers | Escalation after 3 failed remediation cycles | Binary | 1.0 | P0 |
 | EXEC-004 | Regression Checks Run | Prior phase evals re-run during phase gates | Binary | 1.0 | P0 |
 
----
-
 ##### 4.3.2 Eval Definitions
 
-> **SYNTHETIC DATA: Not yet created.** The four-part eval suite for this phase must be completed before the coding agent begins implementation. Required components:
-> 1. **What we're testing** â€” Plan completeness, phase gate protocol execution, remediation loops, HITL escalation
-> 2. **What we're looking for** â€” Artifact existence, coverage matrices, eval execution traces, remediation cycle logs
-> 3. **Scoring method** â€” Binary for structural/behavioral checks, Likert for plan quality
-> 4. **Actual synthetic data** â€” Fabricated implementation plans, eval execution traces, remediation cycle outputs
+> SYNTHETIC DATA: Not yet created. The four-part eval suite for this phase must be completed before the coding agent begins implementation. Required components:What we're testing â€” Plan completeness, phase gate protocol execution, remediation loops, HITL escalationWhat we're looking for â€” Artifact existence, coverage matrices, eval execution traces, remediation cycle logsScoring method â€” Binary for structural/behavioral checks, Likert for plan qualityActual synthetic data â€” Fabricated implementation plans, eval execution traces, remediation cycle outputs
 
 ```python
 # tests/evals/test_phase4.py â€” STUB implementations to be completed
@@ -3227,7 +2913,6 @@ def eval_plan_001_plan_exists(project_dir: str) -> dict:
     path = f"{project_dir}/artifacts/planning/implementation-plan.md"
     exists = os.path.isfile(path)
     return {"pass": exists, "reason": f"Plan {'exists' if exists else 'not found'} at {path}"}
-
 
 def eval_plan_002_spec_coverage(project_dir: str) -> dict:
     """PLAN-002: Plan contains Spec Coverage Matrix with 100% coverage."""
@@ -3240,31 +2925,26 @@ def eval_plan_002_spec_coverage(project_dir: str) -> dict:
     except Exception as e:
         return {"pass": False, "reason": f"Error: {e}"}
 
-
 def eval_plan_003_eval_execution_map(project_dir: str) -> dict:
     """PLAN-003: Eval execution map exists and is valid."""
     path = f"{project_dir}/evals/eval-execution-map.json"
     exists = os.path.isfile(path)
     return {"pass": exists, "reason": f"Eval execution map {'exists' if exists else 'not found'} at {path}"}
 
-
 # PLAN-004 requires LLM-as-judge â€” implementation pending synthetic data creation
 # EXEC-001 through EXEC-004 require runtime trace inspection â€” implementations pending
 ```
-
----
 
 ##### 4.3.3 Synthetic Data Reference
 
 **SYNTHETIC DATA: Not yet created.** Must be fabricated before this phase begins.
 
 Required components:
+
 1. **What we're testing** â€” Plan artifact completeness, phase gate protocol execution, remediation cycle behavior, HITL escalation triggers, regression test execution
 2. **What we're looking for** â€” Plan at canonical path with all required sections, eval-execution-map.json with valid phase mappings, phase gate traces showing eval runs before transitions, remediation logs showing fixâ†’re-run cycles, escalation messages after 3 failed cycles
 3. **Scoring method** â€” Binary for existence/behavior checks, Likert for plan quality assessment
 4. **Actual synthetic data** â€” Fabricated plans (complete and incomplete), eval execution traces (passing and failing), remediation cycle sequences, escalation triggers
-
----
 
 ##### 4.3.4 How to Run
 
@@ -3284,26 +2964,21 @@ python -m meta_agent.evals.runner --phase 2 --data datasets/phase-2-synthetic-da
 python -m meta_agent.evals.runner --phase 3 --data datasets/phase-3-synthetic-data.yaml
 ```
 
----
-
 ##### 4.3.5 Pass Criteria
 
 - **Binary evals:** ALL 7 binary evals must pass (threshold 1.0 each)
 - **Likert evals:** PLAN-004 mean >= 3.5
 - **Regression:** Re-run all Phase 0â€“3 evals (all 23 orchestrator evals + Phase 3 evals) â€” ALL must still pass
 
----
-
 ##### 4.3.6 Remediation Protocol
 
 If evals fail:
+
 1. Identify failing evals from the runner output
 2. Fix the implementation (plan writer output, phase gate protocol, remediation loops, escalation triggers)
 3. Re-run the eval suite
 4. Maximum 3 remediation cycles
 5. If still failing after 3 cycles: escalate â€” review the eval itself (is it testing the right thing?) or ask for guidance
-
----
 
 ##### 4.3.7 Phase Complete Checklist
 
@@ -3311,8 +2986,6 @@ If evals fail:
 - [ ] All regression evals from Phases 0-3 pass (23 orchestrator evals + 7 Phase 3 evals)
 - [ ] LangSmith experiment recorded with metadata: `phase_number=4`, `commit_hash`, `timestamp`
 - [ ] Progress committed to git
-
----
 
 ### Phase 5: Memory + Polish ⏸️ NOT STARTED
 
@@ -3324,11 +2997,7 @@ Phase 5 implements the per-agent AGENTS.md memory system, memory loading protoco
 
 **Spec Section References:** Sections 13.4.6, 18.5, 22.18
 
----
-
 #### 5.2 Implementation Tasks
-
----
 
 ##### 5.2.1 Per-Agent AGENTS.md Structure
 
@@ -3338,14 +3007,11 @@ Phase 5 implements the per-agent AGENTS.md memory system, memory loading protoco
 
 - Implement per-agent memory directory structure per Section 13.4.6.1:
   - Global: `.agents/{agent-name}/AGENTS.md` for all 8 agents
-  - Project-specific: `workspace/projects/{project_id}/.agents/{agent-name}/AGENTS.md` for 7 agents (excluding document-renderer from project-specific)
+  - Project-specific: `.agents/pm/projects/{project_id}/.agents/{agent-name}/AGENTS.md` for 7 agents (excluding document-renderer from project-specific)
   - Create initial empty files during project initialization (extend Phase 0 project setup)
-
 - Implement content guidelines per Section 13.4.6.4:
   - **Global AGENTS.md:** Procedural knowledge, common mistakes, user preferences (cross-project), tool usage patterns
   - **Project AGENTS.md:** Progress tracking, project decisions, eval status, blockers/notes, learnings
-
----
 
 ##### 5.2.2 Memory Loading Protocol
 
@@ -3353,28 +3019,23 @@ Phase 5 implements the per-agent AGENTS.md memory system, memory loading protoco
 
 **Tasks:**
 
-- Implement `meta_agent/middleware/memory_loader.py` per Section 22.18:
-  ```python
-  def load_agent_memory(agent_name: str, project_id: str) -> str:
-      """Loads and merges agent-specific memory files."""
-      # Step 1: Load global AGENTS.md
-      global_path = f".agents/{agent_name}/AGENTS.md"
-      global_memory = read_file(global_path) if file_exists(global_path) else ""
-      # Step 2: Load project-specific AGENTS.md
-      project_path = f"workspace/projects/{project_id}/.agents/{agent_name}/AGENTS.md"
-      project_memory = read_file(project_path) if file_exists(project_path) else ""
-      # Step 3: Merge â€” global first, project-specific second
-      merged = ""
-      if global_memory:
-          merged += f"<global_memory>\n{global_memory}\n</global_memory>\n\n"
-      if project_memory:
-          merged += f"<project_memory>\n{project_memory}\n</project_memory>\n"
-      return merged
-  ```
+- Implement `meta_agent/middleware/memory_loader.py` per Section 22.18:`def load_agent_memory(agent_name: str, project_id: str) -> str:
+    """Loads and merges agent-specific memory files."""
+    # Step 1: Load global AGENTS.md
+    global_path = f".agents/{agent_name}/AGENTS.md"
+    global_memory = read_file(global_path) if file_exists(global_path) else ""
+    # Step 2: Load project-specific AGENTS.md
+    project_path = f".agents/pm/projects/{project_id}/.agents/{agent_name}/AGENTS.md"
+    project_memory = read_file(project_path) if file_exists(project_path) else ""
+    # Step 3: Merge â€” global first, project-specific second
+    merged = ""
+    if global_memory:
+        merged += f"<global_memory>\n{global_memory}\n</global_memory>\n\n"
+    if project_memory:
+        merged += f"<project_memory>\n{project_memory}\n</project_memory>\n"
+    return merged`
 - Inject merged memory into agent context via existing `AGENTS_MD_SECTION` slot in prompt composition functions (Section 7.2.1)
 - Extend MemoryMiddleware to call `load_agent_memory()` at agent invocation
-
----
 
 ##### 5.2.3 Agent Isolation Rule
 
@@ -3388,10 +3049,7 @@ Phase 5 implements the per-agent AGENTS.md memory system, memory loading protoco
   - Research-agent receives `.agents/research-agent/AGENTS.md` + `{project}/.agents/research-agent/AGENTS.md`
   - (Same pattern for all 8 agents)
   - **NO cross-agent memory injection** â€” orchestrator communicates with subagents through task descriptions and artifact paths, NOT shared memory
-
 - Implement validation: if memory loading attempts to access a path containing a different agent's name, raise error
-
----
 
 ##### 5.2.4 Agent Write Protocol
 
@@ -3405,10 +3063,7 @@ Phase 5 implements the per-agent AGENTS.md memory system, memory loading protoco
   - After discovering a reusable pattern â†’ write pattern to global AGENTS.md
   - After making an error requiring correction â†’ write lesson to global AGENTS.md
   - At end of project â†’ write summary to both global and project AGENTS.md
-
 - Each agent uses `write_file` or `edit_file` to update its own AGENTS.md
-
----
 
 ##### 5.2.5 Context Recovery Protocol
 
@@ -3417,20 +3072,17 @@ Phase 5 implements the per-agent AGENTS.md memory system, memory loading protoco
 **Tasks:**
 
 - Implement crash/resume recovery per Section 13.4.6.5.1:
-  1. Read `current_stage` from state (restored by checkpointer)
-  2. Read orchestrator's project AGENTS.md (auto-loaded by MemoryMiddleware)
-  3. Read most recent artifact for current stage:
-     - INTAKE: draft PRD
-     - PRD_REVIEW: PRD + eval suite
-     - RESEARCH: research bundle
-     - SPEC_GENERATION: draft specification
-     - EXECUTION: implementation plan + progress log
-  4. Emit `context_recovery` span with metadata: `recovered_stage`, `artifacts_loaded`, `memory_loaded`, `recovery_timestamp`
-  5. Continue from recovered position (do NOT restart stage from scratch unless artifacts corrupted)
-
+    1. Read `current_stage` from state (restored by checkpointer)
+    2. Read orchestrator's project AGENTS.md (auto-loaded by MemoryMiddleware)
+    3. Read most recent artifact for current stage:
+    - INTAKE: draft PRD
+    - PRD_REVIEW: PRD + eval suite
+    - RESEARCH: research bundle
+    - SPEC_GENERATION: draft specification
+    - EXECUTION: implementation plan + progress log
+    4. Emit `context_recovery` span with metadata: `recovered_stage`, `artifacts_loaded`, `memory_loaded`, `recovery_timestamp`
+    5. Continue from recovered position (do NOT restart stage from scratch unless artifacts corrupted)
 - After recovery, write note to project AGENTS.md: "Recovered from crash/resume at [stage]. Loaded: [artifacts]. Continuing from: [position]."
-
----
 
 ##### 5.2.6 End-to-End Tracing Validation
 
@@ -3446,23 +3098,18 @@ Phase 5 implements the per-agent AGENTS.md memory system, memory loading protoco
   - Gap 5: `artifact_written` spans emit on artifact writes
   - Gap 6: `hitl_decision` spans emit after HITL resume
   - Gap 7: CLI trace context propagation with `cli_command`, `user_input_hash`, `session_id`
-
 - Verify Phase Gate Experiment Metadata per Section 18.3.1: each phase gate eval run creates a LangSmith experiment with `phase_number`, `commit_hash`, `timestamp`, `agent_version`, `eval_suite_version`
-
----
 
 ##### 5.2.7 Phase 5 Eval Implementations
 
 Implement the 8 eval functions for Phase 5. The four-part eval suite must be completed before the coding agent begins implementation.
-
----
 
 #### 5.3 Eval Gate
 
 ##### 5.3.1 Evals for This Phase
 
 | Eval ID | Name | What It Tests | Scoring | Threshold | Priority |
-|---------|------|---------------|---------|-----------|----------|
+| --- | --- | --- | --- | --- | --- |
 | MEM-001 | Global AGENTS.md Files Created | Per-agent files for all 8 agents (global) | Binary | 1.0 | P0 |
 | MEM-002 | Project AGENTS.md Files Created | Per-agent files for project-specific agents | Binary | 1.0 | P0 |
 | MEM-003 | Memory Loading Protocol | Correct files loaded for each agent | Binary | 1.0 | P0 |
@@ -3472,15 +3119,9 @@ Implement the 8 eval functions for Phase 5. The four-part eval suite must be com
 | MEM-007 | Context Recovery Protocol | Orchestrator recovers state after simulated crash | Binary | 1.0 | P1 |
 | TRACE-001 | End-to-End Tracing | All 7 tracing gaps produce expected spans | Binary | 1.0 | P1 |
 
----
-
 ##### 5.3.2 Eval Definitions
 
-> **SYNTHETIC DATA: Not yet created.** The four-part eval suite for this phase must be completed before the coding agent begins implementation. Required components:
-> 1. **What we're testing** â€” Memory file creation, loading protocol, isolation enforcement, write triggers, crash recovery, trace span emission
-> 2. **What we're looking for** â€” AGENTS.md files at expected paths, correct memory content loaded per agent, isolation violations caught, recovery spans emitted
-> 3. **Scoring method** â€” Binary for all evals (existence, isolation, behavior checks)
-> 4. **Actual synthetic data** â€” Fabricated memory file trees, cross-agent access attempts, crash/recovery scenarios, trace span assertions
+> SYNTHETIC DATA: Not yet created. The four-part eval suite for this phase must be completed before the coding agent begins implementation. Required components:What we're testing â€” Memory file creation, loading protocol, isolation enforcement, write triggers, crash recovery, trace span emissionWhat we're looking for â€” AGENTS.md files at expected paths, correct memory content loaded per agent, isolation violations caught, recovery spans emittedScoring method â€” Binary for all evals (existence, isolation, behavior checks)Actual synthetic data â€” Fabricated memory file trees, cross-agent access attempts, crash/recovery scenarios, trace span assertions
 
 ```python
 # tests/evals/test_phase5.py â€” STUB implementations to be completed
@@ -3492,7 +3133,6 @@ def eval_mem_001_global_agents_md(project_dir: str) -> dict:
     missing = [a for a in agents if not os.path.isfile(f".agents/{a}/AGENTS.md")]
     return {"pass": len(missing) == 0, "reason": f"Missing: {missing}" if missing else "All global AGENTS.md present"}
 
-
 def eval_mem_002_project_agents_md(project_dir: str) -> dict:
     """MEM-002: Per-agent AGENTS.md files created for project-specific agents."""
     agents = ["orchestrator", "research-agent", "spec-writer", "plan-writer",
@@ -3500,23 +3140,19 @@ def eval_mem_002_project_agents_md(project_dir: str) -> dict:
     missing = [a for a in agents if not os.path.isfile(f"{project_dir}/.agents/{a}/AGENTS.md")]
     return {"pass": len(missing) == 0, "reason": f"Missing: {missing}" if missing else "All project AGENTS.md present"}
 
-
 # MEM-003 through MEM-007 and TRACE-001 require runtime testing â€” implementations pending
 ```
-
----
 
 ##### 5.3.3 Synthetic Data Reference
 
 **SYNTHETIC DATA: Not yet created.** Must be fabricated before this phase begins.
 
 Required components:
+
 1. **What we're testing** â€” Memory file creation (global + project), memory loading (correct merging, XML tags), isolation (cross-agent prevention), write triggers (task completion, feedback, errors), crash recovery (state restoration), tracing (7 gap spans)
 2. **What we're looking for** â€” Files at canonical paths, correct content loaded per agent, isolation violations blocked with errors, memory updates at defined triggers, recovery spans in traces, all 7 gap spans present
 3. **Scoring method** â€” Binary for all 8 evals
 4. **Actual synthetic data** â€” Fabricated agent memory trees (multi-project, multi-agent), cross-agent access attempts, crash/resume state snapshots, LangSmith trace fixtures with expected spans
-
----
 
 ##### 5.3.4 How to Run
 
@@ -3537,26 +3173,21 @@ python -m meta_agent.evals.runner --phase 3 --data datasets/phase-3-synthetic-da
 python -m meta_agent.evals.runner --phase 4 --data datasets/phase-4-synthetic-data.yaml
 ```
 
----
-
 ##### 5.3.5 Pass Criteria
 
 - **Binary evals:** ALL 8 must pass (threshold 1.0 each)
 - **Likert evals:** None in this phase
 - **Regression:** Re-run all 23 orchestrator evals + all phase-specific evals from Phases 0â€“4 â€” ALL must still pass
 
----
-
 ##### 5.3.6 Remediation Protocol
 
 If evals fail:
+
 1. Identify failing evals from the runner output
 2. Fix the implementation (memory files, loading protocol, isolation rules, write triggers, recovery protocol, trace spans)
 3. Re-run the eval suite
 4. Maximum 3 remediation cycles
 5. If still failing after 3 cycles: escalate â€” review the eval itself (is it testing the right thing?) or ask for guidance
-
----
 
 ##### 5.3.7 Phase Complete Checklist
 
@@ -3565,14 +3196,12 @@ If evals fail:
 - [ ] LangSmith experiment recorded with metadata: `phase_number=5`, `commit_hash`, `timestamp`
 - [ ] Progress committed to git
 
----
-
 ## 5. Spec Coverage Matrix
 
 Every spec section (1â€“22) is mapped to the plan phase and task that implements it.
 
 | Spec Section | Description | Phase | Task(s) |
-|-------------|-------------|-------|---------|
+| --- | --- | --- | --- |
 | 1 | Executive Summary | 0 | 0.2.1 (understanding, not implementation) |
 | 2.1 | Layered Architecture | 0 | 0.2.1 (directory structure) |
 | 2.2 | Why Deep Agents | 0â€“1 | 0.2.8, 1.2.2 (middleware selection) |
@@ -3700,11 +3329,11 @@ Every spec section (1â€“22) is mapped to the plan phase and task that imple
 | 22.8 | tools/registry.py | 1 | 1.2.1 |
 | 22.9 | langgraph.json | 0 | 0.2.1 |
 | 22.10 | Skills Directory | 0 | 0.2.1 |
-| 22.11 | middleware/__init__.py | 0 | 0.2.8 |
+| 22.11 | middleware/init.py | 0 | 0.2.8 |
 | 22.12 | middleware/tool_error_handler.py | 0 | 0.2.8 |
 | 22.13 | middleware/completion_guard.py | 0 | 0.2.8 |
 | 22.14 | prompts/sections.py | 0 | 0.2.9 |
-| 22.15 | prompts/orchestrator.py | 0 | 0.2.10 |
+| 22.15 | prompts/pm.py | 0 | 0.2.10 |
 | 22.16 | tools/eval_tools.py | 2, 4 | 2.2.1, 4.2.9 |
 | 22.17 | prompts/eval_creation_protocol.py | 0 | 0.2.9 (shim) |
 | 22.18 | middleware/memory_loader.py | 5 | 5.2.2 |
@@ -3713,8 +3342,6 @@ Every spec section (1â€“22) is mapped to the plan phase and task that imple
 | 22.21 | prompts/eval_approval_protocol.py | 0 | 0.2.9 |
 | 22.22 | evals/ directory | 0 | 0.2.13 |
 | 22.23 | evals/rubrics/pm_dimensions.py | 0 | 0.2.13 |
-
----
 
 ## 6. Cross-Cutting Requirements
 
@@ -3791,17 +3418,17 @@ These checklists apply across all phases. The coding agent must verify complianc
 - [ ] HITL escalation on 3 runs with no improvement OR single eval failing 3 consecutive times
 - [ ] LangSmith experiment metadata: phase_number, commit_hash, timestamp, agent_version
 
----
-
 ## 7. Success Criteria
 
 ### 7.1 Functional Completeness
+
 - All 10 stages operational: INTAKE, PRD_REVIEW, RESEARCH, SPEC_GENERATION, SPEC_REVIEW, PLANNING, PLAN_REVIEW, EXECUTION, EVALUATION, AUDIT
 - Eval-first flow works end-to-end: PRD â†’ Tier 1 evals â†’ approval â†’ research â†’ spec â†’ Tier 2 evals â†’ approval â†’ plan â†’ eval mapping â†’ execution with phase gates
 - All forward and backward stage transitions function per VALID_TRANSITIONS
 - Lateral AUDIT transitions work from any stage
 
 ### 7.2 Middleware Correctness
+
 - 6 auto-attached middleware on all agents created via `create_deep_agent()`
 - ToolErrorMiddleware on ALL agents
 - CompletionGuardMiddleware on code-agent, test-agent, observation-agent ONLY
@@ -3809,22 +3436,26 @@ These checklists apply across all phases. The coding agent must verify complianc
 - HumanInTheLoopMiddleware on orchestrator and code-agent
 
 ### 7.3 Configuration Correctness
+
 - Adaptive thinking (`{"type": "adaptive"}`) on all agents â€” no `budget_tokens`
 - Per-agent effort levels match spec (Section 10.5.3)
 - Per-agent recursion limits match spec (Section 19.5)
 - 1M context native on Opus 4.6 â€” no beta header
 
 ### 7.4 Traceability
+
 - All 7 tracing gaps closed (Section 18.5)
 - Custom spans emitting correctly: `prepare_{agent}_state`, `skill_loaded`, `delegation_decision`, `artifact_written`, `hitl_decision`, `context_recovery`
 - Phase gate experiment metadata in LangSmith
 
 ### 7.5 Test Coverage
+
 - 80% overall test coverage
 - 90% coverage on tools and state modules
 - All 23 orchestrator evals passing
 
 ### 7.6 Artifact Quality
+
 - All artifacts have YAML frontmatter with required fields
 - PRD: 10 required sections
 - Research bundle: PRD Coverage Matrix
@@ -3833,24 +3464,24 @@ These checklists apply across all phases. The coding agent must verify complianc
 - All coverage matrices show 100% coverage
 
 ### 7.7 Eval Correctness
+
 - 23 orchestrator evals pass: 8 INFRA + 8 PM + 3 STAGE + 4 GUARD
 - Phase gates functional: evals run before phase transitions, remediation cycles work, HITL escalation triggers
 - Eval dataset immutability enforced during EXECUTION
 - Scoring strategies correctly applied: Binary (1.0 threshold), Likert (3.5 threshold)
 
 ### 7.8 Memory Correctness
+
 - Per-agent AGENTS.md files created (global + project-specific)
 - Memory loading protocol: global first, project-specific second, merged with XML tags
 - Agent isolation verified: no cross-agent memory access
 - Write protocol: updates at defined trigger points
 - Context recovery protocol: crash/resume restores correct state
 
----
-
 ## 8. Risks and Mitigations
 
 | Risk | Mitigation | Verification |
-|------|-----------|-------------|
+| --- | --- | --- |
 | Over-prescribing architecture too early | Mandatory RESEARCH stage with multi-pass protocol and verification-agent (Section 6.8) | Decision log entries cite specific sources |
 | Under-specifying prompts, tool contracts, or state | Full system prompts (Section 7), complete tool contracts (Section 8), full state model (Section 4) | Artifact schema validator confirms required fields |
 | Creating evaluation logic without inspecting traces | Eval-agent mandates trace inspection before evaluator design | Evaluation design includes "Traces Inspected" section |
