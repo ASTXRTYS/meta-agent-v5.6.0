@@ -118,4 +118,35 @@ Relevant docs:
 
 - [Deep Agents Middleware](%5Bhttps://docs.langchain.com/oss/python/deepagents/middleware%5D(https://docs.langchain.com/oss/python/deepagents/middleware))
 - [Deep Agents Middleware — Short-term vs. long-term filesystem](%5Bhttps://docs.langchain.com/oss/python/deepagents/middleware#short-term-vs-long-term-filesystem%5D(https://docs.langchain.com/oss/python/deepagents/middleware#short-term-vs-long-term-filesystem))
+
+[Deep Agents Backends](%5Bhttps://docs.langchain.com/oss/python/deepagents/backends%5D(https://docs.langchain.com/oss/python/deepagents/backends))**Start with the Deep Agents and LangGraph docs — they cover SDK usage, middleware, backends, memory, and API references.** Below are the specific doc pages that together give you comprehensive, reference-quality coverage of the topics your code touches.
+
+- `Deep Agents` overview and quickstart (architecture, when to use deep agents, core capabilities):
+  - [Deep Agents overview](%5Bhttps://docs.langchain.com/oss/python/deepagents/overview%5D(https://docs.langchain.com/oss/python/deepagents/overview))
+- Middleware (how built-in middleware works, tools added automatically, order and configuration):
+  - [Deep Agents Middleware](%5Bhttps://docs.langchain.com/oss/python/deepagents/middleware%5D(https://docs.langchain.com/oss/python/deepagents/middleware))
+- Deep agent customization (how to configure model, tools, middleware, backends, subagents):
+  - [Customize Deep Agents](%5Bhttps://docs.langchain.com/oss/python/deepagents/customization%5D(https://docs.langchain.com/oss/python/deepagents/customization))
+- Backends and persistence (CompositeBackend, StateBackend, StoreBackend; how to route /memories/ for long-term persistence):
+  - [Deep Agents Backends](%5Bhttps://docs.langchain.com/oss/python/deepagents/backends%5D(https://docs.langchain.com/oss/python/deepagents/backends))
+  - [LangGraph Persistence (checkpointers & stores)](%5Bhttps://docs.langchain.com/oss/python/langgraph/persistence%5D(https://docs.langchain.com/oss/python/langgraph/persistence))
+- Long-term memory (design patterns, `/memories/` routing, InMemoryStore vs PostgresStore examples):
+  - [Deep Agents Long-term memory](%5Bhttps://docs.langchain.com/oss/python/deepagents/long-term-memory%5D(https://docs.langchain.com/oss/python/deepagents/long-term-memory))
+- API reference for direct SDK usage (function/class signatures you can call from code):
+  - [Deepagents API reference](%5Bhttps://reference.langchain.com/python/deepagents/%5D(https://reference.langchain.com/python/deepagents/))
+
+Why these pages:
+
+- The Deep Agents pages explain the middleware components (TodoList, Filesystem, SubAgent), how middleware composes, and the expected backend routing for `/memories/`.
+- The LangGraph persistence docs explain the checkpointer and store concepts (InMemorySaver / MemorySaver, Postgres/SQLite savers), which you’ll need when migrating from dev in-memory to production persistence.
+- The reference docs give exact class/function signatures so you can ensure your wrapper/backends present the interface the SDK expects.
+
+Relevant docs:
+
+- [Deep Agents overview](%5Bhttps://docs.langchain.com/oss/python/deepagents/overview%5D(https://docs.langchain.com/oss/python/deepagents/overview))
+- [Deep Agents Middleware](%5Bhttps://docs.langchain.com/oss/python/deepagents/middleware%5D(https://docs.langchain.com/oss/python/deepagents/middleware))
+- [Customize Deep Agents](%5Bhttps://docs.langchain.com/oss/python/deepagents/customization%5D(https://docs.langchain.com/oss/python/deepagents/customization))
+- [Deep Agents Long-term memory](%5Bhttps://docs.langchain.com/oss/python/deepagents/long-term-memory%5D(https://docs.langchain.com/oss/python/deepagents/long-term-memory))
 - [Deep Agents Backends](%5Bhttps://docs.langchain.com/oss/python/deepagents/backends%5D(https://docs.langchain.com/oss/python/deepagents/backends))
+- [LangGraph Persistence (checkpointer & stores)](%5Bhttps://docs.langchain.com/oss/python/langgraph/persistence%5D(https://docs.langchain.com/oss/python/langgraph/persistence))
+- [Deepagents API reference](%5Bhttps://reference.langchain.com/python/deepagents/%5D(https://reference.langchain.com/python/deepagents/))
