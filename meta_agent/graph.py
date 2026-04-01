@@ -27,7 +27,6 @@ from pathlib import Path
 from typing import Any
 
 from deepagents import create_deep_agent
-from deepagents.backends import FilesystemBackend as SdkFilesystemBackend
 from deepagents.middleware.summarization import (
     create_summarization_tool_middleware,
 )
