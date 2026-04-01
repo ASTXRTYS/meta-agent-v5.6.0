@@ -72,7 +72,7 @@ v5.6.0-P Changelog (Polly Review Round — System Prompt Revision, Eval Suite, V
 
 [v5.6-P] This version incorporates detailed feedback from Polly (LangChain agent engineering assistant) on the orchestrator/PM agent design. Key themes: stage-aware prompt composition, V1 simplification to Binary + Likert only, explicit PM reasoning protocol, full eval approval branches, and a 22-eval orchestrator eval suite. Changes are marked with [v5.6-P] throughout.
 
-[v5.6-P] P-C1 — Split monolithic EVAL_CREATION_PROTOCOL_SECTION into three sections: EVAL_MINDSET_SECTION (always loaded), SCORING_STRATEGY_SECTION (INTAKE/SPEC_REVIEW only), EVAL_APPROVAL_PROTOCOL (INTAKE/PRD_REVIEW/SPEC_REVIEW only). Updated Section Selection Matrix (7.2.5). Added stage-aware construct_orchestrator_prompt() with conditional section loading and token budget estimates.
+[v5.6-P] P-C1 — Split monolithic EVAL_CREATION_PROTOCOL_SECTION into three sections: EVAL_MINDSET_SECTION (always loaded), SCORING_STRATEGY_SECTION (INTAKE/SPEC_REVIEW only), EVAL_APPROVAL_PROTOCOL (INTAKE/PRD_REVIEW/SPEC_REVIEW only). Updated Section Selection Matrix (7.2.5). Added stage-aware construct_pm_prompt() with conditional section loading and token budget estimates.
 
 [v5.6-P] P-C2 — Full replacement of Section 7.3 with Polly's revised orchestrator system prompt. PM identity front-and-center in ROLE_SECTION. "No Premature PRD Writing" as explicit behavioral rule. Explicit <pm_reasoning> blocks for scoring decisions. Stage-specific context blocks for all 8 stages. Full EVAL_APPROVAL_PROTOCOL with 7 user response branches. SCORING_STRATEGY_SECTION with Binary + Likert only (V1). Token budget estimates per stage.
 
@@ -100,7 +100,7 @@ v5.6.0-R Changelog (Research Eval Hardening Alignment)
 
 v5.6.1 Changelog (Research-Agent PRD Alignment)
 
-This version aligns the specification with the enhanced research-agent PRD (`workspace/projects/meta-agent/artifacts/intake/research-agent-prd.md`), which defines significantly richer research-agent behavior than previously captured. The 38-eval research evaluation suite (`eval-suite-prd.json`) and synthetic calibration dataset were already aligned with the PRD; this changelog brings the spec and development plan into alignment. Changes are marked with [v5.6.1] throughout.
+This version aligns the specification with the enhanced research-agent PRD (`.agents/pm/projects/meta-agent/artifacts/intake/research-agent-prd.md`), which defines significantly richer research-agent behavior than previously captured. The 38-eval research evaluation suite (`eval-suite-prd.json`) and synthetic calibration dataset were already aligned with the PRD; this changelog brings the spec and development plan into alignment. Changes are marked with [v5.6.1] throughout.
 
 [v5.6.1] C1 — Section 6.1 (research-agent) rewritten to adopt the full research-agent PRD design. Incorporates: PRD decomposition as persisted artifact, skills-first research posture, intentional sub-agent topology reasoning, gap & contradiction remediation, configurable SME tracking via Twitter/X handles, HITL research clusters before deep-dive verification, spec-writer feedback loop, and 5 required output artifacts.
 
@@ -145,7 +145,7 @@ The PLANNING stage produces a development lifecycle plan that explicitly include
 
 v5.4 introduces internal reflection loops for the research-agent, spec-writer-agent, and plan-writer-agent, ensuring each agent self-verifies its output against upstream requirements before submission. Additionally, the code-agent now implements a context engineering strategy for managing large plans and specifications, and follows an iterative development protocol (implement → test → observe → confirm → continue) using the LangGraph dev server and LangSmith CLI.
 
-All development occurs locally. The agent runs on the LangGraph dev server (port 2024), artifacts appear on disk under ./workspace/projects/{project_id}/artifacts/, and LangGraph Studio provides real-time graph visualization. LangSmith provides tracing and evaluation infrastructure. No cloud deployment is required for v1.
+All development occurs locally. The agent runs on the LangGraph dev server (port 2024), artifacts appear on disk under ..agents/pm/projects/{project_id}/artifacts/, and LangGraph Studio provides real-time graph visualization. LangSmith provides tracing and evaluation infrastructure. No cloud deployment is required for v1.
 
 This specification covers 22 sections addressing every content requirement defined in the PRD (lines 182-202): selected architecture and rationale, runtime and package decisions, concrete state model, artifact schemas, prompt strategy, complete system prompts, tool descriptions and contracts, human review flows, API contracts, environment variables, local development workflow, testing strategy, evaluation strategy, audit strategy, error handling, observability, safety and guardrails, and known risks with mitigations. The appendix provides an implementation file reference sufficient to guide development.
 
@@ -210,7 +210,7 @@ ToolErrorMiddleware — Wraps all tool calls in try/except. Converts unhandled e
 
 CompletionGuardMiddleware — An @after_model middleware that prevents premature session termination. If the model returns a response with no tool calls and no text content, the middleware injects a nudge message: "No tool was called. Please continue with the task, ensuring you call at least one tool in every turn unless you are certain the task is complete." If the model returns text but no tool calls (potential premature completion), the middleware injects a confirmation check: "You did not call a tool, which would end the task. If the task is truly complete, confirm by calling write_file to update the progress log. Otherwise, continue working." Required on execution-phase agents: code-agent, test-agent, and observation-agent.
 
-[v5.6-P] DynamicSystemPromptMiddleware — A @before_model middleware that dynamically recomposes the orchestrator's system prompt based on the current stage in graph state. On every LLM call, it reads `current_stage` from the graph state, calls `construct_orchestrator_prompt(stage, project_dir, project_id, agents_md_content)`, and replaces the SystemMessage in the messages list with the stage-appropriate prompt. This is what makes stage-aware prompt composition work at runtime — without it, the system prompt would be static from agent creation time. Required on the orchestrator ONLY (subagents have static prompts). MUST be ordered BEFORE AnthropicPromptCachingMiddleware in the middleware stack so cache breakpoints are set on the final composed prompt.
+[v5.6-P] DynamicSystemPromptMiddleware — A @before_model middleware that dynamically recomposes the orchestrator's system prompt based on the current stage in graph state. On every LLM call, it reads `current_stage` from the graph state, calls `construct_pm_prompt(stage, project_dir, project_id, agents_md_content)`, and replaces the SystemMessage in the messages list with the stage-appropriate prompt. This is what makes stage-aware prompt composition work at runtime — without it, the system prompt would be static from agent creation time. Required on the orchestrator ONLY (subagents have static prompts). MUST be ordered BEFORE AnthropicPromptCachingMiddleware in the middleware stack so cache breakpoints are set on the final composed prompt.
 
 These middleware are defined in:
 
@@ -248,9 +248,9 @@ The meta-agent operates as a state machine with ten stages. Each stage has defin
 
 | Entry Conditions | User initiates a new conversation with a product idea, workflow description, or agent need. This is the default starting stage for new threads. |
 | --- | --- |
-| Exit Conditions / Acceptance Criteria | [v5.6] A complete PRD artifact has been drafted and written to /workspace/projects/{project_id}/artifacts/intake/prd.md by the orchestrator directly (the orchestrator writes the PRD itself — it does NOT delegate PRD authoring to a subagent). After the PRD is written, the orchestrator creates a Tier 1 eval suite (`eval-suite-prd.json`) proposing evals with appropriate scoring strategies for each requirement. After both artifacts are written and before user review, the orchestrator delegates to the document-renderer sub-agent to produce formatted DOCX and PDF versions of the PRD. The orchestrator then transitions to PRD_REVIEW. |
+| Exit Conditions / Acceptance Criteria | [v5.6] A complete PRD artifact has been drafted and written to .agents/pm/projects/{project_id}/artifacts/intake/prd.md by the orchestrator directly (the orchestrator writes the PRD itself — it does NOT delegate PRD authoring to a subagent). After the PRD is written, the orchestrator creates a Tier 1 eval suite (`eval-suite-prd.json`) proposing evals with appropriate scoring strategies for each requirement. After both artifacts are written and before user review, the orchestrator delegates to the document-renderer sub-agent to produce formatted DOCX and PDF versions of the PRD. The orchestrator then transitions to PRD_REVIEW. |
 | Artifacts Consumed (Input) | User messages (natural language requirements) |
-| Artifacts Produced (Output) | [v5.6] Draft PRD artifact (/workspace/projects/{project_id}/artifacts/intake/prd.md), Tier 1 eval suite (/workspace/projects/{project_id}/evals/eval-suite-prd.json) |
+| Artifacts Produced (Output) | [v5.6] Draft PRD artifact (.agents/pm/projects/{project_id}/artifacts/intake/prd.md), Tier 1 eval suite (.agents/pm/projects/{project_id}/evals/eval-suite-prd.json) |
 | Human Review Checkpoints | None required at this stage — the PRD_REVIEW stage handles approval. |
 | Tools Available | [v5.6] write_file, record_decision, record_assumption, transition_stage, propose_evals |
 
@@ -259,12 +259,12 @@ The meta-agent operates as a state machine with ten stages. Each stage has defin
 
 ### 3.1.1 Multi-Project Artifact Isolation
 
-When the user initiates a new agent project, the orchestrator creates a project-scoped directory structure under /workspace/projects/{project_id}/. The project_id is derived from the project name (slugified). All artifact paths within a project are scoped to its directory, preventing cross-contamination between concurrent projects. Project metadata (meta.yaml) tracks the project name, creation time, current stage, and description. Thread IDs are prefixed with the project ID (project-{project_id}-{session_id}), ensuring checkpointed state and time-travel debugging are scoped per project.
+When the user initiates a new agent project, the orchestrator creates a project-scoped directory structure under .agents/pm/projects/{project_id}/. The project_id is derived from the project name (slugified). All artifact paths within a project are scoped to its directory, preventing cross-contamination between concurrent projects. Project metadata (meta.yaml) tracks the project name, creation time, current stage, and description. Thread IDs are prefixed with the project ID (project-{project_id}-{session_id}), ensuring checkpointed state and time-travel debugging are scoped per project.
 
 ## 3.2 PRD_REVIEW: Collaborative PRD Shaping
 
 
-| Entry Conditions | A draft PRD artifact exists at /workspace/projects/{project_id}/artifacts/intake/prd.md. |
+| Entry Conditions | A draft PRD artifact exists at .agents/pm/projects/{project_id}/artifacts/intake/prd.md. |
 | --- | --- |
 | Exit Conditions / Acceptance Criteria | [v5.6] User explicitly approves the PRD AND the Tier 1 eval suite (approval recorded in approval_history). The PRD is marked as final with approved_at in its YAML frontmatter. The eval suite is marked as approved in `eval-suite-prd.json`. |
 | Artifacts Consumed (Input) | [v5.6] Draft PRD artifact, Tier 1 eval suite (`eval-suite-prd.json`) |
@@ -276,11 +276,11 @@ When the user initiates a new agent project, the orchestrator creates a project-
 ## 3.3 RESEARCH: Deep Ecosystem Research
 
 
-| Entry Conditions | An approved PRD exists. The current_prd_path field is populated in state. An approved Tier 1 eval suite exists at /workspace/projects/{project_id}/evals/eval-suite-prd.json. |
+| Entry Conditions | An approved PRD exists. The current_prd_path field is populated in state. An approved Tier 1 eval suite exists at .agents/pm/projects/{project_id}/evals/eval-suite-prd.json. |
 | --- | --- |
-| Exit Conditions / Acceptance Criteria | [v5.6.1] A research bundle artifact has been produced that includes a PRD Coverage Matrix showing all PRD requirements as COVERED, verified by the research-agent's internal reflection loop (max 5 passes), confirmed by the verification-agent, and written to /workspace/projects/{project_id}/artifacts/research/research-bundle.md. A research decomposition file exists at artifacts/research/research-decomposition.md. Sub-agent findings exist under artifacts/research/sub-findings/. A HITL research cluster document exists at artifacts/research/research-clusters.md. The research-agent's `.agents/research-agent/AGENTS.md` has been updated with a research summary. Any PARTIAL or UNCOVERED items must be documented in the Unresolved Research Gaps section. |
+| Exit Conditions / Acceptance Criteria | [v5.6.1] A research bundle artifact has been produced that includes a PRD Coverage Matrix showing all PRD requirements as COVERED, verified by the research-agent's internal reflection loop (max 5 passes), confirmed by the verification-agent, and written to .agents/pm/projects/{project_id}/artifacts/research/research-bundle.md. A research decomposition file exists at artifacts/research/research-decomposition.md. Sub-agent findings exist under artifacts/research/sub-findings/. A HITL research cluster document exists at artifacts/research/research-clusters.md. The research-agent's `.agents/research-agent/AGENTS.md` has been updated with a research summary. Any PARTIAL or UNCOVERED items must be documented in the Unresolved Research Gaps section. |
 | Artifacts Consumed (Input) | [v5.6.1] Approved PRD artifact, Tier 1 eval suite (eval-suite-prd.json) |
-| Artifacts Produced (Output) | [v5.6.1] Research decomposition (/workspace/projects/{project_id}/artifacts/research/research-decomposition.md), Sub-agent findings (/workspace/projects/{project_id}/artifacts/research/sub-findings/*.md), HITL research clusters (/workspace/projects/{project_id}/artifacts/research/research-clusters.md), Research bundle (/workspace/projects/{project_id}/artifacts/research/research-bundle.md), Updated agent memory (.agents/research-agent/AGENTS.md) |
+| Artifacts Produced (Output) | [v5.6.1] Research decomposition (.agents/pm/projects/{project_id}/artifacts/research/research-decomposition.md), Sub-agent findings (.agents/pm/projects/{project_id}/artifacts/research/sub-findings/*.md), HITL research clusters (.agents/pm/projects/{project_id}/artifacts/research/research-clusters.md), Research bundle (.agents/pm/projects/{project_id}/artifacts/research/research-bundle.md), Updated agent memory (.agents/research-agent/AGENTS.md) |
 | Human Review Checkpoints | [v5.6.1] Two checkpoints: (1) HITL research clusters are presented to the user for approval before deep-dive verification — the user can approve all clusters, approve some, or redirect; (2) The final research bundle is presented for review before proceeding to specification. |
 | Tools Available | [v5.6.1] web_search (server-side), web_fetch (server-side), read_file, write_file, task (sub-agent delegation), glob, grep, record_decision, record_assumption, request_approval, transition_stage, compact_conversation |
 
@@ -304,7 +304,7 @@ When the user initiates a new agent project, the orchestrator creates a project-
 | --- | --- |
 | Exit Conditions / Acceptance Criteria | [v5.6] A complete technical specification artifact has been written that includes a PRD Traceability Matrix showing all PRD requirements as FULLY SPECIFIED, verified by the spec-writer-agent's internal self-verification loop, confirmed by the verification-agent against the PRD. The spec-writer also identifies architecture-introduced testable properties and proposes Tier 2 evals with appropriate scoring strategies, written to `eval-suite-architecture.json`. After the artifact is written, the orchestrator delegates to the document-renderer to produce formatted DOCX and PDF versions. |
 | Artifacts Consumed (Input) | Approved PRD, Research bundle, Tier 1 eval suite (`eval-suite-prd.json`) |
-| Artifacts Produced (Output) | [v5.6] Technical specification artifact (/workspace/projects/{project_id}/artifacts/spec/technical-specification.md), Tier 2 eval suite (/workspace/projects/{project_id}/evals/eval-suite-architecture.json) |
+| Artifacts Produced (Output) | [v5.6] Technical specification artifact (.agents/pm/projects/{project_id}/artifacts/spec/technical-specification.md), Tier 2 eval suite (.agents/pm/projects/{project_id}/evals/eval-suite-architecture.json) |
 | Human Review Checkpoints | In active_participation_mode: system prompts, tool contracts, and inter-agent contracts are presented for user approval before inclusion. Otherwise: standard review at SPEC_REVIEW. [v5.6] Architecture-introduced evals are presented for user review during SPEC_REVIEW. |
 | Tools Available | [v5.6] read_file, write_file, edit_file, record_decision, record_assumption, transition_stage, propose_evals |
 
@@ -330,7 +330,7 @@ When the user initiates a new agent project, the orchestrator creates a project-
 | --- | --- |
 | Exit Conditions / Acceptance Criteria | [v5.6] A complete implementation plan has been written that includes a Spec Coverage Matrix showing all specification sections are covered by plan tasks, verified by the plan-writer-agent's internal reflection loop, confirmed against both the specification and PRD. The plan explicitly includes observation phases, evaluation phases, and audit checkpoints. Every task has a unique ID, status field, spec references, and acceptance criteria. The plan-writer maps existing evals (Tier 1 + Tier 2) to development phases and defines phase gate thresholds, producing `eval-execution-map.json`. The plan-writer does NOT create new evals — it routes existing evals to phases. After the plan is written, the orchestrator delegates to the document-renderer to produce formatted DOCX and PDF versions. |
 | Artifacts Consumed (Input) | [v5.6] Approved specification, Approved PRD, Tier 1 eval suite (`eval-suite-prd.json`), Tier 2 eval suite (`eval-suite-architecture.json`) |
-| Artifacts Produced (Output) | [v5.6] Implementation plan artifact (/workspace/projects/{project_id}/artifacts/planning/implementation-plan.md), Eval execution map (/workspace/projects/{project_id}/evals/eval-execution-map.json) |
+| Artifacts Produced (Output) | [v5.6] Implementation plan artifact (.agents/pm/projects/{project_id}/artifacts/planning/implementation-plan.md), Eval execution map (.agents/pm/projects/{project_id}/evals/eval-execution-map.json) |
 | Human Review Checkpoints | In active_participation_mode: phase breakdown, observation/evaluation phase design, and acceptance gates are presented for user input. The plan-writer-agent explicitly asks the user which observation and evaluation strategies to include at each development phase. |
 | Tools Available | [v5.6] read_file, write_file, record_decision, record_assumption, transition_stage, langsmith_trace_list |
 
@@ -439,7 +439,7 @@ The EVALUATION stage is orchestrated through the code-agent. When the orchestrat
 | --- | --- |
 | Exit Conditions / Acceptance Criteria | A structured audit report has been produced with concrete findings and recommendations. After the audit report is written, the orchestrator delegates to the document-renderer to produce formatted DOCX and PDF versions. |
 | Artifacts Consumed (Input) | Agent source code, LangSmith traces (if available), Existing evaluation results (if available) |
-| Artifacts Produced (Output) | Audit report artifact (/workspace/projects/{project_id}/artifacts/audit/audit-report.md) |
+| Artifacts Produced (Output) | Audit report artifact (.agents/pm/projects/{project_id}/artifacts/audit/audit-report.md) |
 | Human Review Checkpoints | Audit findings are presented for review before finalization. |
 | Tools Available | read_file, glob, grep, langsmith_trace_list, langsmith_trace_get, write_file, record_decision, transition_stage |
 
@@ -543,7 +543,7 @@ LangGraph uses checkpointers to persist the state of graph execution after every
 
 ## 5.1 Storage Convention
 
-All artifacts are stored as Markdown files under /workspace/projects/{project_id}/artifacts/{stage}/{artifact_name}.md. [v5.6] Eval artifacts are stored as YAML files under /workspace/projects/{project_id}/evals/{artifact_name}.yaml. User-facing artifacts are produced in three formats: Markdown (canonical source), DOCX (professionally formatted), and optionally PDF (formatted). The document-renderer sub-agent automatically generates DOCX and PDF versions after each user-facing artifact is written.
+All artifacts are stored as Markdown files under .agents/pm/projects/{project_id}/artifacts/{stage}/{artifact_name}.md. [v5.6] Eval artifacts are stored as YAML files under .agents/pm/projects/{project_id}/evals/{artifact_name}.yaml. User-facing artifacts are produced in three formats: Markdown (canonical source), DOCX (professionally formatted), and optionally PDF (formatted). The document-renderer sub-agent automatically generates DOCX and PDF versions after each user-facing artifact is written.
 
 Every artifact includes YAML frontmatter for lineage tracking.
 
@@ -754,7 +754,7 @@ The meta-agent delegates specialized work to eight orchestrator-level subagents.
 
 Description:
 
-[v5.6.1] The research-agent is a specialized deep researcher that extends the PM agent's capabilities into the LangChain, LangGraph, Deep Agents, LangSmith, and Anthropic ecosystems. Given an approved PRD and its accompanying eval suite, the research-agent decomposes the PRD into research domains, consults pre-loaded skills as baseline domain guidance, delegates parallel web research to sub-agents, gathers perspectives from specified subject matter experts, conducts deep-dive verification of critical findings, and synthesizes everything into a structured research bundle with full citations. The research bundle is the canonical input to the spec-writer-agent. The full research-agent design is derived from the research-agent PRD (`workspace/projects/meta-agent/artifacts/intake/research-agent-prd.md`).
+[v5.6.1] The research-agent is a specialized deep researcher that extends the PM agent's capabilities into the LangChain, LangGraph, Deep Agents, LangSmith, and Anthropic ecosystems. Given an approved PRD and its accompanying eval suite, the research-agent decomposes the PRD into research domains, consults pre-loaded skills as baseline domain guidance, delegates parallel web research to sub-agents, gathers perspectives from specified subject matter experts, conducts deep-dive verification of critical findings, and synthesizes everything into a structured research bundle with full citations. The research bundle is the canonical input to the spec-writer-agent. The full research-agent design is derived from the research-agent PRD (`.agents/pm/projects/meta-agent/artifacts/intake/research-agent-prd.md`).
 
 [v5.6.1] The research-agent does NOT make architectural decisions — it reports capabilities, options, and tradeoffs for the spec-writer to decide. It does NOT modify the PRD or eval suite it receives. It does NOT interact directly with the end user for requirements gathering (that is the PM agent's responsibility). It does NOT conduct research outside the LangChain ecosystem and Anthropic model ecosystem unless the PRD explicitly requires it.
 
@@ -1107,7 +1107,7 @@ Each concern area is defined as a named string constant in meta_agent/prompts/se
 
 Each agent has a dedicated composition function in meta_agent/prompts/{agent_name}.py that assembles its system prompt from the relevant section constants:
 
-def construct_orchestrator_prompt(project_dir: str, current_stage: str, agents_md: str = "") -> str:
+def construct_pm_prompt(project_dir: str, current_stage: str, agents_md: str = "") -> str:
 
 """Assembles the orchestrator system prompt from section constants."""
 
@@ -1336,8 +1336,8 @@ You are in INTAKE — the requirements gathering and PRD authoring stage.
 **Entry condition:** User initiated a new conversation with a product idea.
 
 **Exit conditions (ALL required):**
-1. PRD artifact written to /workspace/projects/{project_id}/artifacts/intake/prd.md
-2. Eval suite written to /workspace/projects/{project_id}/evals/eval-suite-prd.json
+1. PRD artifact written to .agents/pm/projects/{project_id}/artifacts/intake/prd.md
+2. Eval suite written to .agents/pm/projects/{project_id}/evals/eval-suite-prd.json
 3. User has explicitly approved BOTH the PRD and the eval suite
 4. Document-renderer has produced DOCX/PDF versions
 
@@ -1677,7 +1677,7 @@ For V1, use two scoring strategies:
 - Assumption log: {project_dir}/logs/assumption-log.yaml
 - Approval history: {project_dir}/logs/approval-history.yaml
 
-**Your memory:** {project_dir}/.agents/orchestrator/AGENTS.md
+**Your memory:** {project_dir}/.agents/pm/AGENTS.md
 ```
 
 ---
@@ -1777,7 +1777,7 @@ When an interrupt fires, you pause completely. Do not continue until the user re
 ```
 ## Memory Protocol
 
-Your memory file: {project_dir}/.agents/orchestrator/AGENTS.md
+Your memory file: {project_dir}/.agents/pm/AGENTS.md
 
 **Write to your memory at these points:**
 - After user approves PRD: Record key requirements and decisions
@@ -1810,7 +1810,7 @@ Your memory file: {project_dir}/.agents/orchestrator/AGENTS.md
 ## Prompt Composition Function
 
 ```python
-def construct_orchestrator_prompt(
+def construct_pm_prompt(
     stage: str,
     project_dir: str,
     project_id: str,
@@ -2470,8 +2470,8 @@ Following the enterprise-deep-research pattern, all environment variables and fe
 
 ```
 .agents/                              # Global agent memory root
-├── orchestrator/
-│   └── AGENTS.md                     # Orchestrator/PM agent's global memory
+├── pm/
+│   └── AGENTS.md                     # PM agent's global memory
 ├── research-agent/
 │   └── AGENTS.md                     # Research agent's global memory
 ├── spec-writer/
@@ -2487,9 +2487,9 @@ Following the enterprise-deep-research pattern, all environment variables and fe
 └── document-renderer/
     └── AGENTS.md                     # Document renderer's global memory
 
-workspace/projects/{project_id}/
+.agents/pm/projects/{project_id}/
 ├── .agents/                          # Project-specific agent memory
-│   ├── orchestrator/
+│   ├── pm/
 │   │   └── AGENTS.md                 # PM's memory for THIS project
 │   ├── research-agent/
 │   │   └── AGENTS.md
@@ -2515,7 +2515,7 @@ workspace/projects/{project_id}/
 
 | Agent | Receives | Does NOT Receive |
 |-------|----------|--------------------|
-| orchestrator | `.agents/orchestrator/AGENTS.md` + `{project}/.agents/orchestrator/AGENTS.md` | Any other agent's AGENTS.md |
+| pm | `.agents/pm/AGENTS.md` + `{project}/.agents/pm/AGENTS.md` | Any other agent's AGENTS.md |
 | research-agent | `.agents/research-agent/AGENTS.md` + `{project}/.agents/research-agent/AGENTS.md` | Any other agent's AGENTS.md |
 | spec-writer | `.agents/spec-writer/AGENTS.md` + `{project}/.agents/spec-writer/AGENTS.md` | Any other agent's AGENTS.md |
 | plan-writer | `.agents/plan-writer/AGENTS.md` + `{project}/.agents/plan-writer/AGENTS.md` | Any other agent's AGENTS.md |
@@ -2538,7 +2538,7 @@ def load_agent_memory(agent_name: str, project_id: str) -> str:
     global_memory = read_file(global_path) if file_exists(global_path) else ""
     
     # Step 2: Load project-specific AGENTS.md
-    project_path = f"workspace/projects/{project_id}/.agents/{agent_name}/AGENTS.md"
+    project_path = f".agents/pm/projects/{project_id}/.agents/{agent_name}/AGENTS.md"
     project_memory = read_file(project_path) if file_exists(project_path) else ""
     
     # Step 3: Merge — global first, project-specific second
@@ -3051,7 +3051,7 @@ def eval_infra_001_project_directory_structure(project_dir: str) -> dict:
         f"{project_dir}/artifacts/planning/",
         f"{project_dir}/evals/",
         f"{project_dir}/logs/",
-        f"{project_dir}/.agents/orchestrator/",
+        f"{project_dir}/.agents/pm/",
     ]
     missing = [d for d in required_dirs if not os.path.isdir(d)]
     return {
@@ -3185,7 +3185,7 @@ def eval_infra_007_agents_md_created(project_dir: str) -> dict:
     Priority: P0 (every build)
     Scoring: Binary pass/fail
     """
-    agents_md_path = f"{project_dir}/.agents/orchestrator/AGENTS.md"
+    agents_md_path = f"{project_dir}/.agents/pm/AGENTS.md"
     exists = os.path.isfile(agents_md_path)
     return {
         "pass": exists,
@@ -4013,7 +4013,7 @@ This section explicitly addresses every item from the PRD's Stakeholder Design I
 
 | Intent | Status | Implementation |
 | --- | --- | --- |
-| Artifact-Driven Communication | ADOPTED | All inter-stage communication flows through Markdown files on disk under /workspace/projects/{project_id}/artifacts/. |
+| Artifact-Driven Communication | ADOPTED | All inter-stage communication flows through Markdown files on disk under .agents/pm/projects/{project_id}/artifacts/. |
 | Collaborative PRD Shaping | ADOPTED | The PRD_REVIEW stage explicitly asks the user: approve, revise, or expand. |
 | Deep Research Posture | ADOPTED | Multi-pass research (breadth, depth, synthesis) with verification-agent cross-check. v5.4: Internal reflection loop with PRD coverage matrix. |
 | Configurable User Participation | ADOPTED | The active_participation_mode toggle controls HITL surface area. |
@@ -4055,7 +4055,7 @@ Defines the complete state TypedDict, workflow stage enum, valid transitions, an
 
 Defines all subagent specifications for the SubAgentMiddleware. v5.3 changes: code-agent is now a Deep Agent with subagents list. v5.4 changes: code-agent tools updated with langgraph_dev_server and langsmith_cli.
 
-[v5.6-R] `configs.py` must also export a builder function (`build_orchestrator_subagents()`) that converts the metadata configs into SDK-compatible `SubAgent` TypedDicts (required: `name`, `description`, `system_prompt`; optional: `tools`, `middleware`, `skills`). The builder resolves middleware string names to instances, composes system prompts via per-agent prompt functions, and resolves skill directory paths. `graph.py` passes the result as `subagents=` to `create_deep_agent()`.
+[v5.6-R] `configs.py` must also export a builder function (`build_pm_subagents()`) that converts the metadata configs into SDK-compatible `SubAgent` TypedDicts (required: `name`, `description`, `system_prompt`; optional: `tools`, `middleware`, `skills`). The builder resolves middleware string names to instances, composes system prompts via per-agent prompt functions, and resolves skill directory paths. `graph.py` passes the result as `subagents=` to `create_deep_agent()`.
 
 ## 22.4 meta_agent/graph.py
 
@@ -4107,11 +4107,11 @@ Updated langgraph.json with dynamic get_agent factory (see Section 13.2).
 
 1. Reads `current_stage` from `input["state"]`
 2. Reads the orchestrator's project-specific AGENTS.md (with caching to avoid per-call file I/O)
-3. Calls `construct_orchestrator_prompt(stage, project_dir, project_id, agents_md_content)`
+3. Calls `construct_pm_prompt(stage, project_dir, project_id, agents_md_content)`
 4. Replaces or prepends the SystemMessage in `input["messages"]`
 5. Returns the modified input
 
-The middleware is instantiated with `project_dir` and `project_id` at agent creation time (in server.py/graph.py). The `prompt_builder` parameter accepts the `construct_orchestrator_prompt` function.
+The middleware is instantiated with `project_dir` and `project_id` at agent creation time (in server.py/graph.py). The `prompt_builder` parameter accepts the `construct_pm_prompt` function.
 
 ```python
 class DynamicSystemPromptMiddleware:
@@ -4162,9 +4162,9 @@ Ordering: MUST be first in the explicit middleware list, before AnthropicPromptC
 
 [v5.6-R] A fourth eval-specific section has been added: `meta_agent/prompts/eval_engineering.py` containing `EVAL_ENGINEERING_SECTION`. This section is always loaded for the orchestrator and provides structured guidance on eval taxonomy (5 categories: Infrastructure, Behavioral, Quality, Reasoning, Integration), scoring strategies with mandatory Likert anchor SOP, LangSmith-compatible JSON dataset format (inputs/outputs/metadata), synthetic data curation protocol, eval suite artifact schema, and dataset writing format. Source: Polly assessment (LangSmith trace `019d2a1c-bdf9-7a01-b683-8278e3345d6d`).
 
-## 22.16 meta_agent/prompts/orchestrator.py
+## 22.16 meta_agent/prompts/pm.py
 
-[v5.5.4] Implements construct_orchestrator_prompt() as documented in Section 7.2.2. [v5.6-P] Updated with stage-aware composition: EVAL_MINDSET_SECTION always loaded, SCORING_STRATEGY_SECTION loaded during INTAKE/SPEC_REVIEW, EVAL_APPROVAL_PROTOCOL loaded during INTAKE/PRD_REVIEW/SPEC_REVIEW, DELEGATION_SECTION loaded during RESEARCH/SPEC_GENERATION/PLANNING/EXECUTION. See Section 7.3 for the full composition function. [v5.6-R] `EVAL_ENGINEERING_SECTION` is now also always loaded, positioned after `EVAL_MINDSET_SECTION`. The INTAKE `STAGE_CONTEXTS` entry has been enhanced with a 5-phase protocol (Requirements Elicitation, PRD Drafting, Eval Definition, Synthetic Data Curation, Approval) and 3 exit artifacts (PRD + eval suite JSON + synthetic dataset). The `ROLE_SECTION` now elevates eval engineering as a named core PM skill.
+[v5.5.4] Implements construct_pm_prompt() as documented in Section 7.2.2. [v5.6-P] Updated with stage-aware composition: EVAL_MINDSET_SECTION always loaded, SCORING_STRATEGY_SECTION loaded during INTAKE/SPEC_REVIEW, EVAL_APPROVAL_PROTOCOL loaded during INTAKE/PRD_REVIEW/SPEC_REVIEW, DELEGATION_SECTION loaded during RESEARCH/SPEC_GENERATION/PLANNING/EXECUTION. See Section 7.3 for the full composition function. [v5.6-R] `EVAL_ENGINEERING_SECTION` is now also always loaded, positioned after `EVAL_MINDSET_SECTION`. The INTAKE `STAGE_CONTEXTS` entry has been enhanced with a 5-phase protocol (Requirements Elicitation, PRD Drafting, Eval Definition, Synthetic Data Curation, Approval) and 3 exit artifacts (PRD + eval suite JSON + synthetic dataset). The `ROLE_SECTION` now elevates eval engineering as a named core PM skill.
 
 ## 22.17 meta_agent/tools/eval_tools.py [v5.6]
 
