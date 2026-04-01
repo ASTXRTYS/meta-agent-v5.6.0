@@ -23,6 +23,7 @@ from typing import Any, Mapping
 from deepagents import create_deep_agent
 from deepagents.middleware.memory import MemoryMiddleware
 from deepagents.middleware.skills import SkillsMiddleware
+from deepagents.middleware.subagents import CompiledSubAgent
 from langchain_core.runnables import RunnableLambda
 
 from meta_agent.backend import (
@@ -243,24 +244,20 @@ def create_verification_agent_subagent(
     project_dir: str,
     project_id: str,
     skills_dirs: list[str] | None = None,
-) -> dict[str, Any]:
-    """Return an SDK-compatible dict for the orchestrator.
-
-    Matches the CompiledSubAgent shape expected by
-    ``create_deep_agent(subagents=...)``.
-    """
-    return {
-        "name": "verification-agent",
-        "description": (
+) -> CompiledSubAgent:
+    """Return a CompiledSubAgent for the orchestrator."""
+    return CompiledSubAgent(
+        name="verification-agent",
+        description=(
             "Artifact verifier. Cross-checks produced artifacts against their "
             "source requirements to confirm completeness before user review."
         ),
-        "runnable": create_verification_agent_runnable(
+        runnable=create_verification_agent_runnable(
             project_dir=project_dir,
             project_id=project_id,
             skills_dirs=skills_dirs,
         ),
-    }
+    )
 
 
 # ---------------------------------------------------------------------------

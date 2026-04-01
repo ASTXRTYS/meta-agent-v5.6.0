@@ -15,6 +15,7 @@ from typing import Any, Iterable, Mapping
 from deepagents import create_deep_agent
 from deepagents.middleware.memory import MemoryMiddleware
 from deepagents.middleware.skills import SkillsMiddleware
+from deepagents.middleware.subagents import CompiledSubAgent
 from deepagents.middleware.summarization import (
     create_summarization_tool_middleware,
 )
@@ -645,20 +646,20 @@ def create_research_agent_subagent(
     project_dir: str,
     project_id: str,
     skills_dirs: list[str] | None = None,
-) -> dict[str, Any]:
-    """Return a CompiledSubAgent-compatible dict for the orchestrator."""
-    return {
-        "name": "research-agent",
-        "description": (
+) -> CompiledSubAgent:
+    """Return a CompiledSubAgent for the orchestrator."""
+    return CompiledSubAgent(
+        name="research-agent",
+        description=(
             "Deep ecosystem researcher. Performs multi-pass research, parallel delegation, "
             "HITL deep-dive verification, and produces the canonical research bundle."
         ),
-        "runnable": create_research_agent_runnable(
+        runnable=create_research_agent_runnable(
             project_dir=project_dir,
             project_id=project_id,
             skills_dirs=skills_dirs,
         ),
-    }
+    )
 
 
 def run_research_agent_live(inputs: dict[str, Any]) -> dict[str, Any]:

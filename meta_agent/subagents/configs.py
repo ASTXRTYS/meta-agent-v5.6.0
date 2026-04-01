@@ -14,6 +14,8 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
+from deepagents.middleware.subagents import CompiledSubAgent, SubAgent
+
 
 # Explicit middleware only. Deep Agents auto-attach TodoList, Filesystem,
 # SubAgent, Summarization, prompt caching, and patch-call middleware.
@@ -233,7 +235,7 @@ def build_pm_subagents(
     project_dir: str = "",
     project_id: str = "",
     skills_dirs: list[str] | None = None,
-) -> list[dict[str, Any]]:
+) -> list[SubAgent | CompiledSubAgent]:
     """Build SDK-compatible SubAgent dicts for create_deep_agent(subagents=...).
 
     Each subagent gets:
@@ -312,7 +314,7 @@ def build_pm_subagents(
         (d for d in (skills_dirs or []) if "anthropic" in d), None
     )
 
-    subagents: list[dict[str, Any]] = []
+    subagents: list[SubAgent | CompiledSubAgent] = []
 
     for agent_name in [
         "research-agent", "spec-writer", "plan-writer", "code-agent",
