@@ -125,7 +125,7 @@ def _resolve_project_dir(state: dict[str, Any]) -> str:
     project_id = str(state.get("project_id") or "").strip()
     repo_root = Path(__file__).resolve().parents[2]
     if project_id:
-        return str(repo_root / "workspace" / "projects" / project_id)
+        return str(repo_root / ".agents" / "pm" / "projects" / project_id)
     return str(repo_root)
 
 
@@ -881,7 +881,7 @@ def toggle_participation_tool(
 @tool
 def execute_command_tool(
     command: str,
-    working_dir: str = "/workspace/",
+    working_dir: str = ".",
     *,
     tool_call_id: Annotated[str, InjectedToolCallId],
     state: Annotated[dict[str, Any] | None, InjectedState] = None,
