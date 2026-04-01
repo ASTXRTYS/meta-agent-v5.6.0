@@ -489,15 +489,45 @@ These execution tracking fields (v5.4) allow the orchestrator and the coding age
 
 ## 4.2 CompositeBackend Design
 
-Deep Agents supports a CompositeBackend that routes file operations to different storage backends based on path prefix. This gives us three storage tiers:
+[v5.6.1] Deep Agents SDK provides a CompositeBackend that routes file operations to different storage backends based on longest path prefix match. The backend parameter to create_deep_agent() accepts a factory lambda that receives the runtime context, enabling backends like StateBackend and StoreBackend to access thread-scoped state and cross-session stores respectively.
 
+The meta-agent uses four storage routes:
 
-| Path Prefix | Backend | Behavior | Use Case |
+| Route Prefix | SDK Backend | Persistence | Use Case |
 | --- | --- | --- | --- |
-| /workspace/ | FilesystemBackend | Maps to real disk. Files are durable, inspectable, versionable via git. | All artifacts, decision logs, assumption logs |
-| /memories/ | StoreBackend | Uses LangGraph's Store abstraction. Persists across sessions. | User preferences, cross-session context |
-| (default) | StateBackend | Ephemeral data tied to the current thread. | Intermediate computations, scratch notes |
+| (default) | FilesystemBackend(root_dir=repo_root, virtual_mode=True) | Durable on disk | Project files, artifacts (PRD, research bundle, spec), skills, .agents/ directory. All artifacts are inspectable, versionable via git. |
+| /memories/ | StoreBackend(rt) | Cross-session via LangGraph Store | User preferences, learned conventions, cross-thread persistent memory |
+| /large_tool_results/ | StateBackend(rt) | Thread-scoped ephemeral | Large tool output offloading to avoid bloating graph state |
+| /conversation_history/ | StateBackend(rt) | Thread-scoped ephemeral | Conversation history offloading for SummarizationToolMiddleware context compaction |
 
+[v5.6.1] Instantiation pattern (using SDK-native imports):
+
+```python
+from deepagents import create_deep_agent
+from deepagents.backends import CompositeBackend, FilesystemBackend, StateBackend, StoreBackend
+from langgraph.store.memory import InMemoryStore
+
+store = InMemoryStore()
+
+composite_backend = lambda rt: CompositeBackend(
+    default=FilesystemBackend(root_dir=str(repo_root), virtual_mode=True),
+    routes={
+        "/memories/": StoreBackend(rt),
+        "/large_tool_results/": StateBackend(rt),
+        "/conversation_history/": StateBackend(rt),
+    }
+)
+
+agent = create_deep_agent(
+    backend=composite_backend,
+    store=store,
+    ...
+)
+```
+
+[v5.6.1] IMPORTANT: The CompositeBackend is passed to create_deep_agent() as the backend parameter. The SDK auto-attaches FilesystemMiddleware which provides the agent with ls, read_file, write_file, edit_file, glob, and grep tools. These tools call the BackendProtocol methods (ls_info, read, write, edit, grep_raw, glob_info) on the CompositeBackend, which routes to the appropriate sub-backend by path prefix.
+
+[v5.6.1] Middleware-specific backends: MemoryMiddleware and SkillsMiddleware each receive their own bare FilesystemBackend() (no root_dir, no virtual_mode) so they can read AGENTS.md and SKILL.md files from absolute disk paths. This is separate from the agent's main CompositeBackend. The production deepagents-cli uses this same pattern.
 
 [v5.5.3] V1 Limitation: The V1 prototype uses InMemoryStore for the /memories/ StoreBackend tier. This means all cross-session memory data is lost when the LangGraph dev server process restarts. This is acceptable for development and testing but must be replaced with PostgresStore (or an equivalent persistent store) before any production or extended-session usage. The migration path is straightforward: replace InMemoryStore() with PostgresStore(connection_string='postgresql://...') in graph.py. No other code changes are required.
 

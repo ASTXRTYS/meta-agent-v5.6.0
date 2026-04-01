@@ -51,7 +51,7 @@ This document is the authoritative development plan for the local-first meta-age
 | **Phase 0** | ✅ COMPLETE | 100% | State model, middleware scaffold, eval infrastructure | - |
 | **Phase 1** | ✅ COMPLETE | 100% | Real Deep Agents SDK integration, orchestrator graph, 14+ tools | - |
 | **Phase 2** | ✅ COMPLETE | 100% | INTAKE/PRD_REVIEW stages, HITL integration, 23 evals passing | - |
-| **Phase 3** | 🔄 IN PROGRESS | ~75% | Research eval stack (38 evals), stage validators, prompts, runtime agents (research/verification/spec-writer), Phase 3 gate evals (7), eval run function | End-to-end stage wiring validation, live experiment run |
+| **Phase 3** | 🔄 IN PROGRESS | ~80% | Research eval stack (38 evals), stage validators, prompts, runtime agents (research/verification/spec-writer), Phase 3 gate evals (7), eval run function, CompositeBackend architecture fix | End-to-end stage wiring validation, live experiment run |
 | **Phase 4** | ⏸️ NOT STARTED | 0% | - | Complete Phase 3 |
 | **Phase 5** | ⏸️ NOT STARTED | 0% | - | Complete Phase 4 |
 
@@ -70,7 +70,7 @@ This document is the authoritative development plan for the local-first meta-age
 - ✅ All 3 runtimes wired into orchestrator via configs.py
 - ✅ Phase 3 gate evals implemented (7 Layer 1 evals)
 - ✅ Eval run function bridge for langsmith.evaluate() with checkpoint mapping
-- ✅ 478 unit tests passing
+- ✅ 471 unit tests passing (SDK middleware integration validated with deepagents==0.4.12)
 
 **Remaining Work:**
 - ⏳ End-to-end live experiment run (requires API keys)
@@ -310,7 +310,7 @@ Phase 0 establishes the repository structure, core state model, configuration, p
   - `https://github.com/langchain-ai/langsmith-skills` â†’ `skills/langsmith/`
   - `https://github.com/anthropics/skills` â†’ `skills/anthropic/`
 
-- **[v5.6-R] Skill path resolution note:** After cloning, the actual SKILL.md files are nested at different depths within each repo. `SkillsMiddleware` scans one level deep from each provided path, so the `skills=[]` parameter must point to the directory that directly contains skill subdirectories (each with a SKILL.md), not the top-level clone directory. The resolved paths are:
+- **[v5.6-R] Skill path resolution note:** After cloning, the actual SKILL.md files are nested at different depths within each repo. `SkillsMiddleware` scans one level deep from each provided path, so the `sources=[]` parameter must point to the directory that directly contains skill subdirectories (each with a SKILL.md), not the top-level clone directory. [v5.6.1] SkillsMiddleware is now instantiated explicitly in the middleware list with `bare_fs` (FilesystemBackend with virtual_mode=False) for absolute path resolution. The `skills=` parameter to create_deep_agent() is no longer used. The resolved paths are:
   - `skills/langchain/config/skills/` (11 skills)
   - `skills/langsmith/config/skills/` (3 skills)
   - `skills/anthropic/skills/` (17 skills)
@@ -430,16 +430,21 @@ Phase 0 establishes the repository structure, core state model, configuration, p
 
 **Tasks:**
 
-- Implement CompositeBackend per Section 4.2 routing:
-  - `/workspace/` â†’ `FilesystemBackend` (maps to real disk)
-  - `/memories/` â†’ `StoreBackend` (uses `InMemoryStore` for V1)
-  - Default â†’ `StateBackend` (ephemeral, tied to current thread)
+- [x] Implement CompositeBackend per Section 4.2 routing (SDK-native, updated 2026-03-31):
+  - (default) → `FilesystemBackend(root_dir=repo_root, virtual_mode=True)` — real disk, all artifacts and project files
+  - `/memories/` → `StoreBackend(rt)` — cross-session persistent via LangGraph Store (uses `InMemoryStore` for V1)
+  - `/large_tool_results/` → `StateBackend(rt)` — thread-scoped ephemeral, large tool output offloading
+  - `/conversation_history/` → `StateBackend(rt)` — thread-scoped ephemeral, SummarizationToolMiddleware offloading
+  - Implementation: `create_composite_backend(repo_root)` factory in `meta_agent/backend.py`
+  - Bare `FilesystemBackend(virtual_mode=False)` for MemoryMiddleware + SkillsMiddleware (absolute path access)
 
-- Implement checkpointer strategy per Section 4.3:
-  - Development: `InMemorySaver` (zero-configuration)
+- [x] Implement checkpointer strategy per Section 4.3:
+  - Development: `MemorySaver` (zero-configuration)
   - Migration note for production: `PostgresSaver`
 
-- V1 limitation note per Section 4.2: `InMemoryStore` for `/memories/` â€” data lost on server restart
+- V1 limitation note per Section 4.2: `InMemoryStore` for `/memories/` — data lost on server restart
+
+**[v5.6.1 Fix — 2026-03-31]:** The original implementation used custom backend classes (StateBackend, FilesystemBackend, StoreBackend, CompositeBackend in backend.py) that implemented get()/put()/delete() but never implemented BackendProtocol. The SDK's FilesystemMiddleware calls ls_info(), read(), write(), edit(), grep_raw(), glob_info() — none of which existed on the custom classes. They were dead code. Replaced with SDK-native imports from `deepagents.backends`. See DEVIATION_RECORD.md Section 20.
 
 ---
 
@@ -2083,7 +2088,17 @@ Phase 3 implements the research-agent, verification-agent, spec-writer-agent, an
 - [x] All 3 runtimes wired into orchestrator via `configs.py` build_orchestrator_subagents()
 - [x] Phase 3 gate evals (7 Layer 1 evals) — `meta_agent/evals/phase3_gate.py`
 - [x] Eval run function bridge for langsmith.evaluate() — `meta_agent/evals/research/run_function.py`
-- [x] 478 unit tests passing (15 new Phase 3 runtime tests)
+- [x] 471 unit tests passing (SDK middleware integration validated with deepagents==0.4.12)
+
+**Middleware Architecture Fix ✅ COMPLETE (2026-03-31):**
+- [x] Replaced custom dead-code backend classes with SDK-native CompositeBackend (4 routes)
+- [x] Fixed MemoryMiddleware to use bare FilesystemBackend for absolute AGENTS.md path access
+- [x] Fixed SkillsMiddleware to use bare FilesystemBackend for absolute SKILL.md path access
+- [x] Replaced skills= parameter with explicit SkillsMiddleware in middleware list (all 4 agents)
+- [x] Replaced manual SummarizationMiddleware construction with create_summarization_tool_middleware factory
+- [x] Updated system prompts to reflect pre-loaded skills (not filesystem directory reading)
+- [x] 471 unit tests passing with deepagents==0.4.12 (0 failures)
+- [x] See DEVIATION_RECORD.md Section 20 for root cause analysis
 
 **End-to-End Validation ⏳ IN PROGRESS:**
 - [ ] Stage wiring live validation (RESEARCH → SPEC_GENERATION → SPEC_REVIEW)
@@ -2131,11 +2146,12 @@ Phase 3 implements the research-agent, verification-agent, spec-writer-agent, an
   - Eval coverage: RB-003, RQ-001
 
 - **Skills-first consultation (Protocol Phase 3)** â€" Implement skills-first posture per Section 6.1.2 Phase 3:
-  - Read skills from `/skills/langchain/`, `/skills/anthropic/`, `/skills/langsmith/` in priority order
-  - Read skill files in FULL (not truncated)
-  - Reflect on skill content and internalize as baseline knowledge
-  - Identify research gaps that skills do not cover
-  - Use skill findings to shape web research agenda (skills drive research direction)
+  - [x] Skills are pre-loaded by SkillsMiddleware at session start (31 skills across LangChain, LangSmith, Anthropic)
+  - [x] SkillsMiddleware uses bare `FilesystemBackend(virtual_mode=False)` for absolute path access to SKILL.md files
+  - Agent reflects on pre-loaded skills as baseline domain expertise
+  - Agent identifies specific research gaps that skills do not cover
+  - Agent targets web research precisely at those gaps (skills drive research direction)
+  - [v5.6.1] System prompt updated to communicate pre-loaded skills as baseline knowledge, not filesystem directories to manually read
   - Eval coverage: RB-007, RQ-007, RQ-008, RQ-009
 
 - **Sub-agent delegation (Protocol Phase 4)** â€" Implement intentional topology reasoning per Sections 6.1.2 Phase 4 and 6.1.3:
@@ -3721,11 +3737,11 @@ These checklists apply across all phases. The coding agent must verify complianc
 - [ ] ToolErrorMiddleware is on ALL agents (orchestrator + all 8 subagents + 3 code-agent sub-agents)
 - [ ] CompletionGuardMiddleware is on code-agent, test-agent, observation-agent ONLY
 - [ ] HumanInTheLoopMiddleware is on orchestrator and code-agent
-- [ ] MemoryMiddleware is on orchestrator, research-agent, code-agent (agents with AGENTS_MD in Section Selection Matrix)
+- [x] MemoryMiddleware is on orchestrator, research-agent, verification-agent — uses bare FilesystemBackend(virtual_mode=False) for absolute AGENTS.md path access
 - [ ] MemoryMiddleware enforces per-agent isolation (Section 13.4.6.2)
-- [ ] SkillsMiddleware is on all agents except document-renderer (scoped to anthropic/docx, anthropic/pdf)
-- [ ] SummarizationToolMiddleware is on orchestrator and research-agent (agents needing `compact_conversation`)
-- [ ] Middleware is NOT inherited by subagents â€” each must configure explicitly
+- [x] SkillsMiddleware is explicit in middleware list (not via skills= param) — uses bare FilesystemBackend(virtual_mode=False) for absolute SKILL.md path access
+- [x] SummarizationToolMiddleware on orchestrator and research-agent — uses create_summarization_tool_middleware() factory with composite_backend for /conversation_history/ offloading
+- [x] Middleware is NOT inherited by subagents — each configures explicitly via runtime files
 
 ### 6.3 Recursion Limit Checklist
 
