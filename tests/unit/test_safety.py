@@ -18,15 +18,15 @@ from meta_agent.safety import (
 class TestRecursionLimits:
     def test_all_agents_have_limits(self):
         expected = {
-            "orchestrator", "code-agent", "research-agent",
+            "pm", "code-agent", "research-agent",
             "spec-writer", "plan-writer", "verification-agent",
             "test-agent", "document-renderer", "observation-agent",
             "evaluation-agent", "audit-agent",
         }
         assert set(RECURSION_LIMITS.keys()) == expected
 
-    def test_orchestrator_highest(self):
-        assert RECURSION_LIMITS["orchestrator"] == 200
+    def test_pm_highest(self):
+        assert RECURSION_LIMITS["pm"] == 200
         for agent, limit in RECURSION_LIMITS.items():
             assert limit <= 200
 

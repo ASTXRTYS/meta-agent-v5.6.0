@@ -14,7 +14,7 @@ from typing import Any
 # ---------------------------------------------------------------------------
 
 AGENT_EFFORT_LEVELS: dict[str, str] = {
-    "orchestrator": "high",
+    "pm": "high",
     "research-agent": "max",
     "verification-agent": "max",
     "spec-writer": "high",
@@ -28,7 +28,7 @@ AGENT_EFFORT_LEVELS: dict[str, str] = {
 }
 
 
-def get_model_config(agent_name: str = "orchestrator") -> dict[str, Any]:
+def get_model_config(agent_name: str = "pm") -> dict[str, Any]:
     """Return model configuration for a given agent.
 
     Uses ``META_AGENT_MODEL`` env var (format: ``provider:model_name``).

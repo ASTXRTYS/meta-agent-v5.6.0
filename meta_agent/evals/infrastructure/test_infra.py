@@ -49,7 +49,7 @@ def eval_infra_001_project_directory_structure(project_dir: str) -> dict[str, An
         f"{project_dir}/artifacts/planning/",
         f"{project_dir}/evals/",
         f"{project_dir}/logs/",
-        f"{project_dir}/.agents/orchestrator/",
+        f"{project_dir}/.agents/pm/",
     ]
     missing = [d for d in required_dirs if not os.path.isdir(d)]
     return {
@@ -203,7 +203,7 @@ def eval_infra_007_agents_md_created(project_dir: str) -> dict[str, Any]:
     Priority: P0 (every build)
     Scoring: Binary pass/fail
     """
-    agents_md_path = f"{project_dir}/.agents/orchestrator/AGENTS.md"
+    agents_md_path = f"{project_dir}/.agents/pm/AGENTS.md"
     exists = os.path.isfile(agents_md_path)
     return {
         "pass": exists,
@@ -302,7 +302,7 @@ def _infra_008_middleware_only(
     from meta_agent.middleware.dynamic_system_prompt import DynamicSystemPromptMiddleware
 
     mw = DynamicSystemPromptMiddleware(
-        project_dir=project_dir or "/workspace/projects/test",
+        project_dir=project_dir or "/.agents/pm/projects/test",
         project_id=project_id or "test-project",
     )
 

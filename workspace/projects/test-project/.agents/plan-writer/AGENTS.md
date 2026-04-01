@@ -1,2 +1,0 @@
-# plan-writer — Project Memory
-

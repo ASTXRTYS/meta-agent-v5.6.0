@@ -535,7 +535,7 @@ def main() -> int:
     )
     parser.add_argument(
         "--project-dir",
-        default="workspace/projects/test-project",
+        default=".agents/pm/projects/test-project",
         help="Project directory for eval execution",
     )
 

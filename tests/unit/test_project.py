@@ -50,9 +50,9 @@ class TestInitProject:
         result = init_project(temp_dir, "Test Project")
         project_dir = result["project_dir"]
 
-        assert os.path.isdir(os.path.join(project_dir, ".agents", "orchestrator"))
+        assert os.path.isdir(os.path.join(project_dir, ".agents", "pm"))
         assert os.path.isfile(
-            os.path.join(project_dir, ".agents", "orchestrator", "AGENTS.md")
+            os.path.join(project_dir, ".agents", "pm", "AGENTS.md")
         )
 
     def test_creates_meta_yaml(self, temp_dir):

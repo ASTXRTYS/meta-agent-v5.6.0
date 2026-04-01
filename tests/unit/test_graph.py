@@ -40,15 +40,15 @@ class TestDynamicPromptMiddleware:
 
     def test_middleware_creates(self):
         mw = DynamicSystemPromptMiddleware(
-            project_dir="/workspace/projects/test",
+            project_dir="/.agents/pm/projects/test",
             project_id="test-project",
         )
-        assert mw.project_dir == "/workspace/projects/test"
+        assert mw.project_dir == "/.agents/pm/projects/test"
         assert mw.project_id == "test-project"
 
     def test_before_model_injects_system_message(self):
         mw = DynamicSystemPromptMiddleware(
-            project_dir="/workspace/projects/test",
+            project_dir="/.agents/pm/projects/test",
             project_id="test-project",
         )
         state = {"messages": [], "current_stage": "INTAKE"}
@@ -61,7 +61,7 @@ class TestDynamicPromptMiddleware:
 
     def test_before_model_replaces_existing_system(self):
         mw = DynamicSystemPromptMiddleware(
-            project_dir="/workspace/projects/test",
+            project_dir="/.agents/pm/projects/test",
             project_id="test-project",
         )
         state = {
@@ -76,7 +76,7 @@ class TestDynamicPromptMiddleware:
 
     def test_get_prompt_for_stage(self):
         mw = DynamicSystemPromptMiddleware(
-            project_dir="/workspace/projects/test",
+            project_dir="/.agents/pm/projects/test",
             project_id="test-project",
         )
         prompt = mw.get_prompt_for_stage("INTAKE")

@@ -1,8 +1,8 @@
-"""Orchestrator prompt composition function.
+"""PM prompt composition function.
 
 Spec References: Sections 7.3, 22.15
 
-Assembles the orchestrator system prompt based on current stage
+Assembles the PM system prompt based on current stage
 using stage-aware section loading.
 """
 
@@ -27,13 +27,13 @@ from .scoring_strategy import SCORING_STRATEGY_SECTION
 from .eval_approval_protocol import EVAL_APPROVAL_PROTOCOL
 
 
-def construct_orchestrator_prompt(
+def construct_pm_prompt(
     stage: str,
     project_dir: str,
     project_id: str,
     agents_md_content: str = "",
 ) -> str:
-    """Assembles the orchestrator system prompt based on current stage.
+    """Assembles the PM system prompt based on current stage.
 
     Per Section 7.3, sections are loaded conditionally based on stage
     to reduce cognitive load.

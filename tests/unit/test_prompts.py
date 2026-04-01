@@ -20,7 +20,7 @@ from meta_agent.prompts.sections import (
 from meta_agent.prompts.eval_mindset import EVAL_MINDSET_SECTION
 from meta_agent.prompts.scoring_strategy import SCORING_STRATEGY_SECTION
 from meta_agent.prompts.eval_approval_protocol import EVAL_APPROVAL_PROTOCOL
-from meta_agent.prompts.orchestrator import construct_orchestrator_prompt
+from meta_agent.prompts.pm import construct_pm_prompt
 from meta_agent.prompts.research_agent import construct_research_agent_prompt
 from meta_agent.state import WorkflowStage
 
@@ -75,8 +75,8 @@ class TestFormatFunctions:
     """Tests for prompt formatting functions."""
 
     def test_format_workspace_section(self):
-        result = format_workspace_section("/workspace/projects/test", "test")
-        assert "/workspace/projects/test" in result
+        result = format_workspace_section("/.agents/pm/projects/test", "test")
+        assert "/.agents/pm/projects/test" in result
         assert "test" in result
         assert "artifacts/intake/prd.md" in result
 
@@ -101,15 +101,15 @@ class TestSectionMatrix:
 
     def test_all_seven_agents_present(self):
         expected_agents = {
-            "orchestrator", "research-agent", "spec-writer",
+            "pm", "research-agent", "spec-writer",
             "plan-writer", "code-agent", "test-agent", "verification-agent",
         }
         assert set(SECTION_MATRIX.keys()) == expected_agents
 
-    def test_orchestrator_has_eval_mindset(self):
-        assert "EVAL_MINDSET" in SECTION_MATRIX["orchestrator"]
+    def test_pm_has_eval_mindset(self):
+        assert "EVAL_MINDSET" in SECTION_MATRIX["pm"]
 
-    def test_non_orchestrators_lack_eval_mindset(self):
+    def test_non_pm_lack_eval_mindset(self):
         for agent in ["research-agent", "spec-writer", "plan-writer",
                        "code-agent", "test-agent", "verification-agent"]:
             assert "EVAL_MINDSET" not in SECTION_MATRIX[agent]
@@ -141,63 +141,63 @@ class TestStageContexts:
         assert "Phase Gate Protocol" in STAGE_CONTEXTS["EXECUTION"]
 
 
-class TestConstructOrchestratorPrompt:
-    """Tests for construct_orchestrator_prompt."""
+class TestConstructPmPrompt:
+    """Tests for construct_pm_prompt."""
 
     def test_always_includes_role(self):
-        prompt = construct_orchestrator_prompt(
-            "INTAKE", "/workspace/projects/test", "test"
+        prompt = construct_pm_prompt(
+            "INTAKE", "/.agents/pm/projects/test", "test"
         )
         assert "Product Manager" in prompt
 
     def test_always_includes_eval_mindset(self):
-        prompt = construct_orchestrator_prompt(
-            "INTAKE", "/workspace/projects/test", "test"
+        prompt = construct_pm_prompt(
+            "INTAKE", "/.agents/pm/projects/test", "test"
         )
         assert "Eval-First Mindset" in prompt
 
     def test_intake_includes_scoring_strategy(self):
-        prompt = construct_orchestrator_prompt(
-            "INTAKE", "/workspace/projects/test", "test"
+        prompt = construct_pm_prompt(
+            "INTAKE", "/.agents/pm/projects/test", "test"
         )
         assert "Scoring Strategy Selection" in prompt
 
     def test_intake_includes_eval_approval(self):
-        prompt = construct_orchestrator_prompt(
-            "INTAKE", "/workspace/projects/test", "test"
+        prompt = construct_pm_prompt(
+            "INTAKE", "/.agents/pm/projects/test", "test"
         )
         assert "Eval Approval Protocol" in prompt
 
     def test_research_includes_delegation(self):
-        prompt = construct_orchestrator_prompt(
-            "RESEARCH", "/workspace/projects/test", "test"
+        prompt = construct_pm_prompt(
+            "RESEARCH", "/.agents/pm/projects/test", "test"
         )
         assert "Delegation Protocol" in prompt
 
     def test_research_excludes_scoring(self):
-        prompt = construct_orchestrator_prompt(
-            "RESEARCH", "/workspace/projects/test", "test"
+        prompt = construct_pm_prompt(
+            "RESEARCH", "/.agents/pm/projects/test", "test"
         )
         assert "Scoring Strategy Selection" not in prompt
 
     def test_agents_md_included_when_present(self):
-        prompt = construct_orchestrator_prompt(
-            "INTAKE", "/workspace/projects/test", "test",
+        prompt = construct_pm_prompt(
+            "INTAKE", "/.agents/pm/projects/test", "test",
             agents_md_content="Previous session notes",
         )
         assert "<agents_md>" in prompt
         assert "Previous session notes" in prompt
 
     def test_agents_md_excluded_when_empty(self):
-        prompt = construct_orchestrator_prompt(
-            "INTAKE", "/workspace/projects/test", "test",
+        prompt = construct_pm_prompt(
+            "INTAKE", "/.agents/pm/projects/test", "test",
             agents_md_content="",
         )
         assert "<agents_md>" not in prompt
 
     def test_sections_joined_by_separator(self):
-        prompt = construct_orchestrator_prompt(
-            "INTAKE", "/workspace/projects/test", "test"
+        prompt = construct_pm_prompt(
+            "INTAKE", "/.agents/pm/projects/test", "test"
         )
         assert "\n\n---\n\n" in prompt
 
@@ -207,14 +207,14 @@ class TestConstructResearchAgentPrompt:
 
     def test_uses_markdown_source_prompt(self):
         prompt = construct_research_agent_prompt(
-            "/workspace/projects/test", "test"
+            "/.agents/pm/projects/test", "test"
         )
         assert "You are the research-agent for the meta-agent system" in prompt
         assert "You are not a search engine. You are a researcher." in prompt
 
     def test_normalizes_legacy_prompt_paths(self):
         prompt = construct_research_agent_prompt(
-            "/workspace/projects/test", "test"
+            "/.agents/pm/projects/test", "test"
         )
         assert "artifacts/research/research-decomposition.md" in prompt
         assert "artifacts/research/research-bundle.md" in prompt
@@ -223,7 +223,7 @@ class TestConstructResearchAgentPrompt:
 
     def test_includes_runtime_alignment_addendum(self):
         prompt = construct_research_agent_prompt(
-            "/workspace/projects/test", "test"
+            "/.agents/pm/projects/test", "test"
         )
         assert "Canonical 10-Phase Runtime Protocol" in prompt
         assert "Citation Index" in prompt

@@ -61,7 +61,7 @@ class TestAgentEffortLevels:
 
     def test_all_agents_have_levels(self):
         expected_agents = {
-            "orchestrator", "research-agent", "verification-agent",
+            "pm", "research-agent", "verification-agent",
             "spec-writer", "plan-writer", "code-agent", "test-agent",
             "document-renderer", "observation-agent", "evaluation-agent",
             "audit-agent",
@@ -74,7 +74,7 @@ class TestAgentEffortLevels:
             assert effort in valid_efforts, f"{agent} has invalid effort: {effort}"
 
     def test_specific_levels(self):
-        assert AGENT_EFFORT_LEVELS["orchestrator"] == "high"
+        assert AGENT_EFFORT_LEVELS["pm"] == "high"
         assert AGENT_EFFORT_LEVELS["research-agent"] == "max"
         assert AGENT_EFFORT_LEVELS["document-renderer"] == "low"
 
@@ -87,7 +87,7 @@ class TestGetModelConfig:
         assert config["provider"] == "anthropic"
         assert config["model_name"] == "claude-opus-4-6"
         assert config["thinking"] == {"type": "adaptive"}
-        assert config["output_config"]["effort"] == "high"  # orchestrator default
+        assert config["output_config"]["effort"] == "high"  # pm default
 
     def test_agent_effort(self):
         config = get_model_config("research-agent")

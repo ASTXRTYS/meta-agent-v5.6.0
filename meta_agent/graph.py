@@ -9,16 +9,16 @@ Middleware order (per Section 22.4):
   0. DynamicSystemPromptMiddleware (explicit — reads current_stage from state)
   1. MetaAgentStateMiddleware (explicit — extends state schema)
   2. TodoListMiddleware (auto — added by create_deep_agent)
-  3. FilesystemMiddleware (auto — added by create_deep_agent)
-  4. SubAgentMiddleware (auto — added by create_deep_agent)
-  5. SummarizationMiddleware (auto — added by create_deep_agent)
-  6. AnthropicPromptCachingMiddleware (auto — added by create_deep_agent)
-  7. PatchToolCallsMiddleware (auto — added by create_deep_agent)
+  3. MemoryMiddleware (explicit — per-agent AGENTS.md loading)
+  4. SkillsMiddleware (explicit — on-demand SKILL.md loading)
+  5. FilesystemMiddleware (auto — added by create_deep_agent)
+  6. SubAgentMiddleware (auto — added by create_deep_agent)
+  7. SummarizationMiddleware (auto — added by create_deep_agent)
   8. SummarizationToolMiddleware (explicit — agent-controlled compact_conversation)
-  9. MemoryMiddleware (explicit — per-agent AGENTS.md loading)
- 10. ToolErrorMiddleware (explicit)
- 11. HumanInTheLoopMiddleware (auto via interrupt_on parameter)
- 12. SkillsMiddleware (explicit via skills= parameter — on-demand SKILL.md loading)
+  9. AnthropicPromptCachingMiddleware (auto — added by create_deep_agent)
+ 10. PatchToolCallsMiddleware (auto — added by create_deep_agent)
+ 11. ToolErrorMiddleware (explicit)
+ 12. HumanInTheLoopMiddleware (auto via interrupt_on parameter)
 """
 
 from __future__ import annotations
@@ -27,19 +27,23 @@ from pathlib import Path
 from typing import Any
 
 from deepagents import create_deep_agent
-from deepagents.backends import FilesystemBackend as SdkFilesystemBackend
 from deepagents.middleware.summarization import (
-    SummarizationMiddleware,
-    SummarizationToolMiddleware,
+    create_summarization_tool_middleware,
 )
 from deepagents.middleware.memory import MemoryMiddleware
+from deepagents.middleware.skills import SkillsMiddleware
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.store.memory import InMemoryStore
 
 from meta_agent.state import MetaAgentState, create_initial_state
 from meta_agent.configuration import MetaAgentConfig
 from meta_agent.project import init_project
-from meta_agent.backend import create_checkpointer, create_store
+from meta_agent.backend import (
+    create_composite_backend,
+    create_bare_filesystem_backend,
+    create_checkpointer,
+    create_store,
+)
 from meta_agent.model import get_model_config
 from meta_agent.safety import RECURSION_LIMITS
 from meta_agent.middleware.meta_state import MetaAgentStateMiddleware
@@ -47,8 +51,8 @@ from meta_agent.middleware.dynamic_system_prompt import DynamicSystemPromptMiddl
 from meta_agent.middleware.tool_error_handler import ToolErrorMiddleware
 from meta_agent.tools import LANGCHAIN_TOOLS
 from meta_agent.tools.registry import HITL_GATED_TOOLS
-from meta_agent.prompts.orchestrator import construct_orchestrator_prompt
-from meta_agent.subagents.configs import build_orchestrator_subagents
+from meta_agent.prompts.pm import construct_pm_prompt
+from meta_agent.subagents.configs import build_pm_subagents
 from meta_agent.tracing import prepare_agent_state
 
 
@@ -57,7 +61,7 @@ def create_graph(
     project_dir: str = "",
     project_id: str = "",
 ) -> Any:
-    """Create the meta-agent orchestrator graph.
+    """Create the meta-agent PM graph.
 
     Creates a real Deep Agent with the full middleware stack per Section 22.4.
     Uses create_deep_agent() from the deepagents SDK.
@@ -78,7 +82,7 @@ def create_graph(
     if project_id and project_dir:
         base_dir = os.path.dirname(project_dir) if project_dir.endswith(project_id) else project_dir
         # Only init if the project dir doesn't look fully initialized
-        agents_md = os.path.join(project_dir, ".agents", "orchestrator", "AGENTS.md")
+        agents_md = os.path.join(project_dir, ".agents", "pm", "AGENTS.md")
         if not os.path.exists(agents_md):
             try:
                 init_project(base_dir=os.path.dirname(os.path.dirname(project_dir)),
@@ -89,12 +93,13 @@ def create_graph(
 
     # Create backend, checkpointer, store
     repo_root = Path(__file__).resolve().parent.parent
-    backend = SdkFilesystemBackend(root_dir=str(repo_root), virtual_mode=True)
+    composite_backend = create_composite_backend(repo_root)
+    bare_fs = create_bare_filesystem_backend()
     checkpointer = create_checkpointer()
     store = create_store()
 
-    # Build system prompt from orchestrator prompt composer
-    system_prompt = construct_orchestrator_prompt(
+    # Build system prompt from PM prompt composer
+    system_prompt = construct_pm_prompt(
         stage="INTAKE",
         project_dir=project_dir,
         project_id=project_id,
@@ -110,45 +115,28 @@ def create_graph(
     )
 
     # SummarizationToolMiddleware — agent-controlled compact_conversation
-    # Per Plan 1.2.1 / Spec 8.11: requires a SummarizationMiddleware instance.
-    summarization_mw = SummarizationMiddleware(model=cfg.model_name, backend=backend)
-    summarization_tool_mw = SummarizationToolMiddleware(summarization_mw)
+    # Uses composite_backend for /conversation_history/ offloading
+    summarization_tool_mw = create_summarization_tool_middleware(
+        cfg.model_name, composite_backend
+    )
 
     # MemoryMiddleware — per-agent AGENTS.md loading (Spec 22.4, Section 13.4.6)
-    # Orchestrator loads its own AGENTS.md; isolation rule: no cross-agent memory.
+    # PM loads its own AGENTS.md; isolation rule: no cross-agent memory.
     memory_sources = []
     if project_dir:
         project_agents_md = os.path.join(
-            project_dir, ".agents", "orchestrator", "AGENTS.md"
+            project_dir, ".agents", "pm", "AGENTS.md"
         )
         if os.path.isfile(project_agents_md):
             memory_sources.append(project_agents_md)
-    global_agents_md = str(repo_root / ".agents" / "orchestrator" / "AGENTS.md")
+    global_agents_md = str(repo_root / ".agents" / "pm" / "AGENTS.md")
     if os.path.isfile(global_agents_md):
         memory_sources.append(global_agents_md)
-    memory_mw = MemoryMiddleware(backend=backend, sources=memory_sources)
-
-    # ToolErrorMiddleware
-    tool_error_mw = ToolErrorMiddleware()
-
-    # Build explicit middleware list (order matters per Section 22.4)
-    explicit_middleware = [
-        dynamic_prompt_mw,     # 0. Dynamic system prompt (MUST be first)
-        meta_state_mw,         # 1. Extends state schema
-        summarization_tool_mw, # 8. Agent-controlled compact_conversation
-        memory_mw,             # 9. Per-agent AGENTS.md loading
-        tool_error_mw,         # 10. ToolError (catches tool exceptions)
-    ]
-
-    # Build interrupt_on config for HITL-gated tools
-    interrupt_on = {
-        tool_name: True
-        for tool_name in HITL_GATED_TOOLS
-    }
+    memory_mw = MemoryMiddleware(backend=bare_fs, sources=memory_sources)
 
     # Resolve skills directories (Section 11, 22.4)
     # All 31 skills from LangChain, LangSmith, and Anthropic repos are available
-    # to the orchestrator via SkillsMiddleware for on-demand SKILL.md loading.
+    # to the PM via SkillsMiddleware for on-demand SKILL.md loading.
     # Each repo has a different internal layout, so we point to the directory
     # that contains the skill subdirectories (each with a SKILL.md).
     skills_dirs = [
@@ -157,8 +145,31 @@ def create_graph(
         str(repo_root / "skills" / "anthropic" / "skills"),             # 17 skills
     ]
 
+    # SkillsMiddleware — explicit, with bare FS for absolute SKILL.md paths
+    # Per CLI pattern: SkillsMiddleware uses its own bare FilesystemBackend
+    skills_mw = SkillsMiddleware(backend=bare_fs, sources=skills_dirs)
+
+    # ToolErrorMiddleware
+    tool_error_mw = ToolErrorMiddleware()
+
+    # Build explicit middleware list (order matters per Section 22.4)
+    explicit_middleware = [
+        dynamic_prompt_mw,     # 0. Dynamic system prompt (MUST be first)
+        meta_state_mw,         # 1. Extends state schema
+        memory_mw,             # 3. Per-agent AGENTS.md loading
+        skills_mw,             # 4. Skills loading from SKILL.md files
+        summarization_tool_mw, # 5. Agent-controlled compact_conversation
+        tool_error_mw,         # 6. ToolError (catches tool exceptions)
+    ]
+
+    # Build interrupt_on config for HITL-gated tools
+    interrupt_on = {
+        tool_name: True
+        for tool_name in HITL_GATED_TOOLS
+    }
+
     # Build SDK-compatible subagent definitions (Section 6, 22.3)
-    subagents = build_orchestrator_subagents(
+    subagents = build_pm_subagents(
         project_dir=project_dir,
         project_id=project_id,
         skills_dirs=skills_dirs,
@@ -167,7 +178,7 @@ def create_graph(
     # Emit prepare_agent_state spans (Spec 18.5.1, Gap 1)
     # Documents what each agent was provisioned with at graph creation time.
     prepare_agent_state(
-        agent_name="orchestrator",
+        agent_name="pm",
         state_keys=list(MetaAgentState.__annotations__.keys()),
         artifact_paths=[project_dir] if project_dir else [],
         skill_dirs=skills_dirs,
@@ -189,10 +200,9 @@ def create_graph(
         subagents=subagents,
         checkpointer=checkpointer,
         store=store,
-        backend=backend,
+        backend=composite_backend,
         interrupt_on=interrupt_on,
-        skills=skills_dirs,
-        name="meta-agent-orchestrator",
+        name="meta-agent-pm",
     )
 
     return graph

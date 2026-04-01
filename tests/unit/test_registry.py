@@ -18,8 +18,8 @@ from meta_agent.tools.registry import (
 class TestToolRegistry:
     """Tests for the TOOL_REGISTRY mapping."""
 
-    def test_orchestrator_has_tools(self):
-        tools = TOOL_REGISTRY["orchestrator"]
+    def test_pm_has_tools(self):
+        tools = TOOL_REGISTRY["pm"]
         assert "transition_stage" in tools
         assert "record_decision" in tools
         assert "glob" in tools
@@ -36,7 +36,7 @@ class TestToolRegistry:
 
     def test_all_agents_have_entries(self):
         expected_agents = [
-            "orchestrator", "research-agent", "spec-writer",
+            "pm", "research-agent", "spec-writer",
             "plan-writer", "code-agent", "verification-agent",
             "test-agent", "document-renderer",
         ]
@@ -84,7 +84,7 @@ class TestGetToolsForAgent:
     """Tests for get_tools_for_agent helper."""
 
     def test_returns_tool_list(self):
-        tools = get_tools_for_agent("orchestrator")
+        tools = get_tools_for_agent("pm")
         assert isinstance(tools, list)
         assert len(tools) > 0
 
@@ -97,7 +97,7 @@ class TestGetCustomToolsForAgent:
     """Tests for get_custom_tools_for_agent."""
 
     def test_returns_callable_functions(self):
-        tools = get_custom_tools_for_agent("orchestrator")
+        tools = get_custom_tools_for_agent("pm")
         assert isinstance(tools, list)
         for fn in tools:
             assert callable(fn)

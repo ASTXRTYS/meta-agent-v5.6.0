@@ -224,7 +224,7 @@ def _canonical_inputs(eval_suite_content: str, prd_content: str) -> dict[str, An
     return {
         "prd_path": _workspace_prd_path(),
         "prd_content": prd_content,
-        "eval_suite_path": "/workspace/projects/meta-agent/evals/eval-suite-prd.json",
+        "eval_suite_path": "/.agents/pm/projects/meta-agent/evals/eval-suite-prd.json",
         "eval_suite_content": eval_suite_content,
         "project_id": "meta-agent",
         "skills_paths": ["/skills/langchain/", "/skills/anthropic/", "/skills/langsmith/"],
@@ -241,7 +241,7 @@ def _canonical_inputs(eval_suite_content: str, prd_content: str) -> dict[str, An
 
 
 def _workspace_prd_path() -> str:
-    return "/workspace/projects/meta-agent/artifacts/intake/research-agent-prd.md"
+    return "/.agents/pm/projects/meta-agent/artifacts/intake/research-agent-prd.md"
 
 
 def _expected_evals_for(source: dict[str, Any], scenario_type: str) -> dict[str, Any]:

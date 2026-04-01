@@ -1,2 +1,0 @@
-# verification-agent — Project Memory
-

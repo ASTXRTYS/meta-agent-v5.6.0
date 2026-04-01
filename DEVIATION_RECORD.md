@@ -42,8 +42,6 @@ This was required to fix two real runtime failures:
 
 Reversible by moving all prompt injection back into `before_model` once runtime compatibility and provider semantics are strictly pinned and validated.
 
----
-
 ## Deviation 2: Runtime dependency fail-fast guard
 
 - File: `meta_agent/server.py`
@@ -66,8 +64,6 @@ Prevent silent runtime drift (global CLI/runtime mismatch) from causing opaque m
 
 Can be removed, but not recommended. This guard enforces architecture assumptions explicitly.
 
----
-
 ## Deviation 3: Filesystem backend root path
 
 - File: `meta_agent/graph.py`
@@ -85,27 +81,22 @@ Avoided runtime blocking issues tied to cwd resolution in dev runtime.
 
 Can revert to `root_dir="."` after validating runtime blocking behavior across local/dev server modes.
 
----
-
 ## Impact Assessment
 
 - Functional intent is preserved: stage-aware dynamic prompt recomposition remains active and ordered first.
 - Reliability improved: startup now detects incompatible runtimes early.
 - Architectural risk reduced: fewer runtime-shape assumptions in hot execution path.
 
----
-
 ## Phase 1 Assessment Remediation (2026-03-29)
 
 ### Context
 
 A Phase 1 assessment identified 6 gaps against the development plan. Root cause analysis classified them as:
+
 - **Category A (execution failures):** 2 items — spec and plan were clear, coding agent missed them
 - **Category B (spec/plan gaps):** 4 items — plan told the agent WHAT to build but not HOW to wire it into the SDK
 
 All 6 have been remediated across 4 commits. 433 unit tests pass after each.
-
----
 
 ## Deviation 4: SummarizationToolMiddleware wired (Category A)
 
@@ -124,8 +115,6 @@ Instantiated `SummarizationMiddleware(model, backend)` and passed to `Summarizat
 
 ### Root cause: Pure execution failure.
 
----
-
 ## Deviation 5: MemoryMiddleware wired (Category A)
 
 - File: `meta_agent/graph.py`
@@ -143,8 +132,6 @@ Replaced stub import with SDK `MemoryMiddleware`. Instantiated with backend and 
 
 ### Root cause: Pure execution failure.
 
----
-
 ## Deviation 6: SkillsMiddleware paths corrected (Category B1)
 
 - File: `meta_agent/graph.py`
@@ -155,6 +142,7 @@ Replaced stub import with SDK `MemoryMiddleware`. Instantiated with backend and 
 ### Gap
 
 Spec says "cloned into skills/ directory" but does not document the internal layouts of the three upstream repos. Plan says "clone repos" and "add SkillsMiddleware" but never specifies the `skills=[]` parameter values. The three repos have different nesting:
+
 - `langchain-skills`: `config/skills/*/SKILL.md`
 - `langsmith-skills`: `config/skills/*/SKILL.md`
 - `anthropic/skills`: `skills/*/SKILL.md`
@@ -170,9 +158,8 @@ Replaced single `skills/` path with three repo-specific paths pointing to the di
 ### Spec/Plan update needed
 
 The plan Section 1.2.2 should include a note:
-> After cloning, resolve the actual skill roots for each repo. The `skills=[]` parameter must point to the directory containing skill subdirectories (each with SKILL.md), not the top-level clone directory.
 
----
+> After cloning, resolve the actual skill roots for each repo. The skills=[] parameter must point to the directory containing skill subdirectories (each with SKILL.md), not the top-level clone directory.
 
 ## Deviation 7: Subagent definitions wired into SDK (Category B2)
 
@@ -188,6 +175,7 @@ Plan says "Implement configs.py per Section 22.3" and lists SubAgentMiddleware a
 ### Fix
 
 Added `build_orchestrator_subagents()` to `configs.py` which:
+
 - Converts metadata configs into SDK `SubAgent` TypedDicts (name, description, system_prompt, tools, middleware, skills)
 - Resolves middleware string names to actual instances
 - Composes system prompts via each agent's prompt builder
@@ -201,9 +189,8 @@ Added `build_orchestrator_subagents()` to `configs.py` which:
 ### Spec/Plan update needed
 
 Plan Section 1.2.2 should include:
-> Pass the built subagent list as `subagents=` to `create_deep_agent()`. SubAgentMiddleware is auto-attached but requires the `subagents` parameter to know what agents are available for delegation.
 
----
+> Pass the built subagent list as subagents= to create_deep_agent(). SubAgentMiddleware is auto-attached but requires the subagents parameter to know what agents are available for delegation.
 
 ## Deviation 8: Tracing stubs integrated at graph creation (Category B3)
 
@@ -226,9 +213,8 @@ Plan Phase 0 says "create stubs" (done). Plan Phase 1 says "full implementation 
 ### Spec/Plan update needed
 
 Plan Section 1.2.2 should include:
-> Call `prepare_agent_state()` in `create_graph()` after subagent definitions are built, logging the provisioning of each agent. Runtime `delegation_decision` spans should be emitted via a `wrap_tool_call` middleware intercepting `task` calls, implemented in Phase 3 when delegation is exercised.
 
----
+> Call prepare_agent_state() in create_graph() after subagent definitions are built, logging the provisioning of each agent. Runtime delegation_decision spans should be emitted via a wrap_tool_call middleware intercepting task calls, implemented in Phase 3 when delegation is exercised.
 
 ## Deferred: Transition validation (Category B4)
 
@@ -242,8 +228,6 @@ The `@tool` version of `transition_stage` cannot access graph state to validate 
 
 ### Root cause: Spec gap (tool contract assumes state access) + Plan gap (no mechanism specified).
 
----
-
 ## Deviation 9: Eval Engineering prompt section added (Polly Enhancement)
 
 - Files: `meta_agent/prompts/eval_engineering.py` (new), `meta_agent/prompts/sections.py`, `meta_agent/prompts/orchestrator.py`, `meta_agent/prompts/__init__.py`
@@ -254,6 +238,7 @@ The `@tool` version of `transition_stage` cannot access graph state to validate 
 ### Gap
 
 The orchestrator had no dedicated guidance on eval engineering methodology. The agent improvised eval formats, scoring strategies, and dataset structures through conversation rather than from prompt instructions. This meant:
+
 - Agent wrote YAML when LangSmith needs JSON
 - Likert anchors were improvised inconsistently
 - No synthetic data curation protocol existed
@@ -263,11 +248,9 @@ The orchestrator had no dedicated guidance on eval engineering methodology. The 
 
 Three changes to the prompt system:
 
-1. **New `EVAL_ENGINEERING_SECTION`** (always-on for orchestrator) — eval taxonomy (5 categories), scoring strategies with mandatory Likert anchor SOP, LangSmith-compatible JSON dataset format, synthetic data curation protocol, eval suite artifact schema, and dataset writing format.
-
-2. **Enhanced `STAGE_CONTEXTS["INTAKE"]`** — 5-phase protocol (Requirements Elicitation, PRD Drafting, Eval Definition, Synthetic Data Curation, Approval), 3 exit artifacts (PRD + eval suite JSON + synthetic dataset), hard rules (JSON not YAML, mandatory Likert anchors, no eval skipping).
-
-3. **Expanded `ROLE_SECTION`** — eval engineering elevated to named core PM skill with LangSmith format awareness and curation methodology.
+1. **New **`EVAL_ENGINEERING_SECTION` (always-on for orchestrator) — eval taxonomy (5 categories), scoring strategies with mandatory Likert anchor SOP, LangSmith-compatible JSON dataset format, synthetic data curation protocol, eval suite artifact schema, and dataset writing format.
+2. **Enhanced **`STAGE_CONTEXTS["INTAKE"]` — 5-phase protocol (Requirements Elicitation, PRD Drafting, Eval Definition, Synthetic Data Curation, Approval), 3 exit artifacts (PRD + eval suite JSON + synthetic dataset), hard rules (JSON not YAML, mandatory Likert anchors, no eval skipping).
+3. **Expanded **`ROLE_SECTION` — eval engineering elevated to named core PM skill with LangSmith format awareness and curation methodology.
 
 ### Root cause: Prompt gap — spec and plan defined eval tools and eval-mindset sections but did not include structured methodology guidance for the agent to follow when writing evals and curating datasets.
 
@@ -278,28 +261,23 @@ Three changes to the prompt system:
 - Spec Section 22.15: `[v5.6-R]` note documenting the fourth eval-specific section file
 - Spec Section 22.16: `[v5.6-R]` note documenting always-on loading and enhanced INTAKE protocol
 
----
-
 ## Follow-up
 
 - Keep this record synced with spec updates.
 - If spec is revised to this implementation, mark these deviations as absorbed and close this record.
 - Category B4 (transition validation) requires an architectural decision before implementation.
 
----
-
 ## Phase 3 Alignment Remediation (2026-03-30)
 
 ### Context
 
 A Phase 3 assessment identified 6 additional gaps against the specification, development plan, and research-agent PRD. These were discovered during preparation for Phase 3 runtime implementation. Root cause analysis classified them as:
+
 - **Category A (execution failures):** 1 item — spec was clear, implementation missed it
 - **Category B (test/metadata gaps):** 4 items — tests and metadata were scaffolded before validators and state schema were finalized
 - **Category C (incremental debt):** 1 item — early implementation not updated when rich validators were added
 
 All 6 are being remediated in a coordinated 5-stream effort.
-
----
 
 ## Deviation 11: request_eval_approval tool registry inconsistency
 
@@ -322,8 +300,6 @@ Unify the `TOOL_FUNCTIONS` registry so `"request_eval_approval"` maps to the raw
 ### Reversibility
 
 Fully reversible. Change the `TOOL_FUNCTIONS` mapping from the StructuredTool to the raw function.
-
----
 
 ## Deviation 12: Dual validation path in transition_stage
 
@@ -350,8 +326,6 @@ Unify by having the raw `transition_stage()` delegate to the stage validators fo
 
 Fully reversible. The raw function can be restored to field-presence-only by removing the validator delegation.
 
----
-
 ## Deviation 13: Research-agent prompt missing runtime protocol addendum
 
 - Files: `meta_agent/prompts/research_agent.py`
@@ -375,8 +349,6 @@ Add a structured protocol reference section to the research-agent prompt that en
 
 Fully reversible. The addendum is appended to the existing prompt; removing it restores the original 271-line version.
 
----
-
 ## Deviation 14: SUBAGENT_CONFIGS metadata originally missing SkillsMiddleware
 
 - Files: `meta_agent/subagents/configs.py`
@@ -399,8 +371,6 @@ Added `"SkillsMiddleware"` to the `SUBAGENT_MIDDLEWARE["research-agent"]` list. 
 
 Fully reversible. Remove the entry from the list; runtime behavior is unaffected (SDK still auto-attaches).
 
----
-
 ## Deviation 15: Test fixtures incomplete for Phase 3 stage validators
 
 - Files: `tests/unit/test_phase3_runtime.py`
@@ -416,6 +386,7 @@ The stage validators enforce rich exit conditions per the spec:
 3. **SpecReviewStage** (`meta_agent/stages/spec_review.py`) requires separate spec approval and eval approval gates.
 
 The test fixtures were scaffolded before the validators were fully specified:
+
 - `test_research_stage_exit_conditions` only created decomposition and bundle files, missing 5 of the 8 required conditions.
 - `test_spec_generation_stage_exit_conditions` had incorrect Tier 2 eval metadata format and was missing the Tier 1 eval suite path.
 
@@ -431,8 +402,6 @@ Update test fixtures to provide all required exit condition artifacts and metada
 
 Fully reversible. Test fixture changes do not affect production code.
 
----
-
 ## Deviation 16: State schema Phase 3 fields not reflected in test expectations
 
 - Files: `meta_agent/state.py`, `tests/unit/test_state.py`, `tests/unit/test_tools.py`
@@ -442,11 +411,13 @@ Fully reversible. Test fixture changes do not affect production code.
 ### Gap
 
 Three Phase 3 fields were added to `state.py` and `create_initial_state()`:
+
 - `verification_results: dict` — verification verdicts by artifact type
 - `spec_generation_feedback_cycles: int` — orchestrator-mediated research/spec retries
 - `pending_research_gap_request: Optional[str]` — targeted research request from spec-writer
 
 Two tests broke because they expected the old field set:
+
 1. `test_returns_dict_with_all_keys` — expected key set did not include the 3 new fields.
 2. `test_before_agent_preserves_existing` — expected `before_agent()` to return `None` (no updates needed) when given a state with only pre-Phase-3 fields. But the middleware now detects missing Phase 3 fields and returns defaults for them, so the return is no longer `None`.
 
@@ -460,8 +431,6 @@ Update the test expected key set to include the 3 new fields. Update the `test_b
 
 Fully reversible. Test changes do not affect production code.
 
----
-
 ## Deviation 17: Research bundle 13-section list in prompt did not match spec Section 5.3
 
 - Files: `meta_agent/prompts/Research_Agent_System_Prompt.md`
@@ -473,6 +442,7 @@ Fully reversible. Test changes do not affect production code.
 ### Gap
 
 Spec Section 5.3 defines exactly 13 required research bundle sections:
+
 1. Ecosystem Options with Tradeoffs
 2. Rejected Alternatives with Rationale
 3. Model Capability Matrix
@@ -505,8 +475,6 @@ Initially corrected by restoring the canonical 13-section list verbatim. Subsequ
 
 Fully reversible. The fix is a text replacement in the markdown prompt file.
 
----
-
 ## Deviation 18: Phase A/B/C eval slices incomplete vs development plan Section 3.2.8
 
 - Files: `meta_agent/evals/research/runner.py`
@@ -524,6 +492,7 @@ Development plan Section 3.2.8 defines 4 checkpoints with specific eval IDs:
 - **Checkpoint 4 (Phase all):** Full 37-eval suite
 
 The Stream 3 agent defined only partial slices:
+
 - Phase A: 5 evals (missing RS-003, RS-004, RINFRA-001, RINFRA-002)
 - Phase B: 4 evals (missing RB-004, RQ-007, RQ-008, RQ-009, RQ-010)
 - Phase C: dynamic fallback (not explicit)
@@ -539,8 +508,6 @@ Updated `EVAL_PHASE_SLICES` to include all eval IDs per plan Section 3.2.8. Phas
 ### Reversibility
 
 Fully reversible. The fix is a data structure update in runner.py.
-
----
 
 ## Deviation 19: Research bundle expanded from 13 to 17 required sections (Controlled Deviation — Approved)
 
@@ -568,10 +535,10 @@ Spec Section 5.3 defined 13 required research bundle sections.
 
 Expanded to 17 required sections. All 13 original sections are preserved in their original relative order (renumbered 8–17). Four new sections are inserted after "Model Capability Matrix" (#3) as a practical-reference block (#4–#7):
 
-4. **Technology Decision Trees** — Decision frameworks organized by PRD requirement area, with PRD requirements as decision criteria, branch conditions based on research findings, and recommended paths with evidence references.
-5. **Tool/Framework Capability Maps** — For each library, framework, or tool relevant to the PRD: what it does, when to use it, known limitations, and version-specific considerations.
-6. **Pattern & Best Practice Catalog** — Real-world usage patterns, production patterns, performance considerations, and implementation guidance drawn from source code analysis, documentation, and community practice.
-7. **Integration Dependency Matrix** — How different components interact, version constraints, compatibility requirements, and transitive dependency considerations.
+1. **Technology Decision Trees** — Decision frameworks organized by PRD requirement area, with PRD requirements as decision criteria, branch conditions based on research findings, and recommended paths with evidence references.
+2. **Tool/Framework Capability Maps** — For each library, framework, or tool relevant to the PRD: what it does, when to use it, known limitations, and version-specific considerations.
+3. **Pattern & Best Practice Catalog** — Real-world usage patterns, production patterns, performance considerations, and implementation guidance drawn from source code analysis, documentation, and community practice.
+4. **Integration Dependency Matrix** — How different components interact, version constraints, compatibility requirements, and transitive dependency considerations.
 
 ### Why
 
@@ -597,8 +564,6 @@ During the Stream 1 remediation, the implementing agent independently generated 
 ### Reversibility
 
 Fully reversible. Remove the 4 new entries, renumber 8–17 back to 4–13, and update all count references back to 13.
-
----
 
 ## Deviation 10: Research eval package hardened and calibrated ahead of runtime implementation
 
@@ -640,3 +605,57 @@ The repository needed (1) before Phase 3 runtime implementation could begin in a
 - The evaluation stack is ready for Phase 3 runtime integration.
 - No real-agent performance claims are made yet, because the research-agent runtime has not been built.
 - Documentation must clearly distinguish seed artifacts from the runtime-generated calibration dataset and must stop implying that LLM-as-judge work is still entirely deferred in external offline evaluation.
+
+---
+
+## Section 20: CompositeBackend Architecture Fix
+
+- **Date:** 2026-03-31
+- **Trigger:** Research-agent experiment (trace 019d404a) revealed 0 web searches, 78 file reads, middleware not firing
+- **Root Cause:** Section 4.2 was incorrectly implemented with custom backend classes
+
+### What Was Wrong
+
+1. **Custom dead-code backend classes**: backend.py defined StateBackend, FilesystemBackend, StoreBackend, and CompositeBackend with get()/put()/delete() methods. The Deep Agents SDK's FilesystemMiddleware calls BackendProtocol methods (ls_info, read, write, edit, grep_raw, glob_info) — none of which existed on the custom classes. They were never used by the SDK at all.
+
+2. **MemoryMiddleware received wrong backend**: All agents passed the project-rooted, virtual_mode=True FilesystemBackend to MemoryMiddleware. With virtual_mode, absolute disk paths (like /Users/.../AGENTS.md) are resolved relative to root_dir and rejected. The agent never loaded its AGENTS.md.
+
+3. **SkillsMiddleware auto-attached with wrong backend**: Skills were passed via skills= parameter to create_deep_agent(). The SDK auto-attaches SkillsMiddleware using the agent's main backend — the virtual_mode one. SKILL.md files at absolute paths were misresolved.
+
+4. **SummarizationToolMiddleware manually constructed**: Manual SummarizationMiddleware() + SummarizationToolMiddleware() construction bypassed the SDK's factory function. No /conversation_history/ route existed for offloading.
+
+5. **Missing offloading routes**: No /large_tool_results/ or /conversation_history/ routes in the backend, so context offloading had nowhere to write.
+
+6. **SDK version mismatch**: Installed deepagents==0.2.7 is missing all middleware modules (MemoryMiddleware, SkillsMiddleware, SummarizationMiddleware). The correct version is >=0.4.3 (0.4.12 on PyPI). graph.py cannot even be imported with 0.2.7.
+
+### What Was Fixed
+
+1. **backend.py rewritten**: Custom classes removed. Added create_composite_backend(repo_root) factory returning a lambda that produces SDK-native CompositeBackend with 4 routes:
+   - (default) → FilesystemBackend(root_dir, virtual_mode=True) — real disk
+   - /memories/ → StoreBackend(rt) — cross-session persistent
+   - /large_tool_results/ → StateBackend(rt) — ephemeral offloading
+   - /conversation_history/ → StateBackend(rt) — summarization offloading
+
+2. **create_bare_filesystem_backend()**: New factory for MemoryMiddleware and SkillsMiddleware — bare FilesystemBackend() with no root_dir or virtual_mode, allowing absolute path access. Matches production deepagents-cli pattern.
+
+3. **Explicit SkillsMiddleware**: Replaced skills= parameter with SkillsMiddleware(backend=bare_fs, sources=skills_dirs) in middleware list for all agents.
+
+4. **All 4 agents updated**: Orchestrator (graph.py), research_agent.py, spec_writer_agent.py, verification_agent_runtime.py all use the same corrected pattern.
+
+5. **Full-Spec.md Section 4.2 updated**: Corrected to document SDK-native CompositeBackend with lambda factory pattern and 4 routes.
+
+### Connection to Experiment Failures
+
+The research-agent experiment (trace 019d404a) showed:
+- **0 web_search calls**: Agent stayed local because middleware wasn't loading skills that instruct web research behavior
+- **78 read_file calls**: Agent brute-forced /skills/ directory because SkillsMiddleware wasn't loading SKILL.md files (wrong backend)
+- **No summarization**: SummarizationToolMiddleware had no conversation_history route to offload to
+- **No AGENTS.md loading**: MemoryMiddleware couldn't read absolute paths through virtual_mode backend
+
+All these failures trace back to the backend/middleware configuration bugs documented here.
+
+### Spec References
+- Section 4.2 (CompositeBackend Design) — corrected
+- Section 22.4 (Middleware ordering)
+- Section 11 (Skills)
+- Section 13.4.6 (MemoryMiddleware)

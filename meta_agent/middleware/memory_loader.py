@@ -16,7 +16,7 @@ class MemoryLoaderMiddleware:
 
     Each agent has its own memory file at:
     - Global: .agents/{agent-name}/AGENTS.md
-    - Per-project: workspace/projects/{project_id}/.agents/{agent-name}/AGENTS.md
+    - Per-project: .agents/pm/projects/{project_id}/.agents/{agent-name}/AGENTS.md
 
     Isolation rule: each agent sees ONLY its own memory file.
     """
