@@ -23,6 +23,7 @@ from typing import Any
 
 SUBAGENT_MIDDLEWARE: dict[str, list[str]] = {
     "research-agent": [
+        "AgentDecisionStateMiddleware",
         "ToolErrorMiddleware",
         "SummarizationToolMiddleware",
         "MemoryMiddleware",
@@ -39,6 +40,7 @@ SUBAGENT_MIDDLEWARE: dict[str, list[str]] = {
         "CompletionGuardMiddleware",
     ],
     "verification-agent": [
+        "AgentDecisionStateMiddleware",
         "ToolErrorMiddleware",
     ],
     "test-agent": [
@@ -217,9 +219,11 @@ SUBAGENT_DESCRIPTIONS: dict[str, str] = {
 
 def _resolve_middleware_instances() -> dict[str, Any]:
     """Lazily import and return middleware class instances by name."""
+    from meta_agent.middleware.agent_decision_state import AgentDecisionStateMiddleware
     from meta_agent.middleware.tool_error_handler import ToolErrorMiddleware
     from meta_agent.middleware.completion_guard import CompletionGuardMiddleware
     return {
+        "AgentDecisionStateMiddleware": AgentDecisionStateMiddleware(),
         "ToolErrorMiddleware": ToolErrorMiddleware(),
         "CompletionGuardMiddleware": CompletionGuardMiddleware(),
     }

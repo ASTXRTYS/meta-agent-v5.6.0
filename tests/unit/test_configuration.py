@@ -9,6 +9,7 @@ import pytest
 from meta_agent.configuration import MetaAgentConfig
 from meta_agent.model import (
     AGENT_EFFORT_LEVELS,
+    get_configured_model,
     get_model_config,
     parse_model_string,
 )
@@ -122,3 +123,41 @@ class TestParseModelString:
         provider, model = parse_model_string("openai:gpt-4")
         assert provider == "openai"
         assert model == "gpt-4"
+
+
+
+class TestGetConfiguredModel:
+    """Tests for get_configured_model — CRITICAL-1 fix."""
+
+    def test_returns_chat_anthropic_instance(self):
+        from langchain_anthropic import ChatAnthropic
+        model = get_configured_model("research-agent")
+        assert isinstance(model, ChatAnthropic)
+
+    def test_thinking_config_set(self):
+        model = get_configured_model("research-agent")
+        assert model.thinking == {"type": "adaptive"}
+
+    def test_effort_max_for_research(self):
+        model = get_configured_model("research-agent")
+        assert model.effort == "max"
+
+    def test_effort_high_for_spec_writer(self):
+        model = get_configured_model("spec-writer")
+        assert model.effort == "high"
+
+    def test_effort_low_for_document_renderer(self):
+        model = get_configured_model("document-renderer")
+        assert model.effort == "low"
+
+    def test_max_tokens_set(self):
+        model = get_configured_model("research-agent")
+        assert model.max_tokens == 16000
+
+    def test_model_name_from_env(self):
+        model = get_configured_model("pm")
+        assert "claude" in model.model or "opus" in model.model
+
+    def test_default_agent_name(self):
+        model = get_configured_model()
+        assert model.effort == "high"  # pm default

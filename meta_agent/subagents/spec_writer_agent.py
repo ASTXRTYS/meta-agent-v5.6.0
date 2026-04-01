@@ -35,7 +35,7 @@ from meta_agent.backend import (
     create_store,
 )
 from meta_agent.middleware.tool_error_handler import ToolErrorMiddleware
-from meta_agent.model import get_model_config
+from meta_agent.model import get_configured_model, get_model_config
 from meta_agent.prompts.spec_writer import construct_spec_writer_prompt
 from meta_agent.tools import propose_evals_tool
 
@@ -280,6 +280,7 @@ def create_spec_writer_agent_graph(
     - No web_search / web_fetch (spec-writer works from provided artifacts)
     """
     cfg = get_model_config("spec-writer")
+    model = get_configured_model("spec-writer")
     repo_root = Path(__file__).resolve().parents[2]
     composite_backend = create_composite_backend(repo_root)
     bare_fs = create_bare_filesystem_backend()
@@ -292,7 +293,7 @@ def create_spec_writer_agent_graph(
     ]
 
     return create_deep_agent(
-        model=cfg["model_string"],
+        model=model,
         tools=tools,
         system_prompt=construct_spec_writer_prompt(project_dir, project_id),
         middleware=[

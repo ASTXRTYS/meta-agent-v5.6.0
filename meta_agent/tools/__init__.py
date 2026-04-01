@@ -1076,6 +1076,13 @@ LANGCHAIN_TOOLS = [
 
 # ---------------------------------------------------------------------------
 # Server-side tool configurations — Sections 8.9-8.10
+#
+# These are passed as raw dicts to create_deep_agent(tools=[...]).
+# The SDK accepts dict[str, Any] alongside BaseTool and Callable entries.
+#
+# Regression fallback: if _20260209 server-side tools fail at runtime
+# (e.g. API version not yet available), swap to _20250305:
+#   "type": "web_search_20250305"  /  "type": "web_fetch_20250305"
 # ---------------------------------------------------------------------------
 
 SERVER_SIDE_TOOLS = {

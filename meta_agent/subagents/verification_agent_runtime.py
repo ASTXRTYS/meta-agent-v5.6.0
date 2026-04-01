@@ -31,8 +31,9 @@ from meta_agent.backend import (
     create_composite_backend,
     create_store,
 )
+from meta_agent.middleware.agent_decision_state import AgentDecisionStateMiddleware
 from meta_agent.middleware.tool_error_handler import ToolErrorMiddleware
-from meta_agent.model import get_model_config
+from meta_agent.model import get_configured_model, get_model_config
 from meta_agent.prompts.verification_agent import construct_verification_agent_prompt
 from meta_agent.subagents.verification_agent import (
     REQUIRED_VERDICT_FIELDS,
@@ -166,6 +167,7 @@ def create_verification_agent_graph(
     Middleware: 6 auto + SkillsMiddleware, ToolErrorMiddleware, MemoryMiddleware
     """
     cfg = get_model_config("verification-agent")
+    model = get_configured_model("verification-agent")
     repo_root = Path(__file__).resolve().parents[2]
     composite_backend = create_composite_backend(repo_root)
     bare_fs = create_bare_filesystem_backend()
@@ -184,10 +186,11 @@ def create_verification_agent_graph(
     skills_mw = SkillsMiddleware(backend=bare_fs, sources=resolved_skills)
 
     return create_deep_agent(
-        model=cfg["model_string"],
+        model=model,
         tools=[],  # read_file provided auto via FilesystemMiddleware
         system_prompt=construct_verification_agent_prompt(project_dir, project_id),
         middleware=[
+            AgentDecisionStateMiddleware(),
             memory_mw,
             skills_mw,
             ToolErrorMiddleware(),

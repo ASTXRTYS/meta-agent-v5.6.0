@@ -25,8 +25,9 @@ from meta_agent.backend import (
     create_composite_backend,
     create_store,
 )
+from meta_agent.middleware.agent_decision_state import AgentDecisionStateMiddleware
 from meta_agent.middleware.tool_error_handler import ToolErrorMiddleware
-from meta_agent.model import get_model_config
+from meta_agent.model import get_configured_model, get_model_config
 from meta_agent.prompts.research_agent import construct_research_agent_prompt
 from meta_agent.safety import RECURSION_LIMITS
 from meta_agent.tracing import traceable
@@ -547,6 +548,7 @@ def create_research_agent_graph(
 ) -> Any:
     """Create the internal research-agent graph."""
     cfg = get_model_config("research-agent")
+    model = get_configured_model("research-agent")
     repo_root = Path(__file__).resolve().parents[2]
     composite_backend = create_composite_backend(repo_root)
     bare_fs = create_bare_filesystem_backend()
@@ -577,10 +579,11 @@ def create_research_agent_graph(
     ]
 
     return create_deep_agent(
-        model=cfg["model_string"],
+        model=model,
         tools=tools,
         system_prompt=construct_research_agent_prompt(project_dir, project_id),
         middleware=[
+            AgentDecisionStateMiddleware(),
             summarization_tool_mw,
             memory_mw,
             skills_mw,

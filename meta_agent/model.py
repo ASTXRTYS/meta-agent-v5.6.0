@@ -6,7 +6,10 @@ Spec References: Sections 22.5, 10.5
 from __future__ import annotations
 
 import os
-from typing import Any
+from typing import Any, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from langchain_anthropic import ChatAnthropic
 
 
 # ---------------------------------------------------------------------------
@@ -61,6 +64,37 @@ def get_model_config(agent_name: str = "pm") -> dict[str, Any]:
         config["fallback_model"] = True
 
     return config
+
+
+def get_configured_model(agent_name: str = "pm") -> "ChatAnthropic":
+    """Return a ``ChatAnthropic`` instance with adaptive thinking & effort.
+
+    Uses :func:`get_model_config` to determine thinking config and effort
+    level, then passes them directly to the ``ChatAnthropic`` constructor
+    so that ``create_deep_agent(model=...)`` receives a fully-configured
+    model instance rather than a bare string.
+
+    ``ChatAnthropic`` (langchain-anthropic ≥ 1.4.0) accepts:
+    - ``thinking``: ``{"type": "adaptive"}`` (Section 10.5.1)
+    - ``effort``: ``"max" | "high" | "medium" | "low"`` (Section 10.5.3)
+    - ``max_tokens``: required when thinking is enabled
+    """
+    from langchain_anthropic import ChatAnthropic as _ChatAnthropic
+
+    cfg = get_model_config(agent_name)
+    effort = cfg["output_config"]["effort"]
+
+    # max_tokens is required when thinking is enabled.
+    # Higher effort levels get more headroom.
+    max_tokens_map = {"max": 16000, "high": 12000, "medium": 8000, "low": 4096}
+    max_tokens = max_tokens_map.get(effort, 8000)
+
+    return _ChatAnthropic(
+        model=cfg["model_name"],
+        thinking=cfg["thinking"],
+        effort=effort,
+        max_tokens=max_tokens,
+    )
 
 
 def parse_model_string(model_string: str) -> tuple[str, str]:

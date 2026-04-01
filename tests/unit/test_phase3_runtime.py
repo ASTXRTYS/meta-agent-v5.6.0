@@ -585,3 +585,76 @@ def test_run_research_agent_live_preserves_caller_extra_state():
 
     assert captured_kwargs["extra_state"]["auto_approve_hitl"] is True
     assert captured_kwargs["extra_state"]["custom_key"] == "custom_value"
+
+
+
+# ---------------------------------------------------------------------------
+# CRITICAL-2: Server-side tools validation
+# ---------------------------------------------------------------------------
+
+class TestServerSideToolsValidation:
+    """Validate SERVER_SIDE_TOOLS dict uses _20260209 versions (CRITICAL-2)."""
+
+    def test_server_side_tools_use_20260209(self):
+        from meta_agent.tools import SERVER_SIDE_TOOLS
+        assert SERVER_SIDE_TOOLS["web_search"]["type"] == "web_search_20260209"
+        assert SERVER_SIDE_TOOLS["web_fetch"]["type"] == "web_fetch_20260209"
+
+    def test_get_server_side_tools_returns_list_of_dicts(self):
+        from meta_agent.tools import get_server_side_tools
+        tools = get_server_side_tools()
+        assert isinstance(tools, list)
+        assert len(tools) == 2
+        for t in tools:
+            assert isinstance(t, dict)
+            assert "type" in t
+            assert "name" in t
+
+    def test_server_side_tools_names(self):
+        from meta_agent.tools import get_server_side_tools
+        tools = get_server_side_tools()
+        names = {t["name"] for t in tools}
+        assert names == {"web_search", "web_fetch"}
+
+
+# ---------------------------------------------------------------------------
+# CRITICAL-3: AgentDecisionStateMiddleware tests
+# ---------------------------------------------------------------------------
+
+class TestAgentDecisionStateMiddleware:
+    """Tests for AgentDecisionStateMiddleware (CRITICAL-3)."""
+
+    def test_middleware_creates(self):
+        from meta_agent.middleware.agent_decision_state import AgentDecisionStateMiddleware
+        mw = AgentDecisionStateMiddleware()
+        assert mw is not None
+
+    def test_state_schema_has_decision_log(self):
+        from meta_agent.middleware.agent_decision_state import AgentDecisionStateSchema
+        assert "decision_log" in AgentDecisionStateSchema.__annotations__
+
+    def test_state_schema_has_assumption_log(self):
+        from meta_agent.middleware.agent_decision_state import AgentDecisionStateSchema
+        assert "assumption_log" in AgentDecisionStateSchema.__annotations__
+
+    def test_state_schema_has_approval_history(self):
+        from meta_agent.middleware.agent_decision_state import AgentDecisionStateSchema
+        assert "approval_history" in AgentDecisionStateSchema.__annotations__
+
+    def test_middleware_exports_from_package(self):
+        from meta_agent.middleware import AgentDecisionStateMiddleware
+        mw = AgentDecisionStateMiddleware()
+        assert hasattr(mw, "state_schema")
+
+    def test_configs_include_middleware_for_research(self):
+        from meta_agent.subagents.configs import SUBAGENT_MIDDLEWARE
+        assert "AgentDecisionStateMiddleware" in SUBAGENT_MIDDLEWARE["research-agent"]
+
+    def test_configs_include_middleware_for_verification(self):
+        from meta_agent.subagents.configs import SUBAGENT_MIDDLEWARE
+        assert "AgentDecisionStateMiddleware" in SUBAGENT_MIDDLEWARE["verification-agent"]
+
+    def test_resolve_middleware_instances_includes_decision_state(self):
+        from meta_agent.subagents.configs import _resolve_middleware_instances
+        instances = _resolve_middleware_instances()
+        assert "AgentDecisionStateMiddleware" in instances
