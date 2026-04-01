@@ -19,7 +19,8 @@ except ImportError:
 ROOT_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "..")
 CANONICAL_EVAL_SUITE_PATH = os.path.join(
     ROOT_DIR,
-    "workspace",
+    ".agents",
+    "pm",
     "projects",
     "meta-agent",
     "evals",
@@ -27,15 +28,16 @@ CANONICAL_EVAL_SUITE_PATH = os.path.join(
 )
 CANONICAL_PRD_PATH = os.path.join(
     ROOT_DIR,
-    "workspace",
+    ".agents",
+    "pm",
     "projects",
     "meta-agent",
     "artifacts",
     "intake",
     "research-agent-prd.md",
 )
-CANONICAL_RESEARCH_BUNDLE_PATH = "/workspace/projects/meta-agent/artifacts/research/research-bundle.md"
-CANONICAL_RESEARCH_DECOMPOSITION_PATH = "/workspace/projects/meta-agent/artifacts/research/research-decomposition.md"
+CANONICAL_RESEARCH_BUNDLE_PATH = "/.agents/pm/projects/meta-agent/artifacts/research/research-bundle.md"
+CANONICAL_RESEARCH_DECOMPOSITION_PATH = "/.agents/pm/projects/meta-agent/artifacts/research/research-decomposition.md"
 RESEARCH_BUNDLE_FRONTMATTER_FIELDS = (
     "artifact",
     "project_id",
@@ -147,10 +149,10 @@ def get_arg_path(args: Mapping[str, Any] | None) -> str:
 def normalize_workspace_path(path: str) -> str:
     if not path:
         return path
-    if path.endswith("/workspace/projects/meta-agent/artifacts/intake/prd.md"):
-        return "/workspace/projects/meta-agent/artifacts/intake/research-agent-prd.md"
-    if path.endswith("/workspace/projects/meta-agent/evals/eval-suite-prd.yaml"):
-        return "/workspace/projects/meta-agent/evals/eval-suite-prd.json"
+    if path.endswith("/.agents/pm/projects/meta-agent/artifacts/intake/prd.md"):
+        return "/.agents/pm/projects/meta-agent/artifacts/intake/research-agent-prd.md"
+    if path.endswith("/.agents/pm/projects/meta-agent/evals/eval-suite-prd.yaml"):
+        return "/.agents/pm/projects/meta-agent/evals/eval-suite-prd.json"
     return path
 
 

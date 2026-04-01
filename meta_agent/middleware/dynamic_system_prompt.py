@@ -3,7 +3,7 @@
 Spec References: Sections 7.3, 22.4
 
 This middleware fires its wrap_model_call hook to replace the system message
-with the stage-appropriate orchestrator prompt. It MUST be ordered BEFORE
+with the stage-appropriate PM prompt. It MUST be ordered BEFORE
 AnthropicPromptCachingMiddleware so that cache breakpoints are set on the
 current (not stale) system prompt.
 """
@@ -15,7 +15,7 @@ from typing import Any, Awaitable, Callable
 from langchain.agents.middleware.types import AgentMiddleware
 from langchain_core.messages import SystemMessage
 
-from meta_agent.prompts.orchestrator import construct_orchestrator_prompt
+from meta_agent.prompts.pm import construct_pm_prompt
 
 
 class DynamicSystemPromptMiddleware(AgentMiddleware):
@@ -54,7 +54,7 @@ class DynamicSystemPromptMiddleware(AgentMiddleware):
         project_id = self.project_id or state_dict.get("project_id", "")
         agents_md = self.agents_md_content or state_dict.get("agents_md_content", "")
 
-        return construct_orchestrator_prompt(
+        return construct_pm_prompt(
             stage=current_stage,
             project_dir=project_dir,
             project_id=project_id,
@@ -168,7 +168,7 @@ class DynamicSystemPromptMiddleware(AgentMiddleware):
 
     def get_prompt_for_stage(self, stage: str) -> str:
         """Get the composed prompt for a specific stage (utility method)."""
-        return construct_orchestrator_prompt(
+        return construct_pm_prompt(
             stage=stage,
             project_dir=self.project_dir,
             project_id=self.project_id,

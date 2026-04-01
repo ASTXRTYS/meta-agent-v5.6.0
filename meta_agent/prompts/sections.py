@@ -67,7 +67,7 @@ WORKSPACE_SECTION_TEMPLATE = """## Workspace
 - Assumption log: {project_dir}/logs/assumption-log.yaml
 - Approval history: {project_dir}/logs/approval-history.yaml
 
-**Your memory:** {project_dir}/.agents/orchestrator/AGENTS.md"""
+**Your memory:** {project_dir}/.agents/pm/AGENTS.md"""
 
 
 def format_workspace_section(project_dir: str, project_id: str) -> str:
@@ -98,9 +98,9 @@ STAGE_CONTEXTS: dict[str, str] = {
 **Entry condition:** User initiated a new conversation with a product idea.
 
 **Exit conditions (ALL required):**
-1. PRD artifact written to /workspace/projects/{project_id}/artifacts/intake/prd.md
-2. Eval suite written to /workspace/projects/{project_id}/evals/eval-suite-prd.json (JSON format, not YAML)
-3. Synthetic dataset written to /workspace/projects/{project_id}/datasets/synthetic-{project_id}.json
+1. PRD artifact written to /.agents/pm/projects/{project_id}/artifacts/intake/prd.md
+2. Eval suite written to /.agents/pm/projects/{project_id}/evals/eval-suite-prd.json (JSON format, not YAML)
+3. Synthetic dataset written to /.agents/pm/projects/{project_id}/datasets/synthetic-{project_id}.json
 4. User has explicitly approved ALL THREE artifacts
 5. Document-renderer has produced DOCX/PDF versions of PRD
 
@@ -568,12 +568,12 @@ def format_agents_md_section(agents_md_content: str) -> str:
 
 
 # ---------------------------------------------------------------------------
-# MEMORY_SECTION — Section 7.3 (always loaded for orchestrator)
+# MEMORY_SECTION — Section 7.3 (always loaded for pm)
 # ---------------------------------------------------------------------------
 
 MEMORY_SECTION_TEMPLATE = """## Memory Protocol
 
-Your memory file: {{project_dir}}/.agents/orchestrator/AGENTS.md
+Your memory file: {{project_dir}}/.agents/pm/AGENTS.md
 
 **Write to your memory at these points:**
 - After user approves PRD: Record key requirements and decisions
@@ -601,7 +601,7 @@ def format_memory_section(project_dir: str) -> str:
 # ---------------------------------------------------------------------------
 
 SECTION_MATRIX: dict[str, list[str]] = {
-    "orchestrator": [
+    "pm": [
         "ROLE", "WORKSPACE", "STAGE_CONTEXT", "ARTIFACT_PROTOCOL",
         "TOOL_USAGE", "TOOL_BEST_PRACTICES", "CORE_BEHAVIOR",
         "HITL_PROTOCOL", "DELEGATION", "COMMUNICATION", "SKILLS",

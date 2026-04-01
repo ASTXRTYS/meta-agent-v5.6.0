@@ -87,7 +87,7 @@ class TestCompletionGuardMiddleware:
         assert CompletionGuardMiddleware.should_apply("code-agent")
         assert CompletionGuardMiddleware.should_apply("test-agent")
         assert CompletionGuardMiddleware.should_apply("observation-agent")
-        assert not CompletionGuardMiddleware.should_apply("orchestrator")
+        assert not CompletionGuardMiddleware.should_apply("pm")
         assert not CompletionGuardMiddleware.should_apply("research-agent")
 
     def test_is_agent_middleware(self):
@@ -107,13 +107,13 @@ class TestMemoryLoaderMiddleware:
         assert mw.load_memory() == ""
 
     def test_load_memory_from_project(self, tmp_path):
-        mem_dir = tmp_path / ".agents" / "orchestrator"
+        mem_dir = tmp_path / ".agents" / "pm"
         mem_dir.mkdir(parents=True)
         mem_file = mem_dir / "AGENTS.md"
         mem_file.write_text("# Test memory\nSome notes.")
 
         mw = MemoryLoaderMiddleware(
-            agent_name="orchestrator",
+            agent_name="pm",
             project_dir=str(tmp_path),
         )
         content = mw.load_memory()

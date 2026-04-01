@@ -5,7 +5,7 @@ Spec Reference: Sections 22.3, 6, 2.2.1
 Defines all 8 subagent configurations with middleware stacks,
 tool sets, effort levels, and recursion limits.
 
-Provides build_orchestrator_subagents() to produce SDK-compatible SubAgent
+Provides build_pm_subagents() to produce SDK-compatible SubAgent
 dicts for the create_deep_agent(subagents=...) parameter.
 """
 
@@ -178,7 +178,7 @@ def get_all_subagent_names() -> list[str]:
 # ---------------------------------------------------------------------------
 
 # Descriptions per spec Section 6.x — used by SubAgentMiddleware's task tool
-# to let the orchestrator know what each agent can do.
+# to let the PM know what each agent can do.
 SUBAGENT_DESCRIPTIONS: dict[str, str] = {
     "research-agent": (
         "Deep ecosystem researcher. Performs multi-pass web research, "
@@ -225,7 +225,7 @@ def _resolve_middleware_instances() -> dict[str, Any]:
     }
 
 
-def build_orchestrator_subagents(
+def build_pm_subagents(
     project_dir: str = "",
     project_id: str = "",
     skills_dirs: list[str] | None = None,

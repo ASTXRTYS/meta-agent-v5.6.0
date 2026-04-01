@@ -212,7 +212,7 @@ def test_rb_001_requires_full_coverage_or_flag():
         {
             "trace_summary": {
                 "tool_calls": [
-                    {"name": "read_file", "args": {"file_path": "/workspace/projects/meta-agent/artifacts/intake/research-agent-prd.md", "offset": 0, "length": 100}}
+                    {"name": "read_file", "args": {"file_path": "/.agents/pm/projects/meta-agent/artifacts/intake/research-agent-prd.md", "offset": 0, "length": 100}}
                 ],
                 "prd_fully_read": False,
                 "prd_total_chars": 1000,
@@ -228,7 +228,7 @@ def test_rb_001_requires_full_coverage_or_flag():
         {
             "trace_summary": {
                 "tool_calls": [
-                    {"name": "read_file", "args": {"file_path": "/workspace/projects/meta-agent/artifacts/intake/research-agent-prd.md", "offset": 0, "length": 1000}}
+                    {"name": "read_file", "args": {"file_path": "/.agents/pm/projects/meta-agent/artifacts/intake/research-agent-prd.md", "offset": 0, "length": 1000}}
                 ],
                 "prd_fully_read": False,
                 "prd_total_chars": 1000,
@@ -246,7 +246,7 @@ def test_rb_002_fails_when_eval_suite_read_happens_after_research():
             "trace_summary": {
                 "tool_calls": [
                     {"name": "web_search", "args": {"query": "langsmith evaluators"}, "timestamp": 1},
-                    {"name": "read_file", "args": {"file_path": "/workspace/projects/meta-agent/evals/eval-suite-prd.json"}, "timestamp": 2},
+                    {"name": "read_file", "args": {"file_path": "/.agents/pm/projects/meta-agent/evals/eval-suite-prd.json"}, "timestamp": 2},
                 ]
             }
         }
@@ -378,8 +378,8 @@ def test_run_research_agent_live_accepts_dataset_input_keys():
     # Instead, verify the function accepts the canonical input shape by
     # checking it doesn't raise on key extraction before the runtime call.
     sample_inputs = {
-        "prd_path": "/workspace/projects/meta-agent/artifacts/intake/research-agent-prd.md",
-        "eval_suite_path": "/workspace/projects/meta-agent/evals/eval-suite-prd.json",
+        "prd_path": "/.agents/pm/projects/meta-agent/artifacts/intake/research-agent-prd.md",
+        "eval_suite_path": "/.agents/pm/projects/meta-agent/evals/eval-suite-prd.json",
         "project_id": "meta-agent",
         "skills_paths": ["/skills/langchain/"],
         "twitter_handles": [],

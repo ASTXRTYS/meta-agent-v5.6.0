@@ -28,7 +28,7 @@ EVAL_SUITE_TEMPLATE = {
         "version": "1.0.0",
         "tier": 1,
         "langsmith_dataset_name": "",
-        "created_by": "orchestrator",
+        "created_by": "pm",
         "status": "draft",
         "lineage": ["intake-prd.md"],
     },
@@ -96,7 +96,7 @@ def propose_evals(
         if tier == 1
         else ["eval-suite-prd.json", "technical-specification.md"]
     )
-    creator = created_by or ("orchestrator" if tier == 1 else "spec-writer")
+    creator = created_by or ("pm" if tier == 1 else "spec-writer")
 
     document = {
         "metadata": {

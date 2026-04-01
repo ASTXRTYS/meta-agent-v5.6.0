@@ -80,7 +80,7 @@ def _to_workspace_path(path: str, *, project_dir: str, project_id: str) -> str:
     marker = f"{os.sep}projects{os.sep}{project_id}{os.sep}"
     if marker in normalized:
         suffix = normalized.split(marker, 1)[1].replace(os.sep, "/")
-        return f"/workspace/projects/{project_id}/{suffix}"
+        return f"/.agents/pm/projects/{project_id}/{suffix}"
 
     return normalized.replace(os.sep, "/")
 
@@ -99,7 +99,7 @@ def _default_eval_project_dir(project_id: str) -> str:
 def _localize_workspace_path(path: str | None, *, project_dir: str, project_id: str) -> str:
     if not path:
         return path or ""
-    workspace_prefix = f"/workspace/projects/{project_id}/"
+    workspace_prefix = f"/.agents/pm/projects/{project_id}/"
     normalized = path.replace("\\", "/")
     if normalized.startswith(workspace_prefix):
         suffix = normalized[len(workspace_prefix) :]

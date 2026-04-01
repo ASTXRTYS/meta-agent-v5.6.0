@@ -27,7 +27,7 @@ from .eval_mindset import EVAL_MINDSET_SECTION
 from .eval_engineering import EVAL_ENGINEERING_SECTION
 from .scoring_strategy import SCORING_STRATEGY_SECTION
 from .eval_approval_protocol import EVAL_APPROVAL_PROTOCOL
-from .orchestrator import construct_orchestrator_prompt
+from .pm import construct_pm_prompt
 
 __all__ = [
     "ROLE_SECTION",
@@ -48,7 +48,7 @@ __all__ = [
     "EVAL_ENGINEERING_SECTION",
     "SCORING_STRATEGY_SECTION",
     "EVAL_APPROVAL_PROTOCOL",
-    "construct_orchestrator_prompt",
+    "construct_pm_prompt",
     "format_workspace_section",
     "format_stage_context",
     "format_agents_md_section",

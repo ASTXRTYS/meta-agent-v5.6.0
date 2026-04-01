@@ -47,7 +47,7 @@ class TestDynamicSystemPromptMiddleware:
 
     def test_injects_system_message_when_none_exists(self):
         mw = DynamicSystemPromptMiddleware(
-            project_dir="/workspace/projects/test",
+            project_dir="/.agents/pm/projects/test",
             project_id="test-project",
         )
         state = {"current_stage": "INTAKE", "messages": []}
@@ -59,7 +59,7 @@ class TestDynamicSystemPromptMiddleware:
 
     def test_replaces_existing_system_message(self):
         mw = DynamicSystemPromptMiddleware(
-            project_dir="/workspace/projects/test",
+            project_dir="/.agents/pm/projects/test",
             project_id="test-project",
         )
         state = {
@@ -78,7 +78,7 @@ class TestDynamicSystemPromptMiddleware:
 
     def test_intake_has_scoring_strategy(self):
         mw = DynamicSystemPromptMiddleware(
-            project_dir="/workspace/projects/test",
+            project_dir="/.agents/pm/projects/test",
             project_id="test-project",
         )
         state = {"current_stage": "INTAKE", "messages": []}
@@ -88,7 +88,7 @@ class TestDynamicSystemPromptMiddleware:
 
     def test_intake_has_no_delegation(self):
         mw = DynamicSystemPromptMiddleware(
-            project_dir="/workspace/projects/test",
+            project_dir="/.agents/pm/projects/test",
             project_id="test-project",
         )
         state = {"current_stage": "INTAKE", "messages": []}
@@ -98,7 +98,7 @@ class TestDynamicSystemPromptMiddleware:
 
     def test_research_has_delegation(self):
         mw = DynamicSystemPromptMiddleware(
-            project_dir="/workspace/projects/test",
+            project_dir="/.agents/pm/projects/test",
             project_id="test-project",
         )
         state = {"current_stage": "RESEARCH", "messages": []}
@@ -108,7 +108,7 @@ class TestDynamicSystemPromptMiddleware:
 
     def test_research_has_no_scoring_strategy(self):
         mw = DynamicSystemPromptMiddleware(
-            project_dir="/workspace/projects/test",
+            project_dir="/.agents/pm/projects/test",
             project_id="test-project",
         )
         state = {"current_stage": "RESEARCH", "messages": []}
@@ -118,7 +118,7 @@ class TestDynamicSystemPromptMiddleware:
 
     def test_prompt_changes_between_stages(self):
         mw = DynamicSystemPromptMiddleware(
-            project_dir="/workspace/projects/test",
+            project_dir="/.agents/pm/projects/test",
             project_id="test-project",
         )
         intake_result = mw.before_model_legacy({"current_stage": "INTAKE", "messages": []})
@@ -127,7 +127,7 @@ class TestDynamicSystemPromptMiddleware:
 
     def test_get_prompt_for_stage(self):
         mw = DynamicSystemPromptMiddleware(
-            project_dir="/workspace/projects/test",
+            project_dir="/.agents/pm/projects/test",
             project_id="test-project",
         )
         prompt = mw.get_prompt_for_stage("INTAKE")
@@ -136,7 +136,7 @@ class TestDynamicSystemPromptMiddleware:
 
     def test_prd_review_has_eval_approval_protocol(self):
         mw = DynamicSystemPromptMiddleware(
-            project_dir="/workspace/projects/test",
+            project_dir="/.agents/pm/projects/test",
             project_id="test-project",
         )
         state = {"current_stage": "PRD_REVIEW", "messages": []}
@@ -147,7 +147,7 @@ class TestDynamicSystemPromptMiddleware:
 
     def test_execution_has_delegation(self):
         mw = DynamicSystemPromptMiddleware(
-            project_dir="/workspace/projects/test",
+            project_dir="/.agents/pm/projects/test",
             project_id="test-project",
         )
         state = {"current_stage": "EXECUTION", "messages": []}
@@ -157,7 +157,7 @@ class TestDynamicSystemPromptMiddleware:
 
     def test_preserves_non_system_messages(self):
         mw = DynamicSystemPromptMiddleware(
-            project_dir="/workspace/projects/test",
+            project_dir="/.agents/pm/projects/test",
             project_id="test-project",
         )
         state = {
@@ -176,7 +176,7 @@ class TestDynamicSystemPromptMiddleware:
 
     def test_before_model_strips_existing_system_messages(self):
         mw = DynamicSystemPromptMiddleware(
-            project_dir="/workspace/projects/test",
+            project_dir="/.agents/pm/projects/test",
             project_id="test-project",
         )
         result = mw.before_model(
@@ -196,7 +196,7 @@ class TestDynamicSystemPromptMiddleware:
 
     def test_wrap_model_call_supports_system_prompt_requests(self):
         mw = DynamicSystemPromptMiddleware(
-            project_dir="/workspace/projects/test",
+            project_dir="/.agents/pm/projects/test",
             project_id="test-project",
         )
         request = _RequestWithSystemPrompt(
@@ -217,7 +217,7 @@ class TestDynamicSystemPromptMiddleware:
 
     def test_wrap_model_call_supports_system_message_requests(self):
         mw = DynamicSystemPromptMiddleware(
-            project_dir="/workspace/projects/test",
+            project_dir="/.agents/pm/projects/test",
             project_id="test-project",
         )
         request = _RequestWithSystemMessage(
@@ -233,7 +233,7 @@ class TestDynamicSystemPromptMiddleware:
 
     def test_wrap_model_call_falls_back_to_messages_override(self):
         mw = DynamicSystemPromptMiddleware(
-            project_dir="/workspace/projects/test",
+            project_dir="/.agents/pm/projects/test",
             project_id="test-project",
         )
         request = _RequestWithMessagesOnly(
@@ -250,7 +250,7 @@ class TestDynamicSystemPromptMiddleware:
     @pytest.mark.asyncio
     async def test_awrap_model_call_supports_system_prompt_requests(self):
         mw = DynamicSystemPromptMiddleware(
-            project_dir="/workspace/projects/test",
+            project_dir="/.agents/pm/projects/test",
             project_id="test-project",
         )
         request = _RequestWithSystemPrompt(

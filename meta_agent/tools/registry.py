@@ -80,7 +80,7 @@ TOOL_FUNCTIONS: dict[str, Callable[..., Any]] = {
 
 # Tool registry organized by agent role — maps names to tool name lists
 TOOL_REGISTRY: dict[str, list[str]] = {
-    "orchestrator": [
+    "pm": [
         "write_file", "read_file", "ls", "edit_file", "glob", "grep",
         "transition_stage", "record_decision", "record_assumption",
         "request_approval", "request_eval_approval", "toggle_participation",

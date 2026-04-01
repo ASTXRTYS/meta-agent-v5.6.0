@@ -2,7 +2,7 @@
 
 Spec References: Sections 3.1.1, 5.1
 
-Each project gets its own directory tree under workspace/projects/{project_id}/
+Each project gets its own directory tree under .agents/pm/projects/{project_id}/
 with meta.yaml, artifact subdirectories, evals, logs, and per-agent memory.
 """
 
@@ -32,7 +32,7 @@ def create_thread_id(project_id: str, session_id: str | None = None) -> str:
 
 # Agent subdirectories created within each project
 PROJECT_AGENTS = [
-    "orchestrator",
+    "pm",
     "research-agent",
     "spec-writer",
     "plan-writer",

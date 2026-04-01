@@ -17,7 +17,7 @@ from typing import Any
 # ---------------------------------------------------------------------------
 
 RECURSION_LIMITS: dict[str, int] = {
-    "orchestrator": 200,
+    "pm": 200,
     "code-agent": 150,
     "research-agent": 100,
     "spec-writer": 50,

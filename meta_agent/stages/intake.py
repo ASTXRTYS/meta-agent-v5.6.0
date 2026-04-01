@@ -35,7 +35,7 @@ PRD_FRONTMATTER_TEMPLATE = {
     "version": "1.0.0",
     "status": "draft",
     "stage": "INTAKE",
-    "authors": ["orchestrator"],
+    "authors": ["pm"],
     "lineage": [],
 }
 

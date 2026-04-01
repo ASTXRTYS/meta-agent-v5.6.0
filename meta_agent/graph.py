@@ -52,8 +52,8 @@ from meta_agent.middleware.dynamic_system_prompt import DynamicSystemPromptMiddl
 from meta_agent.middleware.tool_error_handler import ToolErrorMiddleware
 from meta_agent.tools import LANGCHAIN_TOOLS
 from meta_agent.tools.registry import HITL_GATED_TOOLS
-from meta_agent.prompts.orchestrator import construct_orchestrator_prompt
-from meta_agent.subagents.configs import build_orchestrator_subagents
+from meta_agent.prompts.pm import construct_pm_prompt
+from meta_agent.subagents.configs import build_pm_subagents
 from meta_agent.tracing import prepare_agent_state
 
 
@@ -62,7 +62,7 @@ def create_graph(
     project_dir: str = "",
     project_id: str = "",
 ) -> Any:
-    """Create the meta-agent orchestrator graph.
+    """Create the meta-agent PM graph.
 
     Creates a real Deep Agent with the full middleware stack per Section 22.4.
     Uses create_deep_agent() from the deepagents SDK.
@@ -83,7 +83,7 @@ def create_graph(
     if project_id and project_dir:
         base_dir = os.path.dirname(project_dir) if project_dir.endswith(project_id) else project_dir
         # Only init if the project dir doesn't look fully initialized
-        agents_md = os.path.join(project_dir, ".agents", "orchestrator", "AGENTS.md")
+        agents_md = os.path.join(project_dir, ".agents", "pm", "AGENTS.md")
         if not os.path.exists(agents_md):
             try:
                 init_project(base_dir=os.path.dirname(os.path.dirname(project_dir)),
@@ -99,8 +99,8 @@ def create_graph(
     checkpointer = create_checkpointer()
     store = create_store()
 
-    # Build system prompt from orchestrator prompt composer
-    system_prompt = construct_orchestrator_prompt(
+    # Build system prompt from PM prompt composer
+    system_prompt = construct_pm_prompt(
         stage="INTAKE",
         project_dir=project_dir,
         project_id=project_id,
@@ -122,22 +122,22 @@ def create_graph(
     )
 
     # MemoryMiddleware — per-agent AGENTS.md loading (Spec 22.4, Section 13.4.6)
-    # Orchestrator loads its own AGENTS.md; isolation rule: no cross-agent memory.
+    # PM loads its own AGENTS.md; isolation rule: no cross-agent memory.
     memory_sources = []
     if project_dir:
         project_agents_md = os.path.join(
-            project_dir, ".agents", "orchestrator", "AGENTS.md"
+            project_dir, ".agents", "pm", "AGENTS.md"
         )
         if os.path.isfile(project_agents_md):
             memory_sources.append(project_agents_md)
-    global_agents_md = str(repo_root / ".agents" / "orchestrator" / "AGENTS.md")
+    global_agents_md = str(repo_root / ".agents" / "pm" / "AGENTS.md")
     if os.path.isfile(global_agents_md):
         memory_sources.append(global_agents_md)
     memory_mw = MemoryMiddleware(backend=bare_fs, sources=memory_sources)
 
     # Resolve skills directories (Section 11, 22.4)
     # All 31 skills from LangChain, LangSmith, and Anthropic repos are available
-    # to the orchestrator via SkillsMiddleware for on-demand SKILL.md loading.
+    # to the PM via SkillsMiddleware for on-demand SKILL.md loading.
     # Each repo has a different internal layout, so we point to the directory
     # that contains the skill subdirectories (each with a SKILL.md).
     skills_dirs = [
@@ -170,7 +170,7 @@ def create_graph(
     }
 
     # Build SDK-compatible subagent definitions (Section 6, 22.3)
-    subagents = build_orchestrator_subagents(
+    subagents = build_pm_subagents(
         project_dir=project_dir,
         project_id=project_id,
         skills_dirs=skills_dirs,
@@ -179,7 +179,7 @@ def create_graph(
     # Emit prepare_agent_state spans (Spec 18.5.1, Gap 1)
     # Documents what each agent was provisioned with at graph creation time.
     prepare_agent_state(
-        agent_name="orchestrator",
+        agent_name="pm",
         state_keys=list(MetaAgentState.__annotations__.keys()),
         artifact_paths=[project_dir] if project_dir else [],
         skill_dirs=skills_dirs,
@@ -203,7 +203,7 @@ def create_graph(
         store=store,
         backend=composite_backend,
         interrupt_on=interrupt_on,
-        name="meta-agent-orchestrator",
+        name="meta-agent-pm",
     )
 
     return graph

@@ -238,7 +238,7 @@ def main() -> None:
     parser.add_argument(
         "--report-dir",
         default=None,
-        help="Directory to save markdown experiment report (default: workspace/projects/meta-agent/evals/reports/)",
+        help="Directory to save markdown experiment report (default: .agents/pm/projects/meta-agent/evals/reports/)",
     )
     args = parser.parse_args()
 
