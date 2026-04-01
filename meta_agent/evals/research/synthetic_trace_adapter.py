@@ -210,7 +210,8 @@ def _load_calibration_source(datasets_dir: str) -> dict[str, Any]:
     path = os.path.join(
         datasets_dir,
         "..",
-        "workspace",
+        ".agents",
+        "pm",
         "projects",
         "meta-agent",
         "datasets",
