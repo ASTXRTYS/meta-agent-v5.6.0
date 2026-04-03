@@ -8,7 +8,7 @@ correctly shaped, annotated, and invocable."""
 from __future__ import annotations
 
 import inspect
-from typing import Any, get_type_hints
+from typing import Any
 
 import pytest
 from langchain_core.tools import BaseTool
@@ -67,6 +67,22 @@ class TestToolInstances:
         assert len(names) == len(set(names)), (
             f"Duplicate tool names: {[n for n in names if names.count(n) > 1]}"
         )
+
+    def test_all_args_have_type_in_json_schema(self):
+        """Every user-facing arg in each tool's JSON schema must have a type."""
+        for tool in LANGCHAIN_TOOLS:
+            schema = tool.tool_call_schema.model_json_schema()
+            properties = schema.get("properties", {})
+            for arg_name, arg_schema in properties.items():
+                has_type = (
+                    "type" in arg_schema
+                    or "anyOf" in arg_schema
+                    or "$ref" in arg_schema
+                )
+                assert has_type, (
+                    f"Arg '{arg_name}' in tool '{tool.name}' "
+                    f"is missing type in JSON schema"
+                )
 
 
 # ---------------------------------------------------------------------------
