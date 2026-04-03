@@ -45,6 +45,9 @@ COVERS = [
     "tool.propose_evals",
     "tool.create_eval_dataset",
     "sdk.langgraph.Command",
+    "guardrail.recursion_limits",
+    "guardrail.command_validation",
+    "guardrail.path_validation",
 ]
 
 

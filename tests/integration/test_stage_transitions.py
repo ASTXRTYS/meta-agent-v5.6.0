@@ -17,6 +17,10 @@ from meta_agent.tools import transition_stage, InvalidTransitionError, Precondit
 
 COVERS = [
     "tool.transition_stage",
+    "tool.record_decision",
+    "tool.record_assumption",
+    "tool.request_eval_approval",
+    "tool.propose_evals",
     "state.current_stage",
     "guardrail.valid_transitions",
 ]

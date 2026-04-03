@@ -16,6 +16,8 @@ from meta_agent.tools.registry import (
 
 COVERS = [
     "guardrail.hitl_gated_tools",
+    "guardrail.command_validation",
+    "guardrail.path_validation",
     "sdk.langgraph.interrupt",
     "tool.request_approval",
     "tool.execute_command",

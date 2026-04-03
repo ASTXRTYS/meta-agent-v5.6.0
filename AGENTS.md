@@ -12,10 +12,10 @@ source .venv/bin/activate
 pip install -e ".[dev]"
 ```
 
-Prefer a project-local virtualenv so `langgraph dev` uses this repo's dependency baseline,
-not a globally installed CLI/runtime from your shell PATH.
+Prefer a project-local virtualenv so `langgraph dev` uses this repo's dependency baseline,not a globally installed CLI/runtime from your shell PATH.
 
 This installs the `meta-agent` package plus all required dependencies:
+
 - `deepagents>=0.4.3` — the Deep Agents SDK (provides `create_deep_agent()`)
 - `langgraph-cli[inmem]>=0.4.12` — the `langgraph` CLI with in-memory runtime
 - `langchain-anthropic>=1.3.0` — Anthropic model provider
@@ -45,12 +45,13 @@ META_AGENT_MAX_REFLECTION_PASSES=3
 ```
 
 **Both keys are required:**
+
 - `ANTHROPIC_API_KEY` — the agent calls Claude via the Anthropic API. Without this, `graph.invoke()` will fail.
 - `LANGSMITH_API_KEY` — tracing and eval runs go to LangSmith. Without this, `LANGSMITH_TRACING=true` will cause connection errors at runtime.
 
 The `.env` file is loaded automatically by `meta_agent/server.py` on import via `python-dotenv`. It is also referenced directly in `langgraph.json` via the `"env": ".env"` field, so the `langgraph dev` CLI loads it too.
 
-**Do NOT commit `.env` to git.** It is in `.gitignore`.
+**Do NOT commit **`.env`** to git.** It is in `.gitignore`.
 
 ### 3. Launch the Dev Server
 
@@ -64,10 +65,10 @@ If you are not activating the venv in your shell, run:
 ./.venv/bin/langgraph dev
 ```
 
-For normal local development, run this command exactly as shown so Studio opens automatically.
-Do not add `--no-browser` unless you explicitly need headless mode.
+For normal local development, run this command exactly as shown so Studio opens automatically.Do not add `--no-browser` unless you explicitly need headless mode.
 
 This will:
+
 1. Read `langgraph.json` at the project root
 2. Install the local package (from `"dependencies": ["."]`)
 3. Load environment variables from `.env` (from `"env": ".env"`)
@@ -91,6 +92,7 @@ To use a different port: `langgraph dev --port 8123`.
 ### 4. Interact with the Agent
 
 Once the dev server is running, the Studio UI lets you:
+
 - Send messages to the orchestrator (the PM agent)
 - See the graph topology and state flow
 - Inspect tool calls, HITL interrupts, and stage transitions
@@ -111,16 +113,14 @@ make evals         # Run all evals
 ### Troubleshooting
 
 | Problem | Fix |
-|---|---|
-| `No dependencies found in config` | Your `langgraph.json` is missing `"dependencies": ["."]`. See the file in repo root. |
-| `ANTHROPIC_API_KEY not set` | Your `.env` file is missing or doesn't have the Anthropic key. Copy from `.env.example`. |
-| `ModuleNotFoundError: deepagents` | Run `pip install -e .` — the package isn't installed. |
-| `langgraph: command not found` | Run `pip install "langgraph-cli[inmem]>=0.4.12"` |
-| `unexpected keyword argument 'system_message'` / `'system_prompt'` | Your runtime packages are outdated or mixed. Recreate/activate `.venv`, run `pip install -e ".[dev]"`, and relaunch from that env. |
-| `Connection refused` on Studio | The dev server isn't running. Run `langgraph dev` first. |
-| Port already in use | Another process is on 2024. Use `langgraph dev --port 8123` or kill the existing process. |
-
----
+| --- | --- |
+| No dependencies found in config | Your langgraph.json is missing "dependencies": ["."]. See the file in repo root. |
+| ANTHROPIC_API_KEY not set | Your .env file is missing or doesn't have the Anthropic key. Copy from .env.example. |
+| ModuleNotFoundError: deepagents | Run pip install -e . — the package isn't installed. |
+| langgraph: command not found | Run pip install "langgraph-cli[inmem]>=0.4.12" |
+| unexpected keyword argument 'system_message' / 'system_prompt' | Your runtime packages are outdated or mixed. Recreate/activate .venv, run pip install -e ".[dev]", and relaunch from that env. |
+| Connection refused on Studio | The dev server isn't running. Run langgraph dev first. |
+| Port already in use | Another process is on 2024. Use langgraph dev --port 8123 or kill the existing process. |
 
 ## Project Status
 
@@ -143,37 +143,37 @@ The research-agent evaluation stack exists under `meta_agent/evals/research/`. T
 These are **auto-attached** by the SDK — we do NOT instantiate them:
 
 | Middleware | What It Does |
-|---|---|
-| `TodoListMiddleware` | Provides `write_todos` tool for task planning |
-| `FilesystemMiddleware` | Provides `ls`, `read_file`, `write_file`, `edit_file` tools via configured `backend` |
-| `SubAgentMiddleware` | Provides `task` tool for delegation to subagents |
-| `SummarizationMiddleware` | Auto-compacts context when token usage is high |
+| --- | --- |
+| TodoListMiddleware | Provides write_todos tool for task planning |
+| FilesystemMiddleware | Provides ls, read_file, write_file, edit_file tools via configured backend |
+| SubAgentMiddleware | Provides task tool for delegation to subagents |
+| SummarizationMiddleware | Auto-compacts context when token usage is high |
 | Prompt caching + tool patching | Anthropic cache breakpoints, tool call normalization |
 
 ### What We Configure Explicitly
 
 | Parameter | Value | Spec Reference |
-|---|---|---|
-| `model` | `"claude-opus-4-6"` (from env) | Section 10.5 |
-| `system_prompt` | `construct_pm_prompt()` output | Section 7.3 |
-| `tools` | Custom tools from `meta_agent/tools/` (registered as `@tool`) | Sections 8.1–8.14 |
-| `middleware` | `[DynamicSystemPromptMiddleware, MetaAgentStateMiddleware, SummarizationToolMiddleware, MemoryMiddleware, ToolErrorMiddleware]` | Sections 22.4, 22.12 |
-| `backend` | `FilesystemBackend(root_dir=<repo_root>, virtual_mode=True)` | Section 4.2 |
-| `checkpointer` | `MemorySaver()` (InMemorySaver) | Section 4.3 |
-| `store` | `InMemoryStore()` | Section 4.2 |
-| `interrupt_on` | `{tool_name: True for tool_name in HITL_GATED_TOOLS}` | Section 9.2 |
-| `skills` | `skills/langchain/config/skills`, `skills/langsmith/config/skills`, `skills/anthropic/skills` | Sections 11, 22.4 |
-| `name` | `"meta-agent-orchestrator"` | — |
+| --- | --- | --- |
+| model | "claude-opus-4-6" (from env) | Section 10.5 |
+| system_prompt | construct_pm_prompt() output | Section 7.3 |
+| tools | Custom tools from meta_agent/tools/ (registered as @tool) | Sections 8.1–8.14 |
+| middleware | [DynamicSystemPromptMiddleware, MetaAgentStateMiddleware, SummarizationToolMiddleware, MemoryMiddleware, ToolErrorMiddleware] | Sections 22.4, 22.12 |
+| backend | FilesystemBackend(root_dir=<repo_root>, virtual_mode=True) | Section 4.2 |
+| checkpointer | MemorySaver() (InMemorySaver) | Section 4.3 |
+| store | InMemoryStore() | Section 4.2 |
+| interrupt_on | {tool_name: True for tool_name in HITL_GATED_TOOLS} | Section 9.2 |
+| skills | skills/langchain/config/skills, skills/langsmith/config/skills, skills/anthropic/skills | Sections 11, 22.4 |
+| name | "meta-agent-orchestrator" | — |
 
 ### Custom Middleware
 
 | Middleware | File | Hook Type | Purpose |
-|---|---|---|---|
-| `DynamicSystemPromptMiddleware` | `middleware/dynamic_system_prompt.py` | `@wrap_model_call` / `@before_model` | Reads `current_stage` from state, builds stage-aware prompt, strips stale system messages from history in `before_model`, then applies request-level system prompt in wrap hooks. **MUST be first in middleware list.** |
-| `MetaAgentStateMiddleware` | `middleware/meta_state.py` | `AgentMiddleware` | Extends the graph state schema and keeps orchestrator state shape aligned with the spec. |
-| `SummarizationToolMiddleware` | `graph.py` (SDK middleware instance) | SDK middleware | Exposes `compact_conversation` for agent-controlled compaction on top of the auto-attached summarization layer. |
-| `MemoryMiddleware` | `graph.py` (SDK middleware instance) | SDK middleware | Loads the orchestrator's own AGENTS.md files with per-agent isolation. |
-| `ToolErrorMiddleware` | `middleware/tool_error_handler.py` | `@wrap_tool_call` | Wraps tool calls in try/except, returns structured error JSON |
+| --- | --- | --- | --- |
+| DynamicSystemPromptMiddleware | middleware/dynamic_system_prompt.py | @wrap_model_call / @before_model | Reads current_stage from state, builds stage-aware prompt, strips stale system messages from history in before_model, then applies request-level system prompt in wrap hooks. MUST be first in middleware list. |
+| MetaAgentStateMiddleware | middleware/meta_state.py | AgentMiddleware | Extends the graph state schema and keeps orchestrator state shape aligned with the spec. |
+| SummarizationToolMiddleware | graph.py (SDK middleware instance) | SDK middleware | Exposes compact_conversation for agent-controlled compaction on top of the auto-attached summarization layer. |
+| MemoryMiddleware | graph.py (SDK middleware instance) | SDK middleware | Loads the orchestrator's own AGENTS.md files with per-agent isolation. |
+| ToolErrorMiddleware | middleware/tool_error_handler.py | @wrap_tool_call | Wraps tool calls in try/except, returns structured error JSON |
 
 ## Architecture
 
@@ -204,11 +204,10 @@ meta_agent/
 - **Phase 4:** Planning + Execution (plan-writer, code-agent with 3 nested sub-agents)
 - **Phase 5:** End-to-end evaluation + audit UX. LangSmith experiment plumbing exists, but the orchestrator still does not provide a user-friendly end-to-end eval/testing workflow.
 
----
-
 ## Phase 3 Experimental Findings and Known Issues
 
 ### Experiment Context
+
 - **Trace ID**: 019d404a-8275-7cb3-81a7-4bc166c13cb1 (LangSmith)
 - **Date**: 2026-03-30
 - **PRD**: .agents/pm/projects/meta-agent/artifacts/intake/research-agent-prd.md
@@ -217,44 +216,51 @@ meta_agent/
 ### Issues Discovered
 
 #### Skills Usage Behavior
+
 The research-agent demonstrated incorrect skills consultation:
+
 - **Expected**: Use SkillsMiddleware to internalize pre-loaded skills before web research
 - **Actual**: Brute-force directory traversal through `/skills/` with 78 read_file calls
 - **Problem**: Measurement stack was rewarding filesystem access rather than middleware-driven skill usage
 
 #### Research Approach
+
 - **Expected**: Web research using web_search and web_fetch tools
 - **Actual**: 0 web_search calls, 0 web_fetch calls
 - **Problem**: Agent stuck in filesystem exploration mode instead of conducting research
 
 #### Delegation Patterns
+
 - **Expected**: Intentional sub-agent topology with parallel research
 - **Actual**: Only 2 task calls, minimal delegation
 - **Problem**: Poor reasoning about delegation topology and workload distribution
 
 #### Middleware Integration
+
 - **Expected**: DynamicSystemPromptMiddleware firing correctly
 - **Actual**: Middleware not operating as intended
 - **Problem**: Stage-aware prompts and system message handling broken
 
 #### PRD Decomposition
+
 - **Expected**: Structured decomposition into research domains
 - **Actual**: Failed to properly decompose PRD requirements
 - **Problem**: Agent couldn't translate PRD into actionable research agenda
 
 ### Current Frozen State
+
 Development is frozen until API funding is available. The architectural foundation exists (all three Phase 3 agents implemented as Deep Agents), but behavioral fixes are required before the research-agent can perform as designed.
 
 ### Detailed Analysis Reference
+
 See DEVIATION_RECORD.md Section 21 for comprehensive analysis of:
+
 - Why the measurement stack rewarded incorrect behaviors
 - Skills-first research posture implementation gaps
 - Middleware evidence vs filesystem access patterns
 - Evaluation contract misalignment
 
 This section contains high-signal feedback about the root causes of these issues.
-
----
 
 ## Progress Tracking
 
@@ -265,16 +271,13 @@ The `Full-Development-Plan.md` includes progress tracking that shows what's comp
 ### How to Update Progress
 
 1. **Phase Headers:** Update status badges as phases are completed
-   - `⏸️ NOT STARTED` → `🔄 IN PROGRESS` → `✅ COMPLETE`
-
+  - `⏸️ NOT STARTED` → `🔄 IN PROGRESS` → `✅ COMPLETE`
 2. **Task Checklists:** Mark tasks as complete using `[x]` instead of `[ ]`
-   - Found in each phase's "Phase Complete Checklist" section
-
+  - Found in each phase's "Phase Complete Checklist" section
 3. **Project Status Summary:** Update completion percentages and current focus
-   - Located in Section 1.5 of the development plan
-
+  - Located in Section 1.5 of the development plan
 4. **Phase-Specific Progress:** Update progress sections for the current phase
-   - Example: Phase 3 has separate "Foundations" vs "Runtime Implementation" sections
+  - Example: Phase 3 has separate "Foundations" vs "Runtime Implementation" sections
 
 ### When to Update
 
@@ -288,13 +291,103 @@ The `Full-Development-Plan.md` includes progress tracking that shows what's comp
 - ✅ **COMPLETE** - All evals passing, phase fully functional
 - 🔄 **IN PROGRESS** - Implementation underway, partial completion
 - ⏸️ **NOT STARTED** - Blocked by prerequisite phases
-- [x] - Task completed
-- [ ] - Task incomplete
+
+- [x] 
+
+- Task completed
+
+- [ ] 
+
+- Task incomplete
+
 - ⏳ - In progress
 
 **Important:** The development plan is the single source of truth for project status. Keeping it accurate ensures any agent can quickly understand what's done and what remains.
 
----
+## Test Suite Structure
+
+The test suite has two layers: the canonical new suite and a quarantined legacy suite.
+
+### Directory Layout
+
+| Directory | Purpose | Marker | Mock Policy |
+|---|---|---|---|
+| `tests/contracts/` | Fast invariant tests — no I/O, no model calls | `@pytest.mark.contract` | No `unittest.mock` allowed |
+| `tests/integration/` | App composition tests — may use tmp_path, mocks | `@pytest.mark.integration` | Mocks permitted |
+| `tests/evals/` | Live behavioral tests — real API calls | `@pytest.mark.eval` | Auto-skipped without `ANTHROPIC_API_KEY` |
+| `tests/drift/` | Regression/drift guards | `@pytest.mark.drift` | No mocks |
+| `tests/unit/` | **LEGACY QUARANTINE** — do not add new tests here | `@pytest.mark.legacy` | Frozen at ceiling of 410 tests |
+| `tests/_support/` | Shared helpers (fake models, builders, assertions) | N/A — not test files | N/A |
+
+### Makefile Targets
+
+| Target | What It Runs |
+|---|---|
+| `make test` | New suite only (excludes `tests/unit/`) — **this is the default** |
+| `make test-all` | Everything including legacy |
+| `make test-contracts` | Contract tests only |
+| `make test-integration` | Integration tests only |
+| `make test-evals` | Eval tests only (skipped without API key) |
+| `make test-drift` | Drift tests only |
+| `make test-legacy` | Legacy quarantine only |
+
+### When Writing New Tests
+
+1. **Choose the right directory** based on the table above
+2. **Add the correct marker** as `pytestmark = pytest.mark.<marker>` at the top of the file
+3. **Add `REPLACES:` comments** if your test replaces legacy coverage:
+   ```python
+   # REPLACES: tests/unit/test_backend.py::TestCreateCompositeBackend
+   ```
+4. **Add `COVERS:` declarations** mapping to catalog component IDs:
+   ```python
+   # COVERS: backend.composite_routing, backend.filesystem_virtual
+   ```
+5. **Never add tests to `tests/unit/`** — the legacy ratchet (ceiling=410) will fail CI
+
+### Legacy Test Ratchet
+
+The legacy suite is frozen at a ceiling of 410 tests. This number must only decrease as legacy tests are replaced by new canonical tests. The drift test `test_legacy_ratchet.py` enforces this. If you replace a legacy test, delete the legacy version and update the `REPLACES:` comment in the new test.
+
+## Test Catalog Maintenance
+
+Three YAML catalogs in `docs/testing/` track the components that need test coverage. **You must update these catalogs when changing the application.**
+
+### Catalogs
+
+| File | What It Tracks | When to Update |
+|---|---|---|
+| `docs/testing/runtime_components.yaml` | Tools, middleware, subagents, state fields, guardrails (82 components) | Adding/removing/renaming a tool, middleware, subagent, state field, or guardrail |
+| `docs/testing/sdk_touchpoints.yaml` | SDK symbols imported and how they're used (17 touchpoints) | Adding a new SDK import or changing usage pattern |
+| `docs/testing/intentional_stubs.yaml` | Phase-deferred stubs with justification (14 stubs) | Adding a new stub, retiring a stub, or a stub becoming real |
+
+### After Any Catalog Change
+
+Regenerate the traceability matrix:
+
+```bash
+python scripts/testing/generate_traceability.py
+```
+
+This updates `docs/testing/TEST_TRACEABILITY.md` and `docs/testing/TEST_TRACEABILITY.json`.
+
+### Drift Enforcement
+
+Drift tests automatically catch catalog staleness:
+- **Catalog parity** — fails if `runtime_components.yaml` doesn't match what's in `meta_agent/`
+- **SDK touchpoints** — fails if new SDK imports aren't cataloged
+- **Stub allowlist** — fails if new stubs (both `NotImplementedError` and soft stubs like `return {"status": "pending"}`) aren't in the allowlist
+- **Collection hygiene** — fails if test files are missing markers or `REPLACES:` comments
+
+If a drift test fails after your change, update the relevant catalog and regenerate traceability.
+
+### Inventory Scripts
+
+| Script | Purpose |
+|---|---|
+| `scripts/testing/extract_runtime_inventory.py` | Scans `meta_agent/` for runtime components via AST |
+| `scripts/testing/extract_sdk_touchpoints.py` | Scans imports for SDK symbol usage |
+| `scripts/testing/generate_traceability.py` | Builds the coverage traceability matrix from catalogs + COVERS declarations |
 
 ## Spec and Plan Documents
 
@@ -320,10 +413,12 @@ The `Full-Development-Plan.md` includes progress tracking that shows what's comp
 ## Experiment Reporting (New)
 
 The research eval package now supports dual-channel reporting:
+
 - **Local Markdown Reports:** Detailed human-readable reports with failure analysis, judge reasoning, evidence summaries, confidence, flags, and experiment metadata. Generated automatically with `--report-dir` flag.
 - **LangSmith UI:** Full traceability, filtering, and deep-dive analysis capabilities.
 
 ### Report Generation Commands
+
 ```bash
 # Runner with markdown reports
 python -m meta_agent.evals.research.runner --mode trace --report-dir reports
@@ -336,6 +431,7 @@ python -m meta_agent.evals.research.langsmith_experiment --datasets-dir datasets
 ```
 
 Reports are persisted under `.agents/pm/projects/meta-agent/evals/reports/` and include:
+
 - Executive summary with pass/fail counts
 - Registry coverage totals (`defined`, `active`, `deferred`)
 - Detailed failure blocks with judge reasoning, evidence, confidence, and flags

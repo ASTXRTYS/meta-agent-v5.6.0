@@ -45,6 +45,10 @@ COVERS = [
     "subagent.test-agent",
     "subagent.document-renderer",
     "guardrail.hitl_gated_tools",
+    "middleware.memory",
+    "middleware.skills",
+    "backend.route.default",
+    "backend.route.memories",
     "sdk.deepagents.create_deep_agent",
 ]
 
