@@ -18,3 +18,5 @@ exports/
 pm_validation.py
 pm_validation_results.json
 phase3-implementation-prompt.md
+
+.DS_Store

@@ -7,6 +7,7 @@ This project uses skills that contain up-to-date patterns and working reference 
 **ALWAYS** invoke the relevant skill first - skills have the correct imports, patterns, and scripts that prevent common mistakes.
 
 ### LangSmith Skills
+
 - **langsmith-trace** - Invoke for ANY trace querying or analysis
 - **langsmith-dataset** - Invoke for ANY dataset creation from traces
 - **langsmith-evaluator-architect** - Invoke for UI-ready evaluator profile design, judge prompts, JSON schemas, and SDK scaffolding
@@ -15,6 +16,7 @@ This project uses skills that contain up-to-date patterns and working reference 
 ## Debugging Flow: Build → Trace → Dataset → Evaluate
 
 When stuck or debugging, use this powerful workflow:
+
 1. **Run agent** to generate traces in LangSmith
 2. **Query traces** using `langsmith-trace` to find interesting examples
 3. **Create dataset** using `langsmith-dataset` from those traces
@@ -26,6 +28,7 @@ Each skill includes reference scripts in `scripts/` - use these instead of writi
 ## Environment Setup
 
 Required environment variables:
+
 ```bash
 LANGSMITH_API_KEY=<your-key>
 LANGSMITH_PROJECT=<project-name>  # Optional, defaults to "default"
