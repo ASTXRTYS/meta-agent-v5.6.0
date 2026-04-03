@@ -20,3 +20,6 @@ pm_validation_results.json
 phase3-implementation-prompt.md
 
 .DS_Store
+
+# SDK reference repos (read-only, not part of project)
+.reference/
