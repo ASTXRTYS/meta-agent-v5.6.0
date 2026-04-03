@@ -1,0 +1,56 @@
+version: 1
+
+stubs:
+  - id: stub.eval_tools.run_eval_suite
+    file: meta_agent/tools/eval_tools.py
+    symbol: run_eval_suite
+    stub_kind: not_implemented
+    allowed_until_phase: 4
+    reason: "Planned Phase 4 deliverable per development plan — raises NotImplementedError"
+    exit_criteria: "Real eval execution tool implemented and covered by contract + integration tests"
+    owner: tools-hitl
+
+  - id: stub.eval_tools.get_eval_results
+    file: meta_agent/tools/eval_tools.py
+    symbol: get_eval_results
+    stub_kind: not_implemented
+    allowed_until_phase: 4
+    reason: "Planned Phase 4 deliverable per development plan — raises NotImplementedError"
+    exit_criteria: "Real eval results retrieval tool implemented and covered by contract + integration tests"
+    owner: tools-hitl
+
+  - id: stub.eval_tools.compare_eval_runs
+    file: meta_agent/tools/eval_tools.py
+    symbol: compare_eval_runs
+    stub_kind: not_implemented
+    allowed_until_phase: 4
+    reason: "Planned Phase 4 deliverable per development plan — raises NotImplementedError"
+    exit_criteria: "Real eval comparison tool implemented and covered by contract + integration tests"
+    owner: tools-hitl
+
+  - id: stub.memory_loader.middleware
+    file: meta_agent/middleware/memory_loader.py
+    symbol: MemoryLoaderMiddleware
+    stub_kind: superseded_stub
+    allowed_until_phase: 5
+    reason: "Superseded by SDK MemoryMiddleware from deepagents.middleware.memory — retained for backward compatibility"
+    exit_criteria: "All callers migrated to SDK MemoryMiddleware; file can be safely removed"
+    owner: backend-middleware
+
+  - id: stub.document_renderer.render_artifact
+    file: meta_agent/subagents/document_renderer.py
+    symbol: render_artifact
+    stub_kind: pending_placeholder
+    allowed_until_phase: 3
+    reason: "Stub render returning status=pending — actual rendering delegated to document-renderer subagent with docx/pdf skills"
+    exit_criteria: "Document-renderer subagent wired and render_artifact produces real DOCX/PDF outputs"
+    owner: subagents-state
+
+  - id: stub.document_renderer.config
+    file: meta_agent/subagents/document_renderer.py
+    symbol: DOCUMENT_RENDERER_CONFIG
+    stub_kind: pending_placeholder
+    allowed_until_phase: 3
+    reason: "Configuration defined but document-renderer subagent not yet wired as a real Deep Agent"
+    exit_criteria: "Document-renderer config consumed by build_pm_subagents and agent operational"
+    owner: subagents-state
