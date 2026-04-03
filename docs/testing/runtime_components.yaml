@@ -147,6 +147,18 @@ components:
     contract: "Lists LangSmith traces for a project."
     required_coverage: [contract]
 
+  - id: tool.langsmith_trace_get
+    kind: tool
+    source: meta_agent/tools/__init__.py
+    registry_source: meta_agent/tools/registry.py
+    canonical_name: langsmith_trace_get_tool
+    runtime_surface: LANGCHAIN_TOOLS
+    criticality: supporting
+    contract: "Retrieves a complete trace by ID from LangSmith."
+    required_coverage: [contract]
+    owner: tools-hitl
+    status: active
+
   - id: tool.langsmith_dataset_create
     kind: tool
     source: meta_agent/tools/__init__.py
@@ -573,6 +585,116 @@ components:
     contract: "bool flag for active participation mode toggled by toggle_participation tool."
     required_coverage: [contract]
     owner: graph-contracts
+    status: active
+
+  - id: state.completed_task_ids
+    kind: state_field
+    source: meta_agent/state.py
+    canonical_name: completed_task_ids
+    runtime_surface: MetaAgentState
+    criticality: supporting
+    contract: "Append-only list of completed execution task IDs."
+    required_coverage: [contract]
+    owner: subagents-state
+    status: active
+
+  - id: state.current_eval_phase
+    kind: state_field
+    source: meta_agent/state.py
+    canonical_name: current_eval_phase
+    runtime_surface: MetaAgentState
+    criticality: supporting
+    contract: "Current phase being evaluated."
+    required_coverage: [contract]
+    owner: tools-hitl
+    status: active
+
+  - id: state.current_task_id
+    kind: state_field
+    source: meta_agent/state.py
+    canonical_name: current_task_id
+    runtime_surface: MetaAgentState
+    criticality: supporting
+    contract: "Currently executing task ID during EXECUTION phase."
+    required_coverage: [contract]
+    owner: subagents-state
+    status: active
+
+  - id: state.eval_results
+    kind: state_field
+    source: meta_agent/state.py
+    canonical_name: eval_results
+    runtime_surface: MetaAgentState
+    criticality: supporting
+    contract: "Mapping of eval run IDs to results."
+    required_coverage: [contract]
+    owner: tools-hitl
+    status: active
+
+  - id: state.execution_plan_tasks
+    kind: state_field
+    source: meta_agent/state.py
+    canonical_name: execution_plan_tasks
+    runtime_surface: MetaAgentState
+    criticality: supporting
+    contract: "List of execution plan task dicts for EXECUTION phase."
+    required_coverage: [contract]
+    owner: subagents-state
+    status: active
+
+  - id: state.execution_summary
+    kind: state_field
+    source: meta_agent/state.py
+    canonical_name: execution_summary
+    runtime_surface: MetaAgentState
+    criticality: supporting
+    contract: "Summary dict of execution phase results."
+    required_coverage: [contract]
+    owner: subagents-state
+    status: active
+
+  - id: state.pending_research_gap_request
+    kind: state_field
+    source: meta_agent/state.py
+    canonical_name: pending_research_gap_request
+    runtime_surface: MetaAgentState
+    criticality: supporting
+    contract: "Targeted research request from spec-writer for orchestrator-mediated gap filling."
+    required_coverage: [contract]
+    owner: subagents-state
+    status: active
+
+  - id: state.progress_log
+    kind: state_field
+    source: meta_agent/state.py
+    canonical_name: progress_log
+    runtime_surface: MetaAgentState
+    criticality: supporting
+    contract: "Append-only progress log entries."
+    required_coverage: [contract]
+    owner: subagents-state
+    status: active
+
+  - id: state.spec_generation_feedback_cycles
+    kind: state_field
+    source: meta_agent/state.py
+    canonical_name: spec_generation_feedback_cycles
+    runtime_surface: MetaAgentState
+    criticality: supporting
+    contract: "Counter for orchestrator-mediated research/spec retry cycles."
+    required_coverage: [contract]
+    owner: subagents-state
+    status: active
+
+  - id: state.test_summary
+    kind: state_field
+    source: meta_agent/state.py
+    canonical_name: test_summary
+    runtime_surface: MetaAgentState
+    criticality: supporting
+    contract: "Summary dict of test execution results."
+    required_coverage: [contract]
+    owner: subagents-state
     status: active
 
   # =========================================================================
