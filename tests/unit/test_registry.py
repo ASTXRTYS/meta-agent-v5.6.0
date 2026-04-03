@@ -15,6 +15,9 @@ from meta_agent.tools.registry import (
 )
 
 
+pytestmark = pytest.mark.legacy
+
+
 class TestToolRegistry:
     """Tests for the TOOL_REGISTRY mapping."""
 

@@ -14,6 +14,9 @@ from meta_agent.errors import (
 )
 
 
+pytestmark = pytest.mark.legacy
+
+
 class TestRetryPolicy:
     def test_defaults(self):
         policy = RetryPolicy()

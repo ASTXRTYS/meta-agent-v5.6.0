@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import json
 
+import pytest
+
 from meta_agent.tools.eval_tools import (
     EVAL_SUITE_TEMPLATE,
     REQUIRED_EVAL_FIELDS,
@@ -14,6 +16,9 @@ from meta_agent.tools.eval_tools import (
     propose_evals,
     validate_eval_suite,
 )
+
+
+pytestmark = pytest.mark.legacy
 
 
 def _metadata() -> dict:

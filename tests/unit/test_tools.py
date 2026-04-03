@@ -35,6 +35,9 @@ from meta_agent.tools import (
 )
 
 
+pytestmark = pytest.mark.legacy
+
+
 class TestTransitionStage:
     """Tests for the transition_stage tool."""
 

@@ -28,6 +28,9 @@ from meta_agent.stages.prd_review import (
 from meta_agent.stages import IntakeStage as IntakeStageFromInit, PrdReviewStage as PrdReviewStageFromInit
 
 
+pytestmark = pytest.mark.legacy
+
+
 class TestIntakeStageInit:
     """Tests for IntakeStage initialization."""
 

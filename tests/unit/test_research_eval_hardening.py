@@ -32,6 +32,9 @@ from meta_agent.evals.research.synthetic_trace_adapter import load_calibration_d
 DATASETS_DIR = "/Users/Jason/2026/v4/meta-agent-v5.6.0/datasets"
 
 
+pytestmark = pytest.mark.legacy
+
+
 def _mock_run(outputs: dict) -> SimpleNamespace:
     return SimpleNamespace(outputs=outputs)
 

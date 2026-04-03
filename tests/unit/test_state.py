@@ -16,6 +16,9 @@ from meta_agent.state import (
 )
 
 
+pytestmark = pytest.mark.legacy
+
+
 class TestWorkflowStage:
     """Tests for the WorkflowStage enum."""
 

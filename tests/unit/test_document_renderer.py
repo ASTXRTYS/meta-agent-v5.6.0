@@ -17,6 +17,9 @@ from meta_agent.subagents.document_renderer import (
 )
 
 
+pytestmark = pytest.mark.legacy
+
+
 class TestDocumentRendererConfig:
     """Tests for document renderer configuration."""
 

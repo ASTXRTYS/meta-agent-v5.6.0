@@ -13,6 +13,9 @@ from meta_agent.middleware.dynamic_system_prompt import (
 )
 
 
+pytestmark = pytest.mark.legacy
+
+
 @dataclass
 class _RequestWithSystemPrompt:
     state: dict

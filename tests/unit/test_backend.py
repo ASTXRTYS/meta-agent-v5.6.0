@@ -20,6 +20,9 @@ from langgraph.checkpoint.memory import MemorySaver
 from langgraph.store.memory import InMemoryStore
 
 
+pytestmark = pytest.mark.legacy
+
+
 class TestCreateCompositeBackend:
     def test_returns_callable(self):
         factory = create_composite_backend("/tmp/test")

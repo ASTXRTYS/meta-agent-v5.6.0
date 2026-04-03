@@ -12,6 +12,9 @@ from meta_agent.middleware import (
 from meta_agent.middleware.completion_guard import NUDGE_MESSAGE, CONFIRMATION_MESSAGE
 
 
+pytestmark = pytest.mark.legacy
+
+
 class TestToolErrorMiddleware:
     """Tests for ToolErrorMiddleware."""
 

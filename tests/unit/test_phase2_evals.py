@@ -36,6 +36,9 @@ from meta_agent.evals.runner import (
 # ===================================================================
 
 
+pytestmark = pytest.mark.legacy
+
+
 class TestPM001:
     def test_passes_when_questions_asked_no_prd(self):
         trace = {

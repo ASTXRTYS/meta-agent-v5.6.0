@@ -1,4 +1,4 @@
-.PHONY: install dev test lint evals evals-p0 evals-p1 evals-p2 test-fast test-contracts test-integration test-evals test-drift test-all test-collect test-legacy
+.PHONY: install dev test lint evals evals-p0 evals-p1 evals-p2 test-fast test-contracts test-integration test-evals test-drift test-all test-collect test-legacy test-new
 
 install:
 	pip install -e .
@@ -49,3 +49,6 @@ test-collect:
 
 test-legacy:
 	pytest tests/unit/ -v
+
+test-new:
+	pytest tests/ -v --ignore=tests/unit

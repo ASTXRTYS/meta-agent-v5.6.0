@@ -14,6 +14,9 @@ from meta_agent.middleware.dynamic_system_prompt import DynamicSystemPromptMiddl
 from meta_agent.state import MetaAgentState, WorkflowStage
 
 
+pytestmark = pytest.mark.legacy
+
+
 class TestCreateGraph:
     """Tests for the create_graph factory using real deepagents SDK."""
 

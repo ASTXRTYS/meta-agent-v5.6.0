@@ -25,6 +25,9 @@ from meta_agent.prompts.research_agent import construct_research_agent_prompt
 from meta_agent.state import WorkflowStage
 
 
+pytestmark = pytest.mark.legacy
+
+
 class TestPromptSections:
     """Tests for individual prompt section constants."""
 

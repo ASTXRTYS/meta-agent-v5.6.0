@@ -5,6 +5,8 @@ from __future__ import annotations
 import json
 import os
 
+import pytest
+
 from meta_agent.evals.infrastructure.test_infra import (
     eval_infra_005_eval_suite_artifact_exists,
     eval_infra_006_eval_suite_schema_valid,
@@ -48,6 +50,9 @@ SAMPLE_EVAL_SUITE = {
         },
     ],
 }
+
+
+pytestmark = pytest.mark.legacy
 
 
 class TestInfra005:

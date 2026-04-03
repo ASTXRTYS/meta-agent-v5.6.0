@@ -15,6 +15,9 @@ from meta_agent.model import (
 )
 
 
+pytestmark = pytest.mark.legacy
+
+
 class TestMetaAgentConfig:
     """Tests for MetaAgentConfig."""
 

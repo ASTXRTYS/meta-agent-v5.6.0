@@ -13,6 +13,9 @@ from meta_agent.subagents.configs import (
 )
 
 
+pytestmark = pytest.mark.legacy
+
+
 class TestSubagentConfigs:
     """Tests for the SUBAGENT_CONFIGS mapping."""
 

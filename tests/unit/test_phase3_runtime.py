@@ -5,6 +5,8 @@ from __future__ import annotations
 import json
 import os
 
+import pytest
+
 from meta_agent.stages import ResearchStage, SpecGenerationStage, SpecReviewStage
 from meta_agent.subagents.research_agent import (
     get_research_runtime_paths,
@@ -28,6 +30,9 @@ from meta_agent.evals.phase3_gate import (
     RESEARCH_BUNDLE_REQUIRED_SECTIONS,
     SPEC_REQUIRED_SECTIONS,
 )
+
+
+pytestmark = pytest.mark.legacy
 
 
 def _write(path: str, content: str) -> None:

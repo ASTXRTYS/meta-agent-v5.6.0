@@ -9,6 +9,9 @@ import pytest
 from meta_agent.project import init_project, slugify, create_thread_id
 
 
+pytestmark = pytest.mark.legacy
+
+
 class TestSlugify:
     def test_basic(self):
         assert slugify("Test Project") == "test-project"

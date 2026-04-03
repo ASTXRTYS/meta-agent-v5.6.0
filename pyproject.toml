@@ -41,4 +41,5 @@ markers = [
     "eval: live behavioral tests — requires ANTHROPIC_API_KEY",
     "drift: regression and drift detection tests",
     "slow: tests that take >5s",
+    "legacy: quarantined legacy tests — will be removed in Phase 4",
 ]

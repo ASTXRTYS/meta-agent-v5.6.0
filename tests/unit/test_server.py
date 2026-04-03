@@ -9,6 +9,9 @@ import pytest
 from meta_agent import server
 
 
+pytestmark = pytest.mark.legacy
+
+
 class TestVersionTuple:
     """Tests for simple version parsing helper."""
 

@@ -14,6 +14,9 @@ from meta_agent.evals.infrastructure.test_infra import (
 )
 
 
+pytestmark = pytest.mark.legacy
+
+
 class TestInfra001:
     """Tests for INFRA-001: Project directory structure."""
 

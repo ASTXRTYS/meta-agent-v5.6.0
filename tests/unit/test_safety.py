@@ -15,6 +15,9 @@ from meta_agent.safety import (
 )
 
 
+pytestmark = pytest.mark.legacy
+
+
 class TestRecursionLimits:
     def test_all_agents_have_limits(self):
         expected = {
