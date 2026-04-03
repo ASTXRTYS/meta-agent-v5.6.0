@@ -54,3 +54,76 @@ stubs:
     reason: "Configuration defined but document-renderer subagent not yet wired as a real Deep Agent"
     exit_criteria: "Document-renderer config consumed by build_pm_subagents and agent operational"
     owner: subagents-state
+
+
+  - id: stub.state.execution_plan_tasks
+    file: meta_agent/state.py
+    symbol: execution_plan_tasks
+    stub_kind: phase_deferred_field
+    allowed_until_phase: 4
+    reason: "State field defined in MetaAgentState TypedDict but not read/written by any Phase 3 runtime code. EXECUTION stage wiring in Phase 4."
+    exit_criteria: "EXECUTION stage wiring implemented; field read/written by code-agent or orchestrator during Phase 4."
+    owner: subagents-state
+
+  - id: stub.state.current_task_id
+    file: meta_agent/state.py
+    symbol: current_task_id
+    stub_kind: phase_deferred_field
+    allowed_until_phase: 4
+    reason: "State field defined in MetaAgentState TypedDict but not read/written by any Phase 3 runtime code. EXECUTION stage wiring in Phase 4."
+    exit_criteria: "EXECUTION stage wiring implemented; field read/written by code-agent or orchestrator during Phase 4."
+    owner: subagents-state
+
+  - id: stub.state.completed_task_ids
+    file: meta_agent/state.py
+    symbol: completed_task_ids
+    stub_kind: phase_deferred_field
+    allowed_until_phase: 4
+    reason: "State field defined in MetaAgentState TypedDict but not read/written by any Phase 3 runtime code. EXECUTION stage wiring in Phase 4."
+    exit_criteria: "EXECUTION stage wiring implemented; field read/written by code-agent or orchestrator during Phase 4."
+    owner: subagents-state
+
+  - id: stub.state.execution_summary
+    file: meta_agent/state.py
+    symbol: execution_summary
+    stub_kind: phase_deferred_field
+    allowed_until_phase: 4
+    reason: "State field defined in MetaAgentState TypedDict but not read/written by any Phase 3 runtime code. EXECUTION tracking (Section 5.9) in Phase 4."
+    exit_criteria: "EXECUTION tracking implemented; field read/written by code-agent or orchestrator during Phase 4."
+    owner: subagents-state
+
+  - id: stub.state.test_summary
+    file: meta_agent/state.py
+    symbol: test_summary
+    stub_kind: phase_deferred_field
+    allowed_until_phase: 4
+    reason: "State field defined in MetaAgentState TypedDict but not read/written by any Phase 3 runtime code. EXECUTION tracking (Section 5.9) in Phase 4."
+    exit_criteria: "EXECUTION tracking implemented; field read/written by code-agent or orchestrator during Phase 4."
+    owner: subagents-state
+
+  - id: stub.state.progress_log
+    file: meta_agent/state.py
+    symbol: progress_log
+    stub_kind: phase_deferred_field
+    allowed_until_phase: 4
+    reason: "State field defined in MetaAgentState TypedDict but not read/written by any Phase 3 runtime code. EXECUTION tracking in Phase 4."
+    exit_criteria: "EXECUTION tracking implemented; field read/written by code-agent or orchestrator during Phase 4."
+    owner: subagents-state
+
+  - id: stub.state.eval_results
+    file: meta_agent/state.py
+    symbol: eval_results
+    stub_kind: phase_deferred_field
+    allowed_until_phase: 4
+    reason: "State field defined in MetaAgentState TypedDict but not read/written by any Phase 3 runtime code. Phase gate eval runs (Section 4.2.9) in Phase 4."
+    exit_criteria: "Phase gate eval runs implemented; field read/written by evaluation-agent during Phase 4."
+    owner: tools-hitl
+
+  - id: stub.state.current_eval_phase
+    file: meta_agent/state.py
+    symbol: current_eval_phase
+    stub_kind: phase_deferred_field
+    allowed_until_phase: 4
+    reason: "State field defined in MetaAgentState TypedDict but not read/written by any Phase 3 runtime code. Evaluation-agent during EXECUTION (Section 4.2.8) in Phase 4."
+    exit_criteria: "Evaluation-agent wired during EXECUTION; field read/written by evaluation-agent during Phase 4."
+    owner: tools-hitl

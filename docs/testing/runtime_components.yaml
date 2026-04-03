@@ -593,10 +593,10 @@ components:
     canonical_name: completed_task_ids
     runtime_surface: MetaAgentState
     criticality: supporting
-    contract: "Append-only list of completed execution task IDs."
+    contract: "Phase 4 placeholder. Append-only list of completed execution task IDs. Not read/written by any Phase 3 runtime code."
     required_coverage: [contract]
     owner: subagents-state
-    status: active
+    status: phase_deferred
 
   - id: state.current_eval_phase
     kind: state_field
@@ -604,10 +604,10 @@ components:
     canonical_name: current_eval_phase
     runtime_surface: MetaAgentState
     criticality: supporting
-    contract: "Current phase being evaluated."
+    contract: "Phase 4 placeholder. Current phase being evaluated by evaluation-agent (Section 4.2.8). Not read/written by any Phase 3 runtime code."
     required_coverage: [contract]
     owner: tools-hitl
-    status: active
+    status: phase_deferred
 
   - id: state.current_task_id
     kind: state_field
@@ -615,10 +615,10 @@ components:
     canonical_name: current_task_id
     runtime_surface: MetaAgentState
     criticality: supporting
-    contract: "Currently executing task ID during EXECUTION phase."
+    contract: "Phase 4 placeholder. Currently executing task ID during EXECUTION phase. Not read/written by any Phase 3 runtime code."
     required_coverage: [contract]
     owner: subagents-state
-    status: active
+    status: phase_deferred
 
   - id: state.eval_results
     kind: state_field
@@ -626,10 +626,10 @@ components:
     canonical_name: eval_results
     runtime_surface: MetaAgentState
     criticality: supporting
-    contract: "Mapping of eval run IDs to results."
+    contract: "Phase 4 placeholder. Mapping of eval run IDs to results (Section 4.2.9). Not read/written by any Phase 3 runtime code."
     required_coverage: [contract]
     owner: tools-hitl
-    status: active
+    status: phase_deferred
 
   - id: state.execution_plan_tasks
     kind: state_field
@@ -637,10 +637,10 @@ components:
     canonical_name: execution_plan_tasks
     runtime_surface: MetaAgentState
     criticality: supporting
-    contract: "List of execution plan task dicts for EXECUTION phase."
+    contract: "Phase 4 placeholder. List of execution plan task dicts for EXECUTION phase. Not read/written by any Phase 3 runtime code."
     required_coverage: [contract]
     owner: subagents-state
-    status: active
+    status: phase_deferred
 
   - id: state.execution_summary
     kind: state_field
@@ -648,17 +648,17 @@ components:
     canonical_name: execution_summary
     runtime_surface: MetaAgentState
     criticality: supporting
-    contract: "Summary dict of execution phase results."
+    contract: "Phase 4 placeholder. Summary dict of execution phase results (Section 5.9). Not read/written by any Phase 3 runtime code."
     required_coverage: [contract]
     owner: subagents-state
-    status: active
+    status: phase_deferred
 
   - id: state.pending_research_gap_request
     kind: state_field
     source: meta_agent/state.py
     canonical_name: pending_research_gap_request
     runtime_surface: MetaAgentState
-    criticality: supporting
+    criticality: important
     contract: "Targeted research request from spec-writer for orchestrator-mediated gap filling."
     required_coverage: [contract]
     owner: subagents-state
@@ -670,17 +670,17 @@ components:
     canonical_name: progress_log
     runtime_surface: MetaAgentState
     criticality: supporting
-    contract: "Append-only progress log entries."
+    contract: "Phase 4 placeholder. Append-only progress log entries. Not read/written by any Phase 3 runtime code."
     required_coverage: [contract]
     owner: subagents-state
-    status: active
+    status: phase_deferred
 
   - id: state.spec_generation_feedback_cycles
     kind: state_field
     source: meta_agent/state.py
     canonical_name: spec_generation_feedback_cycles
     runtime_surface: MetaAgentState
-    criticality: supporting
+    criticality: important
     contract: "Counter for orchestrator-mediated research/spec retry cycles."
     required_coverage: [contract]
     owner: subagents-state
@@ -692,10 +692,10 @@ components:
     canonical_name: test_summary
     runtime_surface: MetaAgentState
     criticality: supporting
-    contract: "Summary dict of test execution results."
+    contract: "Phase 4 placeholder. Summary dict of test execution results (Section 5.9). Not read/written by any Phase 3 runtime code."
     required_coverage: [contract]
     owner: subagents-state
-    status: active
+    status: phase_deferred
 
   # =========================================================================
   # Guardrails (6)
