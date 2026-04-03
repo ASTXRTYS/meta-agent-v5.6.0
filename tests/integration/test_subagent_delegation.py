@@ -26,7 +26,7 @@ from meta_agent.subagents.configs import (
 # Markers
 # ---------------------------------------------------------------------------
 
-pytestmark = pytest.mark.integration
+pytestmark = pytest.mark.contract
 
 
 # ---------------------------------------------------------------------------

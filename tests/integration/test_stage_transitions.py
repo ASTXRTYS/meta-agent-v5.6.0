@@ -20,7 +20,7 @@ from meta_agent.tools import transition_stage, InvalidTransitionError, Precondit
 # Markers
 # ---------------------------------------------------------------------------
 
-pytestmark = pytest.mark.integration
+pytestmark = pytest.mark.contract
 
 
 # ---------------------------------------------------------------------------

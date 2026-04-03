@@ -30,18 +30,13 @@ class TestToolNameAttributes:
             f"Duplicate tool names: {[n for n in names if names.count(n) > 1]}"
         )
 
-    def test_tool_suffix_convention_documented(self):
-        """Detect _tool suffix drift: document which tools use the suffix.
-
-        Current convention: most tools end with '_tool' (except glob_search,
-        grep_search).  This test locks in the current naming so drift is
-        detected if names change.
-        """
-        suffixed = {t.name for t in LANGCHAIN_TOOLS if t.name.endswith("_tool")}
-        non_suffixed = {t.name for t in LANGCHAIN_TOOLS if not t.name.endswith("_tool")}
-        # Lock-in: 15 tools have _tool suffix, 2 (glob_search, grep_search) do not
-        assert len(suffixed) == 15
-        assert non_suffixed == {"glob_search", "grep_search"}
+    @pytest.mark.xfail(
+        reason="tool suffix drift — 15 tools still use _tool suffix, tracked for cleanup"
+    )
+    def test_no_tool_suffix_drift(self):
+        """Tool .name values should not end in _tool (SDK convention is bare names)."""
+        suffixed = [t.name for t in LANGCHAIN_TOOLS if t.name.endswith("_tool")]
+        assert not suffixed, f"Tools with _tool suffix (should be bare names): {suffixed}"
 
 
 @pytest.mark.contract
@@ -52,7 +47,8 @@ class TestToolRegistryPmParity:
     def langchain_bare_names(self):
         """Map LANGCHAIN_TOOLS .name -> bare name for comparison.
 
-        Convention: strip '_tool' suffix; glob_search -> glob, grep_search -> grep.
+        Workaround: strips '_tool' suffix and normalises glob_search/grep_search
+        until the tool suffix drift is resolved.
         """
         mapping = {}
         for t in LANGCHAIN_TOOLS:
@@ -65,6 +61,21 @@ class TestToolRegistryPmParity:
             else:
                 mapping[t.name] = t.name
         return set(mapping.values())
+
+    @pytest.fixture(scope="class")
+    def langchain_direct_names(self):
+        """Raw .name values from LANGCHAIN_TOOLS — no suffix stripping."""
+        return {t.name for t in LANGCHAIN_TOOLS}
+
+    @pytest.mark.xfail(
+        reason="tool suffix drift — LANGCHAIN_TOOLS .name values still use _tool suffix"
+    )
+    def test_pm_tools_match_langchain_names_directly(self, langchain_direct_names, pm_custom_tools):
+        """PM custom tool names should appear directly in LANGCHAIN_TOOLS .name (no stripping needed)."""
+        missing = pm_custom_tools - langchain_direct_names
+        assert not missing, (
+            f"TOOL_REGISTRY['pm'] bare names not found directly in LANGCHAIN_TOOLS .name: {missing}"
+        )
 
     @pytest.fixture(scope="class")
     def pm_custom_tools(self):
@@ -95,10 +106,7 @@ class TestHITLRegistryParity:
         all_registered = set()
         for tools in TOOL_REGISTRY.values():
             all_registered.update(tools)
-        # HITL uses bare names; check against TOOL_REGISTRY (also bare)
-        # Some HITL tools (langsmith_dataset_create, langsmith_eval_run) are
-        # only in LANGCHAIN_TOOLS (PM carries them) but not yet in
-        # TOOL_REGISTRY["pm"].  Check that they at least exist in LANGCHAIN_TOOLS.
+        # Workaround: strip _tool suffix until drift is resolved.
         langchain_bare = set()
         for t in LANGCHAIN_TOOLS:
             if t.name.endswith("_tool"):
@@ -113,6 +121,21 @@ class TestHITLRegistryParity:
         missing = HITL_GATED_TOOLS - combined
         assert not missing, (
             f"HITL tools not in any registry or LANGCHAIN_TOOLS: {missing}"
+        )
+
+    @pytest.mark.xfail(
+        reason="tool suffix drift — HITL bare names not directly in LANGCHAIN_TOOLS .name"
+    )
+    def test_hitl_bare_names_match_langchain_directly(self):
+        """HITL bare names should match LANGCHAIN_TOOLS .name directly (no suffix stripping)."""
+        langchain_names = {t.name for t in LANGCHAIN_TOOLS}
+        all_registered = set()
+        for tools in TOOL_REGISTRY.values():
+            all_registered.update(tools)
+        combined = all_registered | langchain_names
+        missing = HITL_GATED_TOOLS - combined
+        assert not missing, (
+            f"HITL bare names not found directly in LANGCHAIN_TOOLS .name: {missing}"
         )
 
 
@@ -130,7 +153,7 @@ class TestCrossAgentConsistency:
         known_sdk = {"write_file", "read_file", "ls", "edit_file",
                      "write_todos", "task", "compact_conversation"}
         server_side = {"web_search", "web_fetch"}
-        # Build bare-name set from LANGCHAIN_TOOLS
+        # Workaround: strip _tool suffix until drift is resolved.
         langchain_bare = set()
         for t in LANGCHAIN_TOOLS:
             if t.name == "glob_search":
@@ -147,4 +170,21 @@ class TestCrossAgentConsistency:
         unrecognised = all_names - langchain_bare - known_sdk - server_side
         assert not unrecognised, (
             f"Unrecognised tool names in TOOL_REGISTRY: {unrecognised}"
+        )
+
+    @pytest.mark.xfail(
+        reason="tool suffix drift — TOOL_REGISTRY bare names not directly in LANGCHAIN_TOOLS .name"
+    )
+    def test_registry_names_match_langchain_directly(self):
+        """Every TOOL_REGISTRY name should match LANGCHAIN_TOOLS .name directly."""
+        known_sdk = {"write_file", "read_file", "ls", "edit_file",
+                     "write_todos", "task", "compact_conversation"}
+        server_side = {"web_search", "web_fetch"}
+        langchain_names = {t.name for t in LANGCHAIN_TOOLS}
+        all_names = set()
+        for tools in TOOL_REGISTRY.values():
+            all_names.update(tools)
+        unrecognised = all_names - langchain_names - known_sdk - server_side
+        assert not unrecognised, (
+            f"TOOL_REGISTRY names not found directly in LANGCHAIN_TOOLS .name: {unrecognised}"
         )

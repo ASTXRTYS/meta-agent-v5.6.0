@@ -21,7 +21,29 @@ from meta_agent.middleware.tool_error_handler import ToolErrorMiddleware
 # LANGCHAIN_TOOLS — Section 22.8
 # ---------------------------------------------------------------------------
 
-EXPECTED_TOOL_NAMES = {
+# Desired canonical bare names (SDK convention — no _tool suffix)
+EXPECTED_TOOL_NAMES_BARE = {
+    "transition_stage",
+    "record_decision",
+    "record_assumption",
+    "request_approval",
+    "request_eval_approval",
+    "toggle_participation",
+    "execute_command",
+    "langgraph_dev_server",
+    "langsmith_cli",
+    "glob_search",
+    "grep_search",
+    "langsmith_trace_list",
+    "langsmith_trace_get",
+    "langsmith_dataset_create",
+    "langsmith_eval_run",
+    "propose_evals",
+    "create_eval_dataset",
+}
+
+# Current actual names (locks in current state for non-xfail tests)
+_EXPECTED_TOOL_NAMES_CURRENT = {
     "transition_stage_tool",
     "record_decision_tool",
     "record_assumption_tool",
@@ -49,9 +71,20 @@ class TestLangchainTools:
     def test_tool_count(self):
         assert len(LANGCHAIN_TOOLS) == 17
 
-    def test_all_expected_names_present(self):
+    def test_all_current_names_present(self):
+        """Lock-in of current actual names (detects unintentional renames)."""
         actual = {t.name for t in LANGCHAIN_TOOLS}
-        assert EXPECTED_TOOL_NAMES == actual
+        assert _EXPECTED_TOOL_NAMES_CURRENT == actual
+
+    @pytest.mark.xfail(
+        reason="tool suffix drift — 15 tools still use _tool suffix, tracked for cleanup"
+    )
+    def test_all_expected_bare_names_present(self):
+        """Tool .name values should match canonical bare names (no _tool suffix)."""
+        actual = {t.name for t in LANGCHAIN_TOOLS}
+        assert EXPECTED_TOOL_NAMES_BARE == actual, (
+            f"Expected bare names but got: {actual - EXPECTED_TOOL_NAMES_BARE}"
+        )
 
     def test_every_tool_has_name_attribute(self):
         for t in LANGCHAIN_TOOLS:
@@ -71,13 +104,24 @@ class TestHITLGatedTools:
     def test_hitl_count(self):
         assert len(HITL_GATED_TOOLS) == 6
 
-    def test_hitl_tools_map_to_langchain_tools(self):
-        """Every HITL bare name maps to a LANGCHAIN_TOOLS name via _tool suffix."""
+    def test_hitl_tools_map_to_langchain_tools_via_suffix(self):
+        """Workaround: HITL bare name + '_tool' matches LANGCHAIN_TOOLS (current state)."""
         langchain_names = {t.name for t in LANGCHAIN_TOOLS}
         for bare in HITL_GATED_TOOLS:
             suffixed = f"{bare}_tool"
             assert suffixed in langchain_names, (
                 f"HITL tool '{bare}' has no matching '{suffixed}' in LANGCHAIN_TOOLS"
+            )
+
+    @pytest.mark.xfail(
+        reason="tool suffix drift — HITL bare names should match LANGCHAIN_TOOLS .name directly"
+    )
+    def test_hitl_tools_map_to_langchain_tools_directly(self):
+        """Every HITL bare name should appear directly in LANGCHAIN_TOOLS .name."""
+        langchain_names = {t.name for t in LANGCHAIN_TOOLS}
+        for bare in HITL_GATED_TOOLS:
+            assert bare in langchain_names, (
+                f"HITL tool '{bare}' not found directly in LANGCHAIN_TOOLS .name"
             )
 
     def test_interrupt_on_dict_shape(self):
