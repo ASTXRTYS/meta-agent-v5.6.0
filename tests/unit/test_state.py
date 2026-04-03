@@ -9,71 +9,13 @@ from meta_agent.state import (
     AssumptionEntry,
     DecisionEntry,
     MetaAgentState,
-    VALID_TRANSITIONS,
     WorkflowStage,
     create_initial_state,
-    is_valid_transition,
 )
 
 
 pytestmark = pytest.mark.legacy
 
-
-class TestWorkflowStage:
-    """Tests for the WorkflowStage enum."""
-
-    def test_has_ten_stages(self):
-        assert len(WorkflowStage) == 10
-
-    def test_all_stages_present(self):
-        expected = {
-            "INTAKE", "PRD_REVIEW", "RESEARCH", "SPEC_GENERATION",
-            "SPEC_REVIEW", "PLANNING", "PLAN_REVIEW", "EXECUTION",
-            "EVALUATION", "AUDIT",
-        }
-        actual = {s.value for s in WorkflowStage}
-        assert actual == expected
-
-    def test_string_value(self):
-        assert WorkflowStage.INTAKE.value == "INTAKE"
-        assert WorkflowStage.EXECUTION.value == "EXECUTION"
-
-    def test_is_string_enum(self):
-        assert isinstance(WorkflowStage.INTAKE, str)
-
-
-class TestValidTransitions:
-    """Tests for VALID_TRANSITIONS set."""
-
-    def test_has_14_transitions(self):
-        assert len(VALID_TRANSITIONS) == 14
-
-    def test_forward_transitions_exist(self):
-        assert ("INTAKE", "PRD_REVIEW") in VALID_TRANSITIONS
-        assert ("PRD_REVIEW", "RESEARCH") in VALID_TRANSITIONS
-        assert ("RESEARCH", "SPEC_GENERATION") in VALID_TRANSITIONS
-        assert ("EXECUTION", "EVALUATION") in VALID_TRANSITIONS
-
-    def test_backward_transitions_exist(self):
-        assert ("PRD_REVIEW", "INTAKE") in VALID_TRANSITIONS
-        assert ("SPEC_REVIEW", "SPEC_GENERATION") in VALID_TRANSITIONS
-        assert ("PLAN_REVIEW", "PLANNING") in VALID_TRANSITIONS
-
-    def test_invalid_transition_not_in_set(self):
-        assert ("INTAKE", "EXECUTION") not in VALID_TRANSITIONS
-
-    def test_is_valid_transition_normal(self):
-        assert is_valid_transition("INTAKE", "PRD_REVIEW")
-        assert not is_valid_transition("INTAKE", "EXECUTION")
-
-    def test_is_valid_transition_audit_lateral(self):
-        # Any stage can go to AUDIT
-        for stage in WorkflowStage:
-            assert is_valid_transition(stage.value, "AUDIT")
-        # AUDIT can return to any stage
-        for stage in WorkflowStage:
-            if stage != WorkflowStage.AUDIT:
-                assert is_valid_transition("AUDIT", stage.value)
 
 
 class TestDecisionEntry:

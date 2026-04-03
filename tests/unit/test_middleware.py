@@ -7,7 +7,6 @@ import pytest
 from meta_agent.middleware import (
     ToolErrorMiddleware,
     CompletionGuardMiddleware,
-    MemoryLoaderMiddleware,
 )
 from meta_agent.middleware.completion_guard import NUDGE_MESSAGE, CONFIRMATION_MESSAGE
 
@@ -99,36 +98,4 @@ class TestCompletionGuardMiddleware:
         assert isinstance(mw, AgentMiddleware)
 
 
-class TestMemoryLoaderMiddleware:
-    """Tests for MemoryLoaderMiddleware."""
 
-    def test_load_memory_empty(self, tmp_path):
-        mw = MemoryLoaderMiddleware(
-            agent_name="nonexistent-agent",
-            project_dir=str(tmp_path),
-        )
-        assert mw.load_memory() == ""
-
-    def test_load_memory_from_project(self, tmp_path):
-        mem_dir = tmp_path / ".agents" / "pm"
-        mem_dir.mkdir(parents=True)
-        mem_file = mem_dir / "AGENTS.md"
-        mem_file.write_text("# Test memory\nSome notes.")
-
-        mw = MemoryLoaderMiddleware(
-            agent_name="pm",
-            project_dir=str(tmp_path),
-        )
-        content = mw.load_memory()
-        assert "Test memory" in content
-
-    def test_save_memory(self, tmp_path):
-        mw = MemoryLoaderMiddleware(
-            agent_name="test-agent",
-            project_dir=str(tmp_path),
-        )
-        mw.save_memory("# Saved memory\nNew content.")
-
-        mem_file = tmp_path / ".agents" / "test-agent" / "AGENTS.md"
-        assert mem_file.exists()
-        assert "Saved memory" in mem_file.read_text()

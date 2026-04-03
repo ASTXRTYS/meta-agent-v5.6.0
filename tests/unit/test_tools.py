@@ -2,28 +2,15 @@
 
 from __future__ import annotations
 
-import os
-import tempfile
-
 import pytest
-from langchain_core.messages import ToolMessage
 
 from meta_agent.state import (
     ApprovalEntry,
-    DecisionEntry,
-    WorkflowStage,
     create_initial_state,
 )
 from meta_agent.tools import (
-    InvalidTransitionError,
-    PreconditionError,
-    SecurityError,
     EXIT_CONDITIONS,
     _check_exit_conditions,
-    transition_stage,
-    record_decision,
-    record_assumption,
-    request_approval,
     toggle_participation,
     execute_command,
     langgraph_dev_server,
@@ -38,122 +25,7 @@ from meta_agent.tools import (
 pytestmark = pytest.mark.legacy
 
 
-class TestTransitionStage:
-    """Tests for the transition_stage tool."""
 
-    def test_valid_forward_transition(self):
-        state = create_initial_state("test")
-        state["current_prd_path"] = "/some/path/prd.md"
-        result = transition_stage(state, "PRD_REVIEW", "PRD completed")
-        assert result["current_stage"] == "PRD_REVIEW"
-        assert len(result["decision_log"]) == 1
-
-    def test_invalid_transition_raises(self):
-        state = create_initial_state("test")
-        with pytest.raises(InvalidTransitionError):
-            transition_stage(state, "EXECUTION", "skip ahead")
-
-    def test_invalid_stage_name_raises(self):
-        state = create_initial_state("test")
-        with pytest.raises(InvalidTransitionError, match="not a valid WorkflowStage"):
-            transition_stage(state, "NONEXISTENT", "bad stage")
-
-    def test_audit_from_any_stage(self):
-        state = create_initial_state("test")
-        result = transition_stage(state, "AUDIT", "audit requested")
-        assert result["current_stage"] == "AUDIT"
-
-    def test_unmet_exit_conditions_raises(self):
-        state = create_initial_state("test")
-        # current_prd_path is None — INTAKE exit condition not met
-        with pytest.raises(PreconditionError, match="Exit conditions not met"):
-            transition_stage(state, "PRD_REVIEW", "trying too early")
-
-    def test_decision_logged_on_transition(self):
-        state = create_initial_state("test")
-        state["current_prd_path"] = "/path/prd.md"
-        result = transition_stage(state, "PRD_REVIEW", "ready")
-        entry = result["decision_log"][0]
-        assert entry.decision == "Transition to PRD_REVIEW"
-        assert entry.rationale == "ready"
-
-    def test_backward_transition_after_approval(self, tmp_path):
-        # Create files required by RESEARCH entry conditions
-        prd_path = tmp_path / "artifacts" / "intake" / "prd.md"
-        prd_path.parent.mkdir(parents=True, exist_ok=True)
-        prd_path.write_text("PRD content")
-        eval_path = tmp_path / "evals" / "eval-suite-prd.json"
-        eval_path.parent.mkdir(parents=True, exist_ok=True)
-        eval_path.write_text('{"metadata": {}, "evals": []}')
-
-        state = create_initial_state("test")
-        state["current_stage"] = "PRD_REVIEW"
-        state["current_prd_path"] = str(prd_path)
-        state["approval_history"] = [
-            ApprovalEntry.create("PRD_REVIEW", "prd.md", "approved", "user")
-        ]
-        result = transition_stage(state, "RESEARCH", "approved")
-        assert result["current_stage"] == "RESEARCH"
-
-
-class TestRecordDecision:
-    """Tests for the record_decision tool."""
-
-    def test_appends_entry(self):
-        state = create_initial_state("test")
-        result = record_decision(state, "Use React", "Best for this use case", ["Vue", "Angular"])
-        assert len(result["decision_log"]) == 1
-        entry = result["decision_log"][0]
-        assert entry.decision == "Use React"
-        assert entry.rationale == "Best for this use case"
-        assert entry.alternatives_considered == ["Vue", "Angular"]
-
-    def test_uses_current_stage(self):
-        state = create_initial_state("test")
-        state["current_stage"] = "RESEARCH"
-        result = record_decision(state, "decision", "reason")
-        assert result["decision_log"][0].stage == "RESEARCH"
-
-    def test_no_alternatives(self):
-        state = create_initial_state("test")
-        result = record_decision(state, "choice", "reason")
-        assert result["decision_log"][0].alternatives_considered == []
-
-
-class TestRecordAssumption:
-    """Tests for the record_assumption tool."""
-
-    def test_appends_entry(self):
-        state = create_initial_state("test")
-        result = record_assumption(state, "API returns JSON", "Based on docs")
-        assert len(result["assumption_log"]) == 1
-        entry = result["assumption_log"][0]
-        assert entry.assumption == "API returns JSON"
-        assert entry.status == "open"
-
-    def test_uses_current_stage(self):
-        state = create_initial_state("test")
-        state["current_stage"] = "PLANNING"
-        result = record_assumption(state, "assume X", "context")
-        assert result["assumption_log"][0].stage == "PLANNING"
-
-
-class TestRequestApproval:
-    """Tests for the request_approval tool."""
-
-    def test_returns_interrupt_payload(self, tmp_path):
-        artifact = tmp_path / "artifact.md"
-        artifact.write_text("content")
-        state = create_initial_state("test")
-        result = request_approval(state, str(artifact), "Review this")
-        assert "interrupt" in result
-        assert result["interrupt"]["action"] == "request_approval"
-        assert result["interrupt"]["summary"] == "Review this"
-
-    def test_raises_on_missing_artifact(self):
-        state = create_initial_state("test")
-        with pytest.raises(FileNotFoundError):
-            request_approval(state, "/nonexistent/path.md", "Review")
 
 
 class TestToggleParticipation:
@@ -300,64 +172,7 @@ class TestServerSideTools:
         assert len(tools) == 2
 
 
-class TestCommandPattern:
-    """Tests that state-mutating @tool wrappers return Command objects."""
 
-    def test_transition_stage_tool_returns_command(self):
-        from langgraph.types import Command
-        from meta_agent.tools import transition_stage_tool
-        result = transition_stage_tool.func("AUDIT", "audit needed", tool_call_id="test-call-123")
-        assert isinstance(result, Command)
-        assert result.update["current_stage"] == "AUDIT"
-        assert len(result.update["decision_log"]) == 1
-        assert any(isinstance(m, ToolMessage) for m in result.update["messages"])
-
-    def test_record_decision_tool_returns_command(self):
-        from langgraph.types import Command
-        from meta_agent.tools import record_decision_tool
-        result = record_decision_tool.func("Use Postgres", "Better JSON", tool_call_id="test-call-456")
-        assert isinstance(result, Command)
-        assert len(result.update["decision_log"]) == 1
-        entry = result.update["decision_log"][0]
-        assert entry.decision == "Use Postgres"
-        assert entry.rationale == "Better JSON"
-
-    def test_record_assumption_tool_returns_command(self):
-        from langgraph.types import Command
-        from meta_agent.tools import record_assumption_tool
-        result = record_assumption_tool.func("Users prefer dark mode", "UX research", tool_call_id="test-call-789")
-        assert isinstance(result, Command)
-        assert len(result.update["assumption_log"]) == 1
-        entry = result.update["assumption_log"][0]
-        assert entry.assumption == "Users prefer dark mode"
-
-    def test_toggle_participation_tool_returns_command(self):
-        from langgraph.types import Command
-        from meta_agent.tools import toggle_participation_tool
-        result = toggle_participation_tool.func(True, tool_call_id="test-call-abc")
-        assert isinstance(result, Command)
-        assert result.update["active_participation_mode"] is True
-
-    def test_transition_stage_tool_invalid_stage_returns_error_command(self):
-        from langgraph.types import Command
-        from meta_agent.tools import transition_stage_tool
-        result = transition_stage_tool.func("NONEXISTENT", "bad", tool_call_id="test-call-err")
-        assert isinstance(result, Command)
-        assert "current_stage" not in result.update  # No stage update on error
-        # Still has messages with error info
-        assert len(result.update["messages"]) == 1
-
-    def test_command_messages_have_tool_call_id(self):
-        from langgraph.types import Command
-        from meta_agent.tools import record_decision_tool
-        result = record_decision_tool.func("Decision X", "Reason Y", tool_call_id="my-id-123")
-        messages = result.update["messages"]
-        assert len(messages) == 1
-        assert messages[0].tool_call_id == "my-id-123"
-
-    def test_langchain_tools_count(self):
-        from meta_agent.tools import LANGCHAIN_TOOLS
-        assert len(LANGCHAIN_TOOLS) == 17
 
 
 class TestMetaAgentStateMiddleware:

@@ -42,4 +42,5 @@ markers = [
     "drift: regression and drift detection tests",
     "slow: tests that take >5s",
     "legacy: quarantined legacy tests — will be removed in Phase 4",
+    "timeout: mark test with a timeout in seconds",
 ]
