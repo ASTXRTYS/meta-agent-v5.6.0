@@ -81,36 +81,59 @@ TOOL_FUNCTIONS: dict[str, Callable[..., Any]] = {
 # Tool registry organized by agent role — maps names to tool name lists
 TOOL_REGISTRY: dict[str, list[str]] = {
     "pm": [
-        "write_file", "read_file", "ls", "edit_file", "glob", "grep",
+        # SDK-provided (FilesystemMiddleware auto-attaches these):
+        "write_file", "read_file", "ls", "edit_file",
+        # Custom tools registered via tools=[]:
+        "glob", "grep",
         "transition_stage", "record_decision", "record_assumption",
         "request_approval", "request_eval_approval", "toggle_participation",
         "execute_command",
-        "propose_evals", "create_eval_dataset", "run_eval_suite",
-        "get_eval_results", "compare_eval_runs",
+        "propose_evals", "create_eval_dataset",
+        # Phase 5 stubs — not yet implemented as @tool instances:
+        # "run_eval_suite", "get_eval_results", "compare_eval_runs",
     ],
     "research-agent": [
-        "write_file", "read_file", "ls", "edit_file", "glob", "grep",
+        # SDK-provided:
+        "write_file", "read_file", "ls", "edit_file",
+        # Custom:
+        "glob", "grep",
         "web_search", "web_fetch",
     ],
     "spec-writer": [
-        "write_file", "read_file", "ls", "edit_file", "glob", "grep",
+        # SDK-provided:
+        "write_file", "read_file", "ls", "edit_file",
+        # Custom:
+        "glob", "grep",
         "propose_evals",
     ],
     "plan-writer": [
-        "write_file", "read_file", "ls", "edit_file", "glob", "grep",
+        # SDK-provided:
+        "write_file", "read_file", "ls", "edit_file",
+        # Custom:
+        "glob", "grep",
     ],
     "code-agent": [
-        "write_file", "read_file", "ls", "edit_file", "glob", "grep",
+        # SDK-provided:
+        "write_file", "read_file", "ls", "edit_file",
+        # Custom:
+        "glob", "grep",
         "execute_command", "langgraph_dev_server", "langsmith_cli",
     ],
     "verification-agent": [
-        "read_file", "ls", "glob", "grep",
+        # SDK-provided:
+        "read_file", "ls",
+        # Custom:
+        "glob", "grep",
     ],
     "test-agent": [
-        "write_file", "read_file", "ls", "edit_file", "glob", "grep",
+        # SDK-provided:
+        "write_file", "read_file", "ls", "edit_file",
+        # Custom:
+        "glob", "grep",
         "execute_command",
     ],
     "document-renderer": [
+        # SDK-provided:
         "read_file", "write_file", "ls",
     ],
 }

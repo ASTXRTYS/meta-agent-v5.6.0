@@ -64,6 +64,9 @@ class MetaAgentStateSchema(AgentState):
     spec_generation_feedback_cycles: NotRequired[int]
     pending_research_gap_request: NotRequired[Optional[str]]
 
+    # Runtime flags (injected via extra_state in eval runners)
+    auto_approve_hitl: NotRequired[bool]
+
 
 class MetaAgentStateMiddleware(AgentMiddleware):
     """Middleware that merges MetaAgentStateSchema into the graph state.
