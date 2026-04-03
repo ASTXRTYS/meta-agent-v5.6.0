@@ -128,6 +128,56 @@ class TestNoNewStubs:
         )
 
 
+class TestNoSoftStubs:
+    """Catch soft stubs: functions returning placeholder values."""
+
+    def test_no_soft_stubs_outside_allowlist(self):
+        """Catch soft stubs: functions that return placeholder values like {"status": "pending"}."""
+
+        SOFT_STUB_ALLOWLIST = {
+            # document_renderer.py render_artifact returns {"status": "pending"} — Phase 4 scope
+            ("meta_agent/subagents/document_renderer.py", "render_artifact"),
+        }
+
+        meta_agent_dir = Path(__file__).parent.parent.parent / "meta_agent"
+        violations = []
+
+        for py_file in meta_agent_dir.rglob("*.py"):
+            if "__pycache__" in str(py_file):
+                continue
+            rel_path = str(py_file.relative_to(meta_agent_dir.parent))
+            content = py_file.read_text()
+
+            try:
+                tree = ast.parse(content)
+            except SyntaxError:
+                continue
+
+            for node in ast.walk(tree):
+                if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                    # Check for functions whose body is just "pass" or "return None"
+                    body = node.body
+                    # Skip if it's a docstring + pass
+                    stmts = [s for s in body if not isinstance(s, ast.Expr) or not isinstance(s.value, ast.Constant)]
+                    if len(stmts) == 1 and isinstance(stmts[0], ast.Pass):
+                        if (rel_path, node.name) not in SOFT_STUB_ALLOWLIST:
+                            # Check it's not __init__ or a simple property
+                            if node.name not in ("__init__", "__repr__", "__str__"):
+                                violations.append(f"{rel_path}:{node.lineno} {node.name}() — body is just pass")
+
+                    # Check for return {"status": "pending"} pattern
+                    for stmt in body:
+                        if isinstance(stmt, ast.Return) and stmt.value:
+                            src_segment = ast.get_source_segment(content, stmt.value)
+                            if src_segment and '"pending"' in str(src_segment):
+                                if (rel_path, node.name) not in SOFT_STUB_ALLOWLIST:
+                                    violations.append(f"{rel_path}:{node.lineno} {node.name}() — returns pending placeholder")
+
+        assert not violations, (
+            f"Found soft stubs outside allowlist:\n" + "\n".join(f"  {v}" for v in violations)
+        )
+
+
 class TestSupersededStubsNotWired:
     """Verify superseded stubs aren't wired into the active graph."""
 

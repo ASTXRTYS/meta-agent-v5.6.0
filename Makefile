@@ -1,4 +1,4 @@
-.PHONY: install dev test lint evals evals-p0 evals-p1 evals-p2 test-fast test-contracts test-integration test-evals test-drift test-all test-collect test-legacy test-new
+.PHONY: install dev test lint evals evals-p0 evals-p1 evals-p2 test-fast test-contracts test-integration test-evals test-drift test-all test-collect test-legacy
 
 install:
 	pip install -e .
@@ -7,7 +7,7 @@ dev:
 	pip install -e ".[dev]"
 
 test:
-	pytest tests/ -v
+	pytest tests/ -v --ignore=tests/unit
 
 lint:
 	python -m py_compile meta_agent/state.py
@@ -42,7 +42,7 @@ test-drift:
 	pytest tests/drift/ -v
 
 test-all:
-	pytest tests/ -v --ignore=tests/unit
+	pytest tests/ -v
 
 test-collect:
 	pytest tests/ --co -q
@@ -50,5 +50,4 @@ test-collect:
 test-legacy:
 	pytest tests/unit/ -v
 
-test-new:
-	pytest tests/ -v --ignore=tests/unit
+
