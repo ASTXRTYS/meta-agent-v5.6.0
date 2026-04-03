@@ -11,6 +11,18 @@ import pytest
 from meta_agent.tools import LANGCHAIN_TOOLS
 from meta_agent.tools.registry import HITL_GATED_TOOLS, TOOL_REGISTRY
 
+COVERS = [
+    "guardrail.hitl_gated_tools",
+    "tool.transition_stage",
+    "tool.record_decision",
+    "tool.record_assumption",
+    "tool.request_approval",
+    "tool.request_eval_approval",
+    "tool.execute_command",
+    "tool.propose_evals",
+    "tool.create_eval_dataset",
+]
+
 # Tools auto-attached by SDK middleware — NOT in LANGCHAIN_TOOLS
 SDK_PROVIDED_TOOLS = {"write_file", "read_file", "ls", "edit_file"}
 

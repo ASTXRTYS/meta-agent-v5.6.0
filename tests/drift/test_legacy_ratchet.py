@@ -4,6 +4,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+COVERS = []  # Meta-test
+
 LEGACY_CEILING = 410  # Frozen after Phase 4 cleanup. Must only decrease.
 
 @pytest.mark.drift

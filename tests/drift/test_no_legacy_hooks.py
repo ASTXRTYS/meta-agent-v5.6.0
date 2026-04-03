@@ -15,6 +15,8 @@ import pytest
 
 from meta_agent.state import MetaAgentState
 
+COVERS = []  # Meta-test
+
 
 @pytest.mark.drift
 class TestNoLegacyHooks:

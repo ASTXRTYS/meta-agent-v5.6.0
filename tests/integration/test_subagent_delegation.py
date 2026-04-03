@@ -21,6 +21,17 @@ from meta_agent.subagents.configs import (
     get_all_subagent_names,
 )
 
+COVERS = [
+    "subagent.research-agent",
+    "subagent.spec-writer",
+    "subagent.verification-agent",
+    "subagent.plan-writer",
+    "subagent.code-agent",
+    "subagent.test-agent",
+    "subagent.document-renderer",
+    "sdk.deepagents.SubAgent",
+]
+
 
 # ---------------------------------------------------------------------------
 # Markers

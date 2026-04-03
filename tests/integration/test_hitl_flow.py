@@ -14,6 +14,13 @@ from meta_agent.tools.registry import (
     TOOL_REGISTRY,
 )
 
+COVERS = [
+    "guardrail.hitl_gated_tools",
+    "sdk.langgraph.interrupt",
+    "tool.request_approval",
+    "tool.execute_command",
+]
+
 
 # ---------------------------------------------------------------------------
 # 1. HITL config matches registry

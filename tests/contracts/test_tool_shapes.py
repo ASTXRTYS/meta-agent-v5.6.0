@@ -34,6 +34,19 @@ from meta_agent.tools import (
 from meta_agent.state import create_initial_state
 from meta_agent.safety import validate_command, validate_path
 
+COVERS = [
+    "tool.transition_stage",
+    "tool.record_decision",
+    "tool.record_assumption",
+    "tool.request_approval",
+    "tool.request_eval_approval",
+    "tool.toggle_participation",
+    "tool.execute_command",
+    "tool.propose_evals",
+    "tool.create_eval_dataset",
+    "sdk.langgraph.Command",
+]
+
 
 # ---------------------------------------------------------------------------
 # 1. Tool Instance Checks

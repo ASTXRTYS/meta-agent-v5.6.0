@@ -13,6 +13,15 @@ from pathlib import Path
 
 import pytest
 
+COVERS = [
+    "stub.eval_tools.run_eval_suite",
+    "stub.eval_tools.get_eval_results",
+    "stub.eval_tools.compare_eval_runs",
+    "stub.memory_loader.middleware",
+    "stub.document_renderer.render_artifact",
+    "stub.document_renderer.config",
+]
+
 
 # ---------------------------------------------------------------------------
 # Markers

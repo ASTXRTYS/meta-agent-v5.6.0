@@ -16,6 +16,38 @@ from meta_agent.middleware.dynamic_system_prompt import DynamicSystemPromptMiddl
 from meta_agent.middleware.meta_state import MetaAgentStateMiddleware
 from meta_agent.middleware.tool_error_handler import ToolErrorMiddleware
 
+COVERS = [
+    "tool.transition_stage",
+    "tool.record_decision",
+    "tool.record_assumption",
+    "tool.request_approval",
+    "tool.request_eval_approval",
+    "tool.toggle_participation",
+    "tool.execute_command",
+    "tool.langgraph_dev_server",
+    "tool.langsmith_cli",
+    "tool.glob_search",
+    "tool.grep_search",
+    "tool.langsmith_trace_list",
+    "tool.langsmith_trace_get",
+    "tool.langsmith_dataset_create",
+    "tool.langsmith_eval_run",
+    "tool.propose_evals",
+    "tool.create_eval_dataset",
+    "middleware.dynamic_system_prompt",
+    "middleware.meta_state",
+    "middleware.tool_error",
+    "subagent.research-agent",
+    "subagent.spec-writer",
+    "subagent.verification-agent",
+    "subagent.plan-writer",
+    "subagent.code-agent",
+    "subagent.test-agent",
+    "subagent.document-renderer",
+    "guardrail.hitl_gated_tools",
+    "sdk.deepagents.create_deep_agent",
+]
+
 
 # ---------------------------------------------------------------------------
 # LANGCHAIN_TOOLS — Section 22.8

@@ -13,6 +13,12 @@ from __future__ import annotations
 import pytest
 from langchain_core.messages import HumanMessage
 
+COVERS = [
+    "tool.transition_stage",
+    "state.current_stage",
+    "middleware.dynamic_system_prompt",
+]
+
 
 @pytest.mark.eval
 class TestPMIntake:

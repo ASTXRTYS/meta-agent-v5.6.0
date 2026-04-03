@@ -1,4 +1,4 @@
-.PHONY: install dev test lint evals evals-p0 evals-p1 evals-p2 test-fast test-contracts test-integration test-evals test-drift test-all test-collect test-legacy
+.PHONY: install dev test lint evals evals-p0 evals-p1 evals-p2 test-fast test-contracts test-integration test-evals test-drift test-all test-collect test-legacy test-catalogs generate-traceability
 
 install:
 	pip install -e .
@@ -49,5 +49,11 @@ test-collect:
 
 test-legacy:
 	pytest tests/unit/ -v
+
+test-catalogs:
+	pytest tests/drift/test_runtime_catalog_parity.py tests/drift/test_sdk_touchpoints_parity.py tests/drift/test_traceability_completeness.py tests/drift/test_stub_allowlist.py -v
+
+generate-traceability:
+	python scripts/testing/generate_traceability.py
 
 

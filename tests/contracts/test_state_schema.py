@@ -17,6 +17,16 @@ from meta_agent.state import (
     is_valid_transition,
 )
 
+COVERS = [
+    "state.current_stage",
+    "state.messages",
+    "state.project_id",
+    "state.decision_log",
+    "state.assumption_log",
+    "state.approval_history",
+    "guardrail.valid_transitions",
+]
+
 
 # ---------------------------------------------------------------------------
 # MetaAgentState fields — Section 4.1

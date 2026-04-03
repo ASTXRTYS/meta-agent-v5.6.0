@@ -15,6 +15,12 @@ from meta_agent.stages.intake import IntakeStage
 from meta_agent.stages.prd_review import PrdReviewStage
 from meta_agent.tools import transition_stage, InvalidTransitionError, PreconditionError
 
+COVERS = [
+    "tool.transition_stage",
+    "state.current_stage",
+    "guardrail.valid_transitions",
+]
+
 
 # ---------------------------------------------------------------------------
 # Markers

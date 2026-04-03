@@ -17,6 +17,8 @@ from pathlib import Path
 
 import pytest
 
+COVERS = []  # Meta-test, doesn't cover specific components
+
 
 @pytest.mark.drift
 class TestCollectionHygiene:
