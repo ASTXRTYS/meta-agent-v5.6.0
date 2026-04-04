@@ -86,6 +86,11 @@ def _load_env() -> None:
 # Load .env on module import
 _load_env()
 
+# Console-level debug logging — prints full chain/LLM/tool execution to stdout.
+# This does NOT affect LangSmith trace depth (that's always max when LANGSMITH_TRACING=true).
+from langchain_core.globals import set_debug  # noqa: E402
+set_debug(True)
+
 
 def get_agent() -> Any:
     """Dynamic graph factory for LangGraph dev server.
