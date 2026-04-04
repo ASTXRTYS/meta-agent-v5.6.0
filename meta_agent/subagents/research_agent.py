@@ -593,6 +593,7 @@ def create_research_agent_graph(
         backend=composite_backend,
         checkpointer=create_checkpointer(),
         store=create_store(),
+        interrupt_on={"request_approval": True},
         name="research-agent-runtime",
     )
 
