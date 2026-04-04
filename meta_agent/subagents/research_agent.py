@@ -28,6 +28,7 @@ from meta_agent.backend import (
 )
 from meta_agent.middleware.agent_decision_state import AgentDecisionStateMiddleware
 from meta_agent.middleware.tool_error_handler import ToolErrorMiddleware
+from meta_agent.middleware.dynamic_tool_config import DynamicToolConfigMiddleware
 from meta_agent.model import get_configured_model, get_model_config
 from meta_agent.prompts.research_agent import construct_research_agent_prompt
 from meta_agent.safety import RECURSION_LIMITS
@@ -386,7 +387,55 @@ def _extract_urls(text: str) -> list[str]:
     return [url.rstrip("/").rstrip(".").rstrip(",") for url in re.findall(r'https?://[^\s\)>\]"\']+', text or "")]
 
 
+def extract_api_citations(messages: list[Any]) -> list[dict[str, Any]]:
+    """Extract first-class API citations from AIMessage content blocks.
+
+    When web_search_20260209 is used, Claude automatically generates
+    citations of type 'web_search_result_location' on text blocks.
+    LangChain preserves these in AIMessage.content as list[dict].
+
+    Returns a list of citation dicts with: type, url, title, cited_text,
+    and the source text block index.
+    """
+    citations: list[dict[str, Any]] = []
+    for message in messages:
+        content = None
+        if hasattr(message, "content"):
+            content = message.content
+        elif isinstance(message, dict):
+            content = message.get("content")
+
+        if not isinstance(content, list):
+            continue
+
+        for block_idx, block in enumerate(content):
+            if not isinstance(block, dict):
+                continue
+            block_citations = block.get("citations", [])
+            if not block_citations:
+                continue
+            for citation in block_citations:
+                if not isinstance(citation, dict):
+                    continue
+                citations.append({
+                    "type": citation.get("type", "unknown"),
+                    "url": citation.get("url", ""),
+                    "title": citation.get("title", ""),
+                    "cited_text": citation.get("cited_text", ""),
+                    "encrypted_index": citation.get("encrypted_index"),
+                    "block_index": block_idx,
+                    "source": "api",
+                })
+    return citations
+
+
 def build_citation_support(bundle_content: str, tool_calls: list[dict[str, Any]]) -> tuple[list[dict[str, Any]], list[str]]:
+    """Post-hoc citation support via URL matching.
+
+    DEPRECATED: Prefer api_citations from extract_api_citations() which uses
+    first-class Claude API citation metadata (web_search_result_location).
+    This function is retained as a fallback when API citations are unavailable.
+    """
     cited_urls = _extract_urls(bundle_content)
     fetched_urls = {
         str(tc.get("args", {}).get("url", "")).rstrip("/").rstrip(".").rstrip(",")
@@ -497,6 +546,9 @@ def normalize_research_outputs(
     gap_remediation_context = build_gap_remediation_context(bundle_content, decomposition_content)
     citation_claim_support, citation_urls = build_citation_support(bundle_content, tool_calls)
 
+    # Prefer first-class API citations over post-hoc URL matching
+    api_citations = extract_api_citations(messages)
+
     update_agent_memory(paths, bundle_content)
 
     state_out = {
@@ -529,6 +581,7 @@ def normalize_research_outputs(
         "hitl_cluster_content": hitl_cluster_content,
         "citation_claim_support": citation_claim_support,
         "citation_urls": citation_urls,
+        "api_citations": api_citations,
         "state_out": state_out,
         "output_state": dict(state_out),
         "current_research_path": paths.bundle_path if bundle_content else None,
@@ -589,6 +642,7 @@ def create_research_agent_graph(
             memory_mw,
             skills_mw,
             ToolErrorMiddleware(),
+            DynamicToolConfigMiddleware(tool_config={}),
         ],
         backend=composite_backend,
         checkpointer=create_checkpointer(),
