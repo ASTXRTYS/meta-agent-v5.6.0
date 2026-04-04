@@ -1,0 +1,170 @@
+{
+  "audit_date": "2026-04-04",
+  "verdict": "CONDITIONAL_GO",
+  "verdict_scope": "E2E eval experiment only",
+  "environment": {
+    "python": "3.11.15",
+    "deepagents": "0.4.12",
+    "branch": "main",
+    "commit": "b2e88d6",
+    "all_imports_pass": true,
+    "dependency_check": "pass",
+    "modules_checked": 46,
+    "dependencies_checked": 11,
+    "stale_bytecode_files": 70,
+    "extraneous_packages": [
+      "google-genai",
+      "langchain-google-genai",
+      "langchain-openai",
+      "numpy",
+      "openai"
+    ]
+  },
+  "blocking_issues": [
+    {
+      "id": "BLOCK-1",
+      "title": "Middleware ordering — DynamicSystemPromptMiddleware fires after AnthropicPromptCachingMiddleware",
+      "severity": "blocking_production",
+      "eval_impact": "none",
+      "file": "meta_agent/graph.py",
+      "line": 156,
+      "evidence": "SDK create_deep_agent() line 188-189: 'if middleware: deepagent_middleware.extend(middleware)' — explicit middleware appended AFTER auto-attached stack. Docstring: 'middleware: Additional middleware to apply after the standard middleware stack'. Cache breakpoints set on stale system prompts before DynamicSystemPromptMiddleware rewrites them.",
+      "remediation": "Move DynamicSystemPromptMiddleware logic into pre-model hook that fires before caching, or request SDK support for middleware priority/ordering, or implement cache invalidation wrapper after prompt rewrite"
+    },
+    {
+      "id": "BLOCK-2",
+      "title": "Missing interrupt_on parameter in research-agent create_deep_agent() call",
+      "severity": "blocking_production",
+      "eval_impact": "none",
+      "file": "meta_agent/subagents/research_agent.py",
+      "line": 582,
+      "evidence": "create_deep_agent() call passes model, tools, system_prompt, middleware, backend, checkpointer, store, name — but NOT interrupt_on. PM graph (graph.py:166-169) correctly passes interrupt_on. request_approval_tool in tools list but graph will not pause.",
+      "remediation": "Add interrupt_on={\"request_approval\": True} to the create_deep_agent() call in research_agent.py"
+    }
+  ],
+  "non_blocking_issues": [
+    {
+      "id": "NB-1",
+      "title": "Orchestrator tracing completely missing",
+      "severity": "high",
+      "file": "meta_agent/graph.py, meta_agent/stages/, meta_agent/middleware/",
+      "evidence": "No @traceable decorators on graph nodes, stage logic, middleware hooks, or delegation decisions. Stubs in tracing.py have zero call sites."
+    },
+    {
+      "id": "NB-2",
+      "title": "Research-agent @traceable imported but unused",
+      "severity": "low",
+      "file": "meta_agent/subagents/research_agent.py",
+      "evidence": "Line 34 imports traceable but no functions decorated. SDK auto-tracing covers critical path."
+    },
+    {
+      "id": "NB-3",
+      "title": "Stale .cpython-314.pyc files",
+      "severity": "low",
+      "file": "Various __pycache__ directories",
+      "evidence": "70 stale .cpython-314.pyc files from different Python version"
+    },
+    {
+      "id": "NB-4",
+      "title": "Extraneous packages in venv",
+      "severity": "low",
+      "file": ".venv/",
+      "evidence": "google-genai, langchain-google-genai, langchain-openai, numpy, openai installed but unused"
+    },
+    {
+      "id": "NB-5",
+      "title": "Redundant recursion_limit setting",
+      "severity": "low",
+      "file": "meta_agent/subagents/research_agent.py",
+      "evidence": "recursion_limit=100 set in both _invoke() (line 617) and run_research_agent() (line 745)"
+    },
+    {
+      "id": "NB-6",
+      "title": "No runtime fallback for server-side tool API versions",
+      "severity": "low",
+      "file": "meta_agent/tools/__init__.py",
+      "evidence": "Comment documents fallback to _20250305 but no automatic detection code"
+    },
+    {
+      "id": "NB-7",
+      "title": "SummarizationToolMiddleware uses model string instead of instance",
+      "severity": "low",
+      "file": "meta_agent/subagents/research_agent.py",
+      "evidence": "Line 559-561 passes cfg['model_string'] not configured ChatAnthropic instance"
+    },
+    {
+      "id": "NB-8",
+      "title": "Dead code — memory_loader.py",
+      "severity": "low",
+      "file": "meta_agent/middleware/memory_loader.py",
+      "evidence": "63-line file with no imports found in codebase. Replaced by SDK-native MemoryMiddleware."
+    }
+  ],
+  "agent_lanes": {
+    "orchestrator": {
+      "verdict": "pass",
+      "blockers": 0,
+      "notes": "All model config, middleware, HITL, subagent wiring correct. Tracing gap is non-blocking."
+    },
+    "research-agent": {
+      "verdict": "conditional_pass",
+      "blockers": 1,
+      "notes": "interrupt_on missing — eval-safe with auto_approve_hitl=True, blocks production HITL"
+    },
+    "verification-agent": {
+      "verdict": "pass",
+      "blockers": 0,
+      "notes": "CompiledSubAgent pattern correct, model config correct"
+    },
+    "spec-writer": {
+      "verdict": "pass",
+      "blockers": 0,
+      "notes": "CompiledSubAgent pattern correct, model config correct, propose_evals_tool assigned"
+    },
+    "plan-writer": {
+      "verdict": "deferred",
+      "blockers": 0,
+      "notes": "Dict config only, Phase 4 scope"
+    },
+    "code-agent": {
+      "verdict": "deferred",
+      "blockers": 0,
+      "notes": "Dict config only, Phase 4 scope"
+    },
+    "test-agent": {
+      "verdict": "deferred",
+      "blockers": 0,
+      "notes": "Dict config only, Phase 4 scope"
+    },
+    "document-renderer": {
+      "verdict": "deferred",
+      "blockers": 0,
+      "notes": "Dict config only, Phase 5 scope"
+    }
+  },
+  "go_criteria": {
+    "environment": "pass",
+    "middleware": "pass",
+    "backend": "pass",
+    "claude_api": "pass",
+    "server_side_tools": "pass",
+    "observability": "partial_pass",
+    "judge_runtime": "pass"
+  },
+  "notes_md_coverage": {
+    "total_concerns": 13,
+    "fully_investigated": 8,
+    "blockers_found": 2,
+    "out_of_scope": 1,
+    "partial": 1,
+    "duplicate": 1
+  },
+  "false_positive_corrections": [
+    {
+      "source": "SDK Middleware Auditor (note 47efa2a4)",
+      "claim": "deepagents==0.2.7 installed, blocking version mismatch",
+      "correction": "Auditor resolved to global install at /opt/homebrew/lib/python3.14/site-packages. Project-local .venv has deepagents==0.4.12. All middleware imports succeed.",
+      "disposition": "EXCLUDED from blocking issues"
+    }
+  ]
+}
