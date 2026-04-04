@@ -61,17 +61,28 @@ def create_composite_backend(
     return _factory
 
 
-def create_bare_filesystem_backend() -> SdkFilesystemBackend:
+def create_bare_filesystem_backend(
+    root_dir: Path | str | None = None,
+) -> SdkFilesystemBackend:
     """Create a bare FilesystemBackend for middleware (Memory, Skills).
 
-    Returns a FilesystemBackend with no root_dir restriction and no
-    virtual_mode, allowing it to read files from absolute disk paths.
+    Returns a FilesystemBackend with virtual_mode=False, allowing it to
+    read files from absolute disk paths. Relative paths resolve under
+    root_dir (defaults to Path.cwd() if not provided).
+
     This is needed by MemoryMiddleware and SkillsMiddleware to read
     AGENTS.md and SKILL.md files from their absolute locations.
 
+    Args:
+        root_dir: Base directory for relative path resolution. Pass the
+            repo root to ensure stable behaviour regardless of the
+            process's working directory at startup.
+
     This matches the production deepagents-cli pattern.
     """
-    return SdkFilesystemBackend(virtual_mode=False)
+    if root_dir is None:
+        root_dir = str(Path(__file__).resolve().parent.parent)
+    return SdkFilesystemBackend(root_dir=root_dir, virtual_mode=False)
 
 
 def create_checkpointer() -> MemorySaver:
