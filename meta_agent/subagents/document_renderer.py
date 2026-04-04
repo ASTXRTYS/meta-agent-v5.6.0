@@ -42,6 +42,53 @@ RENDERING_TRIGGERS: dict[str, list[str]] = {
 OUTPUT_FORMATS = ["docx", "pdf"]
 
 
+# Canonical description shared by both PM and research-agent subagent lists.
+DOCUMENT_RENDERER_DESCRIPTION = (
+    "Document formatter. Converts Markdown artifacts into "
+    "professionally formatted DOCX and PDF files."
+)
+
+# Canonical system prompt for the document-renderer subagent.
+DOCUMENT_RENDERER_SYSTEM_PROMPT = (
+    "You are the Document Renderer. Convert Markdown artifacts into "
+    "professionally formatted DOCX and PDF files. Use the anthropic/docx "
+    "and anthropic/pdf skills for formatting guidance."
+)
+
+
+def build_document_renderer_subagent(
+    skills_dirs: list[str] | None = None,
+) -> dict[str, Any]:
+    """Build an SDK-compatible SubAgent dict for the document-renderer.
+
+    Shared builder used by both the PM orchestrator (build_pm_subagents)
+    and the research-agent runtime so the document-renderer is available
+    as a named subagent in both contexts.
+
+    Args:
+        skills_dirs: Resolved skill directory paths.  Only the Anthropic
+            skills dir (containing docx/, pdf/) is passed through.
+
+    Returns:
+        SubAgent-compatible dict ready for create_deep_agent(subagents=...).
+    """
+    from meta_agent.middleware.tool_error_handler import ToolErrorMiddleware
+
+    anthropic_skills_dir = next(
+        (d for d in (skills_dirs or []) if "anthropic" in d), None
+    )
+
+    entry: dict[str, Any] = {
+        "name": "document-renderer",
+        "description": DOCUMENT_RENDERER_DESCRIPTION,
+        "system_prompt": DOCUMENT_RENDERER_SYSTEM_PROMPT,
+        "middleware": [ToolErrorMiddleware()],
+    }
+    if anthropic_skills_dir:
+        entry["skills"] = [anthropic_skills_dir]
+    return entry
+
+
 def get_render_config() -> dict[str, Any]:
     """Get the document renderer configuration."""
     return DOCUMENT_RENDERER_CONFIG.copy()

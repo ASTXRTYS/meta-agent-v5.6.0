@@ -11,7 +11,6 @@ dicts for the create_deep_agent(subagents=...) parameter.
 
 from __future__ import annotations
 
-from pathlib import Path
 from typing import Any
 
 from deepagents.middleware.subagents import CompiledSubAgent, SubAgent
@@ -215,7 +214,7 @@ SUBAGENT_DESCRIPTIONS: dict[str, str] = {
     "document-renderer": (
         "Document formatter. Converts Markdown artifacts into "
         "professionally formatted DOCX and PDF files."
-    ),
+    ),  # Canonical copy lives in document_renderer.DOCUMENT_RENDERER_DESCRIPTION
 }
 
 
@@ -263,6 +262,7 @@ def build_pm_subagents(
     from meta_agent.subagents.research_agent import create_research_agent_subagent
     from meta_agent.subagents.verification_agent_runtime import create_verification_agent_subagent
     from meta_agent.subagents.spec_writer_agent import create_spec_writer_agent_subagent
+    from meta_agent.subagents.document_renderer import build_document_renderer_subagent
 
     mw_instances = _resolve_middleware_instances()
 
@@ -283,11 +283,6 @@ def build_pm_subagents(
         "code-agent": construct_code_agent_prompt(project_dir, project_id),
         "verification-agent": construct_verification_agent_prompt(project_dir, project_id),
         "test-agent": construct_plan_writer_prompt(project_dir, project_id),
-        "document-renderer": (
-            "You are the Document Renderer. Convert Markdown artifacts into "
-            "professionally formatted DOCX and PDF files. Use the anthropic/docx "
-            "and anthropic/pdf skills for formatting guidance."
-        ),
     }
 
     # Custom (non-filesystem) tools per agent
@@ -298,23 +293,9 @@ def build_pm_subagents(
         "code-agent": [execute_command_tool, langgraph_dev_server_tool, langsmith_cli_tool],
         "verification-agent": [],
         "test-agent": [execute_command_tool],
-        "document-renderer": [],
     }
 
-    # Skills per agent — all get full set except document-renderer (Section 6.9)
-    doc_renderer_skills = [
-        str(Path(d) / "docx") if "anthropic" in d else None
-        for d in (skills_dirs or [])
-    ]
-    # document-renderer only needs anthropic/docx and anthropic/pdf, but those
-    # are subdirs of the anthropic skills dir which is already a valid skills path.
-    # Per the SDK, skills=[] scans one level for SKILL.md, so we pass the
-    # anthropic skills dir and it sees docx/, pdf/, etc.
-    anthropic_skills_dir = next(
-        (d for d in (skills_dirs or []) if "anthropic" in d), None
-    )
-
-    subagents: list[SubAgent | CompiledSubAgent] = []
+    subagents
 
     for agent_name in [
         "research-agent", "spec-writer", "plan-writer", "code-agent",
@@ -354,15 +335,17 @@ def build_pm_subagents(
             )
             continue
 
+        # Use shared builder for document-renderer (reused by research-agent)
+        if agent_name == "document-renderer":
+            subagents.append(build_document_renderer_subagent(skills_dirs))
+            continue
+
         # Resolve middleware string names to instances
         mw_names = SUBAGENT_MIDDLEWARE.get(agent_name, ["ToolErrorMiddleware"])
         middleware = [mw_instances[n] for n in mw_names if n in mw_instances]
 
-        # Determine skills for this agent
-        if agent_name == "document-renderer":
-            agent_skills = [anthropic_skills_dir] if anthropic_skills_dir else []
-        else:
-            agent_skills = list(skills_dirs or [])
+        # All remaining agents get the full skill set
+        agent_skills = list(skills_dirs or [])
 
         entry: dict[str, Any] = {
             "name": agent_name,

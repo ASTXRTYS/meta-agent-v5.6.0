@@ -33,6 +33,7 @@ from meta_agent.model import get_configured_model, get_model_config
 from meta_agent.prompts.research_agent import construct_research_agent_prompt
 from meta_agent.safety import RECURSION_LIMITS
 from meta_agent.tracing import traceable
+from meta_agent.subagents.document_renderer import build_document_renderer_subagent
 from meta_agent.tools import (
     get_server_side_tools,
     record_assumption_tool,
@@ -123,9 +124,9 @@ def _materialize_if_missing(path: str, content: str) -> None:
 def _resolve_skills_dirs(skills_paths: list[str] | None) -> list[str]:
     repo_root = _repo_root()
     default_dirs = [
-        os.path.join(repo_root, "skills", "langchain", "config", "skills"),
-        os.path.join(repo_root, "skills", "anthropic", "skills"),
-        os.path.join(repo_root, "skills", "langsmith", "config", "skills"),
+        os.path.join(repo_root, ".agents", "skills", "langchain", "config", "skills"),
+        os.path.join(repo_root, ".agents", "skills", "anthropic", "skills"),
+        os.path.join(repo_root, ".agents", "skills", "langsmith", "config", "skills"),
     ]
     if not skills_paths:
         return default_dirs
@@ -134,11 +135,11 @@ def _resolve_skills_dirs(skills_paths: list[str] | None) -> list[str]:
     for path in skills_paths:
         normalized = str(path).rstrip("/")
         if normalized == "/skills/langchain":
-            resolved.append(os.path.join(repo_root, "skills", "langchain", "config", "skills"))
+            resolved.append(os.path.join(repo_root, ".agents", "skills", "langchain", "config", "skills"))
         elif normalized == "/skills/anthropic":
-            resolved.append(os.path.join(repo_root, "skills", "anthropic", "skills"))
+            resolved.append(os.path.join(repo_root, ".agents", "skills", "anthropic", "skills"))
         elif normalized == "/skills/langsmith":
-            resolved.append(os.path.join(repo_root, "skills", "langsmith", "config", "skills"))
+            resolved.append(os.path.join(repo_root, ".agents", "skills", "langsmith", "config", "skills"))
         else:
             resolved.append(path)
     return resolved
@@ -632,6 +633,10 @@ def create_research_agent_graph(
         *get_server_side_tools(),
     ]
 
+    # Make document-renderer available as a named subagent so the
+    # research-agent can delegate rendering via task(agent="document-renderer")
+    doc_renderer = build_document_renderer_subagent(resolved_skills)
+
     return create_deep_agent(
         model=model,
         tools=tools,
@@ -644,6 +649,7 @@ def create_research_agent_graph(
             ToolErrorMiddleware(),
             DynamicToolConfigMiddleware(tool_config={}),
         ],
+        subagents=[doc_renderer],
         backend=composite_backend,
         checkpointer=create_checkpointer(),
         store=create_store(),
