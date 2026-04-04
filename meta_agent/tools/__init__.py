@@ -1052,6 +1052,24 @@ def create_eval_dataset_tool(eval_suite_path: str, dataset_name: str) -> str:
     return json.dumps(result, default=str)
 
 
+# ---------------------------------------------------------------------------
+# Programmatic tool calling — allowed_callers (Section 8.x)
+#
+# Tools with allowed_callers can be called programmatically from code
+# execution containers. HITL-gated tools MUST NOT have allowed_callers
+# since code execution cannot handle interrupt() calls.
+# ---------------------------------------------------------------------------
+
+_PROGRAMMATIC_TOOLS = [
+    glob_search,
+    grep_search,
+    langsmith_trace_list_tool,
+    langsmith_trace_get_tool,
+]
+
+for _tool in _PROGRAMMATIC_TOOLS:
+    _tool.extras = {**(getattr(_tool, "extras", None) or {}), "allowed_callers": ["code_execution_20260120"]}
+
 # Collected @tool instances for create_deep_agent(tools=[...])
 LANGCHAIN_TOOLS = [
     transition_stage_tool,
@@ -1094,6 +1112,10 @@ SERVER_SIDE_TOOLS = {
     "web_fetch": {
         "type": "web_fetch_20260209",
         "name": "web_fetch",
+    },
+    "code_execution": {
+        "type": "code_execution_20260120",
+        "name": "code_execution",
     },
 }
 

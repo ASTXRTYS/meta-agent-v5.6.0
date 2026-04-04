@@ -94,6 +94,8 @@ def get_configured_model(agent_name: str = "pm") -> "ChatAnthropic":
         thinking=cfg["thinking"],
         effort=effort,
         max_tokens=max_tokens,
+        streaming=True,
+        stream_usage=True,
     )
 
 
