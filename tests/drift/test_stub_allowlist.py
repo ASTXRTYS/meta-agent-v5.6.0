@@ -6,6 +6,9 @@ meta_agent/ is in the intentional_stubs.yaml catalog.
 
 from __future__ import annotations
 
+from tests.drift import _venv_helper  # noqa: F401
+_venv_helper.ensure_venv()
+
 import ast
 import warnings
 from pathlib import Path

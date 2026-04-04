@@ -9,6 +9,9 @@ Catches reintroduction of:
 
 from __future__ import annotations
 
+from tests.drift import _venv_helper  # noqa: F401
+_venv_helper.ensure_venv()
+
 from pathlib import Path
 
 import pytest

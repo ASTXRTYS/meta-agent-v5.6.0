@@ -11,6 +11,9 @@ Catches:
 
 from __future__ import annotations
 
+from tests.drift import _venv_helper  # noqa: F401
+_venv_helper.ensure_venv()
+
 import subprocess
 import sys
 from pathlib import Path

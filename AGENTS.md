@@ -129,6 +129,7 @@ When investigating, auditing, or implementing features from any external API or 
 ### The Problem This Solves
 
 During a preflight audit, subagents confidently misidentified Claude API features:
+
 - "Programmatic Tool Calling" (Claude writing code to call tools in a sandbox) was confused with `tool_choice` (forcing a specific tool via API parameter)
 - "Dynamic Filtering" (Claude filtering web search results via code execution) was confused with middleware-level tool list filtering
 
@@ -139,7 +140,7 @@ Both misidentifications occurred because agents relied on skill files and genera
 **Step 1: Identify the authoritative source.** Before investigating any API feature, determine the canonical documentation URL. For this project:
 
 | SDK/API | Authoritative Source |
-|---------|---------------------|
+| --- | --- |
 | Claude API (Anthropic) | https://platform.claude.com/docs/ |
 | Deep Agents SDK | .reference/libs/deepagents/ (local source) + skill files |
 | LangChain | https://python.langchain.com/docs/ |
@@ -149,16 +150,19 @@ Both misidentifications occurred because agents relied on skill files and genera
 **Step 2: Fetch and read the authoritative docs.** Use web_fetch or web_search to retrieve the actual documentation page for the specific feature. Do NOT rely solely on skill files — skill files are baseline context, not exhaustive references.
 
 **Step 3: Map terminology precisely.** API features often have specific, non-obvious meanings. Before claiming understanding:
+
 - Quote the official definition from the docs
 - Identify any prerequisites (e.g., "requires code_execution tool to be enabled")
 - Distinguish between features with similar names (e.g., tool_choice vs programmatic tool calling)
 
 **Step 4: Verify integration path via Python introspection.** For any SDK integration, run actual Python code to inspect:
+
 - Available parameters: `inspect.signature()`, `model_fields`, etc.
 - Supported values: docstrings, type annotations
 - Version compatibility: `importlib.metadata.version()`
 
 **Step 5: Cross-reference integration layers.** When a feature spans multiple layers (e.g., Claude API → LangChain → Deep Agents SDK), verify at each layer:
+
 - Does the layer expose the feature?
 - Does it pass through transparently?
 - Does it transform or restrict the feature?
@@ -166,11 +170,8 @@ Both misidentifications occurred because agents relied on skill files and genera
 ### Anti-patterns
 
 1. **Assuming skill files are exhaustive.** Skill files provide baseline knowledge, not comprehensive API coverage. Always verify against authoritative docs for specific features.
-
 2. **Mapping familiar terms to API features without verification.** "Tool calling" in general AI context ≠ "Programmatic Tool Calling" in Claude API. Always use the API's own definitions.
-
 3. **Claiming a feature is "not available" without checking.** A feature might be auto-enabled (like dynamic filtering in web_search_20260209), available via model_kwargs, or accessible through a different parameter name.
-
 4. **Testing only that existing tests pass.** When implementing a new feature, write tests that specifically validate the feature's behavior. "Tests pass" means "nothing broke," not "the feature works."
 
 ### SDK Reference Locations
@@ -178,8 +179,8 @@ Both misidentifications occurred because agents relied on skill files and genera
 For quick reference, the authoritative local sources for each SDK:
 
 | SDK | Local Reference | Key Files |
-|-----|----------------|-----------|
-| Deep Agents | .reference/libs/deepagents/deepagents/ | middleware/, backends/, __init__.py |
+| --- | --- | --- |
+| Deep Agents | .reference/libs/deepagents/deepagents/ | middleware/, backends/, init.py |
 | LangChain Anthropic | .venv/lib/python3.11/site-packages/langchain_anthropic/ | chat_models.py |
 | LangGraph | .venv/lib/python3.11/site-packages/langgraph/ | graph/, prebuilt/ |
 | LangSmith | .venv/lib/python3.11/site-packages/langsmith/ | client.py, wrappers.py |
@@ -189,20 +190,19 @@ For quick reference, the authoritative local sources for each SDK:
 Features confirmed available and integrated in this project:
 
 | Feature | API Mechanism | Integration Point | Status |
-|---------|--------------|-------------------|--------|
-| Adaptive Thinking | `thinking: {type: "adaptive"}` | ChatAnthropic constructor | ✅ Active |
-| Effort Levels | `effort: "max"/"high"/"medium"/"low"` | ChatAnthropic constructor | ✅ Active |
-| Streaming | `streaming: True` on ChatAnthropic | model.py get_configured_model() | ✅ Active |
-| Web Search | `web_search_20260209` server-side tool | SERVER_SIDE_TOOLS dict | ✅ Active |
-| Web Fetch | `web_fetch_20260209` server-side tool | SERVER_SIDE_TOOLS dict | ✅ Active |
-| Dynamic Filtering | Built into `_20260209` web tools (automatic) | No config needed | ✅ Active |
-| Code Execution | `code_execution_20260120` server-side tool | SERVER_SIDE_TOOLS dict | ✅ Active |
-| Programmatic Tool Calling | `allowed_callers` on tool definitions | BaseTool.extras | ✅ Active |
+| --- | --- | --- | --- |
+| Adaptive Thinking | thinking: {type: "adaptive"} | ChatAnthropic constructor | ✅ Active |
+| Effort Levels | effort: "max"/"high"/"medium"/"low" | ChatAnthropic constructor | ✅ Active |
+| Streaming | streaming: True on ChatAnthropic | model.py get_configured_model() | ✅ Active |
+| Web Search | web_search_20260209 server-side tool | SERVER_SIDE_TOOLS dict | ✅ Active |
+| Web Fetch | web_fetch_20260209 server-side tool | SERVER_SIDE_TOOLS dict | ✅ Active |
+| Dynamic Filtering | Built into _20260209 web tools (automatic) | No config needed | ✅ Active |
+| Code Execution | code_execution_20260120 server-side tool | SERVER_SIDE_TOOLS dict | ✅ Active |
+| Programmatic Tool Calling | allowed_callers on tool definitions | BaseTool.extras | ✅ Active |
 | Citations (web search) | Automatic with web_search | extract_api_citations() | ✅ Active |
-| tool_choice | `tool_choice` on bind_tools() | DynamicToolConfigMiddleware | ✅ Active |
+| tool_choice | tool_choice on bind_tools() | DynamicToolConfigMiddleware | ✅ Active |
 | Tool Filtering | ModelRequest.tools modification | DynamicToolConfigMiddleware | ✅ Active |
 | Prompt Caching | AnthropicPromptCachingMiddleware (auto) | SDK auto-attached | ⚠️ Ordering issue |
-
 
 ## Project Status
 
@@ -353,13 +353,20 @@ The `Full-Development-Plan.md` includes progress tracking that shows what's comp
 ### How to Update Progress
 
 1. **Phase Headers:** Update status badges as phases are completed
-  - `⏸️ NOT STARTED` → `🔄 IN PROGRESS` → `✅ COMPLETE`
-2. **Task Checklists:** Mark tasks as complete using `[x]` instead of `[ ]`
-  - Found in each phase's "Phase Complete Checklist" section
-3. **Project Status Summary:** Update completion percentages and current focus
-  - Located in Section 1.5 of the development plan
-4. **Phase-Specific Progress:** Update progress sections for the current phase
-  - Example: Phase 3 has separate "Foundations" vs "Runtime Implementation" sections
+
+- `⏸️ NOT STARTED` → `🔄 IN PROGRESS` → `✅ COMPLETE`
+
+1. **Task Checklists:** Mark tasks as complete using `[x]` instead of `[ ]`
+
+- Found in each phase's "Phase Complete Checklist" section
+
+1. **Project Status Summary:** Update completion percentages and current focus
+
+- Located in Section 1.5 of the development plan
+
+1. **Phase-Specific Progress:** Update progress sections for the current phase
+
+- Example: Phase 3 has separate "Foundations" vs "Runtime Implementation" sections
 
 ### When to Update
 
@@ -373,15 +380,10 @@ The `Full-Development-Plan.md` includes progress tracking that shows what's comp
 - ✅ **COMPLETE** - All evals passing, phase fully functional
 - 🔄 **IN PROGRESS** - Implementation underway, partial completion
 - ⏸️ **NOT STARTED** - Blocked by prerequisite phases
-
 - [x]
-
 - Task completed
-
 - [ ]
-
 - Task incomplete
-
 - ⏳ - In progress
 
 **Important:** The development plan is the single source of truth for project status. Keeping it accurate ensures any agent can quickly understand what's done and what remains.
@@ -393,39 +395,33 @@ The test suite has two layers: the canonical new suite and a quarantined legacy 
 ### Directory Layout
 
 | Directory | Purpose | Marker | Mock Policy |
-|---|---|---|---|
-| `tests/contracts/` | Fast invariant tests — no I/O, no model calls | `@pytest.mark.contract` | No `unittest.mock` allowed |
-| `tests/integration/` | App composition tests — may use tmp_path, mocks | `@pytest.mark.integration` | Mocks permitted |
-| `tests/evals/` | Live behavioral tests — real API calls | `@pytest.mark.eval` | Auto-skipped without `ANTHROPIC_API_KEY` |
-| `tests/drift/` | Regression/drift guards | `@pytest.mark.drift` | No mocks |
-| `tests/unit/` | **LEGACY QUARANTINE** — do not add new tests here | `@pytest.mark.legacy` | Frozen at ceiling of 410 tests |
-| `tests/_support/` | Shared helpers (fake models, builders, assertions) | N/A — not test files | N/A |
+| --- | --- | --- | --- |
+| tests/contracts/ | Fast invariant tests — no I/O, no model calls | @pytest.mark.contract | No unittest.mock allowed |
+| tests/integration/ | App composition tests — may use tmp_path, mocks | @pytest.mark.integration | Mocks permitted |
+| tests/evals/ | Live behavioral tests — real API calls | @pytest.mark.eval | Auto-skipped without ANTHROPIC_API_KEY |
+| tests/drift/ | Regression/drift guards | @pytest.mark.drift | No mocks |
+| tests/unit/ | LEGACY QUARANTINE — do not add new tests here | @pytest.mark.legacy | Frozen at ceiling of 410 tests |
+| tests/_support/ | Shared helpers (fake models, builders, assertions) | N/A — not test files | N/A |
 
 ### Makefile Targets
 
 | Target | What It Runs |
-|---|---|
-| `make test` | New suite only (excludes `tests/unit/`) — **this is the default** |
-| `make test-all` | Everything including legacy |
-| `make test-contracts` | Contract tests only |
-| `make test-integration` | Integration tests only |
-| `make test-evals` | Eval tests only (skipped without API key) |
-| `make test-drift` | Drift tests only |
-| `make test-legacy` | Legacy quarantine only |
+| --- | --- |
+| make test | New suite only (excludes tests/unit/) — this is the default |
+| make test-all | Everything including legacy |
+| make test-contracts | Contract tests only |
+| make test-integration | Integration tests only |
+| make test-evals | Eval tests only (skipped without API key) |
+| make test-drift | Drift tests only |
+| make test-legacy | Legacy quarantine only |
 
 ### When Writing New Tests
 
 1. **Choose the right directory** based on the table above
 2. **Add the correct marker** as `pytestmark = pytest.mark.<marker>` at the top of the file
-3. **Add `REPLACES:` comments** if your test replaces legacy coverage:
-   ```python
-   # REPLACES: tests/unit/test_backend.py::TestCreateCompositeBackend
-   ```
-4. **Add `COVERS:` declarations** mapping to catalog component IDs:
-   ```python
-   # COVERS: backend.composite_routing, backend.filesystem_virtual
-   ```
-5. **Never add tests to `tests/unit/`** — the legacy ratchet (ceiling=410) will fail CI
+3. **Add **`REPLACES:`** comments** if your test replaces legacy coverage:`# REPLACES: tests/unit/test_backend.py::TestCreateCompositeBackend`
+4. **Add **`COVERS:`** declarations** mapping to catalog component IDs:`# COVERS: backend.composite_routing, backend.filesystem_virtual`
+5. **Never add tests to **`tests/unit/` — the legacy ratchet (ceiling=410) will fail CI
 
 ### Legacy Test Ratchet
 
@@ -438,10 +434,10 @@ Three YAML catalogs in `docs/testing/` track the components that need test cover
 ### Catalogs
 
 | File | What It Tracks | When to Update |
-|---|---|---|
-| `docs/testing/runtime_components.yaml` | Tools, middleware, subagents, state fields, guardrails (82 components) | Adding/removing/renaming a tool, middleware, subagent, state field, or guardrail |
-| `docs/testing/sdk_touchpoints.yaml` | SDK symbols imported and how they're used (17 touchpoints) | Adding a new SDK import or changing usage pattern |
-| `docs/testing/intentional_stubs.yaml` | Phase-deferred stubs with justification (14 stubs) | Adding a new stub, retiring a stub, or a stub becoming real |
+| --- | --- | --- |
+| docs/testing/runtime_components.yaml | Tools, middleware, subagents, state fields, guardrails (82 components) | Adding/removing/renaming a tool, middleware, subagent, state field, or guardrail |
+| docs/testing/sdk_touchpoints.yaml | SDK symbols imported and how they're used (17 touchpoints) | Adding a new SDK import or changing usage pattern |
+| docs/testing/intentional_stubs.yaml | Phase-deferred stubs with justification (14 stubs) | Adding a new stub, retiring a stub, or a stub becoming real |
 
 ### After Any Catalog Change
 
@@ -456,6 +452,7 @@ This updates `docs/testing/TEST_TRACEABILITY.md` and `docs/testing/TEST_TRACEABI
 ### Drift Enforcement
 
 Drift tests automatically catch catalog staleness:
+
 - **Catalog parity** — fails if `runtime_components.yaml` doesn't match what's in `meta_agent/`
 - **SDK touchpoints** — fails if new SDK imports aren't cataloged
 - **Stub allowlist** — fails if new stubs (both `NotImplementedError` and soft stubs like `return {"status": "pending"}`) aren't in the allowlist
@@ -466,10 +463,10 @@ If a drift test fails after your change, update the relevant catalog and regener
 ### Inventory Scripts
 
 | Script | Purpose |
-|---|---|
-| `scripts/testing/extract_runtime_inventory.py` | Scans `meta_agent/` for runtime components via AST |
-| `scripts/testing/extract_sdk_touchpoints.py` | Scans imports for SDK symbol usage |
-| `scripts/testing/generate_traceability.py` | Builds the coverage traceability matrix from catalogs + COVERS declarations |
+| --- | --- |
+| scripts/testing/extract_runtime_inventory.py | Scans meta_agent/ for runtime components via AST |
+| scripts/testing/extract_sdk_touchpoints.py | Scans imports for SDK symbol usage |
+| scripts/testing/generate_traceability.py | Builds the coverage traceability matrix from catalogs + COVERS declarations |
 
 ## Spec and Plan Documents
 

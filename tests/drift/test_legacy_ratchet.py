@@ -1,4 +1,7 @@
 """Legacy ratchet — fail if legacy test count increases above the frozen baseline."""
+from tests.drift import _venv_helper  # noqa: F401
+_venv_helper.ensure_venv()
+
 import pytest
 import subprocess
 import sys

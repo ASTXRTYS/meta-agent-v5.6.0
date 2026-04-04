@@ -6,6 +6,9 @@ sdk_touchpoints.yaml has at least one test file with a matching COVERS entry.
 
 from __future__ import annotations
 
+from tests.drift import _venv_helper  # noqa: F401
+_venv_helper.ensure_venv()
+
 import ast
 from pathlib import Path
 
