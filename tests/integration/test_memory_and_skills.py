@@ -76,17 +76,17 @@ class TestSkillsDirectoriesExistOnDisk:
     """Skills directories at configured paths exist on disk."""
 
     SKILLS_DIRS = [
-        REPO_ROOT / "skills" / "langchain" / "config" / "skills",
-        REPO_ROOT / "skills" / "langsmith" / "config" / "skills",
-        REPO_ROOT / "skills" / "anthropic" / "skills",
+        REPO_ROOT / ".agents" / "skills" / "langchain" / "config" / "skills",
+        REPO_ROOT / ".agents" / "skills" / "langsmith" / "config" / "skills",
+        REPO_ROOT / ".agents" / "skills" / "anthropic" / "skills",
     ]
 
     @pytest.mark.parametrize(
         "skills_dir",
         [
-            REPO_ROOT / "skills" / "langchain" / "config" / "skills",
-            REPO_ROOT / "skills" / "langsmith" / "config" / "skills",
-            REPO_ROOT / "skills" / "anthropic" / "skills",
+            REPO_ROOT / ".agents" / "skills" / "langchain" / "config" / "skills",
+            REPO_ROOT / ".agents" / "skills" / "langsmith" / "config" / "skills",
+            REPO_ROOT / ".agents" / "skills" / "anthropic" / "skills",
         ],
         ids=["langchain", "langsmith", "anthropic"],
     )

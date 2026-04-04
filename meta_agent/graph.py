@@ -95,7 +95,7 @@ def create_graph(
     # Create backend, checkpointer, store
     repo_root = Path(__file__).resolve().parent.parent
     composite_backend = create_composite_backend(repo_root)
-    bare_fs = create_bare_filesystem_backend()
+    bare_fs = create_bare_filesystem_backend(root_dir=repo_root)
     checkpointer = create_checkpointer()
     store = create_store()
 
@@ -136,14 +136,14 @@ def create_graph(
     memory_mw = MemoryMiddleware(backend=bare_fs, sources=memory_sources)
 
     # Resolve skills directories (Section 11, 22.4)
-    # All 31 skills from LangChain, LangSmith, and Anthropic repos are available
-    # to the PM via SkillsMiddleware for on-demand SKILL.md loading.
+    # All skills from LangChain, LangSmith, and Anthropic repositories are
+    # sourced from the canonical .agents/skills mirror for runtime loading.
     # Each repo has a different internal layout, so we point to the directory
     # that contains the skill subdirectories (each with a SKILL.md).
     skills_dirs = [
-        str(repo_root / "skills" / "langchain" / "config" / "skills"),  # 11 skills
-        str(repo_root / "skills" / "langsmith" / "config" / "skills"),  # 3 skills
-        str(repo_root / "skills" / "anthropic" / "skills"),             # 17 skills
+        str(repo_root / ".agents" / "skills" / "langchain" / "config" / "skills"),
+        str(repo_root / ".agents" / "skills" / "langsmith" / "config" / "skills"),
+        str(repo_root / ".agents" / "skills" / "anthropic" / "skills"),
     ]
 
     # SkillsMiddleware — explicit, with bare FS for absolute SKILL.md paths

@@ -73,6 +73,7 @@ This document is the authoritative development plan for the local-first meta-age
 - ✅ Phase 3 gate evals implemented (7 Layer 1 evals)
 - ✅ Eval run function bridge for langsmith.evaluate() with checkpoint mapping
 - ✅ 471 unit tests passing (SDK middleware integration validated with deepagents==0.4.12)
+- ✅ PM + runtime subagents aligned to canonical `.agents/skills/...` sources; integration assertions updated
 
 **Remaining Work:**
 
@@ -188,7 +189,96 @@ Phase 0 establishes the repository structure, core state model, configuration, p
 
 **Tasks:**
 
-- Create the full directory structure per Section 13.4, including:`meta_agent/ â”œâ”€â”€ __init__.py â”œâ”€â”€ state.py # Section 4.1 â€” MetaAgentState TypedDict â”œâ”€â”€ graph.py # Section 22.4 â€” Main graph entry point â”œâ”€â”€ server.py # Section 22.6 â€” Dynamic graph factory (get_agent) â”œâ”€â”€ model.py # Section 22.5 â€” Model selection â”œâ”€â”€ configuration.py # Section 22.7 â€” Typed configuration â”œâ”€â”€ tools/ â”‚ â”œâ”€â”€ __init__.py â”‚ â”œâ”€â”€ registry.py # Section 22.8 â€” Central tool registry â”‚ â””â”€â”€ eval_tools.py # Section 22.16 â€” 5 eval tools (stubs) â”œâ”€â”€ tools.py # Section 22.2 â€” Custom tools (glob, grep, etc.) â”œâ”€â”€ subagents/ â”‚ â”œâ”€â”€ __init__.py â”‚ â””â”€â”€ configs.py # Section 22.3 â€” Subagent specifications â”œâ”€â”€ prompts/ â”‚ â”œâ”€â”€ __init__.py â”‚ â”œâ”€â”€ sections.py # Section 22.14 â€” All 13 base prompt constants â”‚ â”œâ”€â”€ pm.py # Section 22.15 â€” construct_pm_prompt() â”‚ â”œâ”€â”€ eval_mindset.py # Section 22.19 â€” EVAL_MINDSET_SECTION â”‚ â”œâ”€â”€ scoring_strategy.py # Section 22.20 â€” SCORING_STRATEGY_SECTION â”‚ â”œâ”€â”€ eval_approval_protocol.py # Section 22.21 â€” EVAL_APPROVAL_PROTOCOL â”‚ â”œâ”€â”€ research_agent.py â”‚ â”œâ”€â”€ spec_writer.py â”‚ â”œâ”€â”€ plan_writer.py â”‚ â””â”€â”€ code_agent.py â”œâ”€â”€ middleware/ â”‚ â”œâ”€â”€ __init__.py # Section 22.11 â€” Re-exports all custom middleware â”‚ â”œâ”€â”€ tool_error_handler.py # Section 22.12 â€” ToolErrorMiddleware â”‚ â”œâ”€â”€ completion_guard.py # Section 22.13 â€” CompletionGuardMiddleware â”‚ â””â”€â”€ memory_loader.py # Section 22.18 â€” Per-agent memory (stub) â”œâ”€â”€ evals/ â”‚ â”œâ”€â”€ __init__.py â”‚ â”œâ”€â”€ conftest.py â”‚ â”œâ”€â”€ runner.py # CLI runner for eval suite execution â”‚ â”œâ”€â”€ infrastructure/ â”‚ â”‚ â”œâ”€â”€ __init__.py â”‚ â”‚ â””â”€â”€ test_infra.py # INFRA-001 through INFRA-007 â”‚ â”œâ”€â”€ pm_behavioral/ â”‚ â”‚ â”œâ”€â”€ __init__.py â”‚ â”‚ â””â”€â”€ test_pm.py # PM-001 through PM-008 â”‚ â”œâ”€â”€ stage_transitions/ â”‚ â”‚ â”œâ”€â”€ __init__.py â”‚ â”‚ â””â”€â”€ test_stages.py # STAGE-001 through STAGE-003 â”‚ â”œâ”€â”€ guardrails/ â”‚ â”‚ â”œâ”€â”€ __init__.py â”‚ â”‚ â””â”€â”€ test_guards.py # GUARD-001 through GUARD-004 â”‚ â””â”€â”€ rubrics/ â”‚ â”œâ”€â”€ __init__.py â”‚ â””â”€â”€ pm_dimensions.py # Polly rubric anchors â”œâ”€â”€ schemas/ â”‚ â””â”€â”€ __init__.py â”œâ”€â”€ integrations/ â”‚ â””â”€â”€ __init__.py â””â”€â”€ utils/ â””â”€â”€ __init__.py tests/ â”œâ”€â”€ unit/ â”œâ”€â”€ integration/ â””â”€â”€ evals/ skills/ # Cloned skill repos â”œâ”€â”€ langchain/ â”œâ”€â”€ langsmith/ â””â”€â”€ anthropic/ workspace/ â””â”€â”€ projects/ .agents/ # Global agent memory root â”œâ”€â”€ orchestrator/ â”‚ â””â”€â”€ AGENTS.md â”œâ”€â”€ research-agent/ â”‚ â””â”€â”€ AGENTS.md â”œâ”€â”€ spec-writer/ â”‚ â””â”€â”€ AGENTS.md â”œâ”€â”€ plan-writer/ â”‚ â””â”€â”€ AGENTS.md â”œâ”€â”€ code-agent/ â”‚ â””â”€â”€ AGENTS.md â”œâ”€â”€ verification-agent/ â”‚ â””â”€â”€ AGENTS.md â”œâ”€â”€ test-agent/ â”‚ â””â”€â”€ AGENTS.md â””â”€â”€ document-renderer/ â””â”€â”€ AGENTS.md`
+- Create the full directory structure per Section 13.4, including:
+```
+meta_agent/
+├── __init__.py
+├── state.py              # Section 4.1 — MetaAgentState TypedDict
+├── graph.py              # Section 22.4 — Main graph entry point
+├── server.py             # Section 22.6 — Dynamic graph factory (get_agent)
+├── model.py              # Section 22.5 — Model selection
+├── configuration.py      # Section 22.7 — Typed configuration
+├── tools/
+│   ├── __init__.py
+│   ├── registry.py       # Section 22.8 — Central tool registry
+│   └── eval_tools.py     # Section 22.16 — 5 eval tools (stubs)
+├── tools.py              # Section 22.2 — Custom tools (glob, grep, etc.)
+├── subagents/
+│   ├── __init__.py
+│   └── configs.py        # Section 22.3 — Subagent specifications
+├── prompts/
+│   ├── __init__.py
+│   ├── sections.py       # Section 22.14 — All 13 base prompt constants
+│   ├── pm.py             # Section 22.15 — construct_pm_prompt()
+│   ├── eval_mindset.py   # Section 22.19 — EVAL_MINDSET_SECTION
+│   ├── scoring_strategy.py    # Section 22.20 — SCORING_STRATEGY_SECTION
+│   ├── eval_approval_protocol.py  # Section 22.21 — EVAL_APPROVAL_PROTOCOL
+│   ├── research_agent.py
+│   ├── spec_writer.py
+│   ├── plan_writer.py
+│   └── code_agent.py
+├── middleware/
+│   ├── __init__.py       # Section 22.11 — Re-exports all custom middleware
+│   ├── tool_error_handler.py      # Section 22.12 — ToolErrorMiddleware
+│   ├── completion_guard.py        # Section 22.13 — CompletionGuardMiddleware
+│   └── memory_loader.py  # Section 22.18 — Per-agent memory (stub)
+├── evals/
+│   ├── __init__.py
+│   ├── conftest.py
+│   ├── runner.py         # CLI runner for eval suite execution
+│   ├── infrastructure/
+│   │   ├── __init__.py
+│   │   └── test_infra.py # INFRA-001 through INFRA-007
+│   ├── pm_behavioral/
+│   │   ├── __init__.py
+│   │   └── test_pm.py    # PM-001 through PM-008
+│   ├── stage_transitions/
+│   │   ├── __init__.py
+│   │   └── test_stages.py # STAGE-001 through STAGE-003
+│   ├── guardrails/
+│   │   ├── __init__.py
+│   │   └── test_guards.py # GUARD-001 through GUARD-004
+│   └── rubrics/
+│       ├── __init__.py
+│       └── pm_dimensions.py # Polly rubric anchors
+├── schemas/
+│   └── __init__.py
+├── integrations/
+│   └── __init__.py
+└── utils/
+    └── __init__.py
+
+tests/
+├── unit/
+├── integration/
+└── evals/
+
+skills/                     # Cloned skill repos
+├── langchain/
+├── langsmith/
+└── anthropic/
+
+workspace/
+└── projects/
+
+.agents/                    # Global agent memory root
+├── orchestrator/
+│   └── AGENTS.md
+├── research-agent/
+│   └── AGENTS.md
+├── spec-writer/
+│   └── AGENTS.md
+├── plan-writer/
+│   └── AGENTS.md
+├── code-agent/
+│   └── AGENTS.md
+├── verification-agent/
+│   └── AGENTS.md
+├── test-agent/
+│   └── AGENTS.md
+└── document-renderer/
+    └── AGENTS.md
+```
 - Create `pyproject.toml` per Section 13.3:
   - Dependencies: `deepagents>=0.4.3`, `langgraph-sdk>=0.1.0`, `langgraph-cli[inmem]>=0.4.12`, `pydantic>=2.0`, `langsmith`
   - Pin `langchain-community` to exact minor series (`>=0.4.0,<0.5.0`) per spec note
@@ -208,9 +298,9 @@ Phase 0 establishes the repository structure, core state model, configuration, p
   - `https://github.com/langchain-ai/langsmith-skills` â†’ `skills/langsmith/`
   - `https://github.com/anthropics/skills` â†’ `skills/anthropic/`
 - **[v5.6-R] Skill path resolution note:** After cloning, the actual SKILL.md files are nested at different depths within each repo. `SkillsMiddleware` scans one level deep from each provided path, so the `sources=[]` parameter must point to the directory that directly contains skill subdirectories (each with a SKILL.md), not the top-level clone directory. [v5.6.1] SkillsMiddleware is now instantiated explicitly in the middleware list with `bare_fs` (FilesystemBackend with virtual_mode=False) for absolute path resolution. The `skills=` parameter to create_deep_agent() is no longer used. The resolved paths are:
-  - `skills/langchain/config/skills/` (11 skills)
-  - `skills/langsmith/config/skills/` (3 skills)
-  - `skills/anthropic/skills/` (17 skills)
+  - `.agents/skills/langchain/config/skills/`
+  - `.agents/skills/langsmith/config/skills/`
+  - `.agents/skills/anthropic/skills/`
 
 ##### 0.2.2 Core State Model
 

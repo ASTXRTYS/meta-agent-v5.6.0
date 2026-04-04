@@ -63,9 +63,9 @@ def _resolve_skills_dirs(skills_paths: list[str] | None) -> list[str]:
     """Resolve skill shorthand paths to absolute directories."""
     repo_root = _repo_root()
     default_dirs = [
-        os.path.join(repo_root, "skills", "langchain", "config", "skills"),
-        os.path.join(repo_root, "skills", "anthropic", "skills"),
-        os.path.join(repo_root, "skills", "langsmith", "config", "skills"),
+        os.path.join(repo_root, ".agents", "skills", "langchain", "config", "skills"),
+        os.path.join(repo_root, ".agents", "skills", "anthropic", "skills"),
+        os.path.join(repo_root, ".agents", "skills", "langsmith", "config", "skills"),
     ]
     if not skills_paths:
         return default_dirs
@@ -74,11 +74,11 @@ def _resolve_skills_dirs(skills_paths: list[str] | None) -> list[str]:
     for path in skills_paths:
         normalized = str(path).rstrip("/")
         if normalized == "/skills/langchain":
-            resolved.append(os.path.join(repo_root, "skills", "langchain", "config", "skills"))
+            resolved.append(os.path.join(repo_root, ".agents", "skills", "langchain", "config", "skills"))
         elif normalized == "/skills/anthropic":
-            resolved.append(os.path.join(repo_root, "skills", "anthropic", "skills"))
+            resolved.append(os.path.join(repo_root, ".agents", "skills", "anthropic", "skills"))
         elif normalized == "/skills/langsmith":
-            resolved.append(os.path.join(repo_root, "skills", "langsmith", "config", "skills"))
+            resolved.append(os.path.join(repo_root, ".agents", "skills", "langsmith", "config", "skills"))
         else:
             resolved.append(path)
     return resolved
