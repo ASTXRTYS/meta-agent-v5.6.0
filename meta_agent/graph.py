@@ -49,6 +49,7 @@ from meta_agent.safety import RECURSION_LIMITS
 from meta_agent.middleware.meta_state import MetaAgentStateMiddleware
 from meta_agent.middleware.dynamic_system_prompt import DynamicSystemPromptMiddleware
 from meta_agent.middleware.tool_error_handler import ToolErrorMiddleware
+from meta_agent.middleware.dynamic_tool_config import DynamicToolConfigMiddleware
 from meta_agent.tools import LANGCHAIN_TOOLS
 from meta_agent.tools.registry import HITL_GATED_TOOLS
 from meta_agent.prompts.pm import construct_pm_prompt
@@ -152,6 +153,10 @@ def create_graph(
     # ToolErrorMiddleware
     tool_error_mw = ToolErrorMiddleware()
 
+    # DynamicToolConfigMiddleware — stage-aware tool choice and filtering
+    # Configuration can be extended as stage-specific tool policies are defined.
+    dynamic_tool_config_mw = DynamicToolConfigMiddleware(tool_config={})
+
     # Build explicit middleware list (order matters per Section 22.4)
     explicit_middleware = [
         dynamic_prompt_mw,     # 0. Dynamic system prompt (MUST be first)
@@ -160,6 +165,7 @@ def create_graph(
         skills_mw,             # 4. Skills loading from SKILL.md files
         summarization_tool_mw, # 5. Agent-controlled compact_conversation
         tool_error_mw,         # 6. ToolError (catches tool exceptions)
+        dynamic_tool_config_mw, # 7. Stage-aware tool choice and filtering
     ]
 
     # Build interrupt_on config for HITL-gated tools

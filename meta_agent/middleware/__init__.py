@@ -8,6 +8,7 @@ from .tool_error_handler import ToolErrorMiddleware
 from .completion_guard import CompletionGuardMiddleware
 from .memory_loader import MemoryLoaderMiddleware
 from .dynamic_system_prompt import DynamicSystemPromptMiddleware
+from .dynamic_tool_config import DynamicToolConfigMiddleware
 
 __all__ = [
     "AgentDecisionStateMiddleware",
@@ -15,4 +16,5 @@ __all__ = [
     "CompletionGuardMiddleware",
     "MemoryLoaderMiddleware",
     "DynamicSystemPromptMiddleware",
+    "DynamicToolConfigMiddleware",
 ]
