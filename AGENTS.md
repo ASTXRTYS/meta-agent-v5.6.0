@@ -122,6 +122,88 @@ make evals         # Run all evals
 | Connection refused on Studio | The dev server isn't running. Run langgraph dev first. |
 | Port already in use | Another process is on 2024. Use langgraph dev --port 8123 or kill the existing process. |
 
+## API and SDK Investigation Protocol
+
+When investigating, auditing, or implementing features from any external API or SDK, agents MUST follow this protocol to prevent misidentification of features and ensure correct integration.
+
+### The Problem This Solves
+
+During a preflight audit, subagents confidently misidentified Claude API features:
+- "Programmatic Tool Calling" (Claude writing code to call tools in a sandbox) was confused with `tool_choice` (forcing a specific tool via API parameter)
+- "Dynamic Filtering" (Claude filtering web search results via code execution) was confused with middleware-level tool list filtering
+
+Both misidentifications occurred because agents relied on skill files and general knowledge instead of consulting authoritative documentation. The skill files gave enough context to be confidently wrong.
+
+### Mandatory Verification Steps
+
+**Step 1: Identify the authoritative source.** Before investigating any API feature, determine the canonical documentation URL. For this project:
+
+| SDK/API | Authoritative Source |
+|---------|---------------------|
+| Claude API (Anthropic) | https://platform.claude.com/docs/ |
+| Deep Agents SDK | .reference/libs/deepagents/ (local source) + skill files |
+| LangChain | https://python.langchain.com/docs/ |
+| LangGraph | https://langchain-ai.github.io/langgraph/ |
+| LangSmith | https://docs.smith.langchain.com/ |
+
+**Step 2: Fetch and read the authoritative docs.** Use web_fetch or web_search to retrieve the actual documentation page for the specific feature. Do NOT rely solely on skill files — skill files are baseline context, not exhaustive references.
+
+**Step 3: Map terminology precisely.** API features often have specific, non-obvious meanings. Before claiming understanding:
+- Quote the official definition from the docs
+- Identify any prerequisites (e.g., "requires code_execution tool to be enabled")
+- Distinguish between features with similar names (e.g., tool_choice vs programmatic tool calling)
+
+**Step 4: Verify integration path via Python introspection.** For any SDK integration, run actual Python code to inspect:
+- Available parameters: `inspect.signature()`, `model_fields`, etc.
+- Supported values: docstrings, type annotations
+- Version compatibility: `importlib.metadata.version()`
+
+**Step 5: Cross-reference integration layers.** When a feature spans multiple layers (e.g., Claude API → LangChain → Deep Agents SDK), verify at each layer:
+- Does the layer expose the feature?
+- Does it pass through transparently?
+- Does it transform or restrict the feature?
+
+### Anti-patterns
+
+1. **Assuming skill files are exhaustive.** Skill files provide baseline knowledge, not comprehensive API coverage. Always verify against authoritative docs for specific features.
+
+2. **Mapping familiar terms to API features without verification.** "Tool calling" in general AI context ≠ "Programmatic Tool Calling" in Claude API. Always use the API's own definitions.
+
+3. **Claiming a feature is "not available" without checking.** A feature might be auto-enabled (like dynamic filtering in web_search_20260209), available via model_kwargs, or accessible through a different parameter name.
+
+4. **Testing only that existing tests pass.** When implementing a new feature, write tests that specifically validate the feature's behavior. "Tests pass" means "nothing broke," not "the feature works."
+
+### SDK Reference Locations
+
+For quick reference, the authoritative local sources for each SDK:
+
+| SDK | Local Reference | Key Files |
+|-----|----------------|-----------|
+| Deep Agents | .reference/libs/deepagents/deepagents/ | middleware/, backends/, __init__.py |
+| LangChain Anthropic | .venv/lib/python3.11/site-packages/langchain_anthropic/ | chat_models.py |
+| LangGraph | .venv/lib/python3.11/site-packages/langgraph/ | graph/, prebuilt/ |
+| LangSmith | .venv/lib/python3.11/site-packages/langsmith/ | client.py, wrappers.py |
+
+### Claude API Feature Quick Reference
+
+Features confirmed available and integrated in this project:
+
+| Feature | API Mechanism | Integration Point | Status |
+|---------|--------------|-------------------|--------|
+| Adaptive Thinking | `thinking: {type: "adaptive"}` | ChatAnthropic constructor | ✅ Active |
+| Effort Levels | `effort: "max"/"high"/"medium"/"low"` | ChatAnthropic constructor | ✅ Active |
+| Streaming | `streaming: True` on ChatAnthropic | model.py get_configured_model() | ✅ Active |
+| Web Search | `web_search_20260209` server-side tool | SERVER_SIDE_TOOLS dict | ✅ Active |
+| Web Fetch | `web_fetch_20260209` server-side tool | SERVER_SIDE_TOOLS dict | ✅ Active |
+| Dynamic Filtering | Built into `_20260209` web tools (automatic) | No config needed | ✅ Active |
+| Code Execution | `code_execution_20260120` server-side tool | SERVER_SIDE_TOOLS dict | ✅ Active |
+| Programmatic Tool Calling | `allowed_callers` on tool definitions | BaseTool.extras | ✅ Active |
+| Citations (web search) | Automatic with web_search | extract_api_citations() | ✅ Active |
+| tool_choice | `tool_choice` on bind_tools() | DynamicToolConfigMiddleware | ✅ Active |
+| Tool Filtering | ModelRequest.tools modification | DynamicToolConfigMiddleware | ✅ Active |
+| Prompt Caching | AnthropicPromptCachingMiddleware (auto) | SDK auto-attached | ⚠️ Ordering issue |
+
+
 ## Project Status
 
 **Current Progress:** See Section 1.5 "Project Status Summary" in `Full-Development-Plan.md` for detailed phase-by-phase progress tracking.
@@ -292,11 +374,11 @@ The `Full-Development-Plan.md` includes progress tracking that shows what's comp
 - 🔄 **IN PROGRESS** - Implementation underway, partial completion
 - ⏸️ **NOT STARTED** - Blocked by prerequisite phases
 
-- [x] 
+- [x]
 
 - Task completed
 
-- [ ] 
+- [ ]
 
 - Task incomplete
 
