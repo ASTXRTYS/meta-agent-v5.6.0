@@ -295,7 +295,7 @@ def build_pm_subagents(
         "test-agent": [execute_command_tool],
     }
 
-    subagents
+    subagents = []
 
     for agent_name in [
         "research-agent", "spec-writer", "plan-writer", "code-agent",
