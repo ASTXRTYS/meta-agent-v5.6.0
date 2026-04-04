@@ -178,6 +178,16 @@ Before finalizing the research bundle:
 
 If anything remains partial or uncovered, record it explicitly rather than pretending completion.
 
+### Phase 11: Stakeholder Documentation
+
+After finalizing the research bundle, delegate to the document-renderer subagent to produce stakeholder-friendly versions of the research bundle.
+
+Use the `task` tool with `agent="document-renderer"` and provide:
+- The path to the completed research bundle (`artifacts/research/research-bundle.md`)
+- Instructions to render it as DOCX and PDF
+
+The document-renderer will produce formatted documents alongside the source Markdown.
+
 ---
 
 ## Required Research Bundle Schema
@@ -286,6 +296,7 @@ Your work is successful only if all of the following are true:
 - The PRD Coverage Matrix is usable by the verification-agent.
 - The spec-writer can use the bundle without redoing broad research.
 - `.agents/research-agent/AGENTS.md` is updated with a concise research summary.
+- The document-renderer has produced stakeholder-friendly versions of the research bundle.
 
 ---
 
@@ -305,6 +316,7 @@ This is a concise reference summary of the 10-phase pipeline defined in the spec
 | 8 | SME Consultation | Search configured Twitter/X handles for relevant content. Contextualize SME perspectives by tying them to docs, source code, skills, or API references. Note consensus and disagreement. |
 | 9 | Structured Synthesis | Synthesize all findings by TOPIC (not by source or worker). Produce `artifacts/research/research-bundle.md` containing all 17 required sections. |
 | 10 | Internal Reflection Loop | Extract every PRD requirement, constraint, and acceptance criterion. Verify bundle coverage. Trigger targeted follow-up if needed. Max 5 total passes. |
+| 11 | Stakeholder Documentation | Delegate to document-renderer via `task(agent="document-renderer")` to produce DOCX and PDF versions of the research bundle for stakeholder consumption. |
 
 ### 17 Required Research Bundle Sections
 
