@@ -204,6 +204,34 @@ Features confirmed available and integrated in this project:
 | Tool Filtering | ModelRequest.tools modification | DynamicToolConfigMiddleware | ✅ Active |
 | Prompt Caching | AnthropicPromptCachingMiddleware (auto) | SDK auto-attached | ⚠️ Ordering issue |
 
+### LangSmith Tracing Convention — Maximum Visibility
+
+LangSmith tracing is **binary** (on/off). There are no tiers or debug levels. When `LANGSMITH_TRACING=true`, ALL data is captured by default:
+- Full input/output payloads (not truncated)
+- Token usage per step
+- Tool call details and timing
+- Thinking/reasoning blocks from Claude
+- Middleware execution spans
+- Subagent delegation with parent-child hierarchy
+
+**Required .env settings for maximum visibility:**
+```
+LANGSMITH_TRACING=true
+LANGSMITH_API_KEY=<your-key>
+LANGSMITH_PROJECT=meta-agent
+LANGCHAIN_CALLBACKS_BACKGROUND=false
+```
+
+**Variables that MUST NOT be set (they reduce visibility):**
+| Variable | Effect if Set |
+|----------|--------------|
+| LANGSMITH_HIDE_INPUTS | Hides all inputs from traces |
+| LANGSMITH_HIDE_OUTPUTS | Hides all outputs from traces |
+| LANGSMITH_HIDE_METADATA | Hides run metadata |
+| LANGSMITH_TRACING_SAMPLING_RATE | Reduces percentage of traces logged |
+
+**Convention:** Any new .env file must include the four required settings above. Never set the HIDE_* variables in development or experiment environments.
+
 ## Project Status
 
 **Current Progress:** See Section 1.5 "Project Status Summary" in `Full-Development-Plan.md` for detailed phase-by-phase progress tracking.
@@ -396,11 +424,11 @@ The test suite has two layers: the canonical new suite and a quarantined legacy 
 
 | Directory | Purpose | Marker | Mock Policy |
 | --- | --- | --- | --- |
-| tests/contracts/ | Fast invariant tests — no I/O, no model calls | @pytest.mark.contract | No unittest.mock allowed |
-| tests/integration/ | App composition tests — may use tmp_path, mocks | @pytest.mark.integration | Mocks permitted |
-| tests/evals/ | Live behavioral tests — real API calls | @pytest.mark.eval | Auto-skipped without ANTHROPIC_API_KEY |
-| tests/drift/ | Regression/drift guards | @pytest.mark.drift | No mocks |
-| tests/unit/ | LEGACY QUARANTINE — do not add new tests here | @pytest.mark.legacy | Frozen at ceiling of 410 tests |
+| tests/contracts/ | Fast invariant tests — no I/O, no model calls | pytest.mark.contract | No unittest.mock allowed |
+| tests/integration/ | App composition tests — may use tmp_path, mocks | pytest.mark.integration | Mocks permitted |
+| tests/evals/ | Live behavioral tests — real API calls | pytest.mark.eval | Auto-skipped without ANTHROPIC_API_KEY |
+| tests/drift/ | Regression/drift guards | pytest.mark.drift | No mocks |
+| tests/unit/ | LEGACY QUARANTINE — do not add new tests here | pytest.mark.legacy | Frozen at ceiling of 410 tests |
 | tests/_support/ | Shared helpers (fake models, builders, assertions) | N/A — not test files | N/A |
 
 ### Makefile Targets
