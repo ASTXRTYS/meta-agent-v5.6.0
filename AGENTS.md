@@ -130,7 +130,7 @@ Phases 0, 1, and 2 are complete and running on the real Deep Agents SDK (`deepag
 
 **Phase 3 is IN PROGRESS (~80% complete).** All three runtime agents are implemented as standalone Deep Agents (research-agent, verification-agent, spec-writer) and wired into the orchestrator. Phase 3 gate evals (7 Layer 1 evals) and the eval run function bridge are complete. 471 unit tests pass. Remaining work: end-to-end live experiment run, stage wiring validation, and HITL checkpoint verification.
 
-The research-agent evaluation stack exists under `meta_agent/evals/research/`. That package implements 38 canonical research eval definitions, with 37 active in the default run path and `RI-001` intentionally deferred, plus 5 synthetic calibration scenarios, structured judge outputs, LangSmith SDK experiment execution, and UI-ready judge profiles. The measurement contract in that package is now aligned to the v5.6.1 17-section research-bundle schema. A historical frozen synthetic calibration baseline reached `185/185` pass/fail agreement and `182/185` exact agreement before this contract repair; rerun the calibration flow before treating that baseline as current. No real-agent performance experiment has run yet because the research-agent runtime is still unimplemented.
+The research-agent evaluation stack exists under `meta_agent/evals/research/`. That package implements 38 canonical research eval definitions, with 37 active in the default run path and `RI-001` intentionally deferred, plus 5 synthetic calibration scenarios, structured judge outputs, LangSmith SDK experiment execution, and UI-ready judge profiles. The measurement contract in that package is now aligned to the v5.6.1 17-section research-bundle schema. A historical frozen synthetic calibration baseline reached `185/185` pass/fail agreement and `182/185` exact agreement before this contract repair; rerun the calibration flow before treating that baseline as current. No current real-agent performance baseline exists yet because end-to-end live validation of the implemented research-agent runtime is still pending.
 
 **Note to agents:** As you work on this project, update the progress tracking in `Full-Development-Plan.md` to reflect completed work. See the "Progress Tracking" section below for instructions.
 
@@ -200,7 +200,7 @@ meta_agent/
 
 ## Remaining Work (Phases 3-5)
 
-- **Phase 3:** Research + Spec runtime implementation (research-agent, verification-agent, spec-writer as real SubAgents). The evaluation stack for this phase already exists; the runtime agent does not.
+- **Phase 3:** Research + Spec end-to-end validation and behavioral hardening for the implemented runtime agents (research-agent, verification-agent, spec-writer as real SubAgents). The evaluation stack for this phase already exists; remaining work is live experiment execution, stage wiring validation, and HITL verification.
 - **Phase 4:** Planning + Execution (plan-writer, code-agent with 3 nested sub-agents)
 - **Phase 5:** End-to-end evaluation + audit UX. LangSmith experiment plumbing exists, but the orchestrator still does not provide a user-friendly end-to-end eval/testing workflow.
 
@@ -408,7 +408,7 @@ If a drift test fails after your change, update the relevant catalog and regener
 - Run the synthetic calibration experiment with `python -m meta_agent.evals.research.langsmith_experiment --datasets-dir datasets`.
 - The default LangSmith experiment path materializes a timestamped dataset from the local canonical examples. Pass `--dataset-name <existing-dataset>` to reuse an already-uploaded LangSmith dataset instead.
 - The registry contains 38 defined evals, reported as 37 active + 1 deferred unless `--include-deferred` is used.
-- The frozen calibration baseline validates evaluator behavior only. It does not measure the real research-agent runtime because that runtime is still unimplemented.
+- The frozen calibration baseline validates evaluator behavior only. It does not measure live runtime performance because end-to-end experiments against the implemented research-agent runtime are still pending.
 
 ## Experiment Reporting (New)
 

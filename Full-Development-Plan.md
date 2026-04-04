@@ -24,7 +24,7 @@ This document is the authoritative development plan for the local-first meta-age
 - `meta-agent-phase-1-orchestrator` (18 examples, ID: `70f34716-7d60-4042-a565-c086b063809d`)
 - `meta-agent-phase-2-intake-prd` (11 scenarios, ID: `b7c0535f-c17f-48bd-8663-e2dda2bd8f07`)
 
-**2026-03-29 implementation status note:** The research-agent evaluation stack is now implemented in `meta_agent/evals/research/`. It contains 38 canonical research eval definitions, five synthetic calibration scenarios, a LangSmith SDK experiment harness, and judge profiles. The default run path treats this as `37 active + 1 deferred` because `RI-001` remains intentionally deferred unless explicitly included. The measurement contract is aligned to the v5.6.1 17-section research-bundle schema. A historical frozen synthetic calibration run reached `185/185` threshold agreement and `182/185` exact agreement before the schema/reporting remediation; rerun calibration before treating that baseline as current. This is evaluator readiness only: the research-agent runtime itself is not built yet, so no real-agent performance experiment has run.
+**2026-03-29 implementation status note:** The research-agent evaluation stack is now implemented in `meta_agent/evals/research/`. It contains 38 canonical research eval definitions, five synthetic calibration scenarios, a LangSmith SDK experiment harness, and judge profiles. The default run path treats this as `37 active + 1 deferred` because `RI-001` remains intentionally deferred unless explicitly included. The measurement contract is aligned to the v5.6.1 17-section research-bundle schema. A historical frozen synthetic calibration run reached `185/185` threshold agreement and `182/185` exact agreement before the schema/reporting remediation; rerun calibration before treating that baseline as current. At the time of that note, the runtime was not yet complete; the current Phase 3 task is live validation of the now-implemented runtime, and no current real-agent performance baseline has been recorded yet.
 
 **Phase SOP (Standard Operating Procedure):** Every phase follows a strict structure:
 
@@ -1598,7 +1598,7 @@ If evals fail:
 
 Phase 3 implements the research-agent, verification-agent, spec-writer-agent, and the RESEARCH â†’ SPEC_GENERATION â†’ SPEC_REVIEW stage wiring with Tier 2 eval integration. It depends on Phase 2 for INTAKE/PRD_REVIEW completion (approved PRD and Tier 1 evals exist).
 
-**Current implementation note:** Do not create a second disconnected research-eval stack for this phase. The canonical research-agent evaluator package already exists under `meta_agent/evals/research/`, is calibrated on five synthetic scenarios, and should be treated as the measurement contract for the future runtime implementation.
+**Current implementation note:** Do not create a second disconnected research-eval stack for this phase. The canonical research-agent evaluator package already exists under `meta_agent/evals/research/`, is calibrated on five synthetic scenarios, and should be treated as the measurement contract for Phase 3 runtime validation.
 
 **Dependencies:** Phase 2 (INTAKE/PRD_REVIEW stages, eval tools, document renderer)
 
@@ -2273,7 +2273,7 @@ Synthetic calibration data now exists in two layers:
 3. **Canonical scenarios:** `golden_path`, `silver_path`, `bronze_path`, `citation_hallucination_failure`, `hitl_subagent_failure`
 4. **Execution path:** `meta_agent.evals.research.dataset_builder` for raw examples and `meta_agent.evals.research.langsmith_experiment` for LangSmith runs
 
-This means Phase 3 is blocked by missing runtime implementation, not by missing evaluator data or judge infrastructure.
+This means the remaining Phase 3 work is live runtime validation and behavioral hardening, not evaluator authoring or runtime bootstrapping.
 
 ##### 3.3.4 How to Run
 
