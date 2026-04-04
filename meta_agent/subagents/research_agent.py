@@ -97,7 +97,7 @@ def _read_text(path: str) -> str:
 
 
 def _default_eval_project_dir(project_id: str) -> str:
-    return os.path.join(_repo_root(), "workspace", "projects", project_id)
+    return os.path.join(_repo_root(), ".agents", "pm", "projects", project_id)
 
 
 def _localize_workspace_path(path: str | None, *, project_dir: str, project_id: str) -> str:
