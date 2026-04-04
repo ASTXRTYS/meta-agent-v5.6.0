@@ -259,6 +259,7 @@ async def eval_rinfra_003(run: Any, example: Any) -> dict:
             f"Required frontmatter fields: {list(RESEARCH_BUNDLE_FRONTMATTER_FIELDS)}."
         ),
         agent_output=content,
+        run=run,
     )
 
 
@@ -280,6 +281,7 @@ async def eval_rinfra_004(run: Any, example: Any) -> dict:
         specific_instructions=_get_instructions("RINFRA-004")
         + f"\nPre-check: {len(urls)} URLs found in bundle.",
         agent_output=content,
+        run=run,
     )
 
 
@@ -327,6 +329,7 @@ async def eval_rb_005(run: Any, example: Any) -> dict:
         ),
         trace_data=_trace_summary_text(run),
         additional_context=f"RESEARCH BUNDLE:\n{_bundle_content(run)[:6000]}\n\n{_verification_context(run)}",
+        run=run,
     )
     judge_result["details"] = {**precheck, **judge_result.get("details", {})}
     return judge_result
@@ -341,6 +344,7 @@ async def eval_rb_009(run: Any, example: Any) -> dict:
         eval_name="Sub-agents execute in parallel",
         pass_criteria="Multiple sub-agent tasks overlap in execution or the trace otherwise clearly indicates true parallel execution.",
         trace_data=_trace_summary_text(run),
+        run=run,
     )
     judge_result["details"] = {"fallback": "llm_binary", **judge_result.get("details", {})}
     return judge_result
@@ -356,6 +360,7 @@ async def eval_rb_010(run: Any, example: Any) -> dict:
         pass_criteria="The main agent reads sub-agent outputs after those sub-agents finish and uses them as synthesis input.",
         trace_data=_trace_summary_text(run),
         additional_context=f"RESEARCH BUNDLE:\n{_bundle_content(run)[:4000]}",
+        run=run,
     )
     judge_result["details"] = {"fallback": "llm_binary", **judge_result.get("details", {})}
     return judge_result
@@ -371,6 +376,7 @@ async def eval_rb_011(run: Any, example: Any) -> dict:
         pass_criteria="An HITL approval or interrupt occurs before the agent performs deep-dive verification research.",
         trace_data=_trace_summary_text(run),
         additional_context=f"HITL cluster content:\n{_hitl_content(run)[:3000]}",
+        run=run,
     )
     judge_result["details"] = {"fallback": "llm_binary", **judge_result.get("details", {})}
     return judge_result
@@ -383,6 +389,7 @@ async def eval_rq_001(run: Any, example: Any) -> dict:
         anchors=_get_anchors("RQ-001"),
         specific_instructions=_get_instructions("RQ-001"),
         agent_output=_decomposition_content(run),
+        run=run,
     )
 
 
@@ -393,6 +400,7 @@ async def eval_rq_002(run: Any, example: Any) -> dict:
         anchors=_get_anchors("RQ-002"),
         specific_instructions=_get_instructions("RQ-002"),
         agent_output=_bundle_content(run),
+        run=run,
     )
 
 
@@ -403,6 +411,7 @@ async def eval_rq_003(run: Any, example: Any) -> dict:
         anchors=_get_anchors("RQ-003"),
         specific_instructions=_get_instructions("RQ-003"),
         agent_output=_bundle_content(run) + "\n\nTRACE:\n" + _trace_summary_text(run),
+        run=run,
     )
 
 
@@ -433,6 +442,7 @@ async def eval_rq_004(run: Any, example: Any) -> dict:
         specific_instructions=_get_instructions("RQ-004")
         + f"\nVerification context:\n{_verification_context(run)}",
         agent_output=_bundle_content(run),
+        run=run,
     )
     if not precheck["has_verification"] and result["score"] > 3:
         result["score"] = 3
@@ -450,6 +460,7 @@ async def eval_rq_005(run: Any, example: Any) -> dict:
         anchors=_get_anchors("RQ-005"),
         specific_instructions=_get_instructions("RQ-005"),
         agent_output=_bundle_content(run),
+        run=run,
     )
 
 
@@ -460,6 +471,7 @@ async def eval_rq_006(run: Any, example: Any) -> dict:
         anchors=_get_anchors("RQ-006"),
         specific_instructions=_get_instructions("RQ-006"),
         agent_output=_bundle_content(run) + "\n\nTRACE:\n" + _trace_summary_text(run),
+        run=run,
     )
 
 
@@ -470,6 +482,7 @@ async def eval_rq_007(run: Any, example: Any) -> dict:
         anchors=_get_anchors("RQ-007"),
         specific_instructions=_get_instructions("RQ-007"),
         agent_output=_skill_interactions_text(run) + "\n\nTRACE:\n" + _trace_summary_text(run),
+        run=run,
     )
 
 
@@ -484,6 +497,7 @@ async def eval_rq_008(run: Any, example: Any) -> dict:
         anchors=_get_anchors("RQ-008"),
         specific_instructions=_get_instructions("RQ-008"),
         agent_output=_skill_interactions_text(run),
+        run=run,
     )
 
 
@@ -498,6 +512,7 @@ async def eval_rq_009(run: Any, example: Any) -> dict:
         anchors=_get_anchors("RQ-009"),
         specific_instructions=_get_instructions("RQ-009"),
         agent_output=_skill_interactions_text(run) + "\n\nBUNDLE:\n" + _bundle_content(run)[:4000],
+        run=run,
     )
 
 
@@ -523,6 +538,7 @@ async def eval_rq_010(run: Any, example: Any) -> dict:
         anchors=_get_anchors("RQ-010"),
         specific_instructions=_get_instructions("RQ-010"),
         agent_output=_delegation_content(run),
+        run=run,
     )
 
 
@@ -533,6 +549,7 @@ async def eval_rq_011(run: Any, example: Any) -> dict:
         anchors=_get_anchors("RQ-011"),
         specific_instructions=_get_instructions("RQ-011"),
         agent_output=_bundle_content(run),
+        run=run,
     )
 
 
@@ -543,6 +560,7 @@ async def eval_rq_012(run: Any, example: Any) -> dict:
         anchors=_get_anchors("RQ-012"),
         specific_instructions=_get_instructions("RQ-012"),
         agent_output=_hitl_content(run),
+        run=run,
     )
 
 
@@ -556,6 +574,7 @@ async def eval_rq_013(run: Any, example: Any) -> dict:
         anchors=_get_anchors("RQ-013"),
         specific_instructions=_get_instructions("RQ-013"),
         agent_output=_join_sections(gap_text, "TRACE:\n" + _trace_summary_text(run)),
+        run=run,
     )
 
 
@@ -566,6 +585,7 @@ async def eval_rr_001(run: Any, example: Any) -> dict:
         anchors=_get_anchors("RR-001"),
         specific_instructions=_get_instructions("RR-001"),
         agent_output=_skill_interactions_text(run) + "\n\nTRACE:\n" + _trace_summary_text(run),
+        run=run,
     )
 
 
@@ -576,6 +596,7 @@ async def eval_rr_002(run: Any, example: Any) -> dict:
         anchors=_get_anchors("RR-002"),
         specific_instructions=_get_instructions("RR-002"),
         agent_output=_bundle_content(run),
+        run=run,
     )
 
 
@@ -586,6 +607,7 @@ async def eval_rr_003(run: Any, example: Any) -> dict:
         anchors=_get_anchors("RR-003"),
         specific_instructions=_get_instructions("RR-003"),
         agent_output=_skill_interactions_text(run) + "\n\nTRACE:\n" + _trace_summary_text(run),
+        run=run,
     )
 
 
@@ -641,6 +663,7 @@ async def eval_ri_002(run: Any, example: Any) -> dict:
                 for fr_id, detail in coverage.items()
             )
         ),
+        run=run,
     )
     result["details"] = {
         "fr_checklist": checklist,
@@ -686,6 +709,7 @@ async def eval_ri_003(run: Any, example: Any) -> dict:
             "The research bundle addresses tooling, patterns, or considerations relevant to implementing the eval suite, such as LangSmith evaluation workflows, dataset creation, evaluator design, or trace instrumentation."
         ),
         trace_data=eval_text[:16000],
+        run=run,
     )
 
 

@@ -5,21 +5,15 @@ from __future__ import annotations
 import json
 
 from meta_agent.evals.research.common import format_fr_checklist
+from meta_agent.evals.research.judge_infra import (
+    CATEGORY_POLICY,
+    JUDGE_SYSTEM_PROMPT,
+    infer_eval_category,
+)
 from meta_agent.evals.research.rubrics import SPECIFIC_INSTRUCTIONS, get_anchors, get_eval_meta
 
 
-_SYSTEM_PREAMBLE = """\
-You are an expert evaluation judge for AI agent systems. You assess the quality of an AI research agent's outputs and behaviors against one specific rubric.
-
-CRITICAL EVALUATION PRINCIPLES:
-1. Score ONLY from the provided materials.
-2. Do NOT default to middle scores when uncertain; score conservatively.
-3. A score of 4 means production-worthy with only minor gaps. A score of 3 is below the bar.
-4. Quote or cite specific evidence for every conclusion.
-5. Consider missing evidence as a negative signal.
-6. Do NOT hallucinate content that is not present in the example.
-
-Analyze carefully. Provide your reasoning first, then your score."""
+_SYSTEM_PREAMBLE = JUDGE_SYSTEM_PROMPT
 
 
 def _build_likert_prompt(eval_id: str, eval_name: str) -> str:
@@ -27,6 +21,8 @@ def _build_likert_prompt(eval_id: str, eval_name: str) -> str:
     instructions = SPECIFIC_INSTRUCTIONS.get(eval_id, "")
     meta = get_eval_meta(eval_id)
     description = meta.get("description", eval_name)
+    category = infer_eval_category(eval_id)
+    policy = CATEGORY_POLICY.get(category, {})
 
     rubric_rows = "\n".join(
         f"| {key} | {value} |"
@@ -60,6 +56,12 @@ The passing threshold is >= 4.0. You MUST articulate the concrete evidence that 
 
 {instructions}
 
+## Category Policy
+
+- Category: {category}
+- Category frame: {policy.get("template", "")}
+- Evidence strategy: {policy.get("evidence_strategy", "")}
+
 ## Evaluation Task
 
 Please grade the following example according to the above instructions:
@@ -73,15 +75,24 @@ Please grade the following example according to the above instructions:
 {{{{output}}}}
 </output>
 
+<trace_context>
+{{{{output}}}}
+</trace_context>
+
 <reference_outputs>
 {{{{reference}}}}
 </reference_outputs>
 </example>
 
-Provide your reasoning first, then your score. Be strict and consistent."""
+Provide your reasoning first, then your score. Be strict and consistent.
+
+Respond with strict JSON:
+{{"score": <integer 1-5>, "comment": "<short reasoning summary>", "confidence": "<HIGH|MEDIUM|LOW>", "flags": ["<optional flags>"]}}"""
 
 
 def _build_binary_prompt(eval_id: str, eval_name: str, pass_criteria: str) -> str:
+    category = infer_eval_category(eval_id)
+    policy = CATEGORY_POLICY.get(category, {})
     return f"""{_SYSTEM_PREAMBLE}
 
 You are evaluating: **{eval_name}** ({eval_id})
@@ -96,6 +107,12 @@ You are evaluating: **{eval_name}** ({eval_id})
 2. If the evidence is ambiguous or incomplete, score as NOT MET.
 3. Quote the specific evidence that supports your determination.
 
+## Category Policy
+
+- Category: {category}
+- Category frame: {policy.get("template", "")}
+- Evidence strategy: {policy.get("evidence_strategy", "")}
+
 ## Evaluation Task
 
 Please grade the following example according to the above instructions:
@@ -109,12 +126,19 @@ Please grade the following example according to the above instructions:
 {{{{output}}}}
 </output>
 
+<trace_context>
+{{{{output}}}}
+</trace_context>
+
 <reference_outputs>
 {{{{reference}}}}
 </reference_outputs>
 </example>
 
-Provide your reasoning first, then your pass/fail determination."""
+Provide your reasoning first, then your pass/fail determination.
+
+Respond with strict JSON:
+{{"passed": <boolean>, "comment": "<short reasoning summary>", "confidence": "<HIGH|MEDIUM|LOW>", "flags": ["<optional flags>"]}}"""
 
 
 def _likert_feedback_config(eval_id: str, eval_name: str) -> dict:
@@ -237,7 +261,7 @@ for eval_id in _LIKERT_EVALS:
             "eval_id": eval_id,
             "name": f"Research Agent: {title}",
             "type": "likert",
-            "recommended_model": "claude-sonnet-4-20250514",
+            "recommended_model": "claude-opus-4-6",
             "recommended_sampling_rate": 1.0,
             "sampling_justification": "Calibration and judge development require full coverage.",
             "prompt": _build_likert_prompt(eval_id, title),
@@ -251,7 +275,7 @@ for eval_id, info in _BINARY_JUDGE_EVALS.items():
             "eval_id": eval_id,
             "name": f"Research Agent: {info['name']}",
             "type": "binary",
-            "recommended_model": "claude-sonnet-4-20250514",
+            "recommended_model": "claude-opus-4-6",
             "recommended_sampling_rate": 1.0,
             "sampling_justification": "These are release-gating hybrid/binary checks during evaluator hardening.",
             "prompt": _build_binary_prompt(eval_id, info["name"], info["pass_criteria"]),

@@ -1,10 +1,24 @@
-"""Run research-eval calibration experiments in LangSmith via the Python SDK."""
+"""Run research-agent experiments in LangSmith via the Python SDK.
+
+This module supports two distinct use cases:
+
+1. calibration mode
+   - Replays synthetic outputs to validate evaluator behavior.
+2. trace mode
+   - Invokes the live research-agent runtime on synthetic *inputs* and scores
+     the resulting trajectory/output.
+
+Trace mode defaults to a single live input run (`trace_input_mode="single"`),
+because replaying identical inputs across all synthetic scenarios is wasteful
+unless repeated trials are explicitly intended.
+"""
 
 from __future__ import annotations
 
 import argparse
 import asyncio
 import inspect
+import json
 import os
 import subprocess
 import time
@@ -21,6 +35,7 @@ from meta_agent.evals.research.report import generate_report_from_experiment_res
 
 PHASE_NUMBER = 3
 PHASE_NAME = "RESEARCH"
+DEFAULT_RESEARCH_EVAL_PROJECT = "meta-agent-research-evals"
 
 
 def _load_env() -> None:
@@ -51,6 +66,75 @@ def _canonical_examples(datasets_dir: str) -> list[dict[str, Any]]:
     return canonical
 
 
+def _example_key_by_inputs(example: dict[str, Any]) -> str:
+    """Return a deterministic key for input payload deduplication."""
+    return json.dumps(example.get("inputs", {}), sort_keys=True, separators=(",", ":"), default=str)
+
+
+def _trace_examples(
+    datasets_dir: str,
+    *,
+    trace_input_mode: str = "single",
+    trace_scenario: str = "golden_path",
+    trace_trials: int = 1,
+) -> list[dict[str, Any]]:
+    """Build trace-mode examples from synthetic inputs only.
+
+    Unlike calibration mode, trace mode does not need synthetic expected
+    outputs. This function produces examples with empty outputs so evaluators
+    score live runtime behavior only.
+    """
+    if trace_trials < 1:
+        raise ValueError(f"trace_trials must be >= 1 (got {trace_trials})")
+
+    base_examples = build_dataset(datasets_dir)
+    if not base_examples:
+        return []
+
+    selected: list[dict[str, Any]]
+    if trace_input_mode == "single":
+        selected = [
+            next(
+                (ex for ex in base_examples if ex.get("metadata", {}).get("scenario_type") == trace_scenario),
+                base_examples[0],
+            )
+        ]
+    elif trace_input_mode == "dedup":
+        seen: set[str] = set()
+        selected = []
+        for example in base_examples:
+            key = _example_key_by_inputs(example)
+            if key in seen:
+                continue
+            seen.add(key)
+            selected.append(example)
+    elif trace_input_mode == "all":
+        selected = list(base_examples)
+    else:
+        raise ValueError(f"Unknown trace_input_mode: {trace_input_mode}")
+
+    trace_examples: list[dict[str, Any]] = []
+    for example in selected:
+        metadata = dict(example.get("metadata", {}))
+        source_scenario = metadata.get("scenario_type", "unknown")
+        for trial_index in range(1, trace_trials + 1):
+            run_metadata = {
+                **metadata,
+                "source_scenario_type": source_scenario,
+                "trace_input_mode": trace_input_mode,
+                "trace_trial_index": trial_index,
+                "trace_total_trials": trace_trials,
+            }
+            trace_examples.append(
+                {
+                    "inputs": dict(example.get("inputs", {})),
+                    "outputs": {},
+                    "metadata": run_metadata,
+                }
+            )
+    return trace_examples
+
+
 def _run_target(inputs: dict[str, Any]) -> dict[str, Any]:
     """Calibration target: passthrough synthetic outputs."""
     return inputs["_target_outputs"]
@@ -71,6 +155,7 @@ def _make_langsmith_evaluator(eval_id: str, fn: Callable[..., Any]) -> Callable[
             result = fn(run, example)
         details = result.get("details", {})
         judge_backend = details.get("judge_backend", {}) if isinstance(details, dict) else {}
+        judge_trace = details.get("judge_trace", {}) if isinstance(details, dict) else {}
         return {
             "key": eval_id,
             "score": result.get("score"),
@@ -84,6 +169,15 @@ def _make_langsmith_evaluator(eval_id: str, fn: Callable[..., Any]) -> Callable[
                 "flags": result.get("flags", []),
                 "details": details if isinstance(details, dict) else {},
                 "judge_backend": judge_backend if isinstance(judge_backend, dict) else {},
+                "judge_trace": judge_trace if isinstance(judge_trace, dict) else {},
+                "judge_model": judge_trace.get("judge_model", "") if isinstance(judge_trace, dict) else "",
+                "judge_category": judge_trace.get("category", "") if isinstance(judge_trace, dict) else "",
+                "judge_scoring": judge_trace.get("scoring", "") if isinstance(judge_trace, dict) else "",
+                "judge_evaluation_method": judge_trace.get("evaluation_method", "") if isinstance(judge_trace, dict) else "",
+                "judge_thinking_type": judge_trace.get("thinking_type", "") if isinstance(judge_trace, dict) else "",
+                "judge_streaming_used": judge_trace.get("streaming_used") if isinstance(judge_trace, dict) else None,
+                "judge_tools_enabled": judge_trace.get("tools_enabled") if isinstance(judge_trace, dict) else None,
+                "trace_context_source": details.get("trace_context_source", "") if isinstance(details, dict) else "",
             },
         }
 
@@ -133,21 +227,45 @@ def run_experiment(
     include_deferred: bool = False,
     report_dir: str | None = None,
     mode: str = "calibration",
+    trace_input_mode: str = "single",
+    trace_scenario: str = "golden_path",
+    trace_trials: int = 1,
 ) -> dict[str, Any]:
     _load_env()
+    if not os.getenv("LANGSMITH_PROJECT"):
+        os.environ["LANGSMITH_PROJECT"] = os.getenv(
+            "RESEARCH_EVAL_LANGSMITH_PROJECT",
+            DEFAULT_RESEARCH_EVAL_PROJECT,
+        )
     client = Client()
 
     timestamp = str(int(time.time()))
     mode_label = "trace" if mode == "trace" else "calibration"
     experiment_name = f"{experiment_prefix}-{mode_label}-{timestamp}"
 
-    examples = _canonical_examples(datasets_dir)
+    if mode == "trace":
+        examples = _trace_examples(
+            datasets_dir,
+            trace_input_mode=trace_input_mode,
+            trace_scenario=trace_scenario,
+            trace_trials=trace_trials,
+        )
+    else:
+        examples = _canonical_examples(datasets_dir)
+    if not examples:
+        raise RuntimeError(f"No examples found for mode={mode} in datasets_dir={datasets_dir}")
+
     scenario_types = sorted({example["metadata"].get("scenario_type", "unknown") for example in examples})
+    source_scenarios = sorted({example["metadata"].get("source_scenario_type", "unknown") for example in examples})
     if dataset_name:
         dataset_source = "existing_langsmith_dataset"
     else:
         dataset_name = f"{dataset_prefix}-{mode_label}-{timestamp}"
-        dataset_source = "local_synthetic_materialization" if mode == "calibration" else "live_runtime_materialization"
+        dataset_source = (
+            "local_synthetic_materialization"
+            if mode == "calibration"
+            else "live_runtime_materialization"
+        )
         client.create_dataset(dataset_name, description=f"Research agent {mode_label} dataset")
         client.create_examples(
             dataset_name=dataset_name,
@@ -166,7 +284,15 @@ def run_experiment(
 
     # Metadata distinguishes calibration from live runtime
     if mode == "trace":
-        mode_metadata = {"mode": "trace", "source": "live_runtime"}
+        mode_metadata = {
+            "mode": "trace",
+            "source": "live_runtime",
+            "trace_input_mode": trace_input_mode,
+            "trace_scenario": trace_scenario,
+            "trace_trials": trace_trials,
+            "trace_example_count": len(examples),
+            "trace_source_scenarios": ", ".join(source_scenarios),
+        }
     else:
         mode_metadata = {"mode": "calibration", "source": "synthetic"}
 
@@ -207,6 +333,7 @@ def run_experiment(
         extra_metadata={
             **evaluate_metadata,
             "scenario_types": ", ".join(scenario_types),
+            "source_scenarios": ", ".join(source_scenarios),
             "defined_eval_count": registry_counts["defined_eval_count"],
         },
     )
@@ -236,6 +363,26 @@ def main() -> None:
         help="Experiment mode: calibration (synthetic replay) or trace (live runtime).",
     )
     parser.add_argument(
+        "--trace-input-mode",
+        default="single",
+        choices=["single", "dedup", "all"],
+        help=(
+            "Trace-mode input selection strategy: single=one scenario input "
+            "(default), dedup=one run per unique input payload, all=all rows."
+        ),
+    )
+    parser.add_argument(
+        "--trace-scenario",
+        default="golden_path",
+        help="When --trace-input-mode=single, pick this scenario's input (defaults to golden_path).",
+    )
+    parser.add_argument(
+        "--trace-trials",
+        type=int,
+        default=1,
+        help="Repeat each selected trace input this many times (for variance studies).",
+    )
+    parser.add_argument(
         "--report-dir",
         default=None,
         help="Directory to save markdown experiment report (default: .agents/pm/projects/meta-agent/evals/reports/)",
@@ -250,6 +397,9 @@ def main() -> None:
         include_deferred=args.include_deferred,
         report_dir=args.report_dir,
         mode=args.mode,
+        trace_input_mode=args.trace_input_mode,
+        trace_scenario=args.trace_scenario,
+        trace_trials=args.trace_trials,
     )
     print(result)
 
