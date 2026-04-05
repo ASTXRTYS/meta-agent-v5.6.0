@@ -23,11 +23,8 @@ RECURSION_LIMITS: dict[str, int] = {
     "spec-writer": 1000,
     "plan-writer": 1000,
     "verification-agent": 1000,
-    "test-agent": 1000,
     "document-renderer": 1000,
-    "observation-agent": 1000,
     "evaluation-agent": 1000,
-    "audit-agent": 1000,
 }
 
 
