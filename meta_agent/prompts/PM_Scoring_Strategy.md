@@ -1,6 +1,6 @@
 ## Scoring Strategy Selection (V1)
 
-For V1, use two scoring strategies:
+Use two scoring strategies:
 
 ### Binary Pass/Fail
 **Use when:** The expected behavior is deterministic. Same input → same expected output. No judgment required.
