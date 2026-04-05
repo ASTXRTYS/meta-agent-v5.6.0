@@ -3,28 +3,62 @@
 Spec References: Sections 7.3, 22.15
 
 Assembles the PM system prompt based on current stage
-using stage-aware section loading.
+using stage-aware section loading.  The canonical prompt content
+lives in companion Markdown files; this module provides a thin
+loader following the gold-standard pattern established by
+``research_agent.py``.
 """
 
 from __future__ import annotations
 
+from functools import lru_cache
+from pathlib import Path
+
 from .sections import (
-    ROLE_SECTION,
-    CORE_BEHAVIOR_SECTION,
-    ARTIFACT_PROTOCOL_SECTION,
-    HITL_PROTOCOL_SECTION,
-    COMMUNICATION_SECTION,
-    DELEGATION_SECTION,
-    MEMORY_SECTION,
     format_workspace_section,
     format_stage_context,
     format_agents_md_section,
     format_memory_section,
 )
-from .eval_mindset import EVAL_MINDSET_SECTION
-from .eval_engineering import EVAL_ENGINEERING_SECTION
-from .scoring_strategy import SCORING_STRATEGY_SECTION
-from .eval_approval_protocol import EVAL_APPROVAL_PROTOCOL
+
+# ---------------------------------------------------------------------------
+# Markdown source-of-truth paths (co-located with this module)
+# ---------------------------------------------------------------------------
+
+PROMPT_MARKDOWN_PATH = Path(__file__).with_name("PM_System_Prompt.md")
+SCORING_STRATEGY_PATH = Path(__file__).with_name("PM_Scoring_Strategy.md")
+EVAL_APPROVAL_PATH = Path(__file__).with_name("PM_Eval_Approval_Protocol.md")
+DELEGATION_PATH = Path(__file__).with_name("PM_Delegation.md")
+
+# ---------------------------------------------------------------------------
+# Cached loaders
+# ---------------------------------------------------------------------------
+
+
+@lru_cache(maxsize=1)
+def _load_pm_base_prompt() -> str:
+    """Load the always-included PM system prompt from Markdown."""
+    return PROMPT_MARKDOWN_PATH.read_text().strip()
+
+
+@lru_cache(maxsize=1)
+def _load_scoring_strategy() -> str:
+    return SCORING_STRATEGY_PATH.read_text().strip()
+
+
+@lru_cache(maxsize=1)
+def _load_eval_approval_protocol() -> str:
+    return EVAL_APPROVAL_PATH.read_text().strip()
+
+
+@lru_cache(maxsize=1)
+def _load_delegation() -> str:
+    return DELEGATION_PATH.read_text().strip()
+
+
+# ---------------------------------------------------------------------------
+# Public API (signature unchanged)
+# ---------------------------------------------------------------------------
 
 
 def construct_pm_prompt(
@@ -40,14 +74,8 @@ def construct_pm_prompt(
     """
     # Always included
     sections = [
-        ROLE_SECTION,
-        EVAL_MINDSET_SECTION,
-        EVAL_ENGINEERING_SECTION,
-        CORE_BEHAVIOR_SECTION,
-        ARTIFACT_PROTOCOL_SECTION,
+        _load_pm_base_prompt(),
         format_workspace_section(project_dir, project_id),
-        HITL_PROTOCOL_SECTION,
-        COMMUNICATION_SECTION,
         format_memory_section(project_dir),
     ]
 
@@ -56,13 +84,13 @@ def construct_pm_prompt(
 
     # Stage-conditional sections
     if stage in ("INTAKE", "PRD_REVIEW", "SPEC_REVIEW"):
-        sections.append(EVAL_APPROVAL_PROTOCOL)
+        sections.append(_load_eval_approval_protocol())
 
     if stage in ("INTAKE", "SPEC_REVIEW"):
-        sections.append(SCORING_STRATEGY_SECTION)
+        sections.append(_load_scoring_strategy())
 
     if stage in ("RESEARCH", "SPEC_GENERATION", "PLANNING", "EXECUTION"):
-        sections.append(DELEGATION_SECTION)
+        sections.append(_load_delegation())
 
     # Runtime-injected memory (always last)
     if agents_md_content:
