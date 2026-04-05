@@ -125,6 +125,14 @@ TOOL_REGISTRY: dict[str, list[str]] = {
         # Custom:
         "glob", "grep",
     ],
+    "evaluation-agent": [
+        # SDK-provided:
+        "write_file", "read_file", "ls", "edit_file",
+        # Custom:
+        "langsmith_trace_list", "langsmith_trace_get",
+        "langsmith_dataset_create", "langsmith_eval_run",
+        "propose_evals", "create_eval_dataset",
+    ],
     "document-renderer": [
         # SDK-provided:
         "read_file", "write_file", "ls",

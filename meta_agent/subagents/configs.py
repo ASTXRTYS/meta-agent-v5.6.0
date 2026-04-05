@@ -82,7 +82,7 @@ SUBAGENT_CONFIGS: dict[str, dict[str, Any]] = {
         "output_config": {"effort": "high"},
     },
     "plan-writer": {
-        "type": "deep_agent",
+        "type": "compiled_subagent",
         "effort": "high",
         "recursion_limit": 1000,
         "middleware": SUBAGENT_MIDDLEWARE["plan-writer"],
@@ -91,7 +91,7 @@ SUBAGENT_CONFIGS: dict[str, dict[str, Any]] = {
         "output_config": {"effort": "high"},
     },
     "code-agent": {
-        "type": "deep_agent",
+        "type": "compiled_subagent",
         "effort": "high",
         "recursion_limit": 1000,
         "middleware": SUBAGENT_MIDDLEWARE["code-agent"],
@@ -111,9 +111,18 @@ SUBAGENT_CONFIGS: dict[str, dict[str, Any]] = {
         "thinking": {"type": "adaptive"},
         "output_config": {"effort": "max"},
     },
-    "eval-agent": {
-        "type": "reserved",
-        "note": "Reserved for future first-class LangSmith agent (Section 6.6)",
+    "evaluation-agent": {
+        "type": "compiled_subagent",
+        "effort": "high",
+        "recursion_limit": 1000,
+        "middleware": SUBAGENT_MIDDLEWARE["evaluation-agent"],
+        "tools": [
+            "langsmith_trace_list", "langsmith_trace_get",
+            "langsmith_dataset_create", "langsmith_eval_run",
+            "propose_evals", "create_eval_dataset",
+        ],
+        "thinking": {"type": "adaptive"},
+        "output_config": {"effort": "high"},
     },
     "document-renderer": {
         "type": "dict_based",
@@ -174,12 +183,17 @@ SUBAGENT_DESCRIPTIONS: dict[str, str] = {
     ),
     "code-agent": (
         "Implementation engineer. Writes code, runs tests, manages the "
-        "LangGraph dev server, and coordinates observation/evaluation/audit "
-        "sub-agents during the EXECUTION phase."
+        "LangGraph dev server, and iterates on implementation during the "
+        "EXECUTION phase."
     ),
     "verification-agent": (
         "Artifact verifier. Cross-checks produced artifacts against their "
         "source requirements to confirm completeness before user review."
+    ),
+    "evaluation-agent": (
+        "Scientific evaluation engineer. Designs and calibrates LLM judges, "
+        "runs LangSmith experiments, enforces phase gate thresholds, and "
+        "provides feedback for the code-agent optimization loop."
     ),
     "document-renderer": (
         "Document formatter. Converts Markdown artifacts into "
@@ -224,50 +238,19 @@ def build_pm_subagents(
     Returns:
         List of SubAgent-compatible dicts ready for create_deep_agent().
     """
-    from meta_agent.prompts.research_agent import construct_research_agent_prompt
-    from meta_agent.prompts.spec_writer import construct_spec_writer_prompt
-    from meta_agent.prompts.verification_agent import construct_verification_agent_prompt
-    from meta_agent.prompts.plan_writer import construct_plan_writer_prompt
-    from meta_agent.prompts.code_agent import construct_code_agent_prompt
     from meta_agent.subagents.research_agent import create_research_agent_subagent
     from meta_agent.subagents.verification_agent_runtime import create_verification_agent_subagent
     from meta_agent.subagents.spec_writer_agent import create_spec_writer_agent_subagent
+    from meta_agent.subagents.plan_writer_runtime import create_plan_writer_agent_subagent
+    from meta_agent.subagents.code_agent_runtime import create_code_agent_subagent
+    from meta_agent.subagents.evaluation_agent_runtime import create_evaluation_agent_subagent
     from meta_agent.subagents.document_renderer import build_document_renderer_subagent
-
-    mw_instances = _resolve_middleware_instances()
-
-    # Custom tools that are NOT provided by FilesystemMiddleware.
-    # Import only the @tool instances that subagents need beyond filesystem.
-    from meta_agent.tools import (
-        execute_command_tool,
-        langgraph_dev_server_tool,
-        langsmith_cli_tool,
-        propose_evals_tool,
-    )
-
-    # Prompt builders keyed by agent name
-    prompt_builders: dict[str, str] = {
-        "research-agent": construct_research_agent_prompt(project_dir, project_id),
-        "spec-writer": construct_spec_writer_prompt(project_dir, project_id),
-        "plan-writer": construct_plan_writer_prompt(project_dir, project_id),
-        "code-agent": construct_code_agent_prompt(project_dir, project_id),
-        "verification-agent": construct_verification_agent_prompt(project_dir, project_id),
-    }
-
-    # Custom (non-filesystem) tools per agent
-    custom_tools: dict[str, list[Any]] = {
-        "research-agent": [],
-        "spec-writer": [propose_evals_tool],
-        "plan-writer": [],
-        "code-agent": [execute_command_tool, langgraph_dev_server_tool, langsmith_cli_tool],
-        "verification-agent": [],
-    }
 
     subagents = []
 
     for agent_name in [
         "research-agent", "spec-writer", "plan-writer", "code-agent",
-        "verification-agent", "document-renderer",
+        "verification-agent", "evaluation-agent", "document-renderer",
     ]:
         config = SUBAGENT_CONFIGS.get(agent_name)
         if not config or config.get("type") == "reserved":
@@ -303,32 +286,39 @@ def build_pm_subagents(
             )
             continue
 
-        # Use shared builder for document-renderer (reused by research-agent)
+        if agent_name == "plan-writer":
+            subagents.append(
+                create_plan_writer_agent_subagent(
+                    project_dir=project_dir,
+                    project_id=project_id,
+                    skills_dirs=skills_dirs,
+                )
+            )
+            continue
+
+        if agent_name == "code-agent":
+            subagents.append(
+                create_code_agent_subagent(
+                    project_dir=project_dir,
+                    project_id=project_id,
+                    skills_dirs=skills_dirs,
+                )
+            )
+            continue
+
+        if agent_name == "evaluation-agent":
+            subagents.append(
+                create_evaluation_agent_subagent(
+                    project_dir=project_dir,
+                    project_id=project_id,
+                    skills_dirs=skills_dirs,
+                )
+            )
+            continue
+
+        # Use shared builder for document-renderer (only remaining dict-based agent)
         if agent_name == "document-renderer":
             subagents.append(build_document_renderer_subagent(skills_dirs))
             continue
-
-        # Resolve middleware string names to instances
-        mw_names = SUBAGENT_MIDDLEWARE.get(agent_name, ["ToolErrorMiddleware"])
-        middleware = [mw_instances[n] for n in mw_names if n in mw_instances]
-
-        # All remaining agents get the full skill set
-        agent_skills = list(skills_dirs or [])
-
-        entry: dict[str, Any] = {
-            "name": agent_name,
-            "description": SUBAGENT_DESCRIPTIONS.get(agent_name, ""),
-            "system_prompt": prompt_builders.get(agent_name, ""),
-            "middleware": middleware,
-        }
-
-        agent_tools = custom_tools.get(agent_name, [])
-        if agent_tools:
-            entry["tools"] = agent_tools
-
-        if agent_skills:
-            entry["skills"] = agent_skills
-
-        subagents.append(entry)
 
     return subagents
