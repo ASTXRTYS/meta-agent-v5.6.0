@@ -358,13 +358,13 @@ components:
     owner: subagents-state
     status: active
 
-  - id: subagent.test-agent
+  - id: subagent.evaluation-agent
     kind: subagent
     source: meta_agent/subagents/configs.py
-    canonical_name: test-agent
+    canonical_name: evaluation-agent
     runtime_surface: SUBAGENT_CONFIGS
-    criticality: supporting
-    contract: "Dict-based agent with medium effort, recursion_limit=50, execute_command tool."
+    criticality: important
+    contract: "Deep Agent with high effort, recursion_limit=50, langsmith and eval tools."
     required_coverage: [contract]
     owner: subagents-state
     status: active

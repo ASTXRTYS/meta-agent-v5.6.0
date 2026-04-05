@@ -44,17 +44,20 @@ pytestmark = pytest.mark.contract
 # Constants
 # ---------------------------------------------------------------------------
 
-# The three agents that are compiled Deep Agents (return CompiledSubAgent)
-COMPILED_AGENTS = {"research-agent", "verification-agent", "spec-writer"}
+# Agents that are compiled Deep Agents (return CompiledSubAgent)
+COMPILED_AGENTS = {
+    "research-agent", "verification-agent", "spec-writer",
+    "plan-writer", "code-agent", "evaluation-agent",
+}
 
-# All agents that build_pm_subagents iterates over (excludes eval-agent which is "reserved")
+# All agents that build_pm_subagents iterates over
 EXPECTED_BUILT_AGENTS = {
     "research-agent",
     "spec-writer",
     "plan-writer",
     "code-agent",
     "verification-agent",
-    "test-agent",
+    "evaluation-agent",
     "document-renderer",
 }
 
@@ -65,8 +68,7 @@ EXPECTED_CONFIG_AGENTS = {
     "plan-writer",
     "code-agent",
     "verification-agent",
-    "eval-agent",
-    "test-agent",
+    "evaluation-agent",
     "document-renderer",
 }
 
@@ -155,7 +157,7 @@ class TestBuildPmSubagents:
     def subagents(self):
         """Build subagents with mocked compiled-agent factories to avoid API calls.
 
-        Patches the three create_*_subagent functions so that
+        Patches all create_*_subagent functions so that
         build_pm_subagents never hits real model creation paths
         (get_model_config → resolve_model → init_chat_model).
         """
@@ -164,31 +166,27 @@ class TestBuildPmSubagents:
         mock_runnable = MagicMock()
         mock_runnable.invoke = MagicMock(return_value={"messages": []})
 
-        mock_research = CompiledSubAgent(
-            name="research-agent",
-            description="Mock research agent.",
-            runnable=mock_runnable,
-        )
-        mock_verification = CompiledSubAgent(
-            name="verification-agent",
-            description="Mock verification agent.",
-            runnable=mock_runnable,
-        )
-        mock_spec_writer = CompiledSubAgent(
-            name="spec-writer",
-            description="Mock spec-writer agent.",
-            runnable=mock_runnable,
-        )
+        def _mock_compiled(name, desc):
+            return CompiledSubAgent(name=name, description=desc, runnable=mock_runnable)
 
         with patch(
             "meta_agent.subagents.research_agent.create_research_agent_subagent",
-            return_value=mock_research,
+            return_value=_mock_compiled("research-agent", "Mock research agent."),
         ), patch(
             "meta_agent.subagents.verification_agent_runtime.create_verification_agent_subagent",
-            return_value=mock_verification,
+            return_value=_mock_compiled("verification-agent", "Mock verification agent."),
         ), patch(
             "meta_agent.subagents.spec_writer_agent.create_spec_writer_agent_subagent",
-            return_value=mock_spec_writer,
+            return_value=_mock_compiled("spec-writer", "Mock spec-writer agent."),
+        ), patch(
+            "meta_agent.subagents.plan_writer_runtime.create_plan_writer_agent_subagent",
+            return_value=_mock_compiled("plan-writer", "Mock plan-writer agent."),
+        ), patch(
+            "meta_agent.subagents.code_agent_runtime.create_code_agent_subagent",
+            return_value=_mock_compiled("code-agent", "Mock code agent."),
+        ), patch(
+            "meta_agent.subagents.evaluation_agent_runtime.create_evaluation_agent_subagent",
+            return_value=_mock_compiled("evaluation-agent", "Mock evaluation agent."),
         ):
             return build_pm_subagents(project_dir="/tmp/test", project_id="test-project")
 
