@@ -24,7 +24,7 @@ AGENT_EFFORT_LEVELS: dict[str, str | None] = {
     "plan-writer": "high",
     "code-agent": "high",
     "document-renderer": "low",
-    "evaluation-agent": "medium",
+    "evaluation-agent": "high",
 }
 
 AGENT_MAX_TOKENS: dict[str, int] = {
