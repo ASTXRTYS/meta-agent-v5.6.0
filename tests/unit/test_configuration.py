@@ -75,11 +75,13 @@ class TestAgentEffortLevels:
     def test_valid_effort_values(self):
         valid_efforts = {"low", "medium", "high", "max"}
         for agent, effort in AGENT_EFFORT_LEVELS.items():
-            assert effort in valid_efforts, f"{agent} has invalid effort: {effort}"
+            assert effort is None or effort in valid_efforts, (
+                f"{agent} has invalid effort: {effort}"
+            )
 
     def test_specific_levels(self):
         assert AGENT_EFFORT_LEVELS["pm"] == "high"
-        assert AGENT_EFFORT_LEVELS["research-agent"] == "max"
+        assert AGENT_EFFORT_LEVELS["research-agent"] is None
         assert AGENT_EFFORT_LEVELS["document-renderer"] == "low"
 
 
@@ -95,7 +97,7 @@ class TestGetModelConfig:
 
     def test_agent_effort(self):
         config = get_model_config("research-agent")
-        assert config["output_config"]["effort"] == "max"
+        assert "output_config" not in config
 
         config = get_model_config("document-renderer")
         assert config["output_config"]["effort"] == "low"
@@ -143,7 +145,7 @@ class TestGetConfiguredModel:
 
     def test_effort_max_for_research(self):
         model = get_configured_model("research-agent")
-        assert model.effort == "max"
+        assert model.effort is None
 
     def test_effort_high_for_spec_writer(self):
         model = get_configured_model("spec-writer")

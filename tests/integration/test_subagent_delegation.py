@@ -94,8 +94,9 @@ class TestSubagentConfigShape:
         for name, config in SUBAGENT_CONFIGS.items():
             if config.get("type") == "reserved":
                 continue
-            assert "effort" in config, f"{name} missing 'effort'"
             assert "recursion_limit" in config, f"{name} missing 'recursion_limit'"
+            if name != "research-agent":
+                assert "effort" in config, f"{name} missing 'effort'"
 
     def test_research_agent_has_web_tools(self):
         cfg = SUBAGENT_CONFIGS["research-agent"]
