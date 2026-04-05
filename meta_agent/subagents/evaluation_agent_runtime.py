@@ -25,6 +25,9 @@ from deepagents import create_deep_agent
 from deepagents.middleware.memory import MemoryMiddleware
 from deepagents.middleware.skills import SkillsMiddleware
 from deepagents.middleware.subagents import CompiledSubAgent
+from deepagents.middleware.summarization import (
+    create_summarization_tool_middleware,
+)
 from langchain_core.runnables import RunnableLambda
 
 from meta_agent.backend import (
@@ -33,6 +36,8 @@ from meta_agent.backend import (
     create_composite_backend,
     create_store,
 )
+from meta_agent.middleware.agent_decision_state import AgentDecisionStateMiddleware
+from meta_agent.middleware.dynamic_tool_config import DynamicToolConfigMiddleware
 from meta_agent.middleware.tool_error_handler import ToolErrorMiddleware
 from meta_agent.model import get_configured_model, get_model_config
 from meta_agent.tools import (
@@ -194,14 +199,22 @@ def create_evaluation_agent_graph(
     Effort: ``high`` (Section 10.5.3)
     Tools: LangSmith tools — trace list/get, dataset create, eval run,
            propose_evals, create_eval_dataset
-    Middleware: 6 auto + MemoryMiddleware, SkillsMiddleware, ToolErrorMiddleware
+    Middleware: 6 auto + AgentDecisionStateMiddleware, SummarizationToolMiddleware,
+               MemoryMiddleware, SkillsMiddleware, ToolErrorMiddleware,
+               DynamicToolConfigMiddleware
     Subagents: None (may be extended in Phase 5)
     System prompt: Placeholder — full prompt comes in Phase 2 of evaluation stack
     """
+    cfg = get_model_config("evaluation-agent")
     model = get_configured_model("evaluation-agent")
     repo_root = Path(__file__).resolve().parents[2]
     composite_backend = create_composite_backend(repo_root)
     bare_fs = create_bare_filesystem_backend()
+
+    # SummarizationToolMiddleware — agent-controlled compact_conversation
+    summarization_tool_mw = create_summarization_tool_middleware(
+        cfg["model_string"], composite_backend
+    )
 
     # MemoryMiddleware: project-specific + global AGENTS.md
     memory_sources: list[str] = []
@@ -233,9 +246,12 @@ def create_evaluation_agent_graph(
         tools=tools,
         system_prompt=system_prompt,
         middleware=[
+            AgentDecisionStateMiddleware(),
+            summarization_tool_mw,
             memory_mw,
             skills_mw,
             ToolErrorMiddleware(),
+            DynamicToolConfigMiddleware(tool_config={}),
         ],
         backend=composite_backend,
         checkpointer=create_checkpointer(),

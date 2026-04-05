@@ -26,6 +26,9 @@ from deepagents import create_deep_agent
 from deepagents.middleware.memory import MemoryMiddleware
 from deepagents.middleware.skills import SkillsMiddleware
 from deepagents.middleware.subagents import CompiledSubAgent
+from deepagents.middleware.summarization import (
+    create_summarization_tool_middleware,
+)
 from langchain_core.runnables import RunnableLambda
 
 from meta_agent.backend import (
@@ -34,7 +37,9 @@ from meta_agent.backend import (
     create_composite_backend,
     create_store,
 )
+from meta_agent.middleware.agent_decision_state import AgentDecisionStateMiddleware
 from meta_agent.middleware.completion_guard import CompletionGuardMiddleware
+from meta_agent.middleware.dynamic_tool_config import DynamicToolConfigMiddleware
 from meta_agent.middleware.tool_error_handler import ToolErrorMiddleware
 from meta_agent.model import get_configured_model, get_model_config
 from meta_agent.prompts.code_agent import construct_code_agent_prompt
@@ -200,15 +205,22 @@ def create_code_agent_graph(
 
     Effort: ``high`` (Section 10.5.3)
     Tools: filesystem auto + execute_command, langgraph_dev_server, langsmith_cli
-    Middleware: 6 auto + MemoryMiddleware, SkillsMiddleware,
-                CompletionGuardMiddleware, ToolErrorMiddleware
+    Middleware: 6 auto + AgentDecisionStateMiddleware, SummarizationToolMiddleware,
+                MemoryMiddleware, SkillsMiddleware, ToolErrorMiddleware,
+                CompletionGuardMiddleware, DynamicToolConfigMiddleware
     Subagents: document-renderer
     interrupt_on: execute_command (HITL required for all shell execution)
     """
+    cfg = get_model_config("code-agent")
     model = get_configured_model("code-agent")
     repo_root = Path(__file__).resolve().parents[2]
     composite_backend = create_composite_backend(repo_root)
     bare_fs = create_bare_filesystem_backend()
+
+    # SummarizationToolMiddleware — agent-controlled compact_conversation
+    summarization_tool_mw = create_summarization_tool_middleware(
+        cfg["model_string"], composite_backend
+    )
 
     # MemoryMiddleware: project-specific + global AGENTS.md
     memory_sources: list[str] = []
@@ -236,10 +248,13 @@ def create_code_agent_graph(
         tools=tools,
         system_prompt=construct_code_agent_prompt(project_dir, project_id),
         middleware=[
+            AgentDecisionStateMiddleware(),
+            summarization_tool_mw,
             memory_mw,
             skills_mw,
-            CompletionGuardMiddleware(),
             ToolErrorMiddleware(),
+            CompletionGuardMiddleware(),
+            DynamicToolConfigMiddleware(tool_config={}),
         ],
         subagents=[doc_renderer],
         backend=composite_backend,
