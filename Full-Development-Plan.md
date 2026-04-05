@@ -1728,6 +1728,8 @@ Phase 3 implements the research-agent, verification-agent, spec-writer-agent, an
 
 **End-to-End Validation ⏳ IN PROGRESS:**
 
+- [x] Single-trace debug checkpoint helper added for decomposition review before outward research — `meta_agent/evals/research/run_single_trace_experiment.py`
+- [x] Research-agent live trace bootstrap now uses workspace-style artifact paths and adaptive thinking without an explicit effort nudge
 - [ ] Stage wiring live validation (RESEARCH → SPEC_GENERATION → SPEC_REVIEW)
 - [ ] HITL checkpoint verification in live runtime
 - [ ] Live experiment run with LangSmith recording

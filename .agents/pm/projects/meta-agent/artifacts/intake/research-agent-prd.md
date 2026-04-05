@@ -18,7 +18,7 @@ lineage:
 Research Agent — Deep Ecosystem Researcher for the Meta-Agent System
 
 ## Document Purpose
-Define the product requirements for the research agent that operates within the meta-agent system (Phase 3). This agent sits between the PM/orchestrator agent and the spec-writer agent in the agent hierarchy. It receives an approved PRD and eval suite, performs state-of-the-art deep ecosystem research, and produces a research bundle that the spec-writer can use to generate a complete technical specification.
+Define the product requirements for the research agent that operates within the meta-agent system (Phase 3). This agent sits between the PM/orchestrator agent and the spec-writer agent in the agent hierarchy. It receives an approved PRD and eval suite, performs state-of-the-art deep ecosystem research, deeply reflects and studies its own skills wich guide the previousley mentioned research process, and produces a research bundle that the spec-writer can use to generate a complete technical specification.
 
 ## Product Summary
 The research agent is a specialized deep researcher that extends the PM agent's capabilities into the LangChain, LangGraph, Deep Agents, LangSmith, and Anthropic ecosystems. Given an approved PRD and its accompanying eval suite, the research agent decomposes the PRD into research domains, consults pre-loaded skills as baseline domain guidance, delegates parallel web research to sub-agents, gathers perspectives from specified subject matter experts, conducts deep-dive verification of critical findings, and synthesizes everything into a structured research bundle with full citations. The research bundle is the canonical input to the spec-writer agent.
@@ -53,11 +53,10 @@ The primary consumer of the research agent's output is the spec-writer agent. Th
 ## Constraints
 - The research agent must operate within the meta-agent system architecture (Deep Agents SDK, LangGraph).
 - The research agent must use the skills directories at `/skills/langchain/`, `/skills/anthropic/`, and `/skills/langsmith/` as baseline domain guidance when available.
-- The research agent must use native Opus 4.6 web_fetch and web_search tools for web research.
+- The research agent must use native Opus 4.6 web_search_20260209 tool version for web research.
 - The research agent must cite every finding with source type and URL/reference.
 - The research agent must persist its PRD decomposition as a file (not just in-memory) for debuggability.
 - The research agent must use sub-agents for parallel research execution — it cannot do all research as a single sequential agent.
-- The research agent must present HITL research clusters for user approval before deep-dive verification.
 - All Likert eval thresholds are >= 4.0 — the agent must achieve "Good" quality or above on every quality dimension.
 - Python is the implementation language.
 - The agent must be launchable on the LangGraph dev server.
