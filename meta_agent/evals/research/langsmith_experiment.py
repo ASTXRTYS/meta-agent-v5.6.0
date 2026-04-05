@@ -147,6 +147,88 @@ def _run_target_live(inputs: dict[str, Any]) -> dict[str, Any]:
     return run_research_agent_live(inputs)
 
 
+def _is_hitl_interrupt(exc: BaseException) -> bool:
+    """Return True when an exception represents a LangGraph HITL interrupt."""
+    return "interrupt" in type(exc).__name__.lower()
+
+
+def _run_target_live_pause_after_decomposition(inputs: dict[str, Any]) -> dict[str, Any]:
+    """Trace target that pauses after decomposition while still using LangSmith evaluate."""
+    from meta_agent.evals.research.run_single_trace_experiment import (
+        DECOMPOSITION_CHECKPOINT_SUMMARY,
+    )
+    from meta_agent.subagents.research_agent import (
+        _default_eval_project_dir,
+        _localize_workspace_path,
+        build_research_agent_initial_message,
+        get_research_runtime_paths,
+        run_research_agent,
+    )
+
+    project_id = str(inputs.get("project_id", "meta-agent"))
+    project_dir = str(
+        inputs.get("project_dir")
+        or inputs.get("config", {}).get("project_dir")
+        or _default_eval_project_dir(project_id)
+    )
+    prd_path = inputs.get("prd_path")
+    if prd_path:
+        prd_path = _localize_workspace_path(
+            str(prd_path),
+            project_dir=project_dir,
+            project_id=project_id,
+        ) or None
+    eval_suite_path = inputs.get("eval_suite_path")
+    if eval_suite_path:
+        eval_suite_path = _localize_workspace_path(
+            str(eval_suite_path),
+            project_dir=project_dir,
+            project_id=project_id,
+        ) or None
+
+    paths = get_research_runtime_paths(project_dir, project_id)
+    resolved_prd = prd_path or paths.prd_path
+    resolved_eval = eval_suite_path or paths.eval_suite_path
+    extra_state = {
+        **(inputs.get("extra_state") or {}),
+        "auto_approve_hitl": False,
+        "messages": [
+            build_research_agent_initial_message(
+                project_dir=project_dir,
+                project_id=project_id,
+                prd_path=resolved_prd,
+                eval_suite_path=resolved_eval,
+                checkpoint_artifact_path=paths.decomposition_path,
+                checkpoint_summary=DECOMPOSITION_CHECKPOINT_SUMMARY,
+            )
+        ],
+    }
+
+    try:
+        return run_research_agent(
+            project_dir=project_dir,
+            project_id=project_id,
+            prd_path=resolved_prd,
+            eval_suite_path=resolved_eval,
+            prd_content=inputs.get("prd_content"),
+            eval_suite_content=inputs.get("eval_suite_content"),
+            skills_paths=inputs.get("skills_paths"),
+            twitter_handles=inputs.get("twitter_handles"),
+            extra_state=extra_state,
+        )
+    except BaseException as exc:  # noqa: BLE001
+        if _is_hitl_interrupt(exc):
+            return {
+                "status": "interrupted",
+                "trace_mode": "pause_after_decomposition",
+                "project_id": project_id,
+                "project_dir": project_dir,
+                "artifact_path": paths.decomposition_path,
+                "artifact_exists": os.path.isfile(paths.decomposition_path),
+            }
+        raise
+
+
 def _make_langsmith_evaluator(eval_id: str, fn: Callable[..., Any]) -> Callable[..., dict[str, Any]]:
     async def _ainvoke(run: Any, example: Any) -> dict[str, Any]:
         if inspect.iscoroutinefunction(fn):
@@ -230,6 +312,7 @@ def run_experiment(
     trace_input_mode: str = "single",
     trace_scenario: str = "golden_path",
     trace_trials: int = 1,
+    trace_pause_after_decomposition: bool = False,
 ) -> dict[str, Any]:
     _load_env()
     if not os.getenv("LANGSMITH_PROJECT"):
@@ -292,6 +375,7 @@ def run_experiment(
             "trace_trials": trace_trials,
             "trace_example_count": len(examples),
             "trace_source_scenarios": ", ".join(source_scenarios),
+            "trace_pause_after_decomposition": trace_pause_after_decomposition,
         }
     else:
         mode_metadata = {"mode": "calibration", "source": "synthetic"}
@@ -311,7 +395,14 @@ def run_experiment(
     }
 
     # Select target function based on mode
-    target_fn = _run_target_live if mode == "trace" else _run_target
+    if mode == "trace":
+        target_fn = (
+            _run_target_live_pause_after_decomposition
+            if trace_pause_after_decomposition
+            else _run_target_live
+        )
+    else:
+        target_fn = _run_target
 
     results = evaluate(
         target_fn,
@@ -341,6 +432,7 @@ def run_experiment(
     return {
         "dataset_name": dataset_name,
         "experiment_name": results.experiment_name,
+        "experiment_url": results.url,
         "mode": mode_label,
     }
 
@@ -383,6 +475,15 @@ def main() -> None:
         help="Repeat each selected trace input this many times (for variance studies).",
     )
     parser.add_argument(
+        "--trace-pause-after-decomposition",
+        action="store_true",
+        help=(
+            "In trace mode, instruct the research agent to request approval "
+            "immediately after writing the decomposition while still running "
+            "through the LangSmith experiment harness."
+        ),
+    )
+    parser.add_argument(
         "--report-dir",
         default=None,
         help="Directory to save markdown experiment report (default: .agents/pm/projects/meta-agent/evals/reports/)",
@@ -400,6 +501,7 @@ def main() -> None:
         trace_input_mode=args.trace_input_mode,
         trace_scenario=args.trace_scenario,
         trace_trials=args.trace_trials,
+        trace_pause_after_decomposition=args.trace_pause_after_decomposition,
     )
     print(result)
 

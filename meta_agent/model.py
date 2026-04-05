@@ -16,9 +16,9 @@ if TYPE_CHECKING:
 # Per-agent effort levels — Section 10.5.3
 # ---------------------------------------------------------------------------
 
-AGENT_EFFORT_LEVELS: dict[str, str] = {
+AGENT_EFFORT_LEVELS: dict[str, str | None] = {
     "pm": "high",
-    "research-agent": "max",
+    "research-agent": None,
     "verification-agent": "max",
     "spec-writer": "high",
     "plan-writer": "high",
@@ -28,6 +28,10 @@ AGENT_EFFORT_LEVELS: dict[str, str] = {
     "observation-agent": "medium",
     "evaluation-agent": "medium",
     "audit-agent": "medium",
+}
+
+AGENT_MAX_TOKENS: dict[str, int] = {
+    "research-agent": 16000,
 }
 
 
@@ -41,7 +45,9 @@ def get_model_config(agent_name: str = "pm") -> dict[str, Any]:
     ``thinking={"type": "adaptive"}``.  NO ``budget_tokens`` —
     deprecated on Opus 4.6 and Sonnet 4.6 (Section 10.5.4).
 
-    Effort level is set per-agent via ``output_config``.
+    Effort level is set per-agent via ``output_config`` when configured.
+    The research-agent intentionally omits explicit effort so Opus 4.6 runs
+    with adaptive thinking alone and the API default effort behavior.
     """
     model_string = os.getenv("META_AGENT_MODEL", "anthropic:claude-opus-4-6")
     parts = model_string.split(":", 1)
@@ -55,8 +61,9 @@ def get_model_config(agent_name: str = "pm") -> dict[str, Any]:
         "model_name": model_name,
         "model_string": model_string,
         "thinking": {"type": "adaptive"},
-        "output_config": {"effort": effort},
     }
+    if effort is not None:
+        config["output_config"] = {"effort": effort}
 
     # Fallback for non-Opus models — Section 10.5.4
     if "opus" not in model_name.lower() and "sonnet" not in model_name.lower():
@@ -77,25 +84,33 @@ def get_configured_model(agent_name: str = "pm") -> "ChatAnthropic":
     ``ChatAnthropic`` (langchain-anthropic ≥ 1.4.0) accepts:
     - ``thinking``: ``{"type": "adaptive"}`` (Section 10.5.1)
     - ``effort``: ``"max" | "high" | "medium" | "low"`` (Section 10.5.3)
+      when the agent config opts in to an explicit effort level
     - ``max_tokens``: required when thinking is enabled
     """
     from langchain_anthropic import ChatAnthropic as _ChatAnthropic
 
     cfg = get_model_config(agent_name)
-    effort = cfg["output_config"]["effort"]
+    output_config = cfg.get("output_config", {})
+    effort = output_config.get("effort")
 
     # max_tokens is required when thinking is enabled.
-    # Higher effort levels get more headroom.
+    # Higher effort levels get more headroom unless an agent-specific override
+    # is configured.
     max_tokens_map = {"max": 16000, "high": 12000, "medium": 8000, "low": 4096}
-    max_tokens = max_tokens_map.get(effort, 8000)
+    max_tokens = AGENT_MAX_TOKENS.get(agent_name, max_tokens_map.get(effort, 8000))
+
+    kwargs: dict[str, Any] = {
+        "model": cfg["model_name"],
+        "thinking": cfg["thinking"],
+        "max_tokens": max_tokens,
+        "streaming": True,
+        "stream_usage": True,
+    }
+    if effort is not None:
+        kwargs["effort"] = effort
 
     return _ChatAnthropic(
-        model=cfg["model_name"],
-        thinking=cfg["thinking"],
-        effort=effort,
-        max_tokens=max_tokens,
-        streaming=True,
-        stream_usage=True,
+        **kwargs,
     )
 
 
