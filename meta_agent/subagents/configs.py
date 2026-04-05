@@ -44,21 +44,10 @@ SUBAGENT_MIDDLEWARE: dict[str, list[str]] = {
         "AgentDecisionStateMiddleware",
         "ToolErrorMiddleware",
     ],
-    "test-agent": [
-        "ToolErrorMiddleware",
-        "CompletionGuardMiddleware",
-    ],
     "document-renderer": [
         "ToolErrorMiddleware",
     ],
-    "observation-agent": [
-        "ToolErrorMiddleware",
-        "CompletionGuardMiddleware",
-    ],
     "evaluation-agent": [
-        "ToolErrorMiddleware",
-    ],
-    "audit-agent": [
         "ToolErrorMiddleware",
     ],
 }
@@ -110,7 +99,6 @@ SUBAGENT_CONFIGS: dict[str, dict[str, Any]] = {
             "write_file", "read_file", "ls", "edit_file", "glob", "grep",
             "execute_command", "langgraph_dev_server", "langsmith_cli",
         ],
-        "sub_agents": ["observation-agent", "evaluation-agent", "audit-agent"],
         "thinking": {"type": "adaptive"},
         "output_config": {"effort": "high"},
     },
@@ -126,18 +114,6 @@ SUBAGENT_CONFIGS: dict[str, dict[str, Any]] = {
     "eval-agent": {
         "type": "reserved",
         "note": "Reserved for future first-class LangSmith agent (Section 6.6)",
-    },
-    "test-agent": {
-        "type": "dict_based",
-        "effort": "medium",
-        "recursion_limit": 1000,
-        "middleware": SUBAGENT_MIDDLEWARE["test-agent"],
-        "tools": [
-            "write_file", "read_file", "ls", "edit_file", "glob", "grep",
-            "execute_command",
-        ],
-        "thinking": {"type": "adaptive"},
-        "output_config": {"effort": "medium"},
     },
     "document-renderer": {
         "type": "dict_based",
@@ -204,10 +180,6 @@ SUBAGENT_DESCRIPTIONS: dict[str, str] = {
     "verification-agent": (
         "Artifact verifier. Cross-checks produced artifacts against their "
         "source requirements to confirm completeness before user review."
-    ),
-    "test-agent": (
-        "Test engineer. Writes and runs tests to validate the "
-        "implementation against the specification."
     ),
     "document-renderer": (
         "Document formatter. Converts Markdown artifacts into "
@@ -280,7 +252,6 @@ def build_pm_subagents(
         "plan-writer": construct_plan_writer_prompt(project_dir, project_id),
         "code-agent": construct_code_agent_prompt(project_dir, project_id),
         "verification-agent": construct_verification_agent_prompt(project_dir, project_id),
-        "test-agent": construct_plan_writer_prompt(project_dir, project_id),
     }
 
     # Custom (non-filesystem) tools per agent
@@ -290,14 +261,13 @@ def build_pm_subagents(
         "plan-writer": [],
         "code-agent": [execute_command_tool, langgraph_dev_server_tool, langsmith_cli_tool],
         "verification-agent": [],
-        "test-agent": [execute_command_tool],
     }
 
     subagents = []
 
     for agent_name in [
         "research-agent", "spec-writer", "plan-writer", "code-agent",
-        "verification-agent", "test-agent", "document-renderer",
+        "verification-agent", "document-renderer",
     ]:
         config = SUBAGENT_CONFIGS.get(agent_name)
         if not config or config.get("type") == "reserved":

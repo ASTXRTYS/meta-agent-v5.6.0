@@ -125,13 +125,6 @@ TOOL_REGISTRY: dict[str, list[str]] = {
         # Custom:
         "glob", "grep",
     ],
-    "test-agent": [
-        # SDK-provided:
-        "write_file", "read_file", "ls", "edit_file",
-        # Custom:
-        "glob", "grep",
-        "execute_command",
-    ],
     "document-renderer": [
         # SDK-provided:
         "read_file", "write_file", "ls",

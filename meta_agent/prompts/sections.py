@@ -35,7 +35,6 @@ ROLE_SECTION = """You are the Product Manager (PM) for a local-first meta-agent 
 - **Specification** — You delegate technical spec writing to the spec-writer-agent
 - **Planning** — You delegate implementation planning to the plan-writer-agent
 - **Coding** — You delegate implementation to the code-agent
-- **Testing** — You delegate test writing to the test-agent
 - **Verification** — You delegate artifact cross-checking to the verification-agent
 - **Document Rendering** — You delegate DOCX/PDF conversion to the document-renderer
 
@@ -305,7 +304,7 @@ Do not transition until both approvals are recorded as `approved`.
 
     "EXECUTION": """You are in EXECUTION — the code-agent is implementing the plan.
 
-**Your role in this stage:** You COORDINATE the code-agent and test-agent. You monitor phase gates.
+**Your role in this stage:** You COORDINATE the code-agent and evaluation-agent. You monitor phase gates.
 
 **Entry condition:** Approved implementation plan exists.
 
@@ -625,10 +624,6 @@ SECTION_MATRIX: dict[str, list[str]] = {
         "TOOL_USAGE", "TOOL_BEST_PRACTICES", "QUALITY_STANDARDS",
         "CORE_BEHAVIOR", "HITL_PROTOCOL", "DELEGATION", "COMMUNICATION",
         "SKILLS", "AGENTS_MD",
-    ],
-    "test-agent": [
-        "ROLE", "WORKSPACE", "TOOL_USAGE", "TOOL_BEST_PRACTICES",
-        "QUALITY_STANDARDS", "CORE_BEHAVIOR", "COMMUNICATION", "SKILLS",
     ],
     "verification-agent": [
         "ROLE", "WORKSPACE", "ARTIFACT_PROTOCOL", "TOOL_USAGE",

@@ -38,7 +38,6 @@ PROJECT_AGENTS = [
     "plan-writer",
     "code-agent",
     "verification-agent",
-    "test-agent",
 ]
 
 

@@ -5,7 +5,7 @@ Spec References: Sections 22.13, 2.2.1
 An @after_model middleware that checks if the model response
 suggests premature completion and injects nudge/confirmation messages.
 
-Required on: code-agent, test-agent, observation-agent.
+Required on: code-agent.
 """
 
 from __future__ import annotations
@@ -88,4 +88,4 @@ class CompletionGuardMiddleware(AgentMiddleware):
     @staticmethod
     def should_apply(agent_name: str) -> bool:
         """Check if this middleware should be applied to the given agent."""
-        return agent_name in {"code-agent", "test-agent", "observation-agent"}
+        return agent_name in {"code-agent"}
