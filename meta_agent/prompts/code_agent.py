@@ -5,6 +5,9 @@ Spec References: Section 7.2.2
 
 from __future__ import annotations
 
+from functools import lru_cache
+from pathlib import Path
+
 from .sections import (
     ARTIFACT_PROTOCOL_SECTION,
     TOOL_USAGE_SECTION,
@@ -20,7 +23,14 @@ from .sections import (
     format_agents_md_section,
 )
 
-CODE_AGENT_ROLE = """You are the Code Agent — an expert software engineer who implements plans methodically. You follow an iterative development protocol: implement → test → observe → confirm → continue. You use the LangGraph dev server and LangSmith CLI as first-class tools."""
+
+PROMPT_MARKDOWN_PATH = Path(__file__).with_name("Code_Agent_System_Prompt.md")
+
+
+@lru_cache(maxsize=1)
+def _load_prompt_markdown() -> str:
+    """Load the canonical markdown prompt."""
+    return PROMPT_MARKDOWN_PATH.read_text().strip()
 
 
 def construct_code_agent_prompt(
@@ -32,7 +42,7 @@ def construct_code_agent_prompt(
 ) -> str:
     """Assemble the code agent system prompt."""
     sections = [
-        CODE_AGENT_ROLE,
+        _load_prompt_markdown(),
         format_workspace_section(project_dir, project_id),
         format_stage_context(current_stage, project_id),
         ARTIFACT_PROTOCOL_SECTION,

@@ -14,7 +14,18 @@ to DOCX and PDF formats.
 from __future__ import annotations
 
 import os
+from functools import lru_cache
+from pathlib import Path
 from typing import Any
+
+
+PROMPT_MARKDOWN_PATH = Path(__file__).resolve().parent.parent / "prompts" / "Document_Renderer_System_Prompt.md"
+
+
+@lru_cache(maxsize=1)
+def _load_prompt_markdown() -> str:
+    """Load the canonical markdown prompt."""
+    return PROMPT_MARKDOWN_PATH.read_text().strip()
 
 
 # Document renderer configuration per Section 6.9
@@ -49,11 +60,7 @@ DOCUMENT_RENDERER_DESCRIPTION = (
 )
 
 # Canonical system prompt for the document-renderer subagent.
-DOCUMENT_RENDERER_SYSTEM_PROMPT = (
-    "You are the Document Renderer. Convert Markdown artifacts into "
-    "professionally formatted DOCX and PDF files. Use the anthropic/docx "
-    "and anthropic/pdf skills for formatting guidance."
-)
+DOCUMENT_RENDERER_SYSTEM_PROMPT = _load_prompt_markdown()
 
 
 def build_document_renderer_subagent(

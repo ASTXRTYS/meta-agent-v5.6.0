@@ -5,6 +5,9 @@ Spec References: Section 7.2.2
 
 from __future__ import annotations
 
+from functools import lru_cache
+from pathlib import Path
+
 from .sections import (
     ARTIFACT_PROTOCOL_SECTION,
     TOOL_USAGE_SECTION,
@@ -15,7 +18,14 @@ from .sections import (
     format_workspace_section,
 )
 
-PLAN_WRITER_ROLE = """You are the Plan Writer Agent — an expert in development lifecycle planning within the LangChain ecosystem. You create actionable implementation plans with eval-phase mapping, phase gates, and observation criteria. You treat LangSmith as a first-class tool in your plans."""
+
+PROMPT_MARKDOWN_PATH = Path(__file__).with_name("Plan_Writer_System_Prompt.md")
+
+
+@lru_cache(maxsize=1)
+def _load_prompt_markdown() -> str:
+    """Load the canonical markdown prompt."""
+    return PROMPT_MARKDOWN_PATH.read_text().strip()
 
 
 def construct_plan_writer_prompt(
@@ -25,7 +35,7 @@ def construct_plan_writer_prompt(
 ) -> str:
     """Assemble the plan writer agent system prompt."""
     sections = [
-        PLAN_WRITER_ROLE,
+        _load_prompt_markdown(),
         format_workspace_section(project_dir, project_id),
         ARTIFACT_PROTOCOL_SECTION,
         TOOL_USAGE_SECTION,
