@@ -21,7 +21,7 @@ from typing import Any
 DOCUMENT_RENDERER_CONFIG = {
     "type": "dict_based",
     "effort": "low",
-    "recursion_limit": 50,
+    "recursion_limit": 1000,
     "tools": ["read_file", "write_file", "ls"],
     "skills": ["anthropic/docx", "anthropic/pdf"],
     "middleware": ["ToolErrorMiddleware"],

@@ -68,8 +68,7 @@ SUBAGENT_MIDDLEWARE: dict[str, list[str]] = {
 SUBAGENT_CONFIGS: dict[str, dict[str, Any]] = {
     "research-agent": {
         "type": "deep_agent",
-        "effort": "max",
-        "recursion_limit": 100,
+        "recursion_limit": 1000,
         "middleware": SUBAGENT_MIDDLEWARE["research-agent"],
         "auto_tools": [
             "write_todos", "read_file", "write_file", "edit_file",
@@ -81,12 +80,11 @@ SUBAGENT_CONFIGS: dict[str, dict[str, Any]] = {
         ],
         "server_side_tools": ["web_search", "web_fetch"],
         "thinking": {"type": "adaptive"},
-        "output_config": {"effort": "max"},
     },
     "spec-writer": {
         "type": "deep_agent",
         "effort": "high",
-        "recursion_limit": 50,
+        "recursion_limit": 1000,
         "middleware": SUBAGENT_MIDDLEWARE["spec-writer"],
         "tools": [
             "propose_evals",
@@ -97,7 +95,7 @@ SUBAGENT_CONFIGS: dict[str, dict[str, Any]] = {
     "plan-writer": {
         "type": "deep_agent",
         "effort": "high",
-        "recursion_limit": 50,
+        "recursion_limit": 1000,
         "middleware": SUBAGENT_MIDDLEWARE["plan-writer"],
         "tools": [],
         "thinking": {"type": "adaptive"},
@@ -106,7 +104,7 @@ SUBAGENT_CONFIGS: dict[str, dict[str, Any]] = {
     "code-agent": {
         "type": "deep_agent",
         "effort": "high",
-        "recursion_limit": 150,
+        "recursion_limit": 1000,
         "middleware": SUBAGENT_MIDDLEWARE["code-agent"],
         "tools": [
             "write_file", "read_file", "ls", "edit_file", "glob", "grep",
@@ -119,7 +117,7 @@ SUBAGENT_CONFIGS: dict[str, dict[str, Any]] = {
     "verification-agent": {
         "type": "deep_agent",
         "effort": "max",
-        "recursion_limit": 50,
+        "recursion_limit": 1000,
         "middleware": SUBAGENT_MIDDLEWARE["verification-agent"],
         "tools": [],
         "thinking": {"type": "adaptive"},
@@ -132,7 +130,7 @@ SUBAGENT_CONFIGS: dict[str, dict[str, Any]] = {
     "test-agent": {
         "type": "dict_based",
         "effort": "medium",
-        "recursion_limit": 50,
+        "recursion_limit": 1000,
         "middleware": SUBAGENT_MIDDLEWARE["test-agent"],
         "tools": [
             "write_file", "read_file", "ls", "edit_file", "glob", "grep",
@@ -144,7 +142,7 @@ SUBAGENT_CONFIGS: dict[str, dict[str, Any]] = {
     "document-renderer": {
         "type": "dict_based",
         "effort": "low",
-        "recursion_limit": 50,
+        "recursion_limit": 1000,
         "middleware": SUBAGENT_MIDDLEWARE["document-renderer"],
         "tools": [
             "read_file", "write_file", "ls",

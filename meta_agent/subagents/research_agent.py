@@ -121,6 +121,57 @@ def _materialize_if_missing(path: str, content: str) -> None:
         f.write(content)
 
 
+def build_research_agent_initial_message(
+    *,
+    project_dir: str,
+    project_id: str,
+    prd_path: str,
+    eval_suite_path: str,
+    checkpoint_artifact_path: str | None = None,
+    checkpoint_summary: str | None = None,
+) -> dict[str, str]:
+    """Build the user message that kicks off a research-agent run.
+
+    Agent-facing paths are rendered in workspace form so the model sees the
+    same path shape that filesystem tools operate against.
+    """
+    workspace_prd = _to_workspace_path(
+        prd_path,
+        project_dir=project_dir,
+        project_id=project_id,
+    )
+    workspace_eval = _to_workspace_path(
+        eval_suite_path,
+        project_dir=project_dir,
+        project_id=project_id,
+    )
+
+    content = (
+        f"You are the research agent. An approved PRD exists at "
+        f"{workspace_prd} and the Tier 1 eval suite is at "
+        f"{workspace_eval}. The project ID is {project_id}. "
+        f"Execute the full 10-phase research protocol. "
+        f"Produce all 5 required output artifacts."
+    )
+
+    if checkpoint_artifact_path and checkpoint_summary:
+        workspace_checkpoint = _to_workspace_path(
+            checkpoint_artifact_path,
+            project_dir=project_dir,
+            project_id=project_id,
+        )
+        content += (
+            "\n\n"
+            f"Experiment-only checkpoint: after you persist "
+            f"{workspace_checkpoint}, immediately call `request_approval` on "
+            f"that artifact with the summary "
+            f'"{checkpoint_summary}". Stop after that approval request and do '
+            "not begin Phase 3 or any outward research until review occurs."
+        )
+
+    return {"role": "user", "content": content}
+
+
 def _resolve_skills_dirs(skills_paths: list[str] | None) -> list[str]:
     repo_root = _repo_root()
     default_dirs = [
@@ -775,16 +826,12 @@ def run_research_agent(
     )
     resolved_prd = prd_path or get_research_runtime_paths(project_dir, project_id).prd_path
     resolved_eval = eval_suite_path or get_research_runtime_paths(project_dir, project_id).eval_suite_path
-    initial_message = {
-        "role": "user",
-        "content": (
-            f"You are the research agent. An approved PRD exists at "
-            f"{resolved_prd} and the Tier 1 eval suite is at "
-            f"{resolved_eval}. The project ID is {project_id}. "
-            f"Execute the full 10-phase research protocol. "
-            f"Produce all 5 required output artifacts."
-        ),
-    }
+    initial_message = build_research_agent_initial_message(
+        project_dir=project_dir,
+        project_id=project_id,
+        prd_path=resolved_prd,
+        eval_suite_path=resolved_eval,
+    )
     state = {
         "project_id": project_id,
         "current_stage": "RESEARCH",
@@ -803,5 +850,5 @@ def run_research_agent(
     if extra_state:
         state.update(extra_state)
     thread_id = f"eval-{uuid.uuid4()}"
-    config = {"configurable": {"thread_id": thread_id}, "recursion_limit": 100}
+    config = {"configurable": {"thread_id": thread_id}, "recursion_limit": RECURSION_LIMITS["research-agent"]}
     return runnable.invoke(state, config=config)

@@ -729,7 +729,7 @@ components:
     canonical_name: RECURSION_LIMITS
     runtime_surface: create_graph
     criticality: critical
-    contract: "Dict mapping agent names to max recursion limits (pm=200, code-agent=150, etc.)."
+    contract: "Dict mapping agent names to max recursion limits (all agents=1000)."
     required_coverage: [contract]
     owner: graph-contracts
     status: active

@@ -237,7 +237,7 @@ def _canonical_inputs(eval_suite_content: str, prd_content: str) -> dict[str, An
             {"handle": "@BraceSproul", "name": "Brace Sproul"},
             {"handle": "@RLanceMartin", "name": "Lance Martin"},
         ],
-        "config": {"model": "claude-opus-4-6", "effort": "max", "recursion_limit": 100},
+        "config": {"model": "claude-opus-4-6", "effort": "max", "recursion_limit": 1000},
     }
 
 

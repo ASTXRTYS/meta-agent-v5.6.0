@@ -28,10 +28,9 @@ class TestRecursionLimits:
         }
         assert set(RECURSION_LIMITS.keys()) == expected
 
-    def test_pm_highest(self):
-        assert RECURSION_LIMITS["pm"] == 200
+    def test_all_limits_are_1000(self):
         for agent, limit in RECURSION_LIMITS.items():
-            assert limit <= 200
+            assert limit == 1000
 
 
 class TestTokenBudget:

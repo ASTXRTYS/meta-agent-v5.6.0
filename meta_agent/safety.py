@@ -17,17 +17,17 @@ from typing import Any
 # ---------------------------------------------------------------------------
 
 RECURSION_LIMITS: dict[str, int] = {
-    "pm": 200,
-    "code-agent": 150,
-    "research-agent": 100,
-    "spec-writer": 50,
-    "plan-writer": 50,
-    "verification-agent": 50,
-    "test-agent": 50,
-    "document-renderer": 50,
-    "observation-agent": 50,
-    "evaluation-agent": 50,
-    "audit-agent": 50,
+    "pm": 1000,
+    "code-agent": 1000,
+    "research-agent": 1000,
+    "spec-writer": 1000,
+    "plan-writer": 1000,
+    "verification-agent": 1000,
+    "test-agent": 1000,
+    "document-renderer": 1000,
+    "observation-agent": 1000,
+    "evaluation-agent": 1000,
+    "audit-agent": 1000,
 }
 
 
