@@ -11,6 +11,7 @@ This project uses skills that contain up-to-date patterns and working reference 
 - **langsmith-dataset** - Invoke for ANY dataset creation from traces
 - **langsmith-evaluator-architect** - Invoke for UI-ready evaluator profile design, judge prompts, JSON schemas, and SDK scaffolding
 - **langsmith-evaluator** - Invoke for evaluator implementation, run functions, and evaluation execution
+- **langsmith-evaluator-feedback** - Invoke for converting evaluation outputs into optimizer-safe feedback packets with metric deltas, slice localization, LangSmith trace routing, and anti-overfitting safeguards
 
 ## Debugging Flow: Build → Trace → Dataset → Evaluate
 
