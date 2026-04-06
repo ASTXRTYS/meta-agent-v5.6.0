@@ -1,6 +1,8 @@
-"""Verification agent prompt composition.
+"""Evaluation agent prompt composition.
 
-The verification-agent prompt is monolithic — the .md file is self-contained.
+Spec References: Section 7.2.2
+
+The evaluation-agent prompt is monolithic — the .md file is self-contained.
 This loader reads it and injects only the workspace context.
 """
 
@@ -10,7 +12,7 @@ from functools import lru_cache
 from pathlib import Path
 
 
-PROMPT_MARKDOWN_PATH = Path(__file__).with_name("Verification_Agent_System_Prompt.md")
+PROMPT_MARKDOWN_PATH = Path(__file__).with_name("Evaluation_Agent_System_Prompt.md")
 
 
 @lru_cache(maxsize=1)
@@ -19,12 +21,11 @@ def _load_prompt_markdown() -> str:
     return PROMPT_MARKDOWN_PATH.read_text().strip()
 
 
-def construct_verification_agent_prompt(
+def construct_evaluation_agent_prompt(
     project_dir: str,
     project_id: str = "",
-    agents_md: str = "",
 ) -> str:
-    """Assemble the verification agent system prompt.
+    """Assemble the evaluation agent system prompt.
 
     The .md file is self-contained.  Only the workspace context
     (project_dir, project_id) is injected at runtime.

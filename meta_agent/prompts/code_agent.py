@@ -1,27 +1,15 @@
 """Code agent prompt composition.
 
 Spec References: Section 7.2.2
+
+The code-agent prompt is monolithic — the .md file is self-contained.
+This loader reads it and injects only the workspace context and current task.
 """
 
 from __future__ import annotations
 
 from functools import lru_cache
 from pathlib import Path
-
-from .sections import (
-    ARTIFACT_PROTOCOL_SECTION,
-    TOOL_USAGE_SECTION,
-    TOOL_BEST_PRACTICES_SECTION,
-    QUALITY_STANDARDS_SECTION,
-    CORE_BEHAVIOR_SECTION,
-    HITL_PROTOCOL_SECTION,
-    DELEGATION_SECTION,
-    COMMUNICATION_SECTION,
-    SKILLS_SECTION,
-    format_workspace_section,
-    format_stage_context,
-    format_agents_md_section,
-)
 
 
 PROMPT_MARKDOWN_PATH = Path(__file__).with_name("Code_Agent_System_Prompt.md")
@@ -40,23 +28,22 @@ def construct_code_agent_prompt(
     current_task: str = "",
     agents_md: str = "",
 ) -> str:
-    """Assemble the code agent system prompt."""
-    sections = [
-        _load_prompt_markdown(),
-        format_workspace_section(project_dir, project_id),
-        format_stage_context(current_stage, project_id),
-        ARTIFACT_PROTOCOL_SECTION,
-        TOOL_USAGE_SECTION,
-        TOOL_BEST_PRACTICES_SECTION,
-        QUALITY_STANDARDS_SECTION,
-        CORE_BEHAVIOR_SECTION,
-        HITL_PROTOCOL_SECTION,
-        DELEGATION_SECTION,
-        COMMUNICATION_SECTION,
-        SKILLS_SECTION,
-    ]
+    """Assemble the code agent system prompt.
+
+    The .md file is self-contained.  Only runtime context
+    (project_dir, project_id, current_task) is injected.
+    """
+    prompt = _load_prompt_markdown()
+
+    workspace_block = (
+        f"\n\n---\n\n## Workspace Context\n\n"
+        f"- **Project directory:** `{project_dir}`\n"
+        f"- **Project ID:** `{project_id}`\n"
+        f"- **Current stage:** `{current_stage}`\n"
+    )
+    prompt += workspace_block
+
     if current_task:
-        sections.append(f"## Current Task\n\n{current_task}")
-    if agents_md:
-        sections.append(format_agents_md_section(agents_md))
-    return "\n\n---\n\n".join(sections)
+        prompt += f"\n\n---\n\n## Current Task\n\n{current_task}"
+
+    return prompt

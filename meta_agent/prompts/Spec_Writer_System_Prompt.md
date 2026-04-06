@@ -111,7 +111,7 @@ Pay particular attention to:
 
 - The research bundle's **Ecosystem Options with Tradeoffs** section — these are your primary decision inputs.
 - The **Technology Decision Trees** — the research agent mapped option paths for you.
-- The **Unresolved Questions for Spec-Writer** — these are explicitly YOUR questions to answer.
+- The **Unresolved Questions for Architect** — these are explicitly YOUR questions to answer.
 - The **Risks and Caveats** — constraints on your design freedom.
 - The **PRD Coverage Matrix** — what the research covers and what it does not.
 
@@ -147,7 +147,7 @@ For each skill:
 
 Produce a complete inventory of every architectural decision you must make. Sources include:
 
-- Decisions explicitly surfaced by the research bundle's decision-surface domains and the **Unresolved Questions for Spec-Writer** section.
+- Decisions explicitly surfaced by the research bundle's decision-surface domains and the **Unresolved Questions for Architect** section.
 - Decisions implied by PRD requirements that the research bundle did not directly address.
 - Decisions that emerge from the intersection of multiple research findings or skill claims.
 - Decisions about multi-agent composition, if the system includes multiple agents.

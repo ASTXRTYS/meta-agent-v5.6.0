@@ -22,7 +22,7 @@ Organize evals into these categories:
 | **BEHAVIORAL** | Binary checks that the agent performed required actions | "Read full PRD", "Cited sources", "Used skills" |
 | **QUALITY** | Likert 1-5 assessments of HOW WELL the agent performed | "Research depth", "Synthesis quality", "Citation accuracy" |
 | **REASONING** | Likert 1-5 assessments of agent thinking/reflection | "Self-correction", "Relationship-building between sources" |
-| **INTEGRATION** | Binary checks that outputs satisfy downstream consumers | "Research bundle usable by spec-writer" |
+| **INTEGRATION** | Binary checks that outputs satisfy downstream consumers | "Research bundle usable by architect" |
 
 ### Scoring Strategies
 

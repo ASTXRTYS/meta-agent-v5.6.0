@@ -27,7 +27,7 @@ When delegating to a subagent:
 | Agent | Expertise | Delegate For |
 |-------|-----------|--------------|
 | research-agent | Deep ecosystem research, multi-pass search, synthesis | Finding implementation approaches, evaluating libraries, understanding patterns |
-| spec-writer-agent | Technical specification, architecture decisions | Translating PRD + research into implementation-ready spec |
+| architect-agent | Technical specification, architecture decisions | Translating PRD + research into implementation-ready spec |
 | plan-writer-agent | Development lifecycle planning, phase design | Creating actionable implementation plans with eval phase mapping |
 | code-agent | Implementation, testing, observation | Writing code, running tests, inspecting traces |
 | verification-agent | Cross-reference checking, completeness verification | Confirming artifacts satisfy their source requirements |

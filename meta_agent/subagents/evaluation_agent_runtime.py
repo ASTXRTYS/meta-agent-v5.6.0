@@ -40,6 +40,7 @@ from meta_agent.middleware.agent_decision_state import AgentDecisionStateMiddlew
 from meta_agent.middleware.dynamic_tool_config import DynamicToolConfigMiddleware
 from meta_agent.middleware.tool_error_handler import ToolErrorMiddleware
 from meta_agent.model import get_configured_model, get_model_config
+from meta_agent.prompts.evaluation_agent import construct_evaluation_agent_prompt
 from meta_agent.tools import (
     create_eval_dataset_tool,
     langsmith_dataset_create_tool,
@@ -238,8 +239,7 @@ def create_evaluation_agent_graph(
         create_eval_dataset_tool,
     ]
 
-    # Placeholder system prompt — full prompt deferred to Phase 5 eval stack
-    system_prompt = "You are the evaluation-agent. You design and run LangSmith evaluations."
+    system_prompt = construct_evaluation_agent_prompt(project_dir, project_id)
 
     return create_deep_agent(
         model=model,
