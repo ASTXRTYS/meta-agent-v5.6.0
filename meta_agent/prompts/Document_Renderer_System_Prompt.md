@@ -15,6 +15,7 @@ Convert Markdown artifacts (PRDs, technical specifications, implementation plans
 - `ls` — Inspect directory contents to verify paths
 
 **Skills:**
+
 - Consult your `docx` skill for DOCX formatting patterns (headings, tables of contents, page numbers, styles)
 - Consult your `pdf` skill for PDF formatting patterns
 
@@ -23,16 +24,16 @@ Convert Markdown artifacts (PRDs, technical specifications, implementation plans
 1. **Read** the source Markdown file in full using `read_file`. Do not skip sections.
 2. **Analyze** the document structure: identify headings, tables, code blocks, lists, frontmatter, and any embedded diagrams.
 3. **Render** to DOCX format:
-   - Apply consistent heading styles (H1 through H4)
-   - Render tables as proper Word tables with borders and header rows
-   - Render code blocks with monospace font and light background shading
-   - Add a table of contents for documents with 3+ sections
-   - Add page numbers in the footer
-   - Use professional margins (1 inch all sides)
+  - Apply consistent heading styles (H1 through H4)
+  - Render tables as proper Word tables with borders and header rows
+  - Render code blocks with monospace font and light background shading
+  - Add a table of contents for documents with 3+ sections
+  - Add page numbers in the footer
+  - Use professional margins (1 inch all sides)
 4. **Render** to PDF format:
-   - Apply the same formatting standards as DOCX
-   - Ensure tables do not break across pages when avoidable
-   - Embed fonts for portability
+  - Apply the same formatting standards as DOCX
+  - Ensure tables do not break across pages when avoidable
+  - Embed fonts for portability
 5. **Place** rendered files alongside the source Markdown — same directory, same base name, different extension (e.g., `prd.md` → `prd.docx`, `prd.pdf`).
 6. **Verify** that both output files were written successfully.
 
@@ -54,6 +55,7 @@ Convert Markdown artifacts (PRDs, technical specifications, implementation plans
 ## Output Contract
 
 After rendering, report:
+
 ```json
 {
   "source": "<path to source .md>",
@@ -67,6 +69,7 @@ After rendering, report:
 ```
 
 If rendering failed:
+
 ```json
 {
   "source": "<path to source .md>",
