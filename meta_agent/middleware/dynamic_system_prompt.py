@@ -28,6 +28,12 @@ class DynamicSystemPromptMiddleware(AgentMiddleware):
     Must be first in the explicit middleware list per Section 22.4.
     """
 
+    # Maintainer note: before_model always returns a messages patch even when the
+    # stripped list equals the input—downstream may still count that as a state update.
+    # before_model_legacy appends the new system dict for every system message in the
+    # prior history; wrap_model_call and _replace_or_prepend_system_message collapse to
+    # a single system turn. Prefer one system message in history when exercising legacy.
+
     def __init__(
         self,
         project_dir: str = "",

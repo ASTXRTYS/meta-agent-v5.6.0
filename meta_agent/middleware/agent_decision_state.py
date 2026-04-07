@@ -18,6 +18,8 @@ Spec References: Sections 8.2, 8.3, 22.11
 from __future__ import annotations
 
 import operator
+# ``Any`` is unused here (no ``before_agent`` / hook signatures yet); kept in line
+# with ``meta_state.py`` imports—remove in a typing cleanup pass if still unused.
 from typing import Annotated, Any
 
 from langchain.agents.middleware import AgentMiddleware

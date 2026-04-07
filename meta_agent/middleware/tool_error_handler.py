@@ -30,9 +30,18 @@ class ToolErrorMiddleware(AgentMiddleware):
         super().__init__()
 
     def _extract_tool_info(self, request: Any) -> tuple[str, str]:
-        """Extract tool name and call ID from a request."""
+        """Extract tool name and call ID from a request.
+        
+        Implementation Note: Extraction is naive and assumes tool_call is a dict.
+        Does not handle Pydantic objects or other LangChain tool call wrappers.
+        Consult sibling middlewares for more robust attribute-based extraction.
+        """
         tool_call = request.tool_call if hasattr(request, "tool_call") else {}
         tool_name = tool_call.get("name", "unknown") if isinstance(tool_call, dict) else "unknown"
+        
+        # Protocol Note: Fallback to "unknown" for tool_call_id is risky. 
+        # Downstream LangGraph/LangChain runtimes may reject ToolMessages 
+        # with unknown IDs, leading to cryptic validation failures.
         tool_call_id = tool_call.get("id", "unknown") if isinstance(tool_call, dict) else "unknown"
         return tool_name, tool_call_id
 
@@ -58,6 +67,9 @@ class ToolErrorMiddleware(AgentMiddleware):
         try:
             return handler(request)
         except Exception as e:
+            # Maintainer Note: Broad caught Exception includes business logic errors 
+            # and may include system-level signals. Consider scoping to 
+            # ToolExecutionError or specific runtime exceptions in future phases.
             tool_name, tool_call_id = self._extract_tool_info(request)
             return self._make_error_message(e, tool_name, tool_call_id)
 
@@ -71,10 +83,15 @@ class ToolErrorMiddleware(AgentMiddleware):
         try:
             return await handler(request)
         except Exception as e:
+            # Maintainer Note: Broad caught Exception includes business logic 
+            # errors and may include system-level signals.
             tool_name, tool_call_id = self._extract_tool_info(request)
             return self._make_error_message(e, tool_name, tool_call_id)
 
     # --- Legacy convenience methods (used by tests & internal code) ---
+    # Maintainer Note: This section represents ~40% of the class surface and 
+    # duplicates ToolMessage construction logic. Targeted for removal/migration 
+    # once test suite (tests/integration/test_middleware.py) is normalized.
 
     @staticmethod
     def wrap_tool_call_legacy(

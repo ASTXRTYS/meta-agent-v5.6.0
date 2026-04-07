@@ -68,6 +68,18 @@ def build_document_renderer_subagent(
 ) -> dict[str, Any]:
     """Build an SDK-compatible SubAgent dict for the document-renderer.
 
+    ⚠️ SDK NON-COMPLIANCE — MISSING REQUIRED FIELDS
+    DeepAgents SubAgent TypedDict requires: name, description, system_prompt, model, tools
+    This builder is missing: model, tools (only provides skills)
+    Runtime will fail when SubAgentMiddleware validates with new backend API.
+    
+    See: configs.py build_pm_subagents() which calls this function.
+
+    Correct pattern options:
+      1. Add "model" and "tools" to the returned dict for declarative SubAgent
+      2. Convert to return CompiledSubAgent with pre-compiled runnable
+         (see research_agent.py:create_research_agent_subagent for pattern)
+
     Shared builder used by both the PM orchestrator (build_pm_subagents)
     and the research-agent runtime so the document-renderer is available
     as a named subagent in both contexts.
@@ -82,6 +94,8 @@ def build_document_renderer_subagent(
     from meta_agent.middleware.tool_error_handler import ToolErrorMiddleware
 
     anthropic_skills_dir = next(
+        # ⚠️ FRAGILE: String-matching on paths is brittle (matches "not-anthropic/", "anthropic-skills/", etc.)
+        # TODO: Use explicit skill name mapping or path normalization
         (d for d in (skills_dirs or []) if "anthropic" in d), None
     )
 
@@ -112,6 +126,8 @@ def get_output_path(source_path: str, output_format: str) -> str:
 
     Per Section 6.9.3: rendered docs alongside source Markdown.
     """
+    # ⚠️ INCONSISTENT: Using os.path despite importing pathlib.Path
+    # Other agents use Path operations consistently. TODO: Use Path(source_path).stem
     base, _ = os.path.splitext(source_path)
     return f"{base}.{output_format}"
 
@@ -121,6 +137,14 @@ def render_artifact(
     stage: str,
 ) -> dict[str, Any]:
     """Render an artifact to DOCX and PDF formats.
+
+    ⚠️ STUB IMPLEMENTATION — DOES NOT ACTUALLY RENDER
+    This function returns "status": "pending" and defers to the subagent,
+    but the subagent invocation logic is elsewhere (or missing). The actual
+    rendering to DOCX/PDF never occurs in this code path.
+    
+    TODO: Either implement actual rendering here via skills/docx/pdf, or
+    remove this function and wire the subagent invocation properly.
 
     Per Section 6.9.3, rendered documents are placed alongside the source
     Markdown and regenerated on revision.

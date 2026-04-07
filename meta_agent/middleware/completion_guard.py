@@ -38,6 +38,7 @@ class CompletionGuardMiddleware(AgentMiddleware):
     """
 
     def __init__(self) -> None:
+        # Note (review): empty __init__ only forwards to super — no issue, just noise unless the base requires it.
         super().__init__()
 
     def after_model(self, state: Any, runtime: Any = None) -> dict[str, Any] | None:
@@ -49,6 +50,8 @@ class CompletionGuardMiddleware(AgentMiddleware):
         last_msg = messages[-1]
         # Check if it's an AIMessage
         if isinstance(last_msg, AIMessage):
+            # Note (review): for AIMessage, content may be non-string (e.g. blocks); str(content) here vs .strip() on the
+            # string passed into check_response can disagree on what counts as "text".
             has_tool_calls = bool(last_msg.tool_calls)
             has_text = bool(last_msg.content and str(last_msg.content).strip())
         elif isinstance(last_msg, dict):
@@ -57,6 +60,10 @@ class CompletionGuardMiddleware(AgentMiddleware):
         else:
             return None
 
+        # Note (review): has_tool_calls / has_text above are never used; the real rules live in check_response below.
+        # That duplicates logic and can drift if one path is edited without the other.
+        #
+        # Note (review): this response dict is built on one long line — harder to read and change than small assignments or a helper.
         injection = self.check_response({"content": str(last_msg.content) if hasattr(last_msg, "content") else last_msg.get("content", ""), "tool_calls": last_msg.tool_calls if hasattr(last_msg, "tool_calls") else last_msg.get("tool_calls", [])})
         if injection:
             return {"messages": [HumanMessage(content=injection["content"])]}
@@ -68,6 +75,7 @@ class CompletionGuardMiddleware(AgentMiddleware):
         Returns None if no intervention needed, otherwise a dict with
         the message to inject.
         """
+        # Note (review): assumes content is strip()-able string; if callers pass list/multimodal shapes, behavior may not match after_model's AIMessage branch.
         has_tool_calls = bool(response.get("tool_calls"))
         has_text = bool(response.get("content", "").strip())
 

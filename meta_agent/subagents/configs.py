@@ -7,6 +7,9 @@ tool sets, effort levels, and recursion limits.
 
 Provides build_pm_subagents() to produce SDK-compatible SubAgent
 dicts for the create_deep_agent(subagents=...) parameter.
+
+TODO: Extract duplicated helper functions (_resolve_skills_dirs, _repo_root,
+_read_text) into meta_agent/subagents/common.py or similar shared module.
 """
 
 from __future__ import annotations
@@ -16,11 +19,6 @@ from typing import Any
 from deepagents.middleware.subagents import CompiledSubAgent, SubAgent
 
 
-# Explicit middleware only. Deep Agents auto-attach TodoList, Filesystem,
-# SubAgent, Summarization, prompt caching, and patch-call middleware.
-# Skills are provisioned through the `skills=` parameter, not listed here as
-# explicit middleware. These metadata entries should describe only the
-# additional, explicitly configured runtime pieces.
 
 SUBAGENT_MIDDLEWARE: dict[str, list[str]] = {
     "research-agent": [
@@ -54,6 +52,22 @@ SUBAGENT_MIDDLEWARE: dict[str, list[str]] = {
 
 
 # Subagent configurations per Section 6 with full details
+#
+# ⚠️ URGENT: CONFIGURATION DRIFT — DEAD METADATA
+# This dictionary is NOT used by runtime agent factories. It exists only for test
+# validation in tests/integration/test_subagent_delegation.py. Runtime agents
+# construct their configs inline in their respective create_*_agent files.
+#
+# If you update this, you MUST also update:
+#   - meta_agent/subagents/research_agent.py (lines ~680-710)
+#   - meta_agent/subagents/spec_writer_agent.py (lines ~290-310)
+#   - meta_agent/subagents/verification_agent_runtime.py (lines ~200-230)
+#   - meta_agent/subagents/plan_writer_runtime.py
+#   - meta_agent/subagents/code_agent_runtime.py
+#   - meta_agent/subagents/evaluation_agent_runtime.py
+#
+# TODO: Either make this authoritative (have factories read from it) or delete it
+# and test runtime behavior directly.
 SUBAGENT_CONFIGS: dict[str, dict[str, Any]] = {
     "research-agent": {
         "type": "deep_agent",
@@ -165,6 +179,7 @@ def get_all_subagent_names() -> list[str]:
 
 # Descriptions per spec Section 6.x — used by SubAgentMiddleware's task tool
 # to let the PM know what each agent can do.
+# TODO: Consolidate to a single source of truth (either here or in factories).
 SUBAGENT_DESCRIPTIONS: dict[str, str] = {
     "research-agent": (
         "Deep ecosystem researcher. Performs multi-pass web research, "
@@ -198,10 +213,16 @@ SUBAGENT_DESCRIPTIONS: dict[str, str] = {
     "document-renderer": (
         "Document formatter. Converts Markdown artifacts into "
         "professionally formatted DOCX and PDF files."
-    ),  # Canonical copy lives in document_renderer.DOCUMENT_RENDERER_DESCRIPTION
+    ),
 }
 
 
+# ⚠️ URGENT: DEAD CODE — MIDDLEWARE NOT RESOLVED
+# This only resolves 3 middleware classes but SUBAGENT_MIDDLEWARE references
+# additional ones (SummarizationToolMiddleware, MemoryMiddleware, SkillsMiddleware,
+# CompletionGuardMiddleware) that are instantiated inline by agent factories.
+#
+# TODO: Complete this resolver or remove if factories remain self-contained.
 def _resolve_middleware_instances() -> dict[str, Any]:
     """Lazily import and return middleware class instances by name."""
     from meta_agent.middleware.agent_decision_state import AgentDecisionStateMiddleware
@@ -215,6 +236,17 @@ def _resolve_middleware_instances() -> dict[str, Any]:
 
 
 def build_pm_subagents(
+    # ⚠️ URGENT: NAIVE SEQUENTIAL LOGIC — MAINTENANCE HAZARD
+    # This function uses a repetitive if/elif chain to dispatch to agent factories.
+    # Each new agent requires editing this function. Prefer a registry pattern:
+    #
+    #   AGENT_REGISTRY: dict[str, Callable] = {
+    #       "research-agent": create_research_agent_subagent,
+    #       "spec-writer": create_spec_writer_agent_subagent,
+    #       ...
+    #   }
+    #
+    # TODO: Refactor to registry pattern to eliminate the 80-line if/elif chain below.
     project_dir: str = "",
     project_id: str = "",
     skills_dirs: list[str] | None = None,
@@ -316,7 +348,7 @@ def build_pm_subagents(
             )
             continue
 
-        # Use shared builder for document-renderer (only remaining dict-based agent)
+        # Use shared builder for document-renderer
         if agent_name == "document-renderer":
             subagents.append(build_document_renderer_subagent(skills_dirs))
             continue
