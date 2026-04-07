@@ -5,6 +5,9 @@ to add current_stage, decision_log, assumption_log, approval_history,
 and other meta-agent fields directly into the graph state.
 
 Tools return Command(update={...}) to update these fields.
+
+Note: Field names mirror ``MetaAgentState`` in ``meta_agent.state`` (second
+source of truth). Contract/drift tests help catch divergence; keep them aligned.
 """
 
 from __future__ import annotations
@@ -17,6 +20,8 @@ from typing_extensions import NotRequired
 from langchain.agents.middleware import AgentMiddleware
 from langchain.agents.middleware.types import AgentState
 
+# DecisionEntry / AssumptionEntry / ApprovalEntry mirror MetaAgentState element
+# types but are unused here; log fields below stay as plain list until annotated.
 from meta_agent.state import (
     ApprovalEntry,
     AssumptionEntry,
@@ -32,6 +37,8 @@ class MetaAgentStateSchema(AgentState):
     accumulation — Command(update={"decision_log": [entry]}) appends
     rather than replaces.
     """
+
+    # Log fields use untyped ``list`` here; MetaAgentState uses list[DecisionEntry] etc.
 
     # Core workflow state
     current_stage: NotRequired[str]
@@ -76,6 +83,7 @@ class MetaAgentStateMiddleware(AgentMiddleware):
     pattern used by ``TodoListMiddleware``.
     """
 
+    # SDK AgentMiddleware typing does not accept our schema class cleanly.
     state_schema = MetaAgentStateSchema  # type: ignore[assignment]
 
     def before_agent(self, state: Any, runtime: Any) -> dict[str, Any] | None:
@@ -83,6 +91,10 @@ class MetaAgentStateMiddleware(AgentMiddleware):
 
         Only sets defaults for fields that are missing — never overwrites
         values already present from a resumed checkpoint.
+
+        Subset of ``create_initial_state`` defaults: empty lists and other keys
+        are left unset here and are expected from that helper, reducers, or the
+        first Command(update=...) when the graph is invoked without full init.
         """
         state_dict = dict(state) if hasattr(state, "items") else {}
         updates: dict[str, Any] = {}

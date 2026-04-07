@@ -7,6 +7,11 @@ from typing import Any
 
 
 def _get_field(obj: Any, field: str) -> Any:
+    """Get a field from either a dataclass or a dict.
+    
+    NOTE: This helper is duplicated from intake.py (lines 173-179).
+    Consider extracting to a shared utility module to eliminate duplication.
+    """
     if hasattr(obj, field):
         return getattr(obj, field)
     if isinstance(obj, dict):
@@ -46,6 +51,12 @@ class ResearchStage:
         self.agents_md_path = f"{project_dir}/.agents/research-agent/AGENTS.md"
 
     def check_entry_conditions(self, state: dict[str, Any] | None = None) -> dict[str, Any]:
+        """Check RESEARCH entry conditions.
+        
+        NOTE: Unlike intake.py which takes no state parameter, this method accepts
+        optional state to allow override of current_prd_path. This inconsistency
+        should be aligned across all stage classes for consistency.
+        """
         state = state or {}
         prd_path = state.get("current_prd_path") or self.prd_path
         eval_suite_path = self.eval_suite_path

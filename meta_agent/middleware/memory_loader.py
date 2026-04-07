@@ -1,5 +1,25 @@
 """MemoryLoaderMiddleware stub — per-agent AGENTS.md memory loading.
 
+===============================================================================
+HIGH URGENCY — DEVELOPER ACTION
+===============================================================================
+
+Runtime memory is handled by MemoryMiddleware from the Deep Agents SDK (see
+meta_agent/graph.py and subagent runtimes). This module is not wired into any
+graph and appears to be DEAD CODE, kept only as a placeholder and for
+contract/stub listings.
+
+Before the next release: run one more confirmation pass — repo-wide search for
+MemoryLoaderMiddleware, memory_loader, and any external imports of
+meta_agent.middleware.MemoryLoaderMiddleware — and verify nothing depends on
+this file.
+
+After explicit maintainer approval: delete this file and remove it from the app
+by updating meta_agent/middleware/__init__.py, tests/contracts/test_stub_allowlist.py,
+docs/testing/intentional_stubs.yaml, and any spec or dataset text that still
+names MemoryLoaderMiddleware.
+===============================================================================
+
 Spec References: Sections 22.18, 13.4.6
 
 Stub implementation for Phase 0. Full implementation in Phase 1.

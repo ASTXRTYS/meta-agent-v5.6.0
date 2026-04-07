@@ -26,7 +26,7 @@ from meta_agent.state import ApprovalEntry
 
 
 # Maximum revision cycles before direct question
-MAX_REVISION_CYCLES = 5
+MAX_REVISION_CYCLES = 5 ## would like to make this configurable eventually in UI
 
 # Approval intent patterns
 APPROVAL_PATTERNS = [
@@ -57,6 +57,9 @@ class PrdReviewStage:
         unmet = []
         if not os.path.isfile(self.prd_path):
             unmet.append(f"PRD not found at {self.prd_path}")
+        # FIXME: Eval suite path is not validated here despite docstring claiming
+        # "Draft PRD and eval suite exist" as entry condition. Add check for
+        # self.eval_suite_path to match the documented hard gate semantics.
 
         return {
             "met": len(unmet) == 0,
@@ -103,6 +106,10 @@ class PrdReviewStage:
         Returns one of: 'approval', 'modify', 'add', 'remove', 'remove_all',
         'unclear', 'change_scoring'
         """
+        # TODO: This classification logic relies on simple substring matching,
+        # which is extremely brittle for an AI agent system. It should be 
+        # delegated to the LLM (optionally using structured output) to 
+        # interpret the user's intent more accurately and contextually.
         lower = content.lower().strip()
 
         # Branch 1: Approval
@@ -165,6 +172,9 @@ class PrdReviewStage:
 
 def _get_field(obj: Any, field: str) -> Any:
     """Get a field from either a dataclass or a dict."""
+    # TODO: This utility is duplicated across multiple stage files (intake.py,
+    # prd_review.py, spec_review.py). It should be moved to a shared 
+    # utility module to improve maintainability.
     if hasattr(obj, field):
         return getattr(obj, field)
     if isinstance(obj, dict):

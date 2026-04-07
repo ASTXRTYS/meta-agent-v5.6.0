@@ -14,6 +14,10 @@ from typing import Any, Awaitable, Callable
 
 from langchain.agents.middleware.types import AgentMiddleware
 
+# Developer Note: This imports from the implementation path (...types). Consistent 
+# sibling middlewares (e.g. meta_state.py) use the public path (langchain.agents.middleware).
+# Consult AGENTS.md Protocol Step 5 for layer verification.
+
 
 class DynamicToolConfigMiddleware(AgentMiddleware):
     """Middleware that dynamically configures tool_choice and tool filtering.
@@ -33,9 +37,16 @@ class DynamicToolConfigMiddleware(AgentMiddleware):
     ) -> None:
         super().__init__()
         self.tool_config = tool_config or {}
+        # Maintainer Note: As of Phase 3, this is bootstrapped with an empty dict in 
+        # graph.py (L158), serving as a placeholder until stage-aware tool 
+        # policies are authored.
 
     def _get_config_for_state(self, state: dict[str, Any]) -> dict[str, Any]:
-        """Resolve tool config for the current state."""
+        """Resolve tool config for the current state.
+        
+        Implementation Note: Strict exact-match lookup. Does not support regex 
+        or prefix-based stage policies.
+        """
         stage = state.get("current_stage", "")
         return self.tool_config.get(stage, {})
 
@@ -53,21 +64,34 @@ class DynamicToolConfigMiddleware(AgentMiddleware):
         """Apply tool_choice and tool filtering to the request."""
         updates: dict[str, Any] = {}
 
+        # Maintainer Note: Use of dataclasses.replace (L76) assumes ModelRequest 
+        # is a strict dataclass. Sibling middlewares use request.override() 
+        # to preserve SDK-specific internal state or metadata.
+
         # Tool choice
         tool_choice = config.get("tool_choice")
         if tool_choice is not None:
             updates["tool_choice"] = tool_choice
 
         # Tool filtering by allowlist
+        # Protocol Note: Manual middleware-level filtering is identified in AGENTS.md 
+        # as a potential "misidentification" zone where middleware duplicates 
+        # or conflicts with native Claude API "Dynamic Filtering" features.
         allowed_tools = config.get("allowed_tools")
         if allowed_tools is not None and hasattr(request, "tools"):
             filtered = []
+            # Performance Note: list membership check is O(M). Filtering loop is O(N*M).
+            # If allowed_tools is large, consider converting to a set once per call.
             for tool in request.tools:
                 name = None
                 if isinstance(tool, dict):
                     name = tool.get("name")
                 elif hasattr(tool, "name"):
                     name = tool.name
+                
+                # Implementation Note: Name extraction is naive. It may miss 
+                # tools with non-standard name attributes or complex wrapper 
+                # objects not covered by this logic.
                 if name and name in allowed_tools:
                     filtered.append(tool)
             updates["tools"] = filtered
@@ -77,7 +101,11 @@ class DynamicToolConfigMiddleware(AgentMiddleware):
         return request
 
     def wrap_model_call(self, request: Any, handler: Callable) -> Any:
-        """Apply stage-aware tool config on the request (sync)."""
+        """Apply stage-aware tool config on the request (sync).
+        
+        Developer Note: Typing is 'Any'. To ensure contract safety with the 
+        Deep Agents SDK, this should eventually be typed as ModelRequest[ContextT].
+        """
         state = self._extract_state(request)
         config = self._get_config_for_state(state)
         if config:

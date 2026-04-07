@@ -1,6 +1,6 @@
 """INTAKE stage wiring.
 
-Spec References: Sections 3.1, 3.1.1, 7.3, 15.11
+Spec References: Sections 3.1, 3.1.1, 7.3, 15.11 
 
 The INTAKE stage handles requirements gathering, PRD authoring (by the
 orchestrator directly — NOT delegated), and eval suite creation.
@@ -54,11 +54,14 @@ REQUIRED_PRD_SECTIONS = [
 ]
 
 # Maximum clarifying questions before drafting PRD
-MIN_CLARIFYING_QUESTIONS = 3
-MAX_CLARIFYING_QUESTIONS = 7
+MIN_CLARIFYING_QUESTIONS = 3 ## would like to make this configurable eventually in UI
+MAX_CLARIFYING_QUESTIONS = 7 ## would like to make this configurable eventually in UI
 
 # Maximum revision cycles in PRD_REVIEW
-MAX_REVISION_CYCLES = 5
+MAX_REVISION_CYCLES = 5 ## would like to make this configurable eventually in UI
+
+# TODO: Consider centralizing these constants into a configuration object/schema
+# to avoid hardcoding workflow parameters across multiple stage modules.
 
 
 class IntakeStage:
@@ -66,7 +69,7 @@ class IntakeStage:
 
     Implements the Interactive Eval Creation Experience (Section 15.11):
     1. User describes project idea
-    2. Orchestrator asks 3-7 clarifying questions
+    2. Orchestrator asks `N` clarifying questions (where N is configurable)
     3. Orchestrator confirms requirements
     4. Orchestrator writes PRD via write_file
     5. Orchestrator proposes eval suite with scoring strategies
@@ -125,6 +128,10 @@ class IntakeStage:
         if not eval_approved:
             unmet.append("Eval suite not approved by user")
 
+        # FIXME: Docstring claims "Document-renderer has produced DOCX/PDF versions"
+        # as an exit condition, but no validation exists for rendered documents.
+        # Add check for {project_dir}/artifacts/intake/prd.docx and/or .pdf.
+
         return {
             "met": len(unmet) == 0,
             "unmet": unmet,
@@ -145,6 +152,9 @@ class IntakeStage:
         if HAS_YAML:
             return f"---\n{yaml.dump(fm, default_flow_style=False, sort_keys=False)}---\n"
         else:
+            # NOTE: This manual fallback is extremely basic and lacks support for 
+            # properly escaping special characters or handling complex nested types.
+            # It also creates a divergence in behavior between environments with/without PyYAML.
             lines = ["---"]
             for k, v in fm.items():
                 if isinstance(v, list):
@@ -158,6 +168,10 @@ class IntakeStage:
 
     def validate_prd_sections(self, content: str) -> dict[str, Any]:
         """Validate that a PRD contains all 10 required sections."""
+        # TODO: This validation is extremely naive. It checks for the existence 
+        # of the section title as a substring anywhere in the content, which 
+        # is easily bypassed. It should be updated to look for actual Markdown 
+        # header patterns (e.g., '^# Product Summary').
         content_lower = content.lower()
         missing = [s for s in REQUIRED_PRD_SECTIONS if s.lower() not in content_lower]
         return {
