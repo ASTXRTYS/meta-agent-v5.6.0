@@ -12,28 +12,8 @@ if TYPE_CHECKING:
     from langchain_anthropic import ChatAnthropic
 
 
-# ---------------------------------------------------------------------------
-# Per-agent effort levels — Section 10.5.3
-# ---------------------------------------------------------------------------
-
-AGENT_EFFORT_LEVELS: dict[str, str | None] = {
-    "pm": "high",
-    "research-agent": None,
-    "verification-agent": "max",
-    "spec-writer": "high",
-    "plan-writer": "high",
-    "code-agent": "high",
-    "document-renderer": "low",
-    "evaluation-agent": "high",
-}
-
-AGENT_MAX_TOKENS: dict[str, int] = {
-    "research-agent": 16000,
-}
-
-
-def get_model_config(agent_name: str = "pm") -> dict[str, Any]:
-    """Return model configuration for a given agent.
+def get_model_config(effort: str | None = None) -> dict[str, Any]:
+    """Return model configuration.
 
     Uses ``META_AGENT_MODEL`` env var (format: ``provider:model_name``).
     Default: ``anthropic:claude-opus-4-6``.
@@ -42,16 +22,12 @@ def get_model_config(agent_name: str = "pm") -> dict[str, Any]:
     ``thinking={"type": "adaptive"}``.  NO ``budget_tokens`` —
     deprecated on Opus 4.6 and Sonnet 4.6 (Section 10.5.4).
 
-    Effort level is set per-agent via ``output_config`` when configured.
-    The research-agent intentionally omits explicit effort so Opus 4.6 runs
-    with adaptive thinking alone and the API default effort behavior.
+    Effort level is set via ``output_config`` when explicitly requested.
     """
     model_string = os.getenv("META_AGENT_MODEL", "anthropic:claude-opus-4-6")
     parts = model_string.split(":", 1)
     provider = parts[0] if len(parts) == 2 else "anthropic"
     model_name = parts[1] if len(parts) == 2 else model_string
-
-    effort = AGENT_EFFORT_LEVELS.get(agent_name, "medium")
 
     config: dict[str, Any] = {
         "provider": provider,
@@ -75,7 +51,7 @@ def get_model_config(agent_name: str = "pm") -> dict[str, Any]:
     return config
 
 
-def get_configured_model(agent_name: str = "pm") -> "ChatAnthropic":
+def get_configured_model(effort: str | None = None, max_tokens: int | None = None) -> "ChatAnthropic":
     """Return a ``ChatAnthropic`` instance with adaptive thinking & effort.
 
     Uses :func:`get_model_config` to determine thinking config and effort
@@ -91,15 +67,15 @@ def get_configured_model(agent_name: str = "pm") -> "ChatAnthropic":
     """
     from langchain_anthropic import ChatAnthropic as _ChatAnthropic
 
-    cfg = get_model_config(agent_name)
+    cfg = get_model_config(effort=effort)
     output_config = cfg.get("output_config", {})
-    effort = output_config.get("effort")
+    resolved_effort = output_config.get("effort")
 
     # max_tokens is required when thinking is enabled.
-    # Higher effort levels get more headroom unless an agent-specific override
-    # is configured.
-    max_tokens_map = {"max": 16000, "high": 12000, "medium": 8000, "low": 4096}
-    max_tokens = AGENT_MAX_TOKENS.get(agent_name, max_tokens_map.get(effort, 8000))
+    # Higher effort levels get more headroom unless an explicit override is provided.
+    if max_tokens is None:
+        max_tokens_map = {"max": 16000, "high": 12000, "medium": 8000, "low": 4096}
+        max_tokens = max_tokens_map.get(resolved_effort, 8000)
 
     kwargs: dict[str, Any] = {
         "model": cfg["model_name"],
@@ -108,8 +84,8 @@ def get_configured_model(agent_name: str = "pm") -> "ChatAnthropic":
         "streaming": True,
         "stream_usage": True,
     }
-    if effort is not None:
-        kwargs["effort"] = effort
+    if resolved_effort is not None:
+        kwargs["effort"] = resolved_effort
 
     return _ChatAnthropic(
         **kwargs,

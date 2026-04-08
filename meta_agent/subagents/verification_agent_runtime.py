@@ -178,7 +178,7 @@ def create_verification_agent_graph(
     Middleware: 6 auto + SkillsMiddleware, ToolErrorMiddleware, MemoryMiddleware
     """
     cfg = get_model_config("verification-agent")
-    model = get_configured_model("verification-agent")
+    model = get_configured_model(effort="max")
     repo_root = Path(__file__).resolve().parents[2]
     composite_backend = create_composite_backend(repo_root)
     bare_fs = create_bare_filesystem_backend()

@@ -17,7 +17,7 @@ import yaml
 
 from meta_agent.tools import LANGCHAIN_TOOLS
 from meta_agent.state import MetaAgentState, VALID_TRANSITIONS
-from meta_agent.subagents.configs import SUBAGENT_CONFIGS
+from meta_agent.subagents.configs import AGENT_REGISTRY
 from meta_agent.tools.registry import HITL_GATED_TOOLS
 from meta_agent.safety import RECURSION_LIMITS, TOKEN_BUDGET_LIMITS
 
@@ -101,9 +101,7 @@ class TestSubagentsCataloged:
         catalog = _load_catalog()
         ids = _catalog_ids(catalog)
         missing = []
-        for name, cfg in SUBAGENT_CONFIGS.items():
-            if cfg.get("type") == "reserved":
-                continue
+        for name in AGENT_REGISTRY.keys():
             sa_id = f"subagent.{name}"
             if sa_id not in ids:
                 missing.append(name)

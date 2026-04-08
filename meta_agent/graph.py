@@ -198,7 +198,7 @@ def create_graph(
 
     # Create the real graph via deepagents SDK
     graph = create_deep_agent(
-        model=get_configured_model("pm"),
+        model=get_configured_model(effort="high"),
         tools=LANGCHAIN_TOOLS,
         system_prompt=system_prompt,
         middleware=explicit_middleware,

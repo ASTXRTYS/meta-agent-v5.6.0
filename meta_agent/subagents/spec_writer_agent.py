@@ -289,7 +289,7 @@ def create_spec_writer_agent_graph(
     - No web_search / web_fetch (spec-writer works from provided artifacts)
     """
     cfg = get_model_config("spec-writer")
-    model = get_configured_model("spec-writer")
+    model = get_configured_model(effort="high")
     repo_root = Path(__file__).resolve().parents[2]
     composite_backend = create_composite_backend(repo_root)
     bare_fs = create_bare_filesystem_backend()

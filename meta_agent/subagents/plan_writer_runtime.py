@@ -215,7 +215,7 @@ def create_plan_writer_agent_graph(
     Subagents: document-renderer (for plan rendering to DOCX/PDF)
     """
     cfg = get_model_config("plan-writer")
-    model = get_configured_model("plan-writer")
+    model = get_configured_model(effort="high")
     repo_root = Path(__file__).resolve().parents[2]
     composite_backend = create_composite_backend(repo_root)
     bare_fs = create_bare_filesystem_backend()

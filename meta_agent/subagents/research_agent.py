@@ -655,7 +655,7 @@ def create_research_agent_graph(
 ) -> Any:
     """Create the internal research-agent graph."""
     cfg = get_model_config("research-agent")
-    model = get_configured_model("research-agent")
+    model = get_configured_model(effort=None, max_tokens=16000)
     repo_root = Path(__file__).resolve().parents[2]
     composite_backend = create_composite_backend(repo_root)
     bare_fs = create_bare_filesystem_backend()

@@ -17,9 +17,7 @@ COVERS = [
     "stub.eval_tools.run_eval_suite",
     "stub.eval_tools.get_eval_results",
     "stub.eval_tools.compare_eval_runs",
-    "stub.memory_loader.middleware",
     "stub.document_renderer.render_artifact",
-    "stub.document_renderer.config",
 ]
 
 
@@ -42,8 +40,6 @@ ALLOWED_STUBS: dict[str, list[str]] = {
         "get_eval_results",
         "compare_eval_runs",
     ],
-    "meta_agent/middleware/memory_loader.py": ["MemoryLoaderMiddleware"],
-    "meta_agent/subagents/document_renderer.py": ["DOCUMENT_RENDERER_CONFIG"],
 }
 
 # Stub patterns in the allowlist that map to config stubs (not raising NotImplementedError)
@@ -106,18 +102,6 @@ class TestAllowedStubsExist:
         for func_name in ALLOWED_STUBS["meta_agent/tools/eval_tools.py"]:
             assert f"def {func_name}" in content, f"Missing stub: {func_name}"
             assert "NotImplementedError" in content
-
-    def test_memory_loader_stub_exists(self):
-        path = META_AGENT_ROOT / "middleware" / "memory_loader.py"
-        assert path.exists(), "memory_loader.py should exist"
-        content = path.read_text()
-        assert "MemoryLoaderMiddleware" in content
-
-    def test_document_renderer_stub_exists(self):
-        path = META_AGENT_ROOT / "subagents" / "document_renderer.py"
-        assert path.exists(), "document_renderer.py should exist"
-        content = path.read_text()
-        assert "DOCUMENT_RENDERER_CONFIG" in content
 
 
 class TestNoNewStubs:
@@ -184,16 +168,4 @@ class TestNoSoftStubs:
 
         assert not violations, (
             f"Found soft stubs outside allowlist:\n" + "\n".join(f"  {v}" for v in violations)
-        )
-
-
-class TestSupersededStubsNotWired:
-    """Verify superseded stubs aren't wired into the active graph."""
-
-    def test_memory_loader_not_in_graph(self):
-        graph_path = META_AGENT_ROOT / "graph.py"
-        content = graph_path.read_text()
-        assert "MemoryLoaderMiddleware" not in content, (
-            "MemoryLoaderMiddleware should NOT be wired in graph.py "
-            "(superseded by SDK MemoryMiddleware)"
         )

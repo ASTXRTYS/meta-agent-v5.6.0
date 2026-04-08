@@ -208,7 +208,7 @@ def create_evaluation_agent_graph(
     System prompt: Placeholder — full prompt comes in Phase 2 of evaluation stack
     """
     cfg = get_model_config("evaluation-agent")
-    model = get_configured_model("evaluation-agent")
+    model = get_configured_model(effort="high")
     repo_root = Path(__file__).resolve().parents[2]
     composite_backend = create_composite_backend(repo_root)
     bare_fs = create_bare_filesystem_backend()

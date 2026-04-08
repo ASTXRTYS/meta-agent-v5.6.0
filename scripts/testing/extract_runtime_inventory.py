@@ -43,9 +43,11 @@ def extract_langchain_tools(source: str) -> list[str]:
 
 
 def extract_subagent_configs(source: str) -> list[str]:
-    """Extract subagent names from SUBAGENT_CONFIGS dict keys."""
-    # Match string keys in SUBAGENT_CONFIGS = { "name": { ... }, ... }
-    return re.findall(r'"([^"]+)":\s*\{', source)
+    """Extract subagent names from AGENT_REGISTRY dict keys."""
+    registry_match = re.search(r'AGENT_REGISTRY.*?(?:=)\s*\{([^}]+)\}', source, re.DOTALL)
+    if not registry_match:
+        return []
+    return re.findall(r'"([^"]+)"\s*:', registry_match.group(1))
 
 
 def extract_state_fields(source: str) -> list[str]:

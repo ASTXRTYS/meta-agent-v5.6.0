@@ -71,7 +71,7 @@ def create_document_renderer_subagent(
     Returns:
         CompiledSubAgent ready for the orchestrator.
     """
-    model = get_configured_model("document-renderer")
+    model = get_configured_model(effort="low")
     repo_root = Path(__file__).resolve().parents[2]
     composite_backend = create_composite_backend(repo_root)
     bare_fs = create_bare_filesystem_backend()

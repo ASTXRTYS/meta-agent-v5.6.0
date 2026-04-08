@@ -307,7 +307,7 @@ components:
     kind: subagent
     source: meta_agent/subagents/configs.py
     canonical_name: research-agent
-    runtime_surface: SUBAGENT_CONFIGS
+    runtime_surface: AGENT_REGISTRY
     criticality: critical
     contract: "Deep Agent with max effort, recursion_limit=100, web_search/web_fetch server-side tools."
     required_coverage: [contract, integration]
@@ -318,7 +318,7 @@ components:
     kind: subagent
     source: meta_agent/subagents/configs.py
     canonical_name: spec-writer
-    runtime_surface: SUBAGENT_CONFIGS
+    runtime_surface: AGENT_REGISTRY
     criticality: critical
     contract: "Deep Agent with high effort, recursion_limit=50, propose_evals tool."
     required_coverage: [contract, integration]
@@ -329,7 +329,7 @@ components:
     kind: subagent
     source: meta_agent/subagents/configs.py
     canonical_name: verification-agent
-    runtime_surface: SUBAGENT_CONFIGS
+    runtime_surface: AGENT_REGISTRY
     criticality: critical
     contract: "Deep Agent with max effort, recursion_limit=50, read-only filesystem tools."
     required_coverage: [contract, integration]
@@ -340,7 +340,7 @@ components:
     kind: subagent
     source: meta_agent/subagents/configs.py
     canonical_name: plan-writer
-    runtime_surface: SUBAGENT_CONFIGS
+    runtime_surface: AGENT_REGISTRY
     criticality: important
     contract: "Deep Agent with high effort, recursion_limit=50."
     required_coverage: [contract]
@@ -351,7 +351,7 @@ components:
     kind: subagent
     source: meta_agent/subagents/configs.py
     canonical_name: code-agent
-    runtime_surface: SUBAGENT_CONFIGS
+    runtime_surface: AGENT_REGISTRY
     criticality: important
     contract: "Deep Agent with high effort, recursion_limit=150, 3 nested sub-agents (observation, evaluation, audit)."
     required_coverage: [contract]
@@ -362,7 +362,7 @@ components:
     kind: subagent
     source: meta_agent/subagents/configs.py
     canonical_name: evaluation-agent
-    runtime_surface: SUBAGENT_CONFIGS
+    runtime_surface: AGENT_REGISTRY
     criticality: important
     contract: "Deep Agent with high effort, recursion_limit=50, langsmith and eval tools."
     required_coverage: [contract]
@@ -373,7 +373,7 @@ components:
     kind: subagent
     source: meta_agent/subagents/configs.py
     canonical_name: document-renderer
-    runtime_surface: SUBAGENT_CONFIGS
+    runtime_surface: AGENT_REGISTRY
     criticality: supporting
     contract: "Dict-based agent with low effort, recursion_limit=50, docx/pdf skills."
     required_coverage: [contract]

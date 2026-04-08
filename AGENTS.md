@@ -611,9 +611,10 @@ The PM orchestrator (meta_agent/graph.py) uses the following middleware stack:
 | PatchToolCallsMiddleware | SDK | Tool call normalization, patches dangling tool calls in message history |
 | HumanInTheLoopMiddleware | SDK | HITL interrupt handling via interrupt_on parameter (configured for HITL_GATED_TOOLS) |
 
-### Subagent Middleware Stacks
+### Subagent Factory Registration
 
-Each subagent has its own middleware configuration. Note: The SUBAGENT_MIDDLEWARE dict in configs.py is dead metadata; actual middleware is configured inline in each subagent's factory file.
+Each subagent orchestrates its own middleware and tool setup internally via isolated factory functions (e.g., `create_research_agent_subagent()`). 
+These factory constructions execute dynamically via the `AGENT_REGISTRY` dictionary in `meta_agent/subagents/configs.py`. The legacy static metadata dictionaries (like `SUBAGENT_CONFIGS` or `SUBAGENT_MIDDLEWARE`) have been removed to assert factories as the single source of truth.
 
 #### Research Agent
 

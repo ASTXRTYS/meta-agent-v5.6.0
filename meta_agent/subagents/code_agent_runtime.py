@@ -213,7 +213,7 @@ def create_code_agent_graph(
     interrupt_on: execute_command (HITL required for all shell execution)
     """
     cfg = get_model_config("code-agent")
-    model = get_configured_model("code-agent")
+    model = get_configured_model(effort="high")
     repo_root = Path(__file__).resolve().parents[2]
     composite_backend = create_composite_backend(repo_root)
     bare_fs = create_bare_filesystem_backend()

@@ -1,3 +1,4 @@
+# REPLACES: (no legacy equivalent)
 """Contract tests for Claude API feature integration.
 
 Tests streaming, server-side tools, programmatic tool calling (allowed_callers),
@@ -23,18 +24,18 @@ def test_get_configured_model_has_streaming_enabled():
     """get_configured_model() returns ChatAnthropic with streaming=True."""
     from meta_agent.model import get_configured_model
 
-    model = get_configured_model("pm")
+    model = get_configured_model(effort="high")
     assert model.streaming is True
     assert model.stream_usage is True
 
 
 def test_all_agents_get_streaming():
-    """Every agent effort level produces a streaming-enabled model."""
-    from meta_agent.model import AGENT_EFFORT_LEVELS, get_configured_model
+    """Every effort level produces a streaming-enabled model."""
+    from meta_agent.model import get_configured_model
 
-    for agent_name in AGENT_EFFORT_LEVELS:
-        model = get_configured_model(agent_name)
-        assert model.streaming is True, f"{agent_name} should have streaming=True"
+    for effort in ["low", "medium", "high", "max", None]:
+        model = get_configured_model(effort=effort)
+        assert model.streaming is True, f"Effort {effort} should have streaming=True"
 
 
 # ---------------------------------------------------------------------------
