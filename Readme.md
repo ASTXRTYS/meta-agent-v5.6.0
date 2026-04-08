@@ -99,6 +99,24 @@ When the PM finishes shaping evaluation criteria and business-logic datasets wit
 
 ---
 
+## Memory & Instruction Architecture (AGENTS.md)
+
+The system uses a tiered memory architecture powered by `MemoryMiddleware` to ensure agents stay aligned with their identity and project goals without manual filesystem overhead.
+
+### The Tier System
+Instructions are automatically resolved across three levels of `AGENTS.md` files:
+
+1.  **Level 1: Global/Library** (`/.agents/AGENTS.md`) - Core system instructions and shared SDK patterns.
+2.  **Level 2: Agent-Specific** (`/.agents/{agent_name}/AGENTS.md`) - Specialized identity and behavioral protocols for that specific sub-agent.
+3.  **Level 3: Project-Specific** (`{project_dir}/.agents/AGENTS.md`) - Context unique to the current active project.
+
+### Configuration Convention
+- **Middleware Loading**: All instructions are injected via `MemoryMiddleware`. This prevents instruction loss during context compaction (summarization).
+- **No Manual Checks**: Runtimes never perform manual `os.path` checks. `MemoryMiddleware` handles missing files gracefully, allowing for a mix of defaults and overrides.
+- **Directory Personas**: New sub-agent personas are created by adding a directory under `/.agents/` with its own `AGENTS.md`.
+
+---
+
 ## Information Isolation Protocol
 
 This is architecturally critical. The optimizer-evaluator feedback loop only works if information asymmetry is maintained. The optimizer must remain blind to evaluation artifacts to prevent reward hacking and overfitting.

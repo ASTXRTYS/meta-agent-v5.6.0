@@ -25,6 +25,7 @@ from pathlib import Path
 from typing import Any, Mapping
 
 from deepagents import create_deep_agent
+from deepagents.middleware.memory import MemoryMiddleware
 from deepagents.middleware.skills import SkillsMiddleware
 from deepagents.middleware.subagents import CompiledSubAgent
 from langchain_core.runnables import RunnableLambda
@@ -38,6 +39,7 @@ from meta_agent.backend import (
 from meta_agent.middleware.tool_error_handler import ToolErrorMiddleware
 from meta_agent.model import get_configured_model, get_model_config
 from meta_agent.prompts.spec_writer import construct_spec_writer_prompt
+from meta_agent.config.memory import get_memory_sources
 from meta_agent.tools import propose_evals_tool
 
 
@@ -119,7 +121,13 @@ def _extract_status_block(text: str) -> dict[str, Any]:
     The spec-writer prompt instructs the agent to end with a fenced JSON
     block containing status, needs_additional_research, etc.
     """
-    # Try ```json ... ``` first
+    # TODO: Fix regex to handle nested JSON structures
+    # ISSUE: The regex r"```json\s*(\{.*?\})\s*```" uses non-greedy matching (.*?) which
+    # fails on nested JSON objects. If the spec-writer outputs nested JSON, this regex
+    # will only capture the outermost braces and fail to parse correctly.
+    # RECOMMENDED ACTION: Consolidate JSON extraction logic with plan_writer_runtime.py
+    # which likely has similar code. Use a proper JSON parser or improve the regex
+    # to handle nested structures (e.g., recursive matching or use a JSON library).
     match = re.search(r"```json\s*(\{.*?\})\s*```", text, re.DOTALL)
     if match:
         try:
@@ -289,6 +297,10 @@ def create_spec_writer_agent_graph(
     resolved_skills = _resolve_skills_dirs(skills_dirs)
     skills_mw = SkillsMiddleware(backend=bare_fs, sources=resolved_skills)
 
+    # MemoryMiddleware
+    memory_sources = get_memory_sources("spec-writer", project_dir, repo_root)
+    memory_mw = MemoryMiddleware(backend=bare_fs, sources=memory_sources)
+
     tools = [
         propose_evals_tool,
     ]
@@ -299,6 +311,7 @@ def create_spec_writer_agent_graph(
         system_prompt=construct_spec_writer_prompt(project_dir, project_id),
         middleware=[
             skills_mw,
+            memory_mw,
             ToolErrorMiddleware(),
         ],
         backend=composite_backend,

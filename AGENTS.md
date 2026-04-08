@@ -282,8 +282,17 @@ These are **auto-attached** by the SDK — we do NOT instantiate them:
 | DynamicSystemPromptMiddleware | middleware/dynamic_system_prompt.py | @wrap_model_call / @before_model | Reads current_stage from state, builds stage-aware prompt, strips stale system messages from history in before_model, then applies request-level system prompt in wrap hooks. MUST be first in middleware list. |
 | MetaAgentStateMiddleware | middleware/meta_state.py | AgentMiddleware | Extends the graph state schema and keeps orchestrator state shape aligned with the spec. |
 | SummarizationToolMiddleware | graph.py (SDK middleware instance) | SDK middleware | Exposes compact_conversation for agent-controlled compaction on top of the auto-attached summarization layer. |
-| MemoryMiddleware | graph.py (SDK middleware instance) | SDK middleware | Loads the orchestrator's own AGENTS.md files with per-agent isolation. |
+| MemoryMiddleware | graph.py (SDK middleware instance) | SDK middleware | Loads the orchestrator's tiered AGENTS.md files with per-agent isolation. |
 | ToolErrorMiddleware | middleware/tool_error_handler.py | @wrap_tool_call | Wraps tool calls in try/except, returns structured error JSON |
+
+### Subagent Memory Architecture
+
+All subagents follow a strict memory convention to ensure instruction reliability and SDK alignment:
+
+1.  **Tiered Resolution**: Agents load instructions from the root `.agents/`, their per-agent `.agents/{name}/`, and the project-local `.agents/` directory using the `get_memory_sources` helper.
+2.  **Middleware Injection**: Memory is always loaded via `MemoryMiddleware` during `create_deep_agent()` initialization. This ensures instructions are treated as persistent system context rather than volatile history.
+3.  **Zero Manual I/O**: Agent factories must never use manual filesystem checks for `AGENTS.md`. The `MemoryMiddleware` is the sole authority for loading instructions, handling optional project files gracefully.
+4.  **Persona Graduation**: To define a new subagent identity, simply create a directory under `/.agents/` with an `AGENTS.md`. The system will automatically resolve it for any agent initialized with that name.
 
 ## Architecture
 

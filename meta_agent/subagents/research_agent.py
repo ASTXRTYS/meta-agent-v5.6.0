@@ -33,7 +33,8 @@ from meta_agent.model import get_configured_model, get_model_config
 from meta_agent.prompts.research_agent import construct_research_agent_prompt
 from meta_agent.safety import RECURSION_LIMITS
 from meta_agent.tracing import traceable
-from meta_agent.subagents.document_renderer import build_document_renderer_subagent
+from meta_agent.subagents.document_renderer import create_document_renderer_subagent
+from meta_agent.config.memory import get_memory_sources
 from meta_agent.tools import (
     get_server_side_tools,
     record_assumption_tool,
@@ -665,13 +666,8 @@ def create_research_agent_graph(
         cfg["model_string"], composite_backend
     )
 
-    memory_sources = []
-    project_agents_md = os.path.join(project_dir, ".agents", "research-agent", "AGENTS.md")
-    if os.path.isfile(project_agents_md):
-        memory_sources.append(project_agents_md)
-    global_agents_md = str(repo_root / ".agents" / "research-agent" / "AGENTS.md")
-    if os.path.isfile(global_agents_md):
-        memory_sources.append(global_agents_md)
+    # MemoryMiddleware
+    memory_sources = get_memory_sources("research-agent", project_dir, repo_root)
     memory_mw = MemoryMiddleware(backend=bare_fs, sources=memory_sources)
 
     resolved_skills = _resolve_skills_dirs(skills_dirs)
@@ -686,7 +682,7 @@ def create_research_agent_graph(
 
     # Make document-renderer available as a named subagent so the
     # research-agent can delegate rendering via task(agent="document-renderer")
-    doc_renderer = build_document_renderer_subagent(resolved_skills)
+    doc_renderer = create_document_renderer_subagent(resolved_skills)
 
     return create_deep_agent(
         model=model,

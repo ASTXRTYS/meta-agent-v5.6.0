@@ -41,7 +41,8 @@ from meta_agent.middleware.dynamic_tool_config import DynamicToolConfigMiddlewar
 from meta_agent.middleware.tool_error_handler import ToolErrorMiddleware
 from meta_agent.model import get_configured_model, get_model_config
 from meta_agent.prompts.plan_writer import construct_plan_writer_prompt
-from meta_agent.subagents.document_renderer import build_document_renderer_subagent
+from meta_agent.subagents.document_renderer import create_document_renderer_subagent
+from meta_agent.config.memory import get_memory_sources
 
 
 # ---------------------------------------------------------------------------
@@ -224,20 +225,14 @@ def create_plan_writer_agent_graph(
         cfg["model_string"], composite_backend
     )
 
-    # MemoryMiddleware: project-specific + global AGENTS.md
-    memory_sources: list[str] = []
-    project_agents_md = os.path.join(project_dir, ".agents", "plan-writer", "AGENTS.md")
-    if os.path.isfile(project_agents_md):
-        memory_sources.append(project_agents_md)
-    global_agents_md = str(repo_root / ".agents" / "plan-writer" / "AGENTS.md")
-    if os.path.isfile(global_agents_md):
-        memory_sources.append(global_agents_md)
+    # MemoryMiddleware
+    memory_sources = get_memory_sources("plan-writer", project_dir, repo_root)
     memory_mw = MemoryMiddleware(backend=bare_fs, sources=memory_sources)
 
     resolved_skills = _resolve_skills_dirs(skills_dirs)
     skills_mw = SkillsMiddleware(backend=bare_fs, sources=resolved_skills)
 
-    doc_renderer = build_document_renderer_subagent(resolved_skills)
+    doc_renderer = create_document_renderer_subagent(resolved_skills)
 
     return create_deep_agent(
         model=model,

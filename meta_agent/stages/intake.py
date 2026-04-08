@@ -60,8 +60,13 @@ MAX_CLARIFYING_QUESTIONS = 7 ## would like to make this configurable eventually 
 # Maximum revision cycles in PRD_REVIEW
 MAX_REVISION_CYCLES = 5 ## would like to make this configurable eventually in UI
 
-# TODO: Consider centralizing these constants into a configuration object/schema
-# to avoid hardcoding workflow parameters across multiple stage modules.
+# TODO: Centralize workflow constants into configuration object
+# ISSUE: MAX_REVISION_CYCLES and other workflow parameters are hardcoded across
+# multiple stage modules (intake.py, prd_review.py, spec_generation.py). This makes
+# it difficult to configure workflow behavior globally or per-project.
+# RECOMMENDED ACTION: Create a configuration object/schema (e.g., WorkflowConfig)
+# in meta_agent/configuration.py or meta_agent/stages/common.py to centralize
+# these parameters. Allow runtime or project-level overrides.
 
 
 class IntakeStage:
@@ -128,9 +133,7 @@ class IntakeStage:
         if not eval_approved:
             unmet.append("Eval suite not approved by user")
 
-        # FIXME: Docstring claims "Document-renderer has produced DOCX/PDF versions"
-        # as an exit condition, but no validation exists for rendered documents.
-        # Add check for {project_dir}/artifacts/intake/prd.docx and/or .pdf.
+        # Note: Validation helpers consolidation TODO in stages/__init__.py
 
         return {
             "met": len(unmet) == 0,
@@ -152,9 +155,13 @@ class IntakeStage:
         if HAS_YAML:
             return f"---\n{yaml.dump(fm, default_flow_style=False, sort_keys=False)}---\n"
         else:
-            # NOTE: This manual fallback is extremely basic and lacks support for 
-            # properly escaping special characters or handling complex nested types.
-            # It also creates a divergence in behavior between environments with/without PyYAML.
+            # TODO: Remove or improve YAML fallback implementation
+            # ISSUE: Manual YAML fallback (lines 150-158) is extremely basic and lacks
+            # support for properly escaping special characters or handling complex nested
+            # types. It also creates behavior divergence between environments with/without PyYAML.
+            # RECOMMENDED ACTION: Either make PyYAML a required dependency (add to setup.py)
+            # or improve the fallback to handle edge cases properly. For production use,
+            # require PyYAML to avoid data corruption from malformed serialization.
             lines = ["---"]
             for k, v in fm.items():
                 if isinstance(v, list):
@@ -167,11 +174,10 @@ class IntakeStage:
             return "\n".join(lines) + "\n"
 
     def validate_prd_sections(self, content: str) -> dict[str, Any]:
-        """Validate that a PRD contains all 10 required sections."""
-        # TODO: This validation is extremely naive. It checks for the existence 
-        # of the section title as a substring anywhere in the content, which 
-        # is easily bypassed. It should be updated to look for actual Markdown 
-        # header patterns (e.g., '^# Product Summary').
+        """Validate that a PRD contains all 10 required sections.
+        
+        Note: Validation helpers consolidation TODO in stages/__init__.py.
+        """
         content_lower = content.lower()
         missing = [s for s in REQUIRED_PRD_SECTIONS if s.lower() not in content_lower]
         return {

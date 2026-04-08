@@ -11,6 +11,15 @@ Cross-check protocol:
   - research bundle  -> verify against PRD
   - spec             -> verify against PRD + research bundle
   - plan             -> verify against spec
+
+Architecture Note:
+    This file contains the full Deep Agent runtime. Helper functions like
+    `_repo_root()`, `_read_text()`, and `_resolve_skills_dirs()` are local
+    duplicates shared with `research_agent.py` and other runtimes.
+
+    I like the solution of potentially having a `common.py` (or
+    `utils/runtime.py`) to consolidate these cross-cutting utilities while
+    keeping the runtime/agent separation intact.
 """
 
 from __future__ import annotations
@@ -36,6 +45,7 @@ from meta_agent.middleware.agent_decision_state import AgentDecisionStateMiddlew
 from meta_agent.middleware.tool_error_handler import ToolErrorMiddleware
 from meta_agent.model import get_configured_model, get_model_config
 from meta_agent.prompts.verification_agent import construct_verification_agent_prompt
+from meta_agent.config.memory import get_memory_sources
 from meta_agent.subagents.verification_agent import (
     REQUIRED_VERDICT_FIELDS,
     VERIFICATION_STATUSES,
@@ -173,14 +183,8 @@ def create_verification_agent_graph(
     composite_backend = create_composite_backend(repo_root)
     bare_fs = create_bare_filesystem_backend()
 
-    # MemoryMiddleware: project-specific + global AGENTS.md
-    memory_sources: list[str] = []
-    project_agents_md = os.path.join(project_dir, ".agents", "verification-agent", "AGENTS.md")
-    if os.path.isfile(project_agents_md):
-        memory_sources.append(project_agents_md)
-    global_agents_md = str(repo_root / ".agents" / "verification-agent" / "AGENTS.md")
-    if os.path.isfile(global_agents_md):
-        memory_sources.append(global_agents_md)
+    # MemoryMiddleware
+    memory_sources = get_memory_sources("verification-agent", project_dir, repo_root)
     memory_mw = MemoryMiddleware(backend=bare_fs, sources=memory_sources)
 
     resolved_skills = _resolve_skills_dirs(skills_dirs)

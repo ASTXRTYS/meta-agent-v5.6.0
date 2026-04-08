@@ -4,6 +4,11 @@ Spec References: Section 7.2.2
 
 The evaluation-agent prompt is monolithic — the .md file is self-contained.
 This loader reads it and injects only the workspace context.
+
+See Also:
+    - `sections.format_workspace_section()` — shared utility
+
+Note: Shared utilities consolidation TODO in sections.py lines 611-618.
 """
 
 from __future__ import annotations
@@ -32,6 +37,8 @@ def construct_evaluation_agent_prompt(
     """
     prompt = _load_prompt_markdown()
 
+    # TODO: Use sections.format_workspace_section(project_dir, project_id)
+    # instead of inline f-string construction. See research_agent.py pattern.
     workspace_block = (
         f"\n\n---\n\n## Workspace Context\n\n"
         f"- **Project directory:** `{project_dir}`\n"

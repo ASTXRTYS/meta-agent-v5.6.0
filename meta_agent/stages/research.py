@@ -9,8 +9,7 @@ from typing import Any
 def _get_field(obj: Any, field: str) -> Any:
     """Get a field from either a dataclass or a dict.
     
-    NOTE: This helper is duplicated from intake.py (lines 173-179).
-    Consider extracting to a shared utility module to eliminate duplication.
+    Note: Helper duplication consolidation TODO in stages/__init__.py.
     """
     if hasattr(obj, field):
         return getattr(obj, field)

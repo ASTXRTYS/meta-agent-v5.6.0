@@ -106,10 +106,13 @@ class PrdReviewStage:
         Returns one of: 'approval', 'modify', 'add', 'remove', 'remove_all',
         'unclear', 'change_scoring'
         """
-        # TODO: This classification logic relies on simple substring matching,
-        # which is extremely brittle for an AI agent system. It should be 
-        # delegated to the LLM (optionally using structured output) to 
-        # interpret the user's intent more accurately and contextually.
+        # TODO: Replace brittle substring classification with LLM-based classification
+        # ISSUE: classify_user_response() uses simple substring matching to categorize
+        # user intent (e.g., checking if "modify" appears in the text). This is extremely
+        # brittle and fails on paraphrases, typos, or context-dependent language.
+        # RECOMMENDED ACTION: Delegate classification to the LLM with structured output
+        # (e.g., define a classification schema with intent labels). This provides more
+        # robust, context-aware interpretation of user responses.
         lower = content.lower().strip()
 
         # Branch 1: Approval
@@ -171,10 +174,10 @@ class PrdReviewStage:
 
 
 def _get_field(obj: Any, field: str) -> Any:
-    """Get a field from either a dataclass or a dict."""
-    # TODO: This utility is duplicated across multiple stage files (intake.py,
-    # prd_review.py, spec_review.py). It should be moved to a shared 
-    # utility module to improve maintainability.
+    """Get a field from either a dataclass or a dict.
+    
+    Note: Helper duplication consolidation TODO in stages/__init__.py.
+    """
     if hasattr(obj, field):
         return getattr(obj, field)
     if isinstance(obj, dict):

@@ -7,10 +7,28 @@ The SPEC_GENERATION stage handles technical specification authoring.
 - Creates Tier 2 eval suite (eval-suite-architecture.json)
 - Up to 3 feedback cycles for revision
 
-TODO: Path construction is inconsistent with sibling stages (mix of os.path.join and f-strings).
-TODO: The "meta-agent" fixture logic is a project-specific hack that should be extracted.
-TODO: No content validation helper for technical spec (unlike research.py).
-TODO: Feedback cycle tracking is disconnected between instance state and workflow state.
+See stages/__init__.py for path construction consolidation TODO.
+
+TODO: Extract "meta-agent" fixture logic to shared utility
+ISSUE: Lines 33-34 contain project-specific fixture selection logic that checks
+for "meta-agent" project ID and uses a different PRD path. This is a hardcoded
+special case that should be extracted to a configurable fixture resolver.
+RECOMMENDED ACTION: Extract fixture selection logic to meta_agent/stages/common.py
+or make it configurable via project metadata.
+
+TODO: Add content validation helper for technical spec
+ISSUE: Unlike research.py which validates required sections in the bundle (lines 30-36),
+this stage blindly trusts file existence without validating spec structure or required
+sections (e.g., architecture, API design, data models).
+RECOMMENDED ACTION: Implement validate_spec_structure() helper similar to
+research.py's validation pattern and add required section checks.
+
+TODO: Fix feedback cycle tracking disconnect
+ISSUE: Feedback cycle tracking is disconnected between instance state (revision_count)
+and workflow state. The stage has MAX_REVISION_CYCLES but tracking may not be properly
+synchronized with workflow persistence.
+RECOMMENDED ACTION: Ensure revision_count is properly checkpointed and restored
+from workflow state to prevent tracking loss across crashes/resumes.
 """
 
 from __future__ import annotations

@@ -4,6 +4,12 @@ Spec References: Section 7.2.2
 
 The code-agent prompt is monolithic — the .md file is self-contained.
 This loader reads it and injects only the workspace context and current task.
+
+See Also:
+    - `sections.format_workspace_section()` — shared utility
+    - `sections.format_agents_md_section()` — shared utility
+
+Note: Shared utilities consolidation TODO in sections.py lines 611-618.
 """
 
 from __future__ import annotations
@@ -26,7 +32,7 @@ def construct_code_agent_prompt(
     project_id: str = "",
     current_stage: str = "EXECUTION",
     current_task: str = "",
-    agents_md: str = "",
+    agents_md: str = "",  # TODO: Unused parameter. Either wire up via format_agents_md_section() or remove.
 ) -> str:
     """Assemble the code agent system prompt.
 
@@ -35,6 +41,8 @@ def construct_code_agent_prompt(
     """
     prompt = _load_prompt_markdown()
 
+    # TODO: Use sections.format_workspace_section(project_dir, project_id)
+    # instead of inline f-string construction. See research_agent.py pattern.
     workspace_block = (
         f"\n\n---\n\n## Workspace Context\n\n"
         f"- **Project directory:** `{project_dir}`\n"
@@ -43,6 +51,8 @@ def construct_code_agent_prompt(
     )
     prompt += workspace_block
 
+    # TODO: Use list-based assembly: sections = [..., current_task_section]
+    # then "\n\n---\n\n".join(sections) for consistent separators
     if current_task:
         prompt += f"\n\n---\n\n## Current Task\n\n{current_task}"
 

@@ -4,6 +4,13 @@ Spec References: Sections 3.1.1, 5.1
 
 Each project gets its own directory tree under .agents/pm/projects/{project_id}/
 with meta.yaml, artifact subdirectories, evals, logs, and per-agent memory.
+
+NOTE: Consolidation opportunities:
+- _write_yaml() duplicates YAML handling pattern from intake.py (stages/), test_infra.py (evals/infrastructure/)
+- PROJECT_AGENTS constant is defined here but .agents/{agent}/AGENTS.md path construction is repeated in:
+  * graph.py (root level)
+  * research_agent.py, code_agent_runtime.py, plan_writer_runtime.py, verification_agent_runtime.py, evaluation_agent_runtime.py (subagents/)
+- slugify() is a common utility that could use python-slugify or similar library
 """
 
 from __future__ import annotations

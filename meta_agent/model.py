@@ -62,7 +62,12 @@ def get_model_config(agent_name: str = "pm") -> dict[str, Any]:
     if effort is not None:
         config["output_config"] = {"effort": effort}
 
-    # Fallback for non-Opus models — Section 10.5.4
+    # TODO: Complete fallback_model implementation
+    # ISSUE: fallback_model flag is set (line 69) but never read elsewhere in the codebase.
+    # This suggests an incomplete implementation for handling non-Opus/Sonnet models
+    # that may need budget_tokens instead of effort parameter.
+    # RECOMMENDED ACTION: Either implement the fallback logic that reads this flag,
+    # or remove the flag if the fallback mechanism is not needed.
     if "opus" not in model_name.lower() and "sonnet" not in model_name.lower():
         # Older models may need budget_tokens instead of effort
         config["fallback_model"] = True
@@ -111,6 +116,8 @@ def get_configured_model(agent_name: str = "pm") -> "ChatAnthropic":
     )
 
 
+# DEAD CODE: This function is never called. The parsing logic is duplicated inline
+# in get_model_config() (lines 50-52). Remove this function or wire it up.
 def parse_model_string(model_string: str) -> tuple[str, str]:
     """Parse ``provider:model_name`` into a (provider, model_name) tuple."""
     parts = model_string.split(":", 1)

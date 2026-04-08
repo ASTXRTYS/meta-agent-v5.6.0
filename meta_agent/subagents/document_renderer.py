@@ -2,8 +2,8 @@
 
 Spec References: Sections 6.9, 6.9.1-6.9.3
 
-Dict-based subagent (not Deep Agent) that renders Markdown artifacts
-to DOCX and PDF formats.
+Deep Agent that renders Markdown artifacts to DOCX and PDF formats.
+Utilizes MemoryMiddleware for stateful document rendering context.
 
 - Tools: read_file, write_file
 - Skills: docx, pdf
@@ -18,6 +18,13 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
+from deepagents import create_deep_agent
+from deepagents.middleware.memory import MemoryMiddleware
+from deepagents.middleware.subagents import CompiledSubAgent
+from meta_agent.backend import create_bare_filesystem_backend, create_composite_backend, create_store, create_checkpointer
+from meta_agent.config.memory import get_memory_sources
+from meta_agent.model import get_configured_model
+
 
 PROMPT_MARKDOWN_PATH = Path(__file__).resolve().parent.parent / "prompts" / "Document_Renderer_System_Prompt.md"
 
@@ -28,17 +35,7 @@ def _load_prompt_markdown() -> str:
     return PROMPT_MARKDOWN_PATH.read_text().strip()
 
 
-# Document renderer configuration per Section 6.9
-DOCUMENT_RENDERER_CONFIG = {
-    "type": "dict_based",
-    "effort": "low",
-    "recursion_limit": 1000,
-    "tools": ["read_file", "write_file", "ls"],
-    "skills": ["anthropic/docx", "anthropic/pdf"],
-    "middleware": ["ToolErrorMiddleware"],
-    "thinking": {"type": "adaptive"},
-    "output_config": {"effort": "low"},
-}
+
 
 # Rendering triggers per Section 6.9.2
 RENDERING_TRIGGERS: dict[str, list[str]] = {
@@ -63,56 +60,59 @@ DOCUMENT_RENDERER_DESCRIPTION = (
 DOCUMENT_RENDERER_SYSTEM_PROMPT = _load_prompt_markdown()
 
 
-def build_document_renderer_subagent(
+def create_document_renderer_subagent(
     skills_dirs: list[str] | None = None,
-) -> dict[str, Any]:
-    """Build an SDK-compatible SubAgent dict for the document-renderer.
-
-    ⚠️ SDK NON-COMPLIANCE — MISSING REQUIRED FIELDS
-    DeepAgents SubAgent TypedDict requires: name, description, system_prompt, model, tools
-    This builder is missing: model, tools (only provides skills)
-    Runtime will fail when SubAgentMiddleware validates with new backend API.
-    
-    See: configs.py build_pm_subagents() which calls this function.
-
-    Correct pattern options:
-      1. Add "model" and "tools" to the returned dict for declarative SubAgent
-      2. Convert to return CompiledSubAgent with pre-compiled runnable
-         (see research_agent.py:create_research_agent_subagent for pattern)
-
-    Shared builder used by both the PM orchestrator (build_pm_subagents)
-    and the research-agent runtime so the document-renderer is available
-    as a named subagent in both contexts.
+) -> CompiledSubAgent:
+    """Build an SDK-compatible CompiledSubAgent for the document-renderer.
 
     Args:
-        skills_dirs: Resolved skill directory paths.  Only the Anthropic
-            skills dir (containing docx/, pdf/) is passed through.
+        skills_dirs: Resolved skill directory paths.
 
     Returns:
-        SubAgent-compatible dict ready for create_deep_agent(subagents=...).
+        CompiledSubAgent ready for the orchestrator.
     """
-    from meta_agent.middleware.tool_error_handler import ToolErrorMiddleware
+    model = get_configured_model("document-renderer")
+    repo_root = Path(__file__).resolve().parents[2]
+    composite_backend = create_composite_backend(repo_root)
+    bare_fs = create_bare_filesystem_backend()
 
+    # SkillsMiddleware
     anthropic_skills_dir = next(
-        # ⚠️ FRAGILE: String-matching on paths is brittle (matches "not-anthropic/", "anthropic-skills/", etc.)
-        # TODO: Use explicit skill name mapping or path normalization
         (d for d in (skills_dirs or []) if "anthropic" in d), None
     )
+    skills = [anthropic_skills_dir] if anthropic_skills_dir else []
 
-    entry: dict[str, Any] = {
-        "name": "document-renderer",
-        "description": DOCUMENT_RENDERER_DESCRIPTION,
-        "system_prompt": DOCUMENT_RENDERER_SYSTEM_PROMPT,
-        "middleware": [ToolErrorMiddleware()],
-    }
-    if anthropic_skills_dir:
-        entry["skills"] = [anthropic_skills_dir]
-    return entry
+    # MemoryMiddleware
+    # Passing project_dir=None for now as document-renderer is often generic,
+    # but get_memory_sources handles it.
+    memory_sources = get_memory_sources("document-renderer", repo_root=repo_root)
+    memory_mw = MemoryMiddleware(backend=bare_fs, sources=memory_sources)
+
+    from meta_agent.middleware.tool_error_handler import ToolErrorMiddleware
+
+    graph = create_deep_agent(
+        model=model,
+        tools=[],  # Filesystem tools auto-attached
+        system_prompt=DOCUMENT_RENDERER_SYSTEM_PROMPT,
+        middleware=[
+            memory_mw,
+            ToolErrorMiddleware(),
+        ],
+        skills=skills,
+        backend=composite_backend,
+        checkpointer=create_checkpointer(),
+        store=create_store(),
+        name="document-renderer",
+    )
+
+    return CompiledSubAgent(
+        name="document-renderer",
+        description=DOCUMENT_RENDERER_DESCRIPTION,
+        runnable=graph,
+    )
 
 
-def get_render_config() -> dict[str, Any]:
-    """Get the document renderer configuration."""
-    return DOCUMENT_RENDERER_CONFIG.copy()
+
 
 
 def should_render(stage: str, artifact_name: str) -> bool:

@@ -6,14 +6,10 @@ The SPEC_REVIEW stage handles user review of the technical specification and
 Tier 2 eval suite. Both approvals are HARD GATES — process does not proceed
 without explicit user approval.
 
-FIXME: No spec reference header explaining stage requirements per project convention.
-FIXME: Inconsistent method signature — check_entry_conditions() takes no state parameter,
-       but research.py:53 and spec_generation.py:49 both accept state: dict[str, Any] | None.
-       This breaks the polymorphic stage interface pattern.
-FIXME: _get_field helper is duplicated from research.py, prd_review.py, etc.
-       Consider extracting to a shared utility module to eliminate duplication.
-FIXME: Path construction uses f-string concatenation instead of os.path.join
-       for cross-platform compatibility (Windows uses backslashes).
+See stages/__init__.py for consolidated TODOs on:
+- Helper function duplication (_get_field)
+- Path construction inconsistency
+- Method signature inconsistency
 """
 
 from __future__ import annotations
@@ -40,18 +36,14 @@ class SpecReviewStage:
         # but these use f-string concatenation. Should standardize for cross-platform compatibility.
         self.spec_path = f"{project_dir}/artifacts/spec/technical-specification.md"
         self.arch_eval_suite_path = f"{project_dir}/evals/eval-suite-architecture.json"
-        # FIXME: No revision cycle tracking — prd_review.py has MAX_REVISION_CYCLES and
-        # increment_revision_count() to prevent infinite loops. This stage lacks any
-        # iteration limits, making it vulnerable to infinite revision loops.
+        # Note: Revision cycle tracking consolidation TODO in stages/__init__.py
 
     def check_entry_conditions(self) -> dict[str, Any]:
         """Check SPEC_REVIEW entry conditions.
 
-        FIXME: Method signature inconsistent with sibling stages — research.py and
-        spec_generation.py both accept optional state parameter for path overrides.
-        This breaks polymorphic stage interface expectations.
-
         Entry: Technical spec and Tier 2 eval suite must exist.
+
+        Note: Method signature inconsistency consolidation TODO in stages/__init__.py.
         """
         unmet = []
         if not os.path.isfile(self.spec_path):
@@ -68,16 +60,8 @@ class SpecReviewStage:
         2. Approval recorded in approval_history
         3. Ready for transition to next stage
 
-        FIXME: No content validation helper — research.py:30-36 validates required
-        sections in the bundle. This stage blindly trusts file existence without
-        validating spec structure or required sections.
-        FIXME: No user interaction helpers — prd_review.py:103-143 has
-        classify_user_response() for the 7-branch EVAL_APPROVAL_PROTOCOL.
-        This stage assumes approvals appear magically in state without any
-        classification logic for revision requests, rejection flows, etc.
-        FIXME: No revision cycle tracking or limit enforcement — unlike
-        prd_review.py and spec_generation.py which have MAX_REVISION_CYCLES
-        and increment methods, this stage has no iteration guardrails.
+        Note: Validation helpers, user interaction helpers, and revision cycle tracking
+        consolidation TODOs in stages/__init__.py.
         """
         approvals = state.get("approval_history", [])
         spec_approved = any(

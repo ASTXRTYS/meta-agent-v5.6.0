@@ -49,6 +49,7 @@ from meta_agent.safety import RECURSION_LIMITS
 from meta_agent.middleware.meta_state import MetaAgentStateMiddleware
 from meta_agent.middleware.dynamic_system_prompt import DynamicSystemPromptMiddleware
 from meta_agent.middleware.tool_error_handler import ToolErrorMiddleware
+from meta_agent.config.memory import get_memory_sources
 from meta_agent.middleware.dynamic_tool_config import DynamicToolConfigMiddleware
 from meta_agent.tools import LANGCHAIN_TOOLS
 from meta_agent.tools.registry import HITL_GATED_TOOLS
@@ -121,18 +122,8 @@ def create_graph(
         cfg.model_name, composite_backend
     )
 
-    # MemoryMiddleware — per-agent AGENTS.md loading (Spec 22.4, Section 13.4.6)
-    # PM loads its own AGENTS.md; isolation rule: no cross-agent memory.
-    memory_sources = []
-    if project_dir:
-        project_agents_md = os.path.join(
-            project_dir, ".agents", "pm", "AGENTS.md"
-        )
-        if os.path.isfile(project_agents_md):
-            memory_sources.append(project_agents_md)
-    global_agents_md = str(repo_root / ".agents" / "pm" / "AGENTS.md")
-    if os.path.isfile(global_agents_md):
-        memory_sources.append(global_agents_md)
+    # MemoryMiddleware
+    memory_sources = get_memory_sources("pm", project_dir, repo_root)
     memory_mw = MemoryMiddleware(backend=bare_fs, sources=memory_sources)
 
     # Resolve skills directories (Section 11, 22.4)

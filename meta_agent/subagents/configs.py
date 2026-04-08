@@ -8,8 +8,15 @@ tool sets, effort levels, and recursion limits.
 Provides build_pm_subagents() to produce SDK-compatible SubAgent
 dicts for the create_deep_agent(subagents=...) parameter.
 
-TODO: Extract duplicated helper functions (_resolve_skills_dirs, _repo_root,
-_read_text) into meta_agent/subagents/common.py or similar shared module.
+TODO: Extract duplicated helper functions to shared module
+ISSUE: Helper functions _resolve_skills_dirs(), _repo_root(), and _read_text()
+are duplicated across multiple subagent runtime files (research_agent.py,
+verification_agent_runtime.py, evaluation_agent_runtime.py, code_agent_runtime.py,
+plan_writer_runtime.py). These perform common operations like resolving skills
+directories, getting repository root, and reading text files.
+RECOMMENDED ACTION: Extract these helpers to meta_agent/subagents/common.py
+and import them in all runtime files. This reduces duplication and centralizes
+common utilities for easier maintenance.
 """
 
 from __future__ import annotations
@@ -29,23 +36,29 @@ SUBAGENT_MIDDLEWARE: dict[str, list[str]] = {
         "SkillsMiddleware",
     ],
     "spec-writer": [
+        "MemoryMiddleware",
         "ToolErrorMiddleware",
     ],
     "plan-writer": [
+        "MemoryMiddleware",
         "ToolErrorMiddleware",
     ],
     "code-agent": [
+        "MemoryMiddleware",
         "ToolErrorMiddleware",
         "CompletionGuardMiddleware",
     ],
     "verification-agent": [
+        "MemoryMiddleware",
         "AgentDecisionStateMiddleware",
         "ToolErrorMiddleware",
     ],
     "document-renderer": [
+        "MemoryMiddleware",
         "ToolErrorMiddleware",
     ],
     "evaluation-agent": [
+        "MemoryMiddleware",
         "ToolErrorMiddleware",
     ],
 }
@@ -66,8 +79,15 @@ SUBAGENT_MIDDLEWARE: dict[str, list[str]] = {
 #   - meta_agent/subagents/code_agent_runtime.py
 #   - meta_agent/subagents/evaluation_agent_runtime.py
 #
-# TODO: Either make this authoritative (have factories read from it) or delete it
-# and test runtime behavior directly.
+# TODO: Resolve SUBAGENT_CONFIGS duplication with factory methods
+# ISSUE: SUBAGENT_CONFIGS is defined here but runtime agents construct their
+# configs inline in their respective create_*_agent files (research_agent.py,
+# spec_writer_agent.py, verification_agent_runtime.py, plan_writer_runtime.py,
+# code_agent_runtime.py, evaluation_agent_runtime.py). This creates a single
+# source of truth problem - updates must be synchronized across 7 files.
+# RECOMMENDED ACTION: Either make SUBAGENT_CONFIGS authoritative by having
+# factory methods read from it, or delete this dict and test runtime behavior
+# directly. Choose one approach and remove the duplication.
 SUBAGENT_CONFIGS: dict[str, dict[str, Any]] = {
     "research-agent": {
         "type": "deep_agent",
@@ -139,7 +159,7 @@ SUBAGENT_CONFIGS: dict[str, dict[str, Any]] = {
         "output_config": {"effort": "high"},
     },
     "document-renderer": {
-        "type": "dict_based",
+        "type": "deep_agent",
         "effort": "low",
         "recursion_limit": 1000,
         "middleware": SUBAGENT_MIDDLEWARE["document-renderer"],
@@ -276,7 +296,7 @@ def build_pm_subagents(
     from meta_agent.subagents.plan_writer_runtime import create_plan_writer_agent_subagent
     from meta_agent.subagents.code_agent_runtime import create_code_agent_subagent
     from meta_agent.subagents.evaluation_agent_runtime import create_evaluation_agent_subagent
-    from meta_agent.subagents.document_renderer import build_document_renderer_subagent
+    from meta_agent.subagents.document_renderer import create_document_renderer_subagent
 
     subagents = []
 
@@ -350,7 +370,7 @@ def build_pm_subagents(
 
         # Use shared builder for document-renderer
         if agent_name == "document-renderer":
-            subagents.append(build_document_renderer_subagent(skills_dirs))
+            subagents.append(create_document_renderer_subagent(skills_dirs))
             continue
 
     return subagents

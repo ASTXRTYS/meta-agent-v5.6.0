@@ -2,7 +2,13 @@
 
 Spec References: Sections 17.1-17.4
 
-Four-tier error strategy:
+DEAD CODE NOTICE (2025-04-07): This module is currently unused.
+The actual error handling is implemented via:
+- ToolErrorMiddleware (meta_agent/middleware/tool_error_handler.py) for Tier 2 LLM-recoverable errors
+- LangGraph's built-in retry policies (langgraph.pregel._retry) for Tier 1 transient failures
+- Deep Agents SDK native patterns for HITL (Tier 3) and exception bubbling (Tier 4)
+
+Four-tier error strategy (spec only - not implemented here):
 - Tier 1: Retry (ConnectionError, TimeoutError, RateLimitError)
 - Tier 2: LLM-recoverable (handle_tool_errors=True)
 - Tier 3: User-fixable (interrupt() with structured error context)
