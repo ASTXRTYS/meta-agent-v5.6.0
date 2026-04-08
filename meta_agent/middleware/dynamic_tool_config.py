@@ -5,6 +5,22 @@ Spec Reference: Sections 22.4, 8.x
 Uses wrap_model_call to dynamically set tool_choice and filter available
 tools based on the current workflow stage and agent state. This enables
 context-aware tool behavior without per-agent custom code.
+
+⚠️ DEAD CODE — CURRENTLY NON-FUNCTIONAL
+This middleware is initialized with tool_config={} in all agents (PM orchestrator,
+research-agent, evaluation-agent, code-agent, plan-writer). With an empty config,
+the middleware passes through all requests without modification. It exists as a
+placeholder for future stage-aware tool policies that have not yet been authored.
+
+IF REMOVING THIS FILE, also remove references from:
+- meta_agent/graph.py (import line 55, instantiation line 156, middleware list line 167)
+- meta_agent/subagents/research_agent.py (import line 31, middleware list line 697)
+- meta_agent/subagents/evaluation_agent_runtime.py (import line 40, middleware list line 249)
+- meta_agent/subagents/code_agent_runtime.py (import line 42, middleware list line 253)
+- meta_agent/subagents/plan_writer_runtime.py (import line 40, middleware list line 247)
+- meta_agent/middleware/__init__.py (import line 12, export line 20)
+- tests/contracts/test_claude_api_features.py (import line 145, usage lines 147, 164, 185)
+- AGENTS.md (lines 203-204 feature table)
 """
 
 from __future__ import annotations

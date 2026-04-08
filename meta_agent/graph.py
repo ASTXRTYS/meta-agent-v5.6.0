@@ -8,17 +8,18 @@ Uses real deepagents SDK — no mocks.
 Middleware order (per Section 22.4):
   0. DynamicSystemPromptMiddleware (explicit — reads current_stage from state)
   1. MetaAgentStateMiddleware (explicit — extends state schema)
-  2. TodoListMiddleware (auto — added by create_deep_agent)
+  2. AskUserMiddleware (explicit — structured user questioning)
   3. MemoryMiddleware (explicit — per-agent AGENTS.md loading)
   4. SkillsMiddleware (explicit — on-demand SKILL.md loading)
-  5. FilesystemMiddleware (auto — added by create_deep_agent)
-  6. SubAgentMiddleware (auto — added by create_deep_agent)
-  7. SummarizationMiddleware (auto — added by create_deep_agent)
-  8. SummarizationToolMiddleware (explicit — agent-controlled compact_conversation)
-  9. AnthropicPromptCachingMiddleware (auto — added by create_deep_agent)
- 10. PatchToolCallsMiddleware (auto — added by create_deep_agent)
- 11. ToolErrorMiddleware (explicit)
- 12. HumanInTheLoopMiddleware (auto via interrupt_on parameter)
+  5. SummarizationToolMiddleware (explicit — automatic compaction + compact_conversation tool)
+  6. ToolErrorMiddleware (explicit)
+  7. DynamicToolConfigMiddleware (explicit — stage-aware tool choice and filtering)
+  8. TodoListMiddleware (auto — added by create_deep_agent)
+  9. FilesystemMiddleware (auto — added by create_deep_agent)
+ 10. SubAgentMiddleware (auto — added by create_deep_agent)
+ 11. AnthropicPromptCachingMiddleware (auto — added by create_deep_agent)
+ 12. PatchToolCallsMiddleware (auto — added by create_deep_agent)
+ 13. HumanInTheLoopMiddleware (auto via interrupt_on parameter)
 """
 
 from __future__ import annotations
@@ -49,6 +50,7 @@ from meta_agent.safety import RECURSION_LIMITS
 from meta_agent.middleware.meta_state import MetaAgentStateMiddleware
 from meta_agent.middleware.dynamic_system_prompt import DynamicSystemPromptMiddleware
 from meta_agent.middleware.tool_error_handler import ToolErrorMiddleware
+from meta_agent.middleware.ask_user import AskUserMiddleware
 from meta_agent.config.memory import get_memory_sources
 from meta_agent.middleware.dynamic_tool_config import DynamicToolConfigMiddleware
 from meta_agent.tools import LANGCHAIN_TOOLS
@@ -144,6 +146,11 @@ def create_graph(
     # ToolErrorMiddleware
     tool_error_mw = ToolErrorMiddleware()
 
+    # AskUserMiddleware — structured user questioning (ported from CLI)
+    # Provides `ask_user` tool for multiple-choice + free-text questions.
+    # The tool calls interrupt() internally, no interrupt_on entry needed.
+    ask_user_mw = AskUserMiddleware()
+
     # DynamicToolConfigMiddleware — stage-aware tool choice and filtering
     # Configuration can be extended as stage-specific tool policies are defined.
     dynamic_tool_config_mw = DynamicToolConfigMiddleware(tool_config={})
@@ -152,6 +159,7 @@ def create_graph(
     explicit_middleware = [
         dynamic_prompt_mw,     # 0. Dynamic system prompt (MUST be first)
         meta_state_mw,         # 1. Extends state schema
+        ask_user_mw,           # 2. Structured user questioning
         memory_mw,             # 3. Per-agent AGENTS.md loading
         skills_mw,             # 4. Skills loading from SKILL.md files
         summarization_tool_mw, # 5. Agent-controlled compact_conversation

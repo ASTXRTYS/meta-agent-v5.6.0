@@ -6,6 +6,41 @@ An @after_model middleware that checks if the model response
 suggests premature completion and injects nudge/confirmation messages.
 
 Required on: code-agent.
+
+⚠️ NAIVE IMPLEMENTATION — CONSIDER REMOVAL
+This middleware has multiple technical issues and does not align with SDK/CLI patterns:
+
+1. Logic duplication (lines 53-66): has_tool_calls/has_text computed but never used;
+   real logic lives in check_response(), duplicating the same checks.
+
+2. Hard to read (line 67): Response dict built on one massive line.
+
+3. Type assumptions (lines 53-54, 78): Assumes content is strip()-able string, but
+   AIMessage content can be blocks/multimodal shapes. str(content) vs .strip() can
+   disagree on what counts as "text".
+
+4. No SDK/CLI precedent: Neither the SDK nor deepagents_cli use @after_model hooks.
+   This is a custom pattern not aligned with upstream conventions.
+
+5. Only used on code-agent: The should_apply() method restricts it to "code-agent"
+   only, but the implementation doesn't actually check which agent it's running on.
+
+6. No test coverage: Grep found no test coverage for this middleware.
+
+BETTER APPROACH: The problem (preventing premature completion) is better solved through:
+- System prompt instructions (e.g., "Always call at least one tool per turn unless complete")
+- Task state tracking in the agent's own logic
+- Not middleware that blindly injects messages based on surface-level checks
+
+IF REMOVING THIS FILE, also remove references from:
+- meta_agent/subagents/code_agent_runtime.py (import line 41, middleware list line 252)
+- meta_agent/subagents/configs.py (SUBAGENT_MIDDLEWARE dict line 49, _resolve_middleware_instances line 250, 254)
+- meta_agent/middleware/__init__.py (import line 8, export line 17)
+- Full-Development-Plan.md (multiple references)
+- Full-Spec.md (multiple references)
+- docs/testing/runtime_components.yaml (line 283)
+- datasets/golden-path/research-decomposition.md (line 204)
+- datasets/golden-path/stage3-skill-interactions.yaml (line 484)
 """
 
 from __future__ import annotations
