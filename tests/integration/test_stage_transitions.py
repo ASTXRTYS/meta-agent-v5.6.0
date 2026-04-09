@@ -155,28 +155,4 @@ class TestTransitionStage:
             transition_stage(state, "NONEXISTENT", "bad stage")
 
 
-# ---------------------------------------------------------------------------
-# Tests: Stage handler classes (shape checks)
-# ---------------------------------------------------------------------------
-
-
-class TestStageHandlerShapes:
-    """Verify IntakeStage and PrdReviewStage are instantiable with expected API."""
-
-    def test_intake_stage_instantiates(self):
-        stage = IntakeStage(project_dir="/tmp/p", project_id="test")
-        assert stage.project_id == "test"
-
-    def test_intake_stage_has_gate_methods(self):
-        stage = IntakeStage(project_dir="/tmp/p", project_id="test")
-        assert callable(stage.check_entry_conditions)
-        assert callable(stage.check_exit_conditions)
-
-    def test_prd_review_stage_instantiates(self):
-        stage = PrdReviewStage(project_dir="/tmp/p", project_id="test")
-        assert stage.project_id == "test"
-
-    def test_prd_review_stage_has_gate_methods(self):
-        stage = PrdReviewStage(project_dir="/tmp/p", project_id="test")
-        assert callable(stage.check_entry_conditions)
-        assert callable(stage.check_exit_conditions)
+# Handlers coverage now handled by tests/unit/stages/test_fsi_integration.py

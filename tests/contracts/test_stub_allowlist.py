@@ -130,6 +130,11 @@ class TestNoSoftStubs:
         SOFT_STUB_ALLOWLIST = {
             # document_renderer.py render_artifact returns {"status": "pending"} — Phase 4 scope
             ("meta_agent/subagents/document_renderer.py", "render_artifact"),
+            # BaseStage abstract hooks and telemetry carriers (Requirement 3.7, 8.2)
+            ("meta_agent/stages/base.py", "_check_entry_impl"),
+            ("meta_agent/stages/base.py", "_check_exit_impl"),
+            ("meta_agent/stages/base.py", "sync_from_state"),
+            ("meta_agent/stages/base.py", "_span_carrier"),
         }
 
         meta_agent_dir = Path(__file__).parent.parent.parent / "meta_agent"

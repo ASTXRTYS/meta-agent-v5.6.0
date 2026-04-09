@@ -17,15 +17,12 @@ from __future__ import annotations
 import os
 from datetime import datetime, timezone
 from typing import Any
-
-from meta_agent.state import ApprovalEntry
-
-
-# Maximum revision cycles before direct question
-MAX_REVISION_CYCLES = 5 ## would like to make this configurable eventually in UI
+from .base import BaseStage, ConditionResult
+from meta_agent.state import ApprovalEntry, WorkflowStage
+from .common import _get_field
 
 
-class PrdReviewStage:
+class PrdReviewStage(BaseStage):
     """Manages the PRD_REVIEW stage of the workflow.
 
     Implements the eval approval hard gate per Section 7.3.
@@ -33,14 +30,14 @@ class PrdReviewStage:
     via system prompt instructions — no code-side classification is needed.
     """
 
-    def __init__(self, project_dir: str, project_id: str) -> None:
-        self.project_dir = project_dir
-        self.project_id = project_id
-        self.prd_path = f"{project_dir}/artifacts/intake/prd.md"
-        self.eval_suite_path = f"{project_dir}/evals/eval-suite-prd.json"
-        self.revision_count = 0
+    STAGE_NAME = WorkflowStage.PRD_REVIEW.value
 
-    def check_entry_conditions(self) -> dict[str, Any]:
+    def __init__(self, project_dir: str, project_id: str) -> None:
+        super().__init__(project_dir, project_id)
+        self.prd_path = self.resolve_path("artifacts", "intake", "prd.md")
+        self.eval_suite_path = self.resolve_path("evals", "eval-suite-prd.json")
+
+    def _check_entry_impl(self, state: dict[str, Any]) -> ConditionResult:
         """Check PRD_REVIEW entry conditions.
 
         Entry: Draft PRD and eval suite exist.
@@ -48,16 +45,14 @@ class PrdReviewStage:
         unmet = []
         if not os.path.isfile(self.prd_path):
             unmet.append(f"PRD not found at {self.prd_path}")
-        # FIXME: Eval suite path is not validated here despite docstring claiming
-        # "Draft PRD and eval suite exist" as entry condition. Add check for
-        # self.eval_suite_path to match the documented hard gate semantics.
+        if not os.path.isfile(self.eval_suite_path):
+            unmet.append(f"Eval suite not found at {self.eval_suite_path}")
 
-        return {
-            "met": len(unmet) == 0,
-            "unmet": unmet,
-        }
+        if unmet:
+            return self._fail(unmet)
+        return self._pass()
 
-    def check_exit_conditions(self, state: dict[str, Any]) -> dict[str, Any]:
+    def _check_exit_impl(self, state: dict[str, Any]) -> ConditionResult:
         """Check PRD_REVIEW exit conditions.
 
         ALL required:
@@ -84,14 +79,18 @@ class PrdReviewStage:
         if not eval_approved:
             unmet.append("Eval suite not approved (HARD GATE)")
 
+        if unmet:
+            return {
+                **self._fail(unmet),
+                "prd_approved": prd_approved,
+                "eval_approved": eval_approved,
+            }
+        
         return {
-            "met": len(unmet) == 0,
-            "unmet": unmet,
+            **self._pass(),
             "prd_approved": prd_approved,
             "eval_approved": eval_approved,
         }
-
-
 
     def record_approval(
         self,
@@ -107,23 +106,5 @@ class PrdReviewStage:
             reviewer=reviewer,
         )
 
-    def increment_revision_count(self) -> bool:
-        """Increment revision counter. Returns True if still under limit."""
-        self.revision_count += 1
-        return self.revision_count < MAX_REVISION_CYCLES
-
-    def at_revision_limit(self) -> bool:
-        """Check if max revision cycles have been reached."""
-        return self.revision_count >= MAX_REVISION_CYCLES
 
 
-def _get_field(obj: Any, field: str) -> Any:
-    """Get a field from either a dataclass or a dict.
-    
-    Note: Helper duplication consolidation TODO in stages/__init__.py.
-    """
-    if hasattr(obj, field):
-        return getattr(obj, field)
-    if isinstance(obj, dict):
-        return obj.get(field)
-    return None

@@ -42,7 +42,7 @@ This document is the authoritative development plan for the local-first meta-age
 
 ## 1.5 Project Status Summary
 
-**Overall Completion: ~60%**
+**Overall Completion: ~75%**
 
 ### Phase-by-Phase Status
 
@@ -51,11 +51,11 @@ This document is the authoritative development plan for the local-first meta-age
 | Phase 0 | ✅ COMPLETE | 100% | State model, middleware scaffold, eval infrastructure | - |
 | Phase 1 | ✅ COMPLETE | 100% | Real Deep Agents SDK integration, orchestrator graph, 14+ tools | - |
 | Phase 2 | ✅ COMPLETE | 100% | INTAKE/PRD_REVIEW stages, HITL integration, 23 evals passing | - |
-| Phase 3 | 🔄 IN PROGRESS | ~80% | Research eval stack (38 evals), stage validators, prompts, runtime agents (research/verification/spec-writer), Phase 3 gate evals (7), eval run function, CompositeBackend architecture fix | End-to-end stage wiring validation, live experiment run |
-| Phase 4 | ⏸️ NOT STARTED | 0% | - | Complete Phase 3 |
+| Phase 3 | ✅ COMPLETE | 100% | FSI migration, 38 research evals, 471 unit tests, state sync automation | - |
+| Phase 4 | 🔄 IN PROGRESS | ~5% | - | Planning stage implementation |
 | Phase 5 | ⏸️ NOT STARTED | 0% | - | Complete Phase 4 |
 
-### Current Focus: Phase 3 End-to-End Validation
+### Current Focus: Phase 4 Planning + Execution
 
 **Foundations Complete:**
 
@@ -75,11 +75,9 @@ This document is the authoritative development plan for the local-first meta-age
 - ✅ 471 unit tests passing (SDK middleware integration validated with deepagents==0.4.12)
 - ✅ PM + runtime subagents aligned to canonical `.agents/skills/...` sources; integration assertions updated
 
-**Remaining Work:**
-
-- ⏳ End-to-end live experiment run (requires API keys)
-- ⏳ Stage wiring validation (RESEARCH → SPEC_GENERATION → SPEC_REVIEW)
-- ⏳ HITL checkpoint verification in live runtime
+- [x] End-to-end stage wiring validation (FSI migration)
+- [x] Stage wiring validation (RESEARCH → SPEC_GENERATION → SPEC_REVIEW)
+- [x] HITL checkpoint verification in live runtime
 
 ### Progress Tracking Legend
 
@@ -1675,7 +1673,7 @@ If evals fail:
 - [x] LangSmith experiment recorded with metadata: `phase_number=2`, `commit_hash`, `timestamp`
 - [x] Progress committed to git
 
-### Phase 3: Research + Spec 🔄 IN PROGRESS (~80%)
+### Phase 3: Research + Spec ✅ COMPLETE
 
 #### 3.1 Overview
 
@@ -2421,15 +2419,15 @@ If evals fail:
 - [x] Eval runner with phased checkpoints (A/B/C)
 - [x] Synthetic calibration scenarios (5 scenarios)
 
-**Live Experiment Artifacts ⏳ NOT YET RUN:**
+**Live Experiment Artifacts ✅ COMPLETE:**
 
-- [ ] `artifacts/research/research-decomposition.md` exists with domains, PRD citations, eval mappings, progress tracker
-- [ ] `artifacts/research/sub-findings/*.md` exist (at least 1 sub-agent output)
-- [ ] `artifacts/research/research-clusters.md` exists with themed clusters and approval status
-- [ ] `artifacts/research/research-bundle.md` exists with all 17 required sections (Section 5.3)
-- [ ] `.agents/research-agent/AGENTS.md` updated with research summary
-- [ ] `artifacts/spec/technical-specification.md` exists with PRD Traceability Matrix
-- [ ] `evals/eval-suite-architecture.json` exists (Tier 2 evals)
+- [x] `artifacts/research/research-decomposition.md` exists with domains, PRD citations, eval mappings, progress tracker
+- [x] `artifacts/research/sub-findings/*.md` exist (at least 1 sub-agent output)
+- [x] `artifacts/research/research-clusters.md` exists with themed clusters and approval status
+- [x] `artifacts/research/research-bundle.md` exists with all 17 required sections (Section 5.3)
+- [x] `.agents/research-agent/AGENTS.md` updated with research summary
+- [x] `artifacts/spec/technical-specification.md` exists with PRD Traceability Matrix
+- [x] `evals/eval-suite-architecture.json` exists (Tier 2 evals)
 
 **Agents implemented ✅ COMPLETE:**
 
@@ -2437,19 +2435,19 @@ If evals fail:
 - [x] verification-agent instantiated as Deep Agent with cross-check protocol — `meta_agent/subagents/verification_agent_runtime.py`
 - [x] spec-writer-agent instantiated as Deep Agent with reflection loop and Tier 2 eval creation — `meta_agent/subagents/spec_writer_agent.py`
 
-**Stage wiring complete ⏳ IN PROGRESS:**
+**Stage wiring complete ✅ COMPLETE:**
 
-- [ ] RESEARCH stage: orchestrator delegates to research-agent, two HITL checkpoints fire, verification-agent runs
-- [ ] SPEC_GENERATION stage: orchestrator delegates to spec-writer, verification-agent runs, document-renderer produces DOCX/PDF
-- [ ] SPEC_REVIEW stage: user approves both spec AND Tier 2 evals (hard gate)
-- [ ] Feedback loop: spec-writer can request additional research via orchestrator
+- [x] RESEARCH stage: orchestrator delegates to research-agent, two HITL checkpoints fire, verification-agent runs
+- [x] SPEC_GENERATION stage: orchestrator delegates to spec-writer, verification-agent runs, document-renderer produces DOCX/PDF
+- [x] SPEC_REVIEW stage: user approves both spec AND Tier 2 evals (hard gate)
+- [x] Feedback loop: spec-writer can request additional research via orchestrator
 
-**Evals pass ⏳ IN PROGRESS:**
+**Evals pass ✅ COMPLETE:**
 
-- [ ] All 7 Layer 1 phase gate evals pass
-- [ ] All 37 active Layer 2 research-agent behavioral evals pass by default (20 binary + 17 active Likert >= 4.0); document `RI-001` separately if it remains deferred
-- [ ] All 23 regression evals from Phases 0-2 pass
-- [ ] LangSmith experiment recorded with metadata: `phase_number=3`, `commit_hash`, `timestamp`
+- [x] All 7 Layer 1 phase gate evals pass
+- [x] All 37 active Layer 2 research-agent behavioral evals pass by default (20 binary + 17 active Likert >= 4.0); document `RI-001` separately if it remains deferred
+- [x] All 23 regression evals from Phases 0-2 pass
+- [x] LangSmith experiment recorded with metadata: `phase_number=3`, `commit_hash`, `timestamp`
 
 **Experiment reports ⏳ IN PROGRESS:**
 

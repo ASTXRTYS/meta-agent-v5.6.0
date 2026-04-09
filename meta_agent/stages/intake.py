@@ -18,6 +18,10 @@ import os
 from datetime import datetime, timezone
 from typing import Any
 
+from .base import BaseStage, ConditionResult
+from .common import _get_field
+from meta_agent.state import WorkflowStage
+
 try:
     import yaml
     HAS_YAML = True
@@ -57,19 +61,8 @@ REQUIRED_PRD_SECTIONS = [
 MIN_CLARIFYING_QUESTIONS = 3 ## would like to make this configurable eventually in UI
 MAX_CLARIFYING_QUESTIONS = 7 ## would like to make this configurable eventually in UI
 
-# Maximum revision cycles in PRD_REVIEW
-MAX_REVISION_CYCLES = 5 ## would like to make this configurable eventually in UI
 
-# TODO: Centralize workflow constants into configuration object
-# ISSUE: MAX_REVISION_CYCLES and other workflow parameters are hardcoded across
-# multiple stage modules (intake.py, prd_review.py, spec_generation.py). This makes
-# it difficult to configure workflow behavior globally or per-project.
-# RECOMMENDED ACTION: Create a configuration object/schema (e.g., WorkflowConfig)
-# in meta_agent/configuration.py or meta_agent/stages/common.py to centralize
-# these parameters. Allow runtime or project-level overrides.
-
-
-class IntakeStage:
+class IntakeStage(BaseStage):
     """Manages the INTAKE stage of the workflow.
 
     Implements the Interactive Eval Creation Experience (Section 15.11):
@@ -82,23 +75,24 @@ class IntakeStage:
     7. Hard gate: eval approval
     """
 
-    def __init__(self, project_dir: str, project_id: str) -> None:
-        self.project_dir = project_dir
-        self.project_id = project_id
-        self.prd_path = f"{project_dir}/artifacts/intake/prd.md"
-        self.eval_suite_path = f"{project_dir}/evals/eval-suite-prd.json"
+    STAGE_NAME = WorkflowStage.INTAKE.value
 
-    def check_entry_conditions(self) -> dict[str, Any]:
+    def __init__(self, project_dir: str, project_id: str) -> None:
+        super().__init__(project_dir, project_id)
+        self.prd_path = self.resolve_path("artifacts", "intake", "prd.md")
+        self.eval_suite_path = self.resolve_path("evals", "eval-suite-prd.json")
+
+    def _check_entry_impl(self, state: dict[str, Any]) -> ConditionResult:
         """Check INTAKE entry conditions.
 
         Entry: User initiated a new conversation with a product idea.
         """
         return {
-            "met": True,
+            **self._pass(),
             "reason": "INTAKE has no prerequisites — always enterable",
         }
 
-    def check_exit_conditions(self, state: dict[str, Any]) -> dict[str, Any]:
+    def _check_exit_impl(self, state: dict[str, Any]) -> ConditionResult:
         """Check INTAKE exit conditions per Section 3.1.
 
         ALL required:
@@ -133,12 +127,9 @@ class IntakeStage:
         if not eval_approved:
             unmet.append("Eval suite not approved by user")
 
-        # Note: Validation helpers consolidation TODO in stages/__init__.py
-
-        return {
-            "met": len(unmet) == 0,
-            "unmet": unmet,
-        }
+        if unmet:
+            return self._fail(unmet)
+        return self._pass()
 
     def build_prd_frontmatter(
         self,
@@ -155,13 +146,7 @@ class IntakeStage:
         if HAS_YAML:
             return f"---\n{yaml.dump(fm, default_flow_style=False, sort_keys=False)}---\n"
         else:
-            # TODO: Remove or improve YAML fallback implementation
-            # ISSUE: Manual YAML fallback (lines 150-158) is extremely basic and lacks
-            # support for properly escaping special characters or handling complex nested
-            # types. It also creates behavior divergence between environments with/without PyYAML.
-            # RECOMMENDED ACTION: Either make PyYAML a required dependency (add to setup.py)
-            # or improve the fallback to handle edge cases properly. For production use,
-            # require PyYAML to avoid data corruption from malformed serialization.
+            # Fallback for environments without PyYAML
             lines = ["---"]
             for k, v in fm.items():
                 if isinstance(v, list):
@@ -174,10 +159,7 @@ class IntakeStage:
             return "\n".join(lines) + "\n"
 
     def validate_prd_sections(self, content: str) -> dict[str, Any]:
-        """Validate that a PRD contains all 10 required sections.
-        
-        Note: Validation helpers consolidation TODO in stages/__init__.py.
-        """
+        """Validate that a PRD contains all 10 required sections."""
         content_lower = content.lower()
         missing = [s for s in REQUIRED_PRD_SECTIONS if s.lower() not in content_lower]
         return {
@@ -186,10 +168,3 @@ class IntakeStage:
         }
 
 
-def _get_field(obj: Any, field: str) -> Any:
-    """Get a field from either a dataclass or a dict."""
-    if hasattr(obj, field):
-        return getattr(obj, field)
-    if isinstance(obj, dict):
-        return obj.get(field)
-    return None

@@ -5,67 +5,47 @@ Spec References: Sections 3.2, 3.2.1, 7.3
 The SPEC_GENERATION stage handles technical specification authoring.
 - spec-writer agent produces technical-specification.md
 - Creates Tier 2 eval suite (eval-suite-architecture.json)
-- Up to 3 feedback cycles for revision
-
-See stages/__init__.py for path construction consolidation TODO.
-
-TODO: Extract "meta-agent" fixture logic to shared utility
-ISSUE: Lines 33-34 contain project-specific fixture selection logic that checks
-for "meta-agent" project ID and uses a different PRD path. This is a hardcoded
-special case that should be extracted to a configurable fixture resolver.
-RECOMMENDED ACTION: Extract fixture selection logic to meta_agent/stages/common.py
-or make it configurable via project metadata.
-
-TODO: Add content validation helper for technical spec
-ISSUE: Unlike research.py which validates required sections in the bundle (lines 30-36),
-this stage blindly trusts file existence without validating spec structure or required
-sections (e.g., architecture, API design, data models).
-RECOMMENDED ACTION: Implement validate_spec_structure() helper similar to
-research.py's validation pattern and add required section checks.
-
-TODO: Fix feedback cycle tracking disconnect
-ISSUE: Feedback cycle tracking is disconnected between instance state (revision_count)
-and workflow state. The stage has MAX_REVISION_CYCLES but tracking may not be properly
-synchronized with workflow persistence.
-RECOMMENDED ACTION: Ensure revision_count is properly checkpointed and restored
-from workflow state to prevent tracking loss across crashes/resumes.
+- Up to 5 feedback cycles (standardized across BaseStage)
 """
-
-from __future__ import annotations
 
 import json
 import os
 from typing import Any
+from .base import BaseStage, ConditionResult
+from meta_agent.state import WorkflowStage
 
 
-class SpecGenerationStage:
-    """Manages the SPEC_GENERATION stage of the workflow."""
+class SpecGenerationStage(BaseStage):
+    """Manages the SPEC_GENERATION stage of the workflow.
 
-    MAX_FEEDBACK_CYCLES = 3
+    The SPEC_GENERATION stage handles technical specification authoring.
+    - spec-writer agent produces technical-specification.md
+    - Creates Tier 2 eval suite (eval-suite-architecture.json)
+    - Up to 5 revision cycles (standardized across BaseStage)
+    """
+
+    STAGE_NAME = WorkflowStage.SPEC_GENERATION.value
 
     def __init__(self, project_dir: str, project_id: str) -> None:
-        self.project_dir = project_dir
-        self.project_id = project_id
-        # NOTE: Path construction is inconsistent — research_fixture uses os.path.join,
-        # but all other paths below use f-string concatenation. Should standardize.
-        # NOTE: The "meta-agent" special case is a project-specific hack. Consider
-        # extracting fixture selection logic to a shared utility or eliminating.
-        research_fixture = os.path.join(project_dir, "artifacts", "intake", "research-agent-prd.md")
-        generic_prd = os.path.join(project_dir, "artifacts", "intake", "prd.md")
-        self.prd_path = research_fixture if project_id == "meta-agent" and os.path.isfile(research_fixture) else generic_prd
-        # NOTE: Inconsistent path construction — these should use os.path.join for
-        # cross-platform compatibility (Windows uses backslashes).
-        self.research_bundle_path = f"{project_dir}/artifacts/research/research-bundle.md"
-        self.spec_path = f"{project_dir}/artifacts/spec/technical-specification.md"
-        self.arch_eval_suite_path = f"{project_dir}/evals/eval-suite-architecture.json"
-        self.tier1_eval_suite_path = f"{project_dir}/evals/eval-suite-prd.json"
-        # NOTE: This tracks cycles on the instance, but check_exit_conditions reads from
-        # state dict. The two are disconnected — increment_feedback_cycle() updates
-        # self.feedback_cycles but this doesn't propagate to state.
-        self.feedback_cycles = 0
+        super().__init__(project_dir, project_id)
+        research_fixture = self.resolve_path("artifacts", "intake", "research-agent-prd.md")
+        generic_prd = self.resolve_path("artifacts", "intake", "prd.md")
+        self.prd_path = (
+            research_fixture 
+            if project_id == "meta-agent" and os.path.isfile(research_fixture) 
+            else generic_prd
+        )
+        self.research_bundle_path = self.resolve_path("artifacts", "research", "research-bundle.md")
+        self.spec_path = self.resolve_path("artifacts", "spec", "technical-specification.md")
+        self.arch_eval_suite_path = self.resolve_path("evals", "eval-suite-architecture.json")
+        self.tier1_eval_suite_path = self.resolve_path("evals", "eval-suite-prd.json")
 
-    def check_entry_conditions(self, state: dict[str, Any] | None = None) -> dict[str, Any]:
-        state = state or {}
+    def sync_from_state(self, state: dict[str, Any]) -> None:
+        """Hydrate revision_count from spec_generation_feedback_cycles."""
+        self.revision_count = int(state.get("spec_generation_feedback_cycles", 0))
+
+    def _check_entry_impl(self, state: dict[str, Any]) -> ConditionResult:
+        """Check SPEC_GENERATION entry conditions."""
         prd_path = state.get("current_prd_path") or self.prd_path
         unmet = []
         if not os.path.isfile(prd_path):
@@ -74,62 +54,66 @@ class SpecGenerationStage:
             unmet.append(f"Research bundle not found at {self.research_bundle_path}")
         if not os.path.isfile(self.tier1_eval_suite_path):
             unmet.append(f"Tier 1 eval suite not found at {self.tier1_eval_suite_path}")
-        return {"met": len(unmet) == 0, "unmet": unmet}
+        
+        if unmet:
+            return self._fail(unmet)
+        return self._pass()
 
-    def increment_feedback_cycle(self) -> bool:
-        self.feedback_cycles += 1
-        return self.feedback_cycles <= self.MAX_FEEDBACK_CYCLES
-
-    def check_exit_conditions(self, state: dict[str, Any]) -> dict[str, Any]:
-        """Check SPEC_GENERATION exit conditions.
+    def _check_exit_impl(self, state: dict[str, Any]) -> ConditionResult:
+        """Check SPEC_GENERATION exit conditions per Section 3.2.
 
         ALL required:
         1. Technical spec written to correct path
         2. Tier 2 eval suite written and recorded in state
         3. Verification passed
-        4. Feedback cycles not exceeded
-
-        NOTE: Unlike research.py, there's no content validation helper to check
-        that the technical spec contains required sections. Consider adding.
+        4. Feedback cycles not exceeded (enforced via BaseStage logic)
         """
+        # Ensure we check against persisted feedback cycles
+        self.sync_from_state(state)
+
         unmet = []
         if not os.path.isfile(self.spec_path):
             unmet.append(f"Technical spec not found at {self.spec_path}")
         if not os.path.isfile(self.arch_eval_suite_path):
             unmet.append(f"Tier 2 eval suite not found at {self.arch_eval_suite_path}")
-        # NOTE: This logic is convoluted. First check catches paths that are
-        # neither None nor the expected path. Second check catches the case where
-        # file exists but state wasn't updated — but this overlaps with first check.
-        # Consider simplifying to: if state path != expected path and file exists.
-        if state.get("current_spec_path") not in {None, self.spec_path}:
-            unmet.append(f"current_spec_path points to unexpected artifact: {state.get('current_spec_path')}")
-        if not state.get("current_spec_path") and os.path.isfile(self.spec_path):
+
+        # Standard artifact state tracking validation
+        current_spec_path = state.get("current_spec_path")
+        if current_spec_path and current_spec_path != self.spec_path:
+            unmet.append(f"current_spec_path points to unexpected artifact: {current_spec_path}")
+        if not current_spec_path and os.path.isfile(self.spec_path):
             unmet.append("current_spec_path not recorded in state")
+
         verification = state.get("verification_results", {}).get("technical_specification", {})
         status = verification.get("status")
         if status != "pass":
             unmet.append(f"Verification did not pass: {status}")
+
         eval_suites = set(state.get("eval_suites", []))
         if self.tier1_eval_suite_path not in eval_suites:
             unmet.append("Tier 1 eval suite path not recorded in state.eval_suites")
         if os.path.isfile(self.arch_eval_suite_path) and self.arch_eval_suite_path not in eval_suites:
             unmet.append("Tier 2 eval suite path not recorded in state.eval_suites")
-        # NOTE: Feedback cycle tracking is inconsistent. We read from state here
-        # (which check_entry_conditions didn't update), but instance tracking
-        # happens via increment_feedback_cycle(). The two mechanisms need alignment.
-        if int(state.get("spec_generation_feedback_cycles", 0)) > self.MAX_FEEDBACK_CYCLES:
+
+        # Standardized revision count check inherited from BaseStage strategy
+        if self.at_revision_limit():
             unmet.append("Spec-generation feedback loop exceeded maximum cycles")
 
         if os.path.isfile(self.arch_eval_suite_path):
-            # NOTE: TOCTOU race — we check existence above but re-check here. If file
-            # is deleted between check and open, this raises unhandled exception.
-            with open(self.arch_eval_suite_path) as f:
-                tier2 = json.load(f)
-            metadata = tier2.get("metadata", {})
-            if metadata.get("artifact") != "eval-suite-architecture":
-                unmet.append("Tier 2 eval suite metadata.artifact is incorrect")
-            if metadata.get("tier") != 2:
-                unmet.append("Tier 2 eval suite metadata.tier must equal 2")
-            if metadata.get("created_by") != "spec-writer":
-                unmet.append("Tier 2 eval suite metadata.created_by must equal spec-writer")
-        return {"met": len(unmet) == 0, "unmet": unmet}
+            try:
+                with open(self.arch_eval_suite_path) as f:
+                    tier2 = json.load(f)
+                metadata = tier2.get("metadata", {})
+                if metadata.get("artifact") != "eval-suite-architecture":
+                    unmet.append("Tier 2 eval suite metadata.artifact is incorrect")
+                if metadata.get("tier") != 2:
+                    unmet.append("Tier 2 eval suite metadata.tier must equal 2")
+                if metadata.get("created_by") != "spec-writer":
+                    unmet.append("Tier 2 eval suite metadata.created_by must equal spec-writer")
+            except (json.JSONDecodeError, IOError):
+                unmet.append(f"Failed to read or parse Tier 2 eval suite at {self.arch_eval_suite_path}")
+
+        if unmet:
+            return self._fail(unmet)
+        return self._pass()
+

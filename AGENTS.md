@@ -302,6 +302,32 @@ When pausing an agent workflow via LangGraph's `interrupt()`, the emitted payloa
 
 Instead, a strictly-typed schema must be defined in `meta_agent/schemas/` and instantiated by the emitting tool before passing it to `interrupt()`. This guarantees that UI clients traversing the backend API can import and rely on static object shapes (e.g. `AskUserRequest`, `ExecuteCommandRequest`, `ApprovalRequest`) to render interactive components like modals, radio buttons, or code blocks natively without pulling in execution modules or heavy `langchain` overhead.
 
+## Formalized Stage Interface (FSI) Convention
+
+To ensure consistent telemetry, state synchronization, and governance across all workflow transitions, all workflow stages MUST adhere to the **Formalized Stage Interface (FSI)**.
+
+### 1. Mandatory Inheritance
+All stage handler classes must inherit from `meta_agent.stages.base.BaseStage`. Direct implementation of gate logic without the base class is prohibited.
+
+### 2. Implementation Hooks
+Stage logic must be implemented in the protected `_check_impl` hooks, never by overriding the public gate methods.
+- Implement entry logic in: `_check_entry_impl(self, state: dict[str, Any]) -> ConditionResult`
+- Implement exit logic in: `_check_exit_impl(self, state: dict[str, Any]) -> ConditionResult`
+
+### 3. Template Method Pipeline
+The `BaseStage` provides public template methods (`check_entry_conditions` and `check_exit_conditions`) that automatically execute the following pipeline:
+1. **Normalization**: Ensures `state` is a dictionary.
+2. **Synchronization**: Calls `sync_from_state` to hydrate persistent counters (e.g., feedback cycles).
+3. **Execution**: Invokes the agent's `_check_impl` hook.
+4. **Telemetry**: Emits a LangSmith span with rich metadata via `_emit_span`.
+5. **Post-processing**: Normalizes the `ConditionResult` to ensure `met` and `unmet` parity.
+
+### 4. State Synchronization
+Permanent workflow counters (like `spec_generation_feedback_cycles`) must be hydrated in the `sync_from_state` method. This ensures that in-memory counters remain accurate across graph resumes from checkpoints.
+
+### 5. Telemetry & The `_span_carrier`
+The base class provides a `_span_carrier` helper. This is a no-op method used specifically to capture telemetry metadata. Do not remove or shadow this method in subclasses.
+
 ## Architecture
 
 ```

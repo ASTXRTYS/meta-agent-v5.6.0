@@ -38,16 +38,6 @@ def get_model_config(effort: str | None = None) -> dict[str, Any]:
     if effort is not None:
         config["output_config"] = {"effort": effort}
 
-    # TODO: Complete fallback_model implementation
-    # ISSUE: fallback_model flag is set (line 69) but never read elsewhere in the codebase.
-    # This suggests an incomplete implementation for handling non-Opus/Sonnet models
-    # that may need budget_tokens instead of effort parameter.
-    # RECOMMENDED ACTION: Either implement the fallback logic that reads this flag,
-    # or remove the flag if the fallback mechanism is not needed.
-    if "opus" not in model_name.lower() and "sonnet" not in model_name.lower():
-        # Older models may need budget_tokens instead of effort
-        config["fallback_model"] = True
-
     return config
 
 
