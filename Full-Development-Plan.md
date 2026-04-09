@@ -52,7 +52,7 @@ This document is the authoritative development plan for the local-first meta-age
 | Phase 1 | ✅ COMPLETE | 100% | Real Deep Agents SDK integration, orchestrator graph, 14+ tools | - |
 | Phase 2 | ✅ COMPLETE | 100% | INTAKE/PRD_REVIEW stages, HITL integration, 23 evals passing | - |
 | Phase 3 | ✅ COMPLETE | 100% | FSI migration, artifact provenance, state encapsulation, 38 research evals, 471 unit tests, state sync automation | - |
-| Phase 4 | 🔄 IN PROGRESS | ~5% | - | Planning stage implementation |
+| Phase 4 | 🔄 IN PROGRESS | ~12% | Agent memory/filesystem alignment Track A+B completed; profile-driven subagent middleware provisioner landed | Planning stage implementation |
 | Phase 5 | ⏸️ NOT STARTED | 0% | - | Complete Phase 4 |
 
 ### Current Focus: Phase 4 Planning + Execution
@@ -75,6 +75,8 @@ This document is the authoritative development plan for the local-first meta-age
 - ✅ Eval run function bridge for langsmith.evaluate() with checkpoint mapping
 - ✅ 471 unit tests passing (SDK middleware integration validated with deepagents==0.4.12)
 - ✅ PM + runtime subagents aligned to canonical `.agents/skills/...` sources; integration assertions updated
+- ✅ Track A complete: evaluation-agent added to PROJECT_AGENTS scaffolding with regression + behavioral tests
+- ✅ Track B complete: centralized profile-driven subagent provisioner, parity gate tests, and runtime migration across 7 agents
 
 - [x] End-to-end stage wiring validation (FSI migration)
 - [x] Stage wiring validation (RESEARCH → SPEC_GENERATION → SPEC_REVIEW)
@@ -3138,11 +3140,11 @@ These checklists apply across all phases. The coding agent must verify complianc
 - [ ] All agents have 6 auto-attached middleware: TodoListMiddleware, FilesystemMiddleware, SubAgentMiddleware, SummarizationMiddleware, AnthropicPromptCachingMiddleware, PatchToolCallsMiddleware
 - [ ] ToolErrorMiddleware is on ALL agents (orchestrator + all 8 subagents + 3 code-agent sub-agents)
 - [ ] HumanInTheLoopMiddleware is on orchestrator and code-agent
-- [x] MemoryMiddleware is on orchestrator, research-agent, verification-agent — uses bare FilesystemBackend(virtual_mode=False) for absolute AGENTS.md path access
+- [x] MemoryMiddleware is on orchestrator and all migrated runtime subagents (research-agent, spec-writer, plan-writer, code-agent, verification-agent, evaluation-agent, document-renderer) — uses bare FilesystemBackend(virtual_mode=False) for absolute AGENTS.md path access
 - [ ] MemoryMiddleware enforces per-agent isolation (Section 13.4.6.2)
-- [x] SkillsMiddleware is explicit in middleware list (not via skills= param) — uses bare FilesystemBackend(virtual_mode=False) for absolute SKILL.md path access
-- [x] SummarizationToolMiddleware on orchestrator and research-agent — uses create_summarization_tool_middleware() factory with composite_backend for /conversation_history/ offloading
-- [x] Middleware is NOT inherited by subagents — each configures explicitly via runtime files
+- [x] Skills provisioning is explicit: SkillsMiddleware for project-aware runtime subagents and `create_deep_agent(skills=...)` only for document-renderer special-case parity
+- [x] SummarizationToolMiddleware on orchestrator, research-agent, plan-writer, code-agent, and evaluation-agent — uses create_summarization_tool_middleware() factory with composite_backend for /conversation_history/ offloading
+- [x] Middleware is NOT inherited by subagents — each subagent profile is explicitly configured in `meta_agent/subagents/provisioner.py`
 
 ### 6.3 Recursion Limit Checklist
 

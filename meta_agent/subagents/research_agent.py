@@ -13,12 +13,7 @@ from pathlib import Path
 from typing import Any, Iterable, Mapping
 
 from deepagents import create_deep_agent
-from deepagents.middleware.memory import MemoryMiddleware
-from deepagents.middleware.skills import SkillsMiddleware
 from deepagents.middleware.subagents import CompiledSubAgent
-from deepagents.middleware.summarization import (
-    create_summarization_tool_middleware,
-)
 from langchain_core.runnables import RunnableLambda
 from meta_agent.backend import (
     create_bare_filesystem_backend,
@@ -26,16 +21,12 @@ from meta_agent.backend import (
     create_composite_backend,
     create_store,
 )
-from meta_agent.middleware.agent_decision_state import AgentDecisionStateMiddleware
-from meta_agent.middleware.tool_error_handler import ToolErrorMiddleware
-from meta_agent.middleware.ask_user import AskUserMiddleware
-from meta_agent.middleware.artifact_protocol import ArtifactProtocolMiddleware
-from meta_agent.model import get_configured_model, get_model_config
+from meta_agent.model import get_configured_model
 from meta_agent.prompts.research_agent import construct_research_agent_prompt
 from meta_agent.safety import RECURSION_LIMITS
 from meta_agent.tracing import traceable
 from meta_agent.subagents.document_renderer import create_document_renderer_subagent
-from meta_agent.config.memory import get_memory_sources
+from meta_agent.subagents.provisioner import build_provisioning_plan
 from meta_agent.tools import (
     get_server_side_tools,
     record_assumption_tool,
@@ -655,24 +646,20 @@ def create_research_agent_graph(
     skills_dirs: list[str] | None = None,
 ) -> Any:
     """Create the internal research-agent graph."""
-    cfg = get_model_config("research-agent")
     model = get_configured_model(effort=None, max_tokens=16000)
     repo_root = Path(__file__).resolve().parents[2]
     composite_backend = create_composite_backend(repo_root)
     bare_fs = create_bare_filesystem_backend()
 
-    # SummarizationToolMiddleware — agent-controlled compact_conversation
-    # Uses composite_backend for /conversation_history/ offloading
-    summarization_tool_mw = create_summarization_tool_middleware(
-        cfg["model_string"], composite_backend
-    )
-
-    # MemoryMiddleware
-    memory_sources = get_memory_sources("research-agent", project_dir, repo_root)
-    memory_mw = MemoryMiddleware(backend=bare_fs, sources=memory_sources)
-
     resolved_skills = _resolve_skills_dirs(skills_dirs)
-    skills_mw = SkillsMiddleware(backend=bare_fs, sources=resolved_skills)
+    provisioning_plan = build_provisioning_plan(
+        agent_name="research-agent",
+        project_dir=project_dir,
+        repo_root=repo_root,
+        composite_backend=composite_backend,
+        bare_fs=bare_fs,
+        skills_dirs=resolved_skills,
+    )
 
     tools = [
         request_approval_tool,
@@ -689,15 +676,7 @@ def create_research_agent_graph(
         model=model,
         tools=tools,
         system_prompt=construct_research_agent_prompt(project_dir, project_id),
-        middleware=[
-            AgentDecisionStateMiddleware(),
-            AskUserMiddleware(),
-            ArtifactProtocolMiddleware(backend=bare_fs),
-            summarization_tool_mw,
-            memory_mw,
-            skills_mw,
-            ToolErrorMiddleware(),
-        ],
+        middleware=provisioning_plan.middleware,
         subagents=[doc_renderer],
         backend=composite_backend,
         checkpointer=create_checkpointer(),

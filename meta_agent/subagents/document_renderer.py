@@ -19,11 +19,10 @@ from pathlib import Path
 from typing import Any
 
 from deepagents import create_deep_agent
-from deepagents.middleware.memory import MemoryMiddleware
 from deepagents.middleware.subagents import CompiledSubAgent
 from meta_agent.backend import create_bare_filesystem_backend, create_composite_backend, create_store, create_checkpointer
-from meta_agent.config.memory import get_memory_sources
 from meta_agent.model import get_configured_model
+from meta_agent.subagents.provisioner import build_provisioning_plan
 
 
 PROMPT_MARKDOWN_PATH = Path(__file__).resolve().parent.parent / "prompts" / "Document_Renderer_System_Prompt.md"
@@ -75,30 +74,21 @@ def create_document_renderer_subagent(
     repo_root = Path(__file__).resolve().parents[2]
     composite_backend = create_composite_backend(repo_root)
     bare_fs = create_bare_filesystem_backend()
-
-    # SkillsMiddleware
-    anthropic_skills_dir = next(
-        (d for d in (skills_dirs or []) if "anthropic" in d), None
+    provisioning_plan = build_provisioning_plan(
+        agent_name="document-renderer",
+        project_dir="",
+        repo_root=repo_root,
+        composite_backend=composite_backend,
+        bare_fs=bare_fs,
+        skills_dirs=skills_dirs,
     )
-    skills = [anthropic_skills_dir] if anthropic_skills_dir else []
-
-    # MemoryMiddleware
-    # Passing project_dir=None for now as document-renderer is often generic,
-    # but get_memory_sources handles it.
-    memory_sources = get_memory_sources("document-renderer", repo_root=repo_root)
-    memory_mw = MemoryMiddleware(backend=bare_fs, sources=memory_sources)
-
-    from meta_agent.middleware.tool_error_handler import ToolErrorMiddleware
 
     graph = create_deep_agent(
         model=model,
         tools=[],  # Filesystem tools auto-attached
         system_prompt=DOCUMENT_RENDERER_SYSTEM_PROMPT,
-        middleware=[
-            memory_mw,
-            ToolErrorMiddleware(),
-        ],
-        skills=skills,
+        middleware=provisioning_plan.middleware,
+        skills=provisioning_plan.deep_agent_skills,
         backend=composite_backend,
         checkpointer=create_checkpointer(),
         store=create_store(),

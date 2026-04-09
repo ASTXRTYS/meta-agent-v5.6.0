@@ -55,61 +55,101 @@ The PM orchestrator (meta_agent/graph.py) uses the following middleware stack:
 
 ## Subagent Factory Registration
 
-Each subagent orchestrates its own middleware and tool setup internally via isolated factory functions (e.g., `create_research_agent_subagent()`). 
-These factory constructions execute dynamically via the `AGENT_REGISTRY` dictionary in `meta_agent/subagents/configs.py`. The legacy static metadata dictionaries (like `SUBAGENT_CONFIGS` or `SUBAGENT_MIDDLEWARE`) have been removed to assert factories as the single source of truth.
+Subagent middleware provisioning is centralized through `meta_agent/subagents/provisioner.py`.
+Runtime factories remain the execution entrypoints, but they no longer manually compose middleware stacks; each runtime now calls `build_provisioning_plan(...)` for deterministic assembly from `PROFILE_REGISTRY`.
 
-### Research Agent
+**Convention (must-follow):**
+- Runtime files must use `build_provisioning_plan(...)`.
+- Runtime files must not manually instantiate per-agent middleware stacks.
+- `PROFILE_REGISTRY` is the canonical definition of per-agent middleware ordering and behavior.
+- `PROJECT_AGENTS` must align to provisioner profiles with `use_project_memory=True` plus `pm`.
+
+**Guardrails:**
+- `tests/integration/test_subagent_provisioner_parity.py`
+- `tests/drift/test_subagent_provisioning_convention.py`
+- `tests/integration/test_memory_and_skills.py`
+
+### Research Agent (Profile-Driven)
 
 | Middleware | Source | Purpose |
 | --- | --- | --- |
 | AgentDecisionStateMiddleware | Custom | Provides decision_log, assumption_log, approval_history state fields for decision tracking tools. |
-| ToolErrorMiddleware | Custom | Wraps tool calls in try/except for error handling. |
+| AskUserMiddleware | Custom | Structured HITL questioning via `ask_user`. |
+| ArtifactProtocolMiddleware | Custom | Enforces artifact shape checks via `validate_artifact`. |
 | SummarizationToolMiddleware | SDK | Agent-controlled compact_conversation tool. |
 | MemoryMiddleware | SDK | Per-agent AGENTS.md loading. |
 | SkillsMiddleware | SDK | On-demand SKILL.md loading. |
+| ToolErrorMiddleware | Custom | Wraps tool calls in try/except for error handling. |
 
-### Verification Agent
+### Verification Agent (Profile-Driven)
 
 | Middleware | Source | Purpose |
 | --- | --- | --- |
-| MemoryMiddleware | SDK | Per-agent AGENTS.md loading. |
 | AgentDecisionStateMiddleware | Custom | Provides decision_log, assumption_log, approval_history state fields. |
+| AskUserMiddleware | Custom | Structured HITL questioning via `ask_user`. |
+| ArtifactProtocolMiddleware | Custom | Enforces artifact shape checks via `validate_artifact`. |
+| MemoryMiddleware | SDK | Per-agent AGENTS.md loading. |
+| SkillsMiddleware | SDK | On-demand SKILL.md loading. |
 | ToolErrorMiddleware | Custom | Wraps tool calls in try/except for error handling. |
 
-### Spec Writer
+### Spec Writer (Profile-Driven)
+
+| Middleware | Source | Purpose |
+| --- | --- | --- |
+| AskUserMiddleware | Custom | Structured HITL questioning via `ask_user`. |
+| ArtifactProtocolMiddleware | Custom | Enforces artifact shape checks via `validate_artifact`. |
+| SkillsMiddleware | SDK | On-demand SKILL.md loading. |
+| MemoryMiddleware | SDK | Per-agent AGENTS.md loading. |
+| ToolErrorMiddleware | Custom | Wraps tool calls in try/except for error handling. |
+
+### Plan Writer (Profile-Driven)
+
+| Middleware | Source | Purpose |
+| --- | --- | --- |
+| AgentDecisionStateMiddleware | Custom | Provides decision/assumption/approval state fields. |
+| AskUserMiddleware | Custom | Structured HITL questioning via `ask_user`. |
+| ArtifactProtocolMiddleware | Custom | Enforces artifact shape checks via `validate_artifact`. |
+| SummarizationToolMiddleware | SDK | Agent-controlled compact_conversation tool. |
+| MemoryMiddleware | SDK | Per-agent AGENTS.md loading. |
+| SkillsMiddleware | SDK | On-demand SKILL.md loading. |
+| ToolErrorMiddleware | Custom | Wraps tool calls in try/except for error handling. |
+
+### Code Agent (Profile-Driven)
+
+| Middleware | Source | Purpose |
+| --- | --- | --- |
+| AgentDecisionStateMiddleware | Custom | Provides decision/assumption/approval state fields. |
+| SummarizationToolMiddleware | SDK | Agent-controlled compact_conversation tool. |
+| MemoryMiddleware | SDK | Per-agent AGENTS.md loading. |
+| SkillsMiddleware | SDK | On-demand SKILL.md loading. |
+| ToolErrorMiddleware | Custom | Wraps tool calls in try/except for error handling. |
+
+### Evaluation Agent (Profile-Driven)
+
+| Middleware | Source | Purpose |
+| --- | --- | --- |
+| AgentDecisionStateMiddleware | Custom | Provides decision/assumption/approval state fields. |
+| SummarizationToolMiddleware | SDK | Agent-controlled compact_conversation tool. |
+| MemoryMiddleware | SDK | Per-agent AGENTS.md loading. |
+| SkillsMiddleware | SDK | On-demand SKILL.md loading. |
+| ToolErrorMiddleware | Custom | Wraps tool calls in try/except for error handling. |
+
+### Document Renderer (Profile-Driven)
 
 | Middleware | Source | Purpose |
 | --- | --- | --- |
 | MemoryMiddleware | SDK | Per-agent AGENTS.md loading. |
 | ToolErrorMiddleware | Custom | Wraps tool calls in try/except for error handling. |
 
-### Plan Writer
+**Special behavior preserved:** `document-renderer` does not use `SkillsMiddleware`; it receives Anthropic skills through `create_deep_agent(skills=...)` to maintain established behavior.
 
-| Middleware | Source | Purpose |
-| --- | --- | --- |
-| MemoryMiddleware | SDK | Per-agent AGENTS.md loading. |
-| ToolErrorMiddleware | Custom | Wraps tool calls in try/except for error handling. |
+## Enabled User Stories
 
-### Code Agent
-
-| Middleware | Source | Purpose |
-| --- | --- | --- |
-| MemoryMiddleware | SDK | Per-agent AGENTS.md loading. |
-| ToolErrorMiddleware | Custom | Wraps tool calls in try/except for error handling. |
-
-### Evaluation Agent
-
-| Middleware | Source | Purpose |
-| --- | --- | --- |
-| MemoryMiddleware | SDK | Per-agent AGENTS.md loading. |
-| ToolErrorMiddleware | Custom | Wraps tool calls in try/except for error handling. |
-
-### Document Renderer
-
-| Middleware | Source | Purpose |
-| --- | --- | --- |
-| MemoryMiddleware | SDK | Per-agent AGENTS.md loading. |
-| ToolErrorMiddleware | Custom | Wraps tool calls in try/except for error handling. |
+1. As a maintainer, I can modify middleware behavior in a single profile registry without editing 7 runtime files.
+2. As a reviewer, I can require parity evidence (sequence + stable config) before approving middleware changes.
+3. As a platform engineer, I can prevent silent memory/scaffolding drift via enforced alignment tests.
+4. As a contributor, I can introduce agent-specific middleware differences without creating copy-paste divergence.
+5. As a release owner, I can detect convention regressions in CI through dedicated drift tests rather than runtime incidents.
 
 ## Custom Middleware Deep Dive
 

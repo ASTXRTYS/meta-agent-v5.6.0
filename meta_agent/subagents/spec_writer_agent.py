@@ -25,8 +25,6 @@ from pathlib import Path
 from typing import Any, Mapping
 
 from deepagents import create_deep_agent
-from deepagents.middleware.memory import MemoryMiddleware
-from deepagents.middleware.skills import SkillsMiddleware
 from deepagents.middleware.subagents import CompiledSubAgent
 from langchain_core.runnables import RunnableLambda
 
@@ -36,12 +34,9 @@ from meta_agent.backend import (
     create_composite_backend,
     create_store,
 )
-from meta_agent.middleware.tool_error_handler import ToolErrorMiddleware
-from meta_agent.middleware.ask_user import AskUserMiddleware
-from meta_agent.middleware.artifact_protocol import ArtifactProtocolMiddleware
-from meta_agent.model import get_configured_model, get_model_config
+from meta_agent.model import get_configured_model
 from meta_agent.prompts.spec_writer import construct_spec_writer_prompt
-from meta_agent.config.memory import get_memory_sources
+from meta_agent.subagents.provisioner import build_provisioning_plan
 from meta_agent.tools import propose_evals_tool
 
 
@@ -290,18 +285,20 @@ def create_spec_writer_agent_graph(
     - Middleware: 6 auto + ToolErrorMiddleware (no SubAgentMiddleware)
     - No web_search / web_fetch (spec-writer works from provided artifacts)
     """
-    cfg = get_model_config("spec-writer")
     model = get_configured_model(effort="high")
     repo_root = Path(__file__).resolve().parents[2]
     composite_backend = create_composite_backend(repo_root)
     bare_fs = create_bare_filesystem_backend()
 
     resolved_skills = _resolve_skills_dirs(skills_dirs)
-    skills_mw = SkillsMiddleware(backend=bare_fs, sources=resolved_skills)
-
-    # MemoryMiddleware
-    memory_sources = get_memory_sources("spec-writer", project_dir, repo_root)
-    memory_mw = MemoryMiddleware(backend=bare_fs, sources=memory_sources)
+    provisioning_plan = build_provisioning_plan(
+        agent_name="spec-writer",
+        project_dir=project_dir,
+        repo_root=repo_root,
+        composite_backend=composite_backend,
+        bare_fs=bare_fs,
+        skills_dirs=resolved_skills,
+    )
 
     tools = [
         propose_evals_tool,
@@ -311,13 +308,7 @@ def create_spec_writer_agent_graph(
         model=model,
         tools=tools,
         system_prompt=construct_spec_writer_prompt(project_dir, project_id),
-        middleware=[
-            AskUserMiddleware(),
-            ArtifactProtocolMiddleware(backend=bare_fs),
-            skills_mw,
-            memory_mw,
-            ToolErrorMiddleware(),
-        ],
+        middleware=provisioning_plan.middleware,
         backend=composite_backend,
         checkpointer=create_checkpointer(),
         store=create_store(),

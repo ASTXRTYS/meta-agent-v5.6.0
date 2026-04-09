@@ -5,7 +5,7 @@ from __future__ import annotations
 from functools import lru_cache
 from pathlib import Path
 
-from .sections import format_agents_md_section, format_workspace_section
+from .sections import format_workspace_section
 
 
 PROMPT_MARKDOWN_PATH = Path(__file__).with_name("Spec_Writer_System_Prompt.md")
@@ -26,7 +26,6 @@ def _load_spec_writer_prompt_markdown() -> str:
 def construct_spec_writer_prompt(
     project_dir: str,
     project_id: str = "",
-    agents_md: str = "",
 ) -> str:
     """Assemble the spec-writer system prompt from the markdown source of truth."""
     sections = [
@@ -34,6 +33,4 @@ def construct_spec_writer_prompt(
         format_workspace_section(project_dir, project_id),
         RUNTIME_NOTES,
     ]
-    if agents_md:
-        sections.append(format_agents_md_section(agents_md))
     return "\n\n---\n\n".join(sections)

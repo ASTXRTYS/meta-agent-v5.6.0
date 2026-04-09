@@ -30,8 +30,6 @@ from pathlib import Path
 from typing import Any, Mapping
 
 from deepagents import create_deep_agent
-from deepagents.middleware.memory import MemoryMiddleware
-from deepagents.middleware.skills import SkillsMiddleware
 from deepagents.middleware.subagents import CompiledSubAgent
 from langchain_core.runnables import RunnableLambda
 
@@ -41,13 +39,9 @@ from meta_agent.backend import (
     create_composite_backend,
     create_store,
 )
-from meta_agent.middleware.agent_decision_state import AgentDecisionStateMiddleware
-from meta_agent.middleware.tool_error_handler import ToolErrorMiddleware
-from meta_agent.middleware.ask_user import AskUserMiddleware
-from meta_agent.middleware.artifact_protocol import ArtifactProtocolMiddleware
-from meta_agent.model import get_configured_model, get_model_config
+from meta_agent.model import get_configured_model
 from meta_agent.prompts.verification_agent import construct_verification_agent_prompt
-from meta_agent.config.memory import get_memory_sources
+from meta_agent.subagents.provisioner import build_provisioning_plan
 from meta_agent.subagents.verification_agent import (
     REQUIRED_VERDICT_FIELDS,
     VERIFICATION_STATUSES,
@@ -179,31 +173,26 @@ def create_verification_agent_graph(
     Tools: ``read_file`` (auto via FilesystemMiddleware)
     Middleware: 6 auto + SkillsMiddleware, ToolErrorMiddleware, MemoryMiddleware
     """
-    cfg = get_model_config("verification-agent")
     model = get_configured_model(effort="max")
     repo_root = Path(__file__).resolve().parents[2]
     composite_backend = create_composite_backend(repo_root)
     bare_fs = create_bare_filesystem_backend()
 
-    # MemoryMiddleware
-    memory_sources = get_memory_sources("verification-agent", project_dir, repo_root)
-    memory_mw = MemoryMiddleware(backend=bare_fs, sources=memory_sources)
-
     resolved_skills = _resolve_skills_dirs(skills_dirs)
-    skills_mw = SkillsMiddleware(backend=bare_fs, sources=resolved_skills)
+    provisioning_plan = build_provisioning_plan(
+        agent_name="verification-agent",
+        project_dir=project_dir,
+        repo_root=repo_root,
+        composite_backend=composite_backend,
+        bare_fs=bare_fs,
+        skills_dirs=resolved_skills,
+    )
 
     return create_deep_agent(
         model=model,
         tools=[],  # read_file provided auto via FilesystemMiddleware
         system_prompt=construct_verification_agent_prompt(project_dir, project_id),
-        middleware=[
-            AgentDecisionStateMiddleware(),
-            AskUserMiddleware(),
-            ArtifactProtocolMiddleware(backend=bare_fs),
-            memory_mw,
-            skills_mw,
-            ToolErrorMiddleware(),
-        ],
+        middleware=provisioning_plan.middleware,
         backend=composite_backend,
         checkpointer=create_checkpointer(),
         store=create_store(),

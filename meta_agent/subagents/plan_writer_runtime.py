@@ -22,12 +22,7 @@ from pathlib import Path
 from typing import Any, Mapping
 
 from deepagents import create_deep_agent
-from deepagents.middleware.memory import MemoryMiddleware
-from deepagents.middleware.skills import SkillsMiddleware
 from deepagents.middleware.subagents import CompiledSubAgent
-from deepagents.middleware.summarization import (
-    create_summarization_tool_middleware,
-)
 from langchain_core.runnables import RunnableLambda
 
 from meta_agent.backend import (
@@ -36,14 +31,10 @@ from meta_agent.backend import (
     create_composite_backend,
     create_store,
 )
-from meta_agent.middleware.agent_decision_state import AgentDecisionStateMiddleware
-from meta_agent.middleware.tool_error_handler import ToolErrorMiddleware
-from meta_agent.middleware.ask_user import AskUserMiddleware
-from meta_agent.middleware.artifact_protocol import ArtifactProtocolMiddleware
-from meta_agent.model import get_configured_model, get_model_config
+from meta_agent.model import get_configured_model
 from meta_agent.prompts.plan_writer import construct_plan_writer_prompt
 from meta_agent.subagents.document_renderer import create_document_renderer_subagent
-from meta_agent.config.memory import get_memory_sources
+from meta_agent.subagents.provisioner import build_provisioning_plan
 
 
 # ---------------------------------------------------------------------------
@@ -214,23 +205,20 @@ def create_plan_writer_agent_graph(
                MemoryMiddleware, SkillsMiddleware, ToolErrorMiddleware
     Subagents: document-renderer (for plan rendering to DOCX/PDF)
     """
-    cfg = get_model_config("plan-writer")
     model = get_configured_model(effort="high")
     repo_root = Path(__file__).resolve().parents[2]
     composite_backend = create_composite_backend(repo_root)
     bare_fs = create_bare_filesystem_backend()
 
-    # SummarizationToolMiddleware — agent-controlled compact_conversation
-    summarization_tool_mw = create_summarization_tool_middleware(
-        cfg["model_string"], composite_backend
-    )
-
-    # MemoryMiddleware
-    memory_sources = get_memory_sources("plan-writer", project_dir, repo_root)
-    memory_mw = MemoryMiddleware(backend=bare_fs, sources=memory_sources)
-
     resolved_skills = _resolve_skills_dirs(skills_dirs)
-    skills_mw = SkillsMiddleware(backend=bare_fs, sources=resolved_skills)
+    provisioning_plan = build_provisioning_plan(
+        agent_name="plan-writer",
+        project_dir=project_dir,
+        repo_root=repo_root,
+        composite_backend=composite_backend,
+        bare_fs=bare_fs,
+        skills_dirs=resolved_skills,
+    )
 
     doc_renderer = create_document_renderer_subagent(resolved_skills)
 
@@ -238,15 +226,7 @@ def create_plan_writer_agent_graph(
         model=model,
         tools=[],  # filesystem tools provided auto via FilesystemMiddleware
         system_prompt=construct_plan_writer_prompt(project_dir, project_id),
-        middleware=[
-            AgentDecisionStateMiddleware(),
-            AskUserMiddleware(),
-            ArtifactProtocolMiddleware(backend=bare_fs),
-            summarization_tool_mw,
-            memory_mw,
-            skills_mw,
-            ToolErrorMiddleware(),
-        ],
+        middleware=provisioning_plan.middleware,
         subagents=[doc_renderer],
         backend=composite_backend,
         checkpointer=create_checkpointer(),

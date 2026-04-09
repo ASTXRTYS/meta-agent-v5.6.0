@@ -270,7 +270,7 @@ These are **auto-attached** by the SDK — we do NOT instantiate them:
 | system_prompt | construct_pm_prompt() output | Section 7.3 |
 | tools | Custom tools from meta_agent/tools/ (registered as @tool) | Sections 8.1–8.14 |
 | middleware | [DynamicSystemPromptMiddleware, MetaAgentStateMiddleware, SummarizationToolMiddleware, MemoryMiddleware, ToolErrorMiddleware] | Sections 22.4, 22.12 |
-| backend | FilesystemBackend(root_dir=<repo_root>, virtual_mode=True) | Section 4.2 |
+| backend | create_composite_backend(repo_root): default FilesystemBackend(root_dir=<repo_root>, virtual_mode=True) + routes (/memories/, /large_tool_results/, /conversation_history/) | Section 4.2 |
 | checkpointer | MemorySaver() (InMemorySaver) | Section 4.3 |
 | store | InMemoryStore() | Section 4.2 |
 | interrupt_on | {tool_name: True for tool_name in HITL_GATED_TOOLS} | Section 9.2 |
@@ -297,6 +297,57 @@ All subagents follow a strict memory convention to ensure instruction reliabilit
 2.  **Middleware Injection**: Memory is always loaded via `MemoryMiddleware` during `create_deep_agent()` initialization. This ensures instructions are treated as persistent system context rather than volatile history.
 3.  **Zero Manual I/O**: Agent factories must never use manual filesystem checks for `AGENTS.md`. The `MemoryMiddleware` is the sole authority for loading instructions, handling optional project files gracefully.
 4.  **Persona Graduation**: To define a new subagent identity, simply create a directory under `/.agents/` with an `AGENTS.md`. The system will automatically resolve it for any agent initialized with that name.
+
+### Filesystem Backend Convention (Track A)
+
+The filesystem contract is centralized in `meta_agent/backend.py` and must remain deterministic:
+
+- **Default route:** `FilesystemBackend(root_dir=<repo_root>, virtual_mode=True)` for normal workspace files.
+- **Persistent store route:** `/memories/ -> StoreBackend` for cross-thread memory.
+- **Ephemeral offload routes:** `/large_tool_results/ -> StateBackend` and `/conversation_history/ -> StateBackend`.
+- **Memory/skills source loading:** `create_bare_filesystem_backend(virtual_mode=False)` for `MemoryMiddleware` and `SkillsMiddleware` absolute source reads.
+- **Project workspace contract:** project artifacts and per-agent AGENTS.md files live under `/.agents/pm/projects/{project_id}/...` (on disk: `<repo_root>/.agents/pm/projects/{project_id}/...`).
+
+**Required change protocol for maintainers:**
+1. Update `meta_agent/backend.py` and/or `meta_agent/project.py` first.
+2. Run `tests/drift/test_filesystem_backend_convention.py`.
+3. Run `tests/integration/test_memory_and_skills.py`.
+4. If memory/scaffolding semantics changed, also run `tests/drift/test_subagent_provisioning_convention.py`.
+5. Update this AGENTS.md and `README.md` if any path or routing behavior changed.
+
+### Subagent Provisioning Convention (Track B)
+
+All runtime subagents now use a centralized, profile-driven provisioning system:
+
+- **Single source of truth:** `meta_agent/subagents/provisioner.py` (`PROFILE_REGISTRY` + `build_provisioning_plan()`).
+- **Runtime factories MUST call the provisioner:** runtime files for `research-agent`, `spec-writer`, `plan-writer`, `code-agent`, `verification-agent`, `evaluation-agent`, and `document-renderer` must assemble middleware via `build_provisioning_plan(...)`.
+- **Runtime factories MUST NOT manually instantiate per-agent middleware stacks** (`MemoryMiddleware`, `SkillsMiddleware`, `create_summarization_tool_middleware`, `AskUserMiddleware`, `ArtifactProtocolMiddleware`, `AgentDecisionStateMiddleware`, `ToolErrorMiddleware`) outside the provisioner.
+- **Document-renderer special-case is intentional:** it uses `MemoryMiddleware + ToolErrorMiddleware` via profile middleware and passes Anthropic skills via `create_deep_agent(skills=...)` from `ProvisioningPlan.deep_agent_skills`.
+- **Project scaffolding alignment rule:** `PROJECT_AGENTS` must remain aligned with provisioner profiles using `use_project_memory=True` plus `"pm"`.
+
+**Required change protocol for maintainers:**
+1. Update `PROFILE_REGISTRY` first.
+2. Run `tests/integration/test_subagent_provisioner_parity.py`.
+3. Run `tests/drift/test_subagent_provisioning_convention.py`.
+4. Run `tests/drift/test_filesystem_backend_convention.py` if memory/scaffolding coupling changed.
+5. Update this AGENTS.md, `README.md`, and `docs/architecture/middleware_catalog.md` if behavior changes.
+
+**Enforced by tests:**
+- `tests/drift/test_filesystem_backend_convention.py`
+- `tests/integration/test_subagent_provisioner_parity.py`
+- `tests/drift/test_subagent_provisioning_convention.py`
+- `tests/integration/test_memory_and_skills.py` (scaffolding + memory-load coverage)
+
+### Enabled User Stories (Provisioning + Filesystem + Artifact Organization)
+
+1. As a runtime user, I can rely on a deterministic filesystem structure so stage transitions do not fail due to path drift.
+2. As a maintainer, I can add or adjust a subagent middleware stack in one profile location and avoid cross-file drift.
+3. As a reviewer, I can verify middleware ordering and stable config parity through deterministic parity tests before merge.
+4. As a developer adding a new project-scoped agent, I get automatic guardrails that fail fast if scaffolding and runtime memory provisioning diverge.
+5. As an architect, I can preserve intentional per-agent differences (including document-renderer special behavior) without a one-size-fits-all stack.
+6. As an operations owner, I can rely on drift tests to prevent silent regressions from manual runtime edits.
+7. As a project owner, I can trust project-local agent memory (`/.agents/pm/projects/{project_id}/.agents/{agent}/AGENTS.md`) to override repo defaults predictably.
+8. As a document pipeline owner, I can keep document-renderer behavior intentionally isolated from project memory while still using shared provisioning logic.
 
 ### Interrupt Communication Convention
 

@@ -195,19 +195,29 @@ def eval_infra_006_eval_suite_schema_valid(project_dir: str) -> dict[str, Any]:
 
 
 def eval_infra_007_agents_md_created(project_dir: str) -> dict[str, Any]:
-    """INFRA-007: Per-agent AGENTS.md files are created for orchestrator.
+    """INFRA-007: Per-agent AGENTS.md files are created for project agents.
 
-    Verifies the orchestrator's project-specific AGENTS.md file
-    is created during project initialization.
+    Verifies all project-scoped agents receive project-specific AGENTS.md files
+    during project initialization.
 
     Priority: P0 (every build)
     Scoring: Binary pass/fail
     """
-    agents_md_path = f"{project_dir}/.agents/pm/AGENTS.md"
-    exists = os.path.isfile(agents_md_path)
+    from meta_agent.project import PROJECT_AGENTS
+
+    required_paths = [
+        f"{project_dir}/.agents/{agent}/AGENTS.md"
+        for agent in PROJECT_AGENTS
+    ]
+    missing = [path for path in required_paths if not os.path.isfile(path)]
+
     return {
-        "pass": exists,
-        "reason": "Orchestrator AGENTS.md exists" if exists else f"Not found: {agents_md_path}",
+        "pass": len(missing) == 0,
+        "reason": (
+            "All project-agent AGENTS.md files exist"
+            if not missing
+            else f"Missing AGENTS.md files: {missing}"
+        ),
     }
 
 

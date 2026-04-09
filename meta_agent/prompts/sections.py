@@ -599,23 +599,6 @@ def format_memory_section(project_dir: str) -> str:
 # Section Selection Matrix — Section 7.2.5
 # ---------------------------------------------------------------------------
 
-# TODO: Investigate SECTION_MATRIX usage across agents
-# ISSUE: SECTION_MATRIX defines sections for 6 agents (pm, research-agent, spec-writer,
-# plan-writer, code-agent, verification-agent), but only the PM agent actually uses
-# section-based assembly via construct_pm_prompt(stage, ...). The other 5 agents load
-# monolithic markdown files via _load_*_prompt_markdown() and do not reference SECTION_MATRIX.
-# RECOMMENDED ACTION: Either remove non-PM entries from SECTION_MATRIX (dead code) or verify if these
-# agents should be using section-based assembly. Affected files: plan_writer.py, code_agent.py,
-# verification_agent.py, evaluation_agent.py, research_agent.py, spec_writer.py.
-
-# TODO: Investigate shared utilities pattern duplication
-# ISSUE: format_workspace_section() is available in this module but 4 prompt loaders
-# (plan_writer.py, code_agent.py, evaluation_agent.py, verification_agent.py) construct
-# workspace blocks inline with f-strings instead of using the shared utility. Additionally,
-# agents_md parameter is accepted but unused in these 4 files.
-# RECOMMENDED ACTION: Update all 4 files to import and use format_workspace_section().
-# Either wire up agents_md parameter via format_agents_md_section() or remove it entirely.
-
 SECTION_MATRIX: dict[str, list[str]] = {
     "pm": [
         "ROLE", "WORKSPACE", "STAGE_CONTEXT", "ARTIFACT_PROTOCOL",

@@ -28,7 +28,7 @@ from meta_agent.utils.artifact_validator import (
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_PROTOCOLS_PATH = "/.agents/protocols/artifacts.yaml"
+DEFAULT_PROTOCOLS_PATH = ".agents/protocols/artifacts.yaml"
 
 
 class ArtifactProtocolState(AgentState):

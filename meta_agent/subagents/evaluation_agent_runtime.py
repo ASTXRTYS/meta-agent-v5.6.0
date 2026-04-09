@@ -22,12 +22,7 @@ from pathlib import Path
 from typing import Any, Mapping
 
 from deepagents import create_deep_agent
-from deepagents.middleware.memory import MemoryMiddleware
-from deepagents.middleware.skills import SkillsMiddleware
 from deepagents.middleware.subagents import CompiledSubAgent
-from deepagents.middleware.summarization import (
-    create_summarization_tool_middleware,
-)
 from langchain_core.runnables import RunnableLambda
 
 from meta_agent.backend import (
@@ -36,11 +31,9 @@ from meta_agent.backend import (
     create_composite_backend,
     create_store,
 )
-from meta_agent.middleware.agent_decision_state import AgentDecisionStateMiddleware
-from meta_agent.middleware.tool_error_handler import ToolErrorMiddleware
-from meta_agent.model import get_configured_model, get_model_config
+from meta_agent.model import get_configured_model
 from meta_agent.prompts.evaluation_agent import construct_evaluation_agent_prompt
-from meta_agent.config.memory import get_memory_sources
+from meta_agent.subagents.provisioner import build_provisioning_plan
 from meta_agent.tools import (
     create_eval_dataset_tool,
     langsmith_dataset_create_tool,
@@ -205,23 +198,20 @@ def create_evaluation_agent_graph(
     Subagents: None (may be extended in Phase 5)
     System prompt: Placeholder — full prompt comes in Phase 2 of evaluation stack
     """
-    cfg = get_model_config("evaluation-agent")
     model = get_configured_model(effort="high")
     repo_root = Path(__file__).resolve().parents[2]
     composite_backend = create_composite_backend(repo_root)
     bare_fs = create_bare_filesystem_backend()
 
-    # SummarizationToolMiddleware — agent-controlled compact_conversation
-    summarization_tool_mw = create_summarization_tool_middleware(
-        cfg["model_string"], composite_backend
-    )
-
-    # MemoryMiddleware
-    memory_sources = get_memory_sources("evaluation-agent", project_dir, repo_root)
-    memory_mw = MemoryMiddleware(backend=bare_fs, sources=memory_sources)
-
     resolved_skills = _resolve_skills_dirs(skills_dirs)
-    skills_mw = SkillsMiddleware(backend=bare_fs, sources=resolved_skills)
+    provisioning_plan = build_provisioning_plan(
+        agent_name="evaluation-agent",
+        project_dir=project_dir,
+        repo_root=repo_root,
+        composite_backend=composite_backend,
+        bare_fs=bare_fs,
+        skills_dirs=resolved_skills,
+    )
 
     tools = [
         langsmith_trace_list_tool,
@@ -238,13 +228,7 @@ def create_evaluation_agent_graph(
         model=model,
         tools=tools,
         system_prompt=system_prompt,
-        middleware=[
-            AgentDecisionStateMiddleware(),
-            summarization_tool_mw,
-            memory_mw,
-            skills_mw,
-            ToolErrorMiddleware(),
-        ],
+        middleware=provisioning_plan.middleware,
         backend=composite_backend,
         checkpointer=create_checkpointer(),
         store=create_store(),

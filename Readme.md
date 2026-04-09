@@ -115,6 +115,60 @@ Instructions are automatically resolved across three levels of `AGENTS.md` files
 - **No Manual Checks**: Runtimes never perform manual `os.path` checks. `MemoryMiddleware` handles missing files gracefully, allowing for a mix of defaults and overrides.
 - **Directory Personas**: New sub-agent personas are created by adding a directory under `/.agents/` with its own `AGENTS.md`.
 
+## Filesystem Backend Convention (Current)
+
+The runtime filesystem contract is centralized in `meta_agent/backend.py` and must remain stable:
+
+- **Default route**: `FilesystemBackend(root_dir=<repo_root>, virtual_mode=True)` for normal workspace files.
+- **Persistent memory namespace**: `/memories/` routes to `StoreBackend` (cross-thread persistence).
+- **Ephemeral large output namespace**: `/large_tool_results/` routes to `StateBackend` (thread-local temporary files).
+- **Ephemeral history namespace**: `/conversation_history/` routes to `StateBackend` (thread-local compaction/history offloading).
+- **Memory/skills file loading**: `MemoryMiddleware` and `SkillsMiddleware` use a separate bare filesystem backend (`virtual_mode=False`) for absolute-path source reads.
+
+### Expected Project Workspace Layout
+
+For project `project_id=<id>`, files are expected under:
+
+- On disk: `<repo_root>/.agents/pm/projects/<id>/...`
+- Agent-facing workspace path shape: `/.agents/pm/projects/<id>/...`
+
+```text
+/.agents/pm/projects/<id>/
+├── meta.yaml
+├── artifacts/
+│   ├── intake/
+│   ├── research/
+│   ├── spec/
+│   ├── planning/
+│   └── audit/
+├── evals/
+├── logs/
+└── .agents/
+    ├── pm/AGENTS.md
+    ├── research-agent/AGENTS.md
+    ├── spec-writer/AGENTS.md
+    ├── plan-writer/AGENTS.md
+    ├── code-agent/AGENTS.md
+    ├── verification-agent/AGENTS.md
+    └── evaluation-agent/AGENTS.md
+```
+
+### Enabled User Stories (Filesystem + Memory + Artifact Organization)
+
+1. As a runtime user, I can trust a deterministic workspace layout so every stage knows exactly where to read and write artifacts.
+2. As a subagent maintainer, I can change middleware/file-loading behavior once in the provisioner and avoid runtime-by-runtime drift.
+3. As a project owner, I can rely on consistent project memory precedence (project-local first, repo fallback second) across all project-scoped agents.
+4. As a release owner, I can preserve document-renderer isolation (repo-level memory only) without leaking project-scoped memory into render jobs.
+5. As a contributor adding a new project-scoped agent, I get immediate failures if scaffolding, memory provisioning, and runtime registration diverge.
+6. As a quality gate reviewer, I can require parity/drift test evidence before approving backend, memory, or artifact-path convention changes.
+
+### Convention Guardrails (Anti-Regression)
+
+- `tests/drift/test_filesystem_backend_convention.py` enforces backend route mapping and required workspace scaffolding.
+- `tests/drift/test_subagent_provisioning_convention.py` enforces centralized middleware provisioning and project-agent alignment.
+- `tests/integration/test_subagent_provisioner_parity.py` enforces legacy-equivalent middleware order/config plus document-renderer special behavior.
+- `tests/integration/test_memory_and_skills.py` enforces scaffolding + memory-load behavior and skills directory assumptions.
+
 ---
 
 ## Information Isolation Protocol

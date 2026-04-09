@@ -13,6 +13,13 @@ thread_state.json
 .kiro 
 .intent
 .reference
+.codex
+R1.md
+R2.md
+VIV.md
+Hooks.md
+datasets
+DEVIATION_RECORD.md
 
 # Phase 3 experiment artifacts
 exports/
