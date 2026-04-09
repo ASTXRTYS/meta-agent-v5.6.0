@@ -13,13 +13,12 @@ Middleware order (per Section 22.4):
   4. SkillsMiddleware (explicit — on-demand SKILL.md loading)
   5. SummarizationToolMiddleware (explicit — automatic compaction + compact_conversation tool)
   6. ToolErrorMiddleware (explicit)
-  7. DynamicToolConfigMiddleware (explicit — stage-aware tool choice and filtering)
-  8. TodoListMiddleware (auto — added by create_deep_agent)
-  9. FilesystemMiddleware (auto — added by create_deep_agent)
- 10. SubAgentMiddleware (auto — added by create_deep_agent)
- 11. AnthropicPromptCachingMiddleware (auto — added by create_deep_agent)
- 12. PatchToolCallsMiddleware (auto — added by create_deep_agent)
- 13. HumanInTheLoopMiddleware (auto via interrupt_on parameter)
+  7. TodoListMiddleware (auto — added by create_deep_agent)
+  8. FilesystemMiddleware (auto — added by create_deep_agent)
+  9. SubAgentMiddleware (auto — added by create_deep_agent)
+ 10. AnthropicPromptCachingMiddleware (auto — added by create_deep_agent)
+ 11. PatchToolCallsMiddleware (auto — added by create_deep_agent)
+ 12. HumanInTheLoopMiddleware (auto via interrupt_on parameter)
 """
 
 from __future__ import annotations
@@ -52,7 +51,6 @@ from meta_agent.middleware.dynamic_system_prompt import DynamicSystemPromptMiddl
 from meta_agent.middleware.tool_error_handler import ToolErrorMiddleware
 from meta_agent.middleware.ask_user import AskUserMiddleware
 from meta_agent.config.memory import get_memory_sources
-from meta_agent.middleware.dynamic_tool_config import DynamicToolConfigMiddleware
 from meta_agent.tools import LANGCHAIN_TOOLS
 from meta_agent.tools.registry import HITL_GATED_TOOLS
 from meta_agent.prompts.pm import construct_pm_prompt
@@ -151,10 +149,6 @@ def create_graph(
     # The tool calls interrupt() internally, no interrupt_on entry needed.
     ask_user_mw = AskUserMiddleware()
 
-    # DynamicToolConfigMiddleware — stage-aware tool choice and filtering
-    # Configuration can be extended as stage-specific tool policies are defined.
-    dynamic_tool_config_mw = DynamicToolConfigMiddleware(tool_config={})
-
     # Build explicit middleware list (order matters per Section 22.4)
     explicit_middleware = [
         dynamic_prompt_mw,     # 0. Dynamic system prompt (MUST be first)
@@ -164,7 +158,6 @@ def create_graph(
         skills_mw,             # 4. Skills loading from SKILL.md files
         summarization_tool_mw, # 5. Agent-controlled compact_conversation
         tool_error_mw,         # 6. ToolError (catches tool exceptions)
-        dynamic_tool_config_mw, # 7. Stage-aware tool choice and filtering
     ]
 
     # Build interrupt_on config for HITL-gated tools

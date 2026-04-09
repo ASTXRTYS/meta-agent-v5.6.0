@@ -1,6 +1,7 @@
 ---
 trigger: always_on
 ---
+
 # SDK Alignment Rules
 
 ## Mandatory Reference Protocol
@@ -10,7 +11,7 @@ Before suggesting, planning, implementing, or creating specs for anything in thi
 ## LangChain / LangGraph
 
 - Always read `.agents/skills/langchain` before any implementation, planning, or spec work involving LangChain or LangGraph.
-- If the skill leaves you below 95% confidence on an import, middleware behavior, or SDK convention, escalate to the canonical SDK source at `.reference/libs/deepagents/deepagents/` or at the production example listed below.
+- If the skill leaves you below 95% confidence on an import, middleware behavior, or SDK convention, escalate to the canonical SDK source at .reference/libs/deepagents/deepagents/`  or at the production example listed below.
 
 ## Deep Agents SDK
 

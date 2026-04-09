@@ -37,7 +37,6 @@ from meta_agent.backend import (
     create_store,
 )
 from meta_agent.middleware.agent_decision_state import AgentDecisionStateMiddleware
-from meta_agent.middleware.dynamic_tool_config import DynamicToolConfigMiddleware
 from meta_agent.middleware.tool_error_handler import ToolErrorMiddleware
 from meta_agent.model import get_configured_model, get_model_config
 from meta_agent.prompts.plan_writer import construct_plan_writer_prompt
@@ -210,8 +209,7 @@ def create_plan_writer_agent_graph(
     Effort: ``high`` (Section 10.5.3)
     Tools: filesystem auto (read_file, write_file, edit_file) via FilesystemMiddleware
     Middleware: 6 auto + AgentDecisionStateMiddleware, SummarizationToolMiddleware,
-               MemoryMiddleware, SkillsMiddleware, ToolErrorMiddleware,
-               DynamicToolConfigMiddleware
+               MemoryMiddleware, SkillsMiddleware, ToolErrorMiddleware
     Subagents: document-renderer (for plan rendering to DOCX/PDF)
     """
     cfg = get_model_config("plan-writer")
@@ -244,7 +242,6 @@ def create_plan_writer_agent_graph(
             memory_mw,
             skills_mw,
             ToolErrorMiddleware(),
-            DynamicToolConfigMiddleware(tool_config={}),
         ],
         subagents=[doc_renderer],
         backend=composite_backend,

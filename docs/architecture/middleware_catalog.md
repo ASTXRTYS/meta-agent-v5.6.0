@@ -25,7 +25,6 @@ It is extracted from the global `AGENTS.md` file to reduce subagent context foot
 | AskUserMiddleware | Custom | Structured user questioning via ask_user tool (ported from CLI) | PM only | ✅ Active |
 | ToolErrorMiddleware | Custom | Wraps tool calls in try/except, returns structured error JSON | PM, all subagents | ✅ Active |
 | AgentDecisionStateMiddleware | Custom | General-purpose decision/assumption state fields (decision_log, assumption_log, approval_history) | Research, verification | ✅ Active |
-| DynamicToolConfigMiddleware | Custom | Stage-aware tool choice and filtering | PM, research, evaluation, code, plan-writer | ⚠️ DEAD CODE |
 
 ## PM Orchestrator Middleware Stack
 
@@ -42,7 +41,6 @@ The PM orchestrator (meta_agent/graph.py) uses the following middleware stack:
 | 4 | SkillsMiddleware | SDK | On-demand SKILL.md loading from skills directories (langchain, langsmith, anthropic). |
 | 5 | SummarizationToolMiddleware | SDK | Exposes compact_conversation tool for agent-controlled compaction on top of auto-attached summarization layer. |
 | 6 | ToolErrorMiddleware | Custom | Wraps tool calls in try/except, converts exceptions to ToolMessage with structured error JSON so LLM can self-correct. |
-| 7 | DynamicToolConfigMiddleware | Custom | ⚠️ DEAD CODE - Stage-aware tool choice and filtering. Initialized with empty config, passes through without modification. |
 
 ### Auto-Attached Middleware (Added by SDK)
 
@@ -69,7 +67,6 @@ These factory constructions execute dynamically via the `AGENT_REGISTRY` diction
 | SummarizationToolMiddleware | SDK | Agent-controlled compact_conversation tool. |
 | MemoryMiddleware | SDK | Per-agent AGENTS.md loading. |
 | SkillsMiddleware | SDK | On-demand SKILL.md loading. |
-| DynamicToolConfigMiddleware | Custom | ⚠️ DEAD CODE - Empty config, no-op. |
 
 ### Verification Agent
 
@@ -92,7 +89,6 @@ These factory constructions execute dynamically via the `AGENT_REGISTRY` diction
 | --- | --- | --- |
 | MemoryMiddleware | SDK | Per-agent AGENTS.md loading. |
 | ToolErrorMiddleware | Custom | Wraps tool calls in try/except for error handling. |
-| DynamicToolConfigMiddleware | Custom | ⚠️ DEAD CODE - Empty config, no-op. |
 
 ### Code Agent
 
@@ -100,7 +96,6 @@ These factory constructions execute dynamically via the `AGENT_REGISTRY` diction
 | --- | --- | --- |
 | MemoryMiddleware | SDK | Per-agent AGENTS.md loading. |
 | ToolErrorMiddleware | Custom | Wraps tool calls in try/except for error handling. |
-| DynamicToolConfigMiddleware | Custom | ⚠️ DEAD CODE - Empty config, no-op. |
 
 ### Evaluation Agent
 
@@ -108,7 +103,6 @@ These factory constructions execute dynamically via the `AGENT_REGISTRY` diction
 | --- | --- | --- |
 | MemoryMiddleware | SDK | Per-agent AGENTS.md loading. |
 | ToolErrorMiddleware | Custom | Wraps tool calls in try/except for error handling. |
-| DynamicToolConfigMiddleware | Custom | ⚠️ DEAD CODE - Empty config, no-op. |
 
 ### Document Renderer
 
@@ -158,16 +152,6 @@ These factory constructions execute dynamically via the `AGENT_REGISTRY` diction
 **Why Custom**: The SDK doesn't provide a general-purpose decision tracking middleware. This is intentionally lightweight — it only declares state fields. No hooks are needed. Uses the same state_schema merging pattern as TodoListMiddleware.
 
 **Status**: ✅ Active - Necessary for decision tracking in research and verification agents.
-
-### DynamicToolConfigMiddleware
-
-**Purpose**: Stage-aware tool choice and filtering. Uses wrap_model_call to dynamically set tool_choice and filter available tools based on current workflow stage and agent state.
-
-**Why Custom**: Originally added as a bridge for server-side tools, but this was a naive implementation. Server-side tools are configured at the model level, not via middleware. The SDK doesn't provide this pattern because it's not the right approach.
-
-**Status**: ⚠️ DEAD CODE - Initialized with tool_config={} in all agents (PM, research, evaluation, code, plan-writer). With an empty config, the middleware passes through all requests without modification. It exists as a placeholder for future stage-aware tool policies that have not yet been authored. Consider removing.
-
-**TODO**: Remove this middleware and all references if stage-aware tool filtering is not needed. See file for complete removal guide.
 
 ## SDK Middleware Reference
 

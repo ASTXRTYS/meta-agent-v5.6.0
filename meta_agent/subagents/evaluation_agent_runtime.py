@@ -37,7 +37,6 @@ from meta_agent.backend import (
     create_store,
 )
 from meta_agent.middleware.agent_decision_state import AgentDecisionStateMiddleware
-from meta_agent.middleware.dynamic_tool_config import DynamicToolConfigMiddleware
 from meta_agent.middleware.tool_error_handler import ToolErrorMiddleware
 from meta_agent.model import get_configured_model, get_model_config
 from meta_agent.prompts.evaluation_agent import construct_evaluation_agent_prompt
@@ -202,8 +201,7 @@ def create_evaluation_agent_graph(
     Tools: LangSmith tools — trace list/get, dataset create, eval run,
            propose_evals, create_eval_dataset
     Middleware: 6 auto + AgentDecisionStateMiddleware, SummarizationToolMiddleware,
-               MemoryMiddleware, SkillsMiddleware, ToolErrorMiddleware,
-               DynamicToolConfigMiddleware
+               MemoryMiddleware, SkillsMiddleware, ToolErrorMiddleware
     Subagents: None (may be extended in Phase 5)
     System prompt: Placeholder — full prompt comes in Phase 2 of evaluation stack
     """
@@ -246,7 +244,6 @@ def create_evaluation_agent_graph(
             memory_mw,
             skills_mw,
             ToolErrorMiddleware(),
-            DynamicToolConfigMiddleware(tool_config={}),
         ],
         backend=composite_backend,
         checkpointer=create_checkpointer(),

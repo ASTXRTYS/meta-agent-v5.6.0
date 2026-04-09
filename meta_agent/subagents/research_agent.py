@@ -28,7 +28,6 @@ from meta_agent.backend import (
 )
 from meta_agent.middleware.agent_decision_state import AgentDecisionStateMiddleware
 from meta_agent.middleware.tool_error_handler import ToolErrorMiddleware
-from meta_agent.middleware.dynamic_tool_config import DynamicToolConfigMiddleware
 from meta_agent.model import get_configured_model, get_model_config
 from meta_agent.prompts.research_agent import construct_research_agent_prompt
 from meta_agent.safety import RECURSION_LIMITS
@@ -694,7 +693,6 @@ def create_research_agent_graph(
             memory_mw,
             skills_mw,
             ToolErrorMiddleware(),
-            DynamicToolConfigMiddleware(tool_config={}),
         ],
         subagents=[doc_renderer],
         backend=composite_backend,

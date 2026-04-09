@@ -202,8 +202,8 @@ Features confirmed available and integrated in this project:
 | Code Execution | code_execution_20260120 server-side tool | SERVER_SIDE_TOOLS dict | ✅ Active |
 | Programmatic Tool Calling | allowed_callers on tool definitions | BaseTool.extras | ✅ Active |
 | Citations (web search) | Automatic with web_search | extract_api_citations() | ✅ Active |
-| tool_choice | tool_choice on bind_tools() | DynamicToolConfigMiddleware | ✅ Active |
-| Tool Filtering | ModelRequest.tools modification | DynamicToolConfigMiddleware | ✅ Active |
+| tool_choice | tool_choice on bind_tools() | Not yet implemented | ⏸️ Planned |
+| Tool Filtering | ModelRequest.tools modification | Not yet implemented | ⏸️ Planned |
 | Prompt Caching | AnthropicPromptCachingMiddleware (auto) | SDK auto-attached | ⚠️ Ordering issue |
 
 ### LangSmith Tracing Convention — Maximum Visibility

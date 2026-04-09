@@ -2,13 +2,11 @@
 """Contract tests for Claude API feature integration.
 
 Tests streaming, server-side tools, programmatic tool calling (allowed_callers),
-DynamicToolConfigMiddleware, and citation extraction.
+and citation extraction.
 
 COVERS: model.streaming, tools.server_side_tools, tools.allowed_callers,
-        middleware.dynamic_tool_config, research_agent.extract_api_citations
+        research_agent.extract_api_citations
 """
-
-import dataclasses
 
 import pytest
 
@@ -125,88 +123,7 @@ def test_hitl_tools_do_not_have_allowed_callers():
 
 
 # ---------------------------------------------------------------------------
-# 4. DynamicToolConfigMiddleware
-# ---------------------------------------------------------------------------
-
-
-@dataclasses.dataclass
-class _FakeRequest:
-    state: dict
-    tools: list
-    tool_choice: object = None
-
-
-@dataclasses.dataclass
-class _FakeTool:
-    name: str
-
-
-def test_dynamic_tool_config_middleware_noop_when_empty():
-    """Middleware is a no-op when tool_config is empty."""
-    from meta_agent.middleware.dynamic_tool_config import DynamicToolConfigMiddleware
-
-    mw = DynamicToolConfigMiddleware(tool_config={})
-    request = _FakeRequest(
-        state={"current_stage": "INTAKE"}, tools=["tool_a", "tool_b"]
-    )
-    captured = {}
-
-    def handler(req):
-        captured["req"] = req
-        return "response"
-
-    mw.wrap_model_call(request, handler)
-    assert captured["req"].tools == ["tool_a", "tool_b"]
-    assert captured["req"].tool_choice is None
-
-
-def test_dynamic_tool_config_middleware_sets_tool_choice():
-    """Middleware sets tool_choice based on stage config."""
-    from meta_agent.middleware.dynamic_tool_config import DynamicToolConfigMiddleware
-
-    mw = DynamicToolConfigMiddleware(tool_config={
-        "RESEARCH": {"tool_choice": "web_search"},
-    })
-    request = _FakeRequest(
-        state={"current_stage": "RESEARCH"},
-        tools=["web_search", "write_file"],
-    )
-    captured = {}
-
-    def handler(req):
-        captured["req"] = req
-        return "response"
-
-    mw.wrap_model_call(request, handler)
-    assert captured["req"].tool_choice == "web_search"
-
-
-def test_dynamic_tool_config_middleware_filters_tools():
-    """Middleware filters tools based on allowed_tools config."""
-    from meta_agent.middleware.dynamic_tool_config import DynamicToolConfigMiddleware
-
-    mw = DynamicToolConfigMiddleware(tool_config={
-        "RESEARCH": {"allowed_tools": {"web_search", "read_file"}},
-    })
-    tools = [_FakeTool("web_search"), _FakeTool("read_file"), _FakeTool("write_file")]
-    request = _FakeRequest(
-        state={"current_stage": "RESEARCH"}, tools=tools
-    )
-    captured = {}
-
-    def handler(req):
-        captured["req"] = req
-        return "response"
-
-    mw.wrap_model_call(request, handler)
-    result_names = [t.name for t in captured["req"].tools]
-    assert "web_search" in result_names
-    assert "read_file" in result_names
-    assert "write_file" not in result_names
-
-
-# ---------------------------------------------------------------------------
-# 5. Citation extraction
+# 4. Citation extraction
 # ---------------------------------------------------------------------------
 
 
