@@ -38,7 +38,6 @@ from meta_agent.backend import (
     create_store,
 )
 from meta_agent.middleware.agent_decision_state import AgentDecisionStateMiddleware
-from meta_agent.middleware.completion_guard import CompletionGuardMiddleware
 from meta_agent.middleware.dynamic_tool_config import DynamicToolConfigMiddleware
 from meta_agent.middleware.tool_error_handler import ToolErrorMiddleware
 from meta_agent.model import get_configured_model, get_model_config
@@ -208,7 +207,7 @@ def create_code_agent_graph(
     Tools: filesystem auto + execute_command, langgraph_dev_server, langsmith_cli
     Middleware: 6 auto + AgentDecisionStateMiddleware, SummarizationToolMiddleware,
                 MemoryMiddleware, SkillsMiddleware, ToolErrorMiddleware,
-                CompletionGuardMiddleware, DynamicToolConfigMiddleware
+                DynamicToolConfigMiddleware
     Subagents: document-renderer
     interrupt_on: execute_command (HITL required for all shell execution)
     """
@@ -249,7 +248,6 @@ def create_code_agent_graph(
             memory_mw,
             skills_mw,
             ToolErrorMiddleware(),
-            CompletionGuardMiddleware(),
             DynamicToolConfigMiddleware(tool_config={}),
         ],
         subagents=[doc_renderer],

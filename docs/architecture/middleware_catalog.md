@@ -26,7 +26,6 @@ It is extracted from the global `AGENTS.md` file to reduce subagent context foot
 | ToolErrorMiddleware | Custom | Wraps tool calls in try/except, returns structured error JSON | PM, all subagents | ✅ Active |
 | AgentDecisionStateMiddleware | Custom | General-purpose decision/assumption state fields (decision_log, assumption_log, approval_history) | Research, verification | ✅ Active |
 | DynamicToolConfigMiddleware | Custom | Stage-aware tool choice and filtering | PM, research, evaluation, code, plan-writer | ⚠️ DEAD CODE |
-| CompletionGuardMiddleware | Custom | Prevents premature session termination via after_model hook | Code-agent | ⚠️ NAIVE - CONSIDER REMOVAL |
 
 ## PM Orchestrator Middleware Stack
 
@@ -101,7 +100,6 @@ These factory constructions execute dynamically via the `AGENT_REGISTRY` diction
 | --- | --- | --- |
 | MemoryMiddleware | SDK | Per-agent AGENTS.md loading. |
 | ToolErrorMiddleware | Custom | Wraps tool calls in try/except for error handling. |
-| CompletionGuardMiddleware | Custom | ⚠️ NAIVE - Prevents premature session termination via after_model hook. Has technical issues (logic duplication, type assumptions, no SDK precedent, no test coverage). Better solved via system prompt instructions. |
 | DynamicToolConfigMiddleware | Custom | ⚠️ DEAD CODE - Empty config, no-op. |
 
 ### Evaluation Agent
@@ -170,21 +168,6 @@ These factory constructions execute dynamically via the `AGENT_REGISTRY` diction
 **Status**: ⚠️ DEAD CODE - Initialized with tool_config={} in all agents (PM, research, evaluation, code, plan-writer). With an empty config, the middleware passes through all requests without modification. It exists as a placeholder for future stage-aware tool policies that have not yet been authored. Consider removing.
 
 **TODO**: Remove this middleware and all references if stage-aware tool filtering is not needed. See file for complete removal guide.
-
-### CompletionGuardMiddleware
-
-**Purpose**: Prevents premature session termination by checking if the model response suggests premature completion and injecting nudge/confirmation messages. Uses @after_model hook to check last AI message: if no tool calls AND no text content → inject nudge; if text but no tool calls → inject confirmation.
-
-**Why Custom**: The SDK doesn't use @after_model hooks at all. This is a custom pattern not aligned with upstream conventions. The problem (preventing premature completion) is better solved through system prompt instructions or task state tracking, not middleware that blindly injects messages based on surface-level checks.
-
-**Status**: ⚠️ NAIVE - CONSIDER REMOVAL. Multiple technical issues:
-- Logic duplication (has_tool_calls/has_text computed but never used; real logic lives in check_response)
-- Hard to read (response dict built on one massive line)
-- Type assumptions (assumes content is strip()-able string, but AIMessage content can be blocks/multimodal shapes)
-- No SDK/CLI precedent (neither SDK nor deepagents_cli use @after_model hooks)
-- No test coverage
-
-**TODO**: Remove this middleware. The problem is better solved through system prompt instructions or task state tracking. See file for complete removal guide.
 
 ## SDK Middleware Reference
 

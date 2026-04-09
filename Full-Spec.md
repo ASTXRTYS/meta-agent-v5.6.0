@@ -208,7 +208,7 @@ Deep Agents runs on the LangGraph runtime. Every LangGraph capability — durabl
 
 ToolErrorMiddleware — Wraps all tool calls in try/except. Converts unhandled exceptions into ToolMessage(status="error") with a structured JSON payload: {"error": "<message>", "error_type": "<exception class>", "status": "error", "name": "<tool_name>"}. This allows the LLM to see the failure and self-correct rather than crashing the agent run. Required on ALL agents (orchestrator and all subagents).
 
-CompletionGuardMiddleware — An @after_model middleware that prevents premature session termination. If the model returns a response with no tool calls and no text content, the middleware injects a nudge message: "No tool was called. Please continue with the task, ensuring you call at least one tool in every turn unless you are certain the task is complete." If the model returns text but no tool calls (potential premature completion), the middleware injects a confirmation check: "You did not call a tool, which would end the task. If the task is truly complete, confirm by calling write_file to update the progress log. Otherwise, continue working." Required on execution-phase agents: code-agent, test-agent, and observation-agent.
+CompletionGuardMiddleware — ~~REMOVED~~ Originally an @after_model middleware for preventing premature session termination. Replaced by system prompt instruction in the code-agent prompt: "Always call at least one tool per turn unless the task is fully and verifiably complete." The middleware approach had technical issues (logic duplication, type assumptions, no SDK precedent, no test coverage) and was removed in v5.6.1.
 
 [v5.6-P] DynamicSystemPromptMiddleware — A @before_model middleware that dynamically recomposes the orchestrator's system prompt based on the current stage in graph state. On every LLM call, it reads `current_stage` from the graph state, calls `construct_pm_prompt(stage, project_dir, project_id, agents_md_content)`, and replaces the SystemMessage in the messages list with the stage-appropriate prompt. This is what makes stage-aware prompt composition work at runtime — without it, the system prompt would be static from agent creation time. Required on the orchestrator ONLY (subagents have static prompts). MUST be ordered BEFORE AnthropicPromptCachingMiddleware in the middleware stack so cache breakpoints are set on the final composed prompt.
 
@@ -919,9 +919,7 @@ Tools: read_file, write_file, edit_file, glob, grep, execute_command, langgraph_
 
 [v5.5.3] Skills: All skills from all three repositories (LangChain, LangSmith, Anthropic) are available to this agent via SkillsMiddleware. The agent loads skills it finds relevant at runtime.
 
-[v5.5.5] Middleware: TodoListMiddleware (auto), FilesystemMiddleware (auto), SubAgentMiddleware (auto), SummarizationMiddleware (auto), AnthropicPromptCachingMiddleware (auto), PatchToolCallsMiddleware (auto), SkillsMiddleware, ToolErrorMiddleware, CompletionGuardMiddleware
-
-### 6.4.1 System Prompt
+[v5.5.5] Middleware: TodoListMiddleware (auto), FilesystemMiddleware (auto), SubAgentMiddleware (auto), SummarizationMiddleware (auto), AnthropicPromptCachingMiddleware (auto), PatchToolCallsMiddleware (auto), SkillsMiddleware, ToolErrorMiddleware
 
 ### 6.4.2 Code-Agent Sub-Agents
 
@@ -999,7 +997,7 @@ Tools: read_file, write_file, execute_command
 
 [v5.5.3] Skills: All skills from all three repositories (LangChain, LangSmith, Anthropic) are available to this agent via SkillsMiddleware. The agent loads skills it finds relevant at runtime.
 
-[v5.5.5] Middleware: TodoListMiddleware (auto), FilesystemMiddleware (auto), SummarizationMiddleware (auto), AnthropicPromptCachingMiddleware (auto), PatchToolCallsMiddleware (auto), SkillsMiddleware, ToolErrorMiddleware, CompletionGuardMiddleware
+[v5.5.5] Middleware: TodoListMiddleware (auto), FilesystemMiddleware (auto), SummarizationMiddleware (auto), AnthropicPromptCachingMiddleware (auto), PatchToolCallsMiddleware (auto), SkillsMiddleware, ToolErrorMiddleware
 
 ### 6.5.1 System Prompt
 
@@ -2440,11 +2438,9 @@ Adopted patterns include: Dedicated directories for middleware, tools, prompts, 
 
 middleware/              # Custom middleware (one file per middleware)
 
-__init__.py          # Re-exports: ToolErrorMiddleware, CompletionGuardMiddleware
+__init__.py          # Re-exports: ToolErrorMiddleware
 
 tool_error_handler.py  # Wraps tool calls, returns structured errors
-
-completion_guard.py  # Prevents premature session termination
 
 ### 13.4.1 Directory Purpose Reference
 
@@ -4091,15 +4087,15 @@ Updated langgraph.json with dynamic get_agent factory (see Section 13.2).
 
 ## 22.11 meta_agent/middleware/__init__.py
 
-[v5.5.4] [v5.6-P] Exports all custom middleware for use in agent configuration. Re-exports: ToolErrorMiddleware, CompletionGuardMiddleware, DynamicSystemPromptMiddleware.
+[v5.5.4] [v5.6-P] Exports all custom middleware for use in agent configuration. Re-exports: ToolErrorMiddleware, DynamicSystemPromptMiddleware.
 
 ## 22.12 meta_agent/middleware/tool_error_handler.py
 
 [v5.5.4] Implements ToolErrorMiddleware following the open-swe pattern. Wraps all tool calls in try/except, returns structured JSON error payloads as ToolMessage(status="error").
 
-## 22.13 meta_agent/middleware/completion_guard.py
+## 22.13 ~~meta_agent/middleware/completion_guard.py~~ (REMOVED)
 
-[v5.5.4] Implements CompletionGuardMiddleware. Uses the @after_model hook to detect empty model responses (no tool calls, no text) and inject continuation nudges.
+[v5.5.4] ~~Implements CompletionGuardMiddleware.~~ Removed in v5.6.1. The premature-completion guard is now handled via a system prompt instruction in the code-agent prompt. See Section 6.4 system prompt.
 
 ## 22.14 meta_agent/middleware/dynamic_system_prompt.py
 

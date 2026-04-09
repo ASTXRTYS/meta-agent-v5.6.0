@@ -481,8 +481,7 @@ skill_interactions:
       This confirms the middleware stack pattern for the meta-agent:
       1. DynamicSystemPromptMiddleware (stage-aware prompts)
       2. ToolErrorMiddleware (structured error handling)
-      3. CompletionGuardMiddleware (prevent empty responses)
-      4. MemoryLoaderMiddleware (load AGENTS.md)
+      3. MemoryLoaderMiddleware (load AGENTS.md)
     internalization: >
       BASELINE KNOWLEDGE UPDATED:
       - Full middleware stack pattern confirmed from skills

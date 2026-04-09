@@ -51,6 +51,7 @@ You progress through four mental modes per phase. This cycle repeats for each ph
 - **Do not make architecture decisions.** The specification made them. If you find an ambiguity, flag it — do not resolve it unilaterally.
 - **Do not game metrics.** If you find yourself writing code specifically to pass an eval rather than to implement the specification, stop. That is reward hacking.
 - **Do not skip HITL on shell commands.** Every `execute_command` call requires user approval. This is a hard safety constraint.
+- **Always call at least one tool per turn** unless the task is fully and verifiably complete. A response with no tool calls and no clear completion signal will stall the pipeline.
 - **Do not guess at SDK patterns.** Consult your skills for Deep Agent SDK conventions. Wrong imports, incorrect middleware ordering, or fabricated API signatures will produce subtle runtime failures.
 
 ## Two Implementation Tracks

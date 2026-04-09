@@ -220,7 +220,6 @@ meta_agent/
 ├── middleware/
 │   ├── __init__.py       # Section 22.11 — Re-exports all custom middleware
 │   ├── tool_error_handler.py      # Section 22.12 — ToolErrorMiddleware
-│   ├── completion_guard.py        # Section 22.13 — CompletionGuardMiddleware
 │   └── memory_loader.py  # Section 22.18 — Per-agent memory (stub)
 ├── evals/
 │   ├── __init__.py
@@ -403,12 +402,7 @@ workspace/
   - `ToolErrorMiddleware` wraps all tool calls in try/except
   - Converts unhandled exceptions into `ToolMessage(status="error")` with structured JSON payload: `{"error": "<message>", "error_type": "<exception class>", "status": "error", "name": "<tool_name>"}`
   - **Required on ALL agents** (orchestrator and all subagents)
-- Implement `meta_agent/middleware/completion_guard.py` per Section 22.13:
-  - `CompletionGuardMiddleware` uses `@after_model` hook
-  - If model returns response with no tool calls and no text content: inject nudge message
-  - If model returns text but no tool calls: inject confirmation check
-  - **Required on:** code-agent, test-agent, observation-agent only
-- Implement `meta_agent/middleware/__init__.py` per Section 22.11:`from .tool_error_handler import ToolErrorMiddleware from .completion_guard import CompletionGuardMiddleware from .memory_loader import MemoryLoaderMiddleware # stub`
+- Implement `meta_agent/middleware/__init__.py` per Section 22.11:`from .tool_error_handler import ToolErrorMiddleware from .memory_loader import MemoryLoaderMiddleware # stub`
 
 ##### 0.2.9 Prompt Section Constants
 
@@ -465,7 +459,7 @@ workspace/
 - Create `tests/unit/test_state.py` â€” state model construction, reducer behavior
 - Create `tests/unit/test_configuration.py` â€” env var loading, defaults
 - Create `tests/unit/test_prompts.py` â€” prompt section assembly, stage-conditional loading
-- Create `tests/unit/test_middleware.py` â€” ToolErrorMiddleware wrapping, CompletionGuardMiddleware triggers
+- Create `tests/unit/test_middleware.py` â€” ToolErrorMiddleware wrapping
 - Target: 90% coverage on state and tools modules
 
 ##### 0.2.12 Safety and Guardrails Foundation
@@ -751,7 +745,6 @@ Phase 1 builds the tool implementations, orchestrator graph with full middleware
 - **[v5.6-R] Subagent wiring step:** `configs.py` must export a `build_pm_subagents(project_dir, project_id, skills_dirs)` function that converts the metadata configs into SDK-compatible `SubAgent` dicts (required keys: `name`, `description`, `system_prompt`; optional: `tools`, `middleware`, `skills`). `graph.py` must pass the result as `subagents=` to `create_deep_agent()`. SubAgentMiddleware is auto-attached but the `subagents` parameter populates it with available agents for the `task` tool.
 - Per-agent middleware stacks per Section 2.2.1 and Section 6.x:
   - All agents: ToolErrorMiddleware
-  - code-agent, test-agent, observation-agent: + CompletionGuardMiddleware
   - research-agent: + SummarizationToolMiddleware, SkillsMiddleware
   - Orchestrator: full stack (see above)
 
@@ -2550,7 +2543,7 @@ Phase 4 implements the plan-writer-agent, full document renderer, PLANNING â†
   - Effort level: `high` (Section 10.5.3)
   - Recursion limit: `150` (Section 19.5)
   - Tools: `read_file`, `write_file`, `edit_file`, `glob`, `grep`, `execute_command`, `langgraph_dev_server`, `langsmith_cli`
-  - Middleware: 6 auto + SkillsMiddleware, ToolErrorMiddleware, CompletionGuardMiddleware
+  - Middleware: 6 auto + SkillsMiddleware, ToolErrorMiddleware
 - Implement context engineering strategy per Section 6.4.3:
   - **Plan as State** (6.4.3.1): Extract full task list with IDs, statuses, spec references, dependencies. Use TodoListMiddleware.
   - **Spec Windowing** (6.4.3.2): For each task, read ONLY relevant spec sections (2â€“5 pages)
@@ -2570,7 +2563,7 @@ Phase 4 implements the plan-writer-agent, full document renderer, PLANNING â†
 
 - Implement **observation-agent** per Section 6.4.2.1:
   - Tools: `langsmith_trace_list`, `langsmith_trace_get`, `langsmith_cli`, `read_file`, `write_file`
-  - Middleware: CompletionGuardMiddleware, ToolErrorMiddleware
+  - Middleware: ToolErrorMiddleware
   - Inspects traces, analyzes runtime behavior, produces observation reports
 - Implement **evaluation-agent** per Section 6.4.2.2:
   - Tools: `langsmith_trace_list`, `langsmith_dataset_create`, `langsmith_eval_run`, `read_file`, `write_file`
@@ -2591,8 +2584,7 @@ Phase 4 implements the plan-writer-agent, full document renderer, PLANNING â†
   - Effort level: `medium`
   - Recursion limit: `50`
   - Tools: `read_file`, `write_file`, `execute_command`
-  - Middleware: 6 auto + SkillsMiddleware, ToolErrorMiddleware, CompletionGuardMiddleware
-  - Writes and runs tests to validate implementation against specification
+  - Middleware: 6 auto + SkillsMiddleware, ToolErrorMiddleware
 
 ##### 4.2.7 Eval-Agent Stub
 
@@ -3146,7 +3138,6 @@ These checklists apply across all phases. The coding agent must verify complianc
 
 - [ ] All agents have 6 auto-attached middleware: TodoListMiddleware, FilesystemMiddleware, SubAgentMiddleware, SummarizationMiddleware, AnthropicPromptCachingMiddleware, PatchToolCallsMiddleware
 - [ ] ToolErrorMiddleware is on ALL agents (orchestrator + all 8 subagents + 3 code-agent sub-agents)
-- [ ] CompletionGuardMiddleware is on code-agent, test-agent, observation-agent ONLY
 - [ ] HumanInTheLoopMiddleware is on orchestrator and code-agent
 - [x] MemoryMiddleware is on orchestrator, research-agent, verification-agent — uses bare FilesystemBackend(virtual_mode=False) for absolute AGENTS.md path access
 - [ ] MemoryMiddleware enforces per-agent isolation (Section 13.4.6.2)
@@ -3215,7 +3206,6 @@ These checklists apply across all phases. The coding agent must verify complianc
 
 - 6 auto-attached middleware on all agents created via `create_deep_agent()`
 - ToolErrorMiddleware on ALL agents
-- CompletionGuardMiddleware on code-agent, test-agent, observation-agent ONLY
 - MemoryMiddleware with per-agent isolation
 - HumanInTheLoopMiddleware on orchestrator and code-agent
 

@@ -137,6 +137,8 @@ Both misidentifications occurred because agents relied on skill files and genera
 
 ### Mandatory Verification Steps
 
+***Checking .reference/libs/deepagents/deepagents (canonical SDK reference) and .reference/libs/cli/deepagents_cli (prodution deepagent coding assistant) tends to suffice as examples of Conventions i.e how middleware, sdk, imports, langchain conventions for when using the sdk.
+
 **Step 1: Identify the authoritative source.** Before investigating any API feature, determine the canonical documentation URL. For this project:
 
 | SDK/API | Authoritative Source |

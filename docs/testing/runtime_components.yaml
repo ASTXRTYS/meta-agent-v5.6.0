@@ -277,17 +277,6 @@ components:
     owner: middleware
     status: active
 
-  - id: middleware.completion_guard
-    kind: middleware
-    source: meta_agent/middleware/completion_guard.py
-    canonical_name: CompletionGuardMiddleware
-    runtime_surface: subagent_middleware
-    criticality: important
-    contract: "Prevents premature session termination by injecting nudge messages when no tool calls are made."
-    required_coverage: [contract]
-    owner: middleware
-    status: active
-
   - id: middleware.agent_decision_state
     kind: middleware
     source: meta_agent/middleware/agent_decision_state.py

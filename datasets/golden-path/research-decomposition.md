@@ -201,7 +201,7 @@ This file is the research agent's structured decomposition of the approved PRD i
 ### Research Questions
 - [ ] What safety patterns exist for LangGraph agents? (recursion limits, token budgets, path validation)
 - [ ] How should error handling work in multi-agent systems? (tool errors, sub-agent failures, cascading failures)
-- [ ] What guardrails does the Deep Agents SDK provide? (CompletionGuardMiddleware, safety middleware)
+- [ ] What guardrails does the Deep Agents SDK provide? (safety middleware, recursion limits)?
 - [ ] How should file operations be restricted to prevent workspace escape?
 - [ ] What patterns exist for graceful degradation when a sub-agent fails?
 - [ ] How does @sydneyrunkle approach validation and safety in Python agent systems? (Pydantic patterns)
