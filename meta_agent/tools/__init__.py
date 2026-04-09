@@ -38,6 +38,7 @@ from meta_agent.state import (
 from meta_agent.safety import validate_command, validate_path
 from meta_agent.stages import ResearchStage, SpecGenerationStage, SpecReviewStage
 from meta_agent.tracing import traceable
+from meta_agent.schemas.hitl import ApprovalRequest, EvalApprovalRequest, ExecuteCommandRequest
 
 
 # ---------------------------------------------------------------------------
@@ -760,12 +761,13 @@ def request_approval_tool(
         }
     else:
         # Trigger a real HITL interrupt — execution pauses here until resumed
-        user_response = interrupt({
-            "action": "request_approval",
-            "artifact_path": artifact_path,
-            "summary": summary,
-            "stage": current_stage,
-        })
+        request = ApprovalRequest(
+            action="request_approval",
+            artifact_path=artifact_path,
+            summary=summary,
+            stage=current_stage,
+        )
+        user_response = interrupt(request)
 
     action, comments = _parse_approval_response(user_response)
 
@@ -823,12 +825,13 @@ def request_eval_approval_tool(
         }
     else:
         # Trigger a real HITL interrupt — execution pauses here until resumed
-        user_response = interrupt({
-            "action": "request_eval_approval",
-            "eval_suite_path": eval_suite_path,
-            "summary": summary,
-            "stage": current_stage,
-        })
+        request = EvalApprovalRequest(
+            action="request_eval_approval",
+            eval_suite_path=eval_suite_path,
+            summary=summary,
+            stage=current_stage,
+        )
+        user_response = interrupt(request)
 
     action, comments = _parse_approval_response(user_response)
 
@@ -907,13 +910,14 @@ def execute_command_tool(
         user_response: Any = {"action": "approved", "comments": "Auto-approved in eval mode."}
     else:
         # Trigger HITL interrupt for command approval
-        user_response = interrupt({
-            "action": "execute_command",
-            "command": command,
-            "working_dir": work_dir,
-            "timeout": validation["timeout"],
-            "warnings": validation.get("warnings", []),
-        })
+        request = ExecuteCommandRequest(
+            action="execute_command",
+            command=command,
+            working_dir=work_dir,
+            timeout=validation["timeout"],
+            warnings=validation.get("warnings", []),
+        )
+        user_response = interrupt(request)
 
     # After approval, execute the command
     result = _run_command(command, work_dir, validation["timeout"])
