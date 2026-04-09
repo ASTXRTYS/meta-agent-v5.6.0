@@ -47,6 +47,16 @@ class SpecReviewStage(BaseStage):
         2. Approval recorded in approval_history
         3. Ready for transition to next stage
         """
+        unmet = []
+        
+        ok, reason = self._artifact_is_proven(self.spec_path, state, require_approval=True, approval_alias="technical_specification")
+        if not ok:
+            unmet.append(f"Provenance check failed for {self.spec_path}: {reason}")
+            
+        ok, reason = self._artifact_is_proven(self.arch_eval_suite_path, state, require_approval=True, approval_alias="eval_suite_architecture")
+        if not ok:
+            unmet.append(f"Provenance check failed for {self.arch_eval_suite_path}: {reason}")
+
         approvals = state.get("approval_history", [])
         spec_approved = any(
             _get_field(a, "artifact") in {"technical_specification", self.spec_path}
@@ -58,7 +68,7 @@ class SpecReviewStage(BaseStage):
             and _get_field(a, "action") == "approved"
             for a in approvals
         )
-        unmet = []
+        
         if not spec_approved:
             unmet.append("Technical spec not approved")
         if not eval_approved:

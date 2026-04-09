@@ -642,17 +642,6 @@ components:
     owner: subagents-state
     status: phase_deferred
 
-  - id: state.pending_research_gap_request
-    kind: state_field
-    source: meta_agent/state.py
-    canonical_name: pending_research_gap_request
-    runtime_surface: MetaAgentState
-    criticality: important
-    contract: "Targeted research request from spec-writer for orchestrator-mediated gap filling."
-    required_coverage: [contract]
-    owner: subagents-state
-    status: active
-
   - id: state.progress_log
     kind: state_field
     source: meta_agent/state.py
@@ -664,13 +653,13 @@ components:
     owner: subagents-state
     status: phase_deferred
 
-  - id: state.spec_generation_feedback_cycles
+  - id: state.stage_metadata
     kind: state_field
     source: meta_agent/state.py
-    canonical_name: spec_generation_feedback_cycles
+    canonical_name: stage_metadata
     runtime_surface: MetaAgentState
     criticality: important
-    contract: "Counter for orchestrator-mediated research/spec retry cycles."
+    contract: "Localized stage dictionary mapping stage names to StageContext."
     required_coverage: [contract]
     owner: subagents-state
     status: active

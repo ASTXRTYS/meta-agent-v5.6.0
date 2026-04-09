@@ -43,6 +43,8 @@ from meta_agent.backend import (
 )
 from meta_agent.middleware.agent_decision_state import AgentDecisionStateMiddleware
 from meta_agent.middleware.tool_error_handler import ToolErrorMiddleware
+from meta_agent.middleware.ask_user import AskUserMiddleware
+from meta_agent.middleware.artifact_protocol import ArtifactProtocolMiddleware
 from meta_agent.model import get_configured_model, get_model_config
 from meta_agent.prompts.verification_agent import construct_verification_agent_prompt
 from meta_agent.config.memory import get_memory_sources
@@ -196,6 +198,8 @@ def create_verification_agent_graph(
         system_prompt=construct_verification_agent_prompt(project_dir, project_id),
         middleware=[
             AgentDecisionStateMiddleware(),
+            AskUserMiddleware(),
+            ArtifactProtocolMiddleware(backend=bare_fs),
             memory_mw,
             skills_mw,
             ToolErrorMiddleware(),

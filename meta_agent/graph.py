@@ -11,14 +11,15 @@ Middleware order (per Section 22.4):
   2. AskUserMiddleware (explicit — structured user questioning)
   3. MemoryMiddleware (explicit — per-agent AGENTS.md loading)
   4. SkillsMiddleware (explicit — on-demand SKILL.md loading)
-  5. SummarizationToolMiddleware (explicit — automatic compaction + compact_conversation tool)
-  6. ToolErrorMiddleware (explicit)
-  7. TodoListMiddleware (auto — added by create_deep_agent)
-  8. FilesystemMiddleware (auto — added by create_deep_agent)
-  9. SubAgentMiddleware (auto — added by create_deep_agent)
- 10. AnthropicPromptCachingMiddleware (auto — added by create_deep_agent)
- 11. PatchToolCallsMiddleware (auto — added by create_deep_agent)
- 12. HumanInTheLoopMiddleware (auto via interrupt_on parameter)
+  5. ArtifactProtocolMiddleware (explicit — load yaml protocols)
+  6. SummarizationToolMiddleware (explicit — automatic compaction + compact_conversation tool)
+  7. ToolErrorMiddleware (explicit)
+  8. TodoListMiddleware (auto — added by create_deep_agent)
+  9. FilesystemMiddleware (auto — added by create_deep_agent)
+ 10. SubAgentMiddleware (auto — added by create_deep_agent)
+ 11. AnthropicPromptCachingMiddleware (auto — added by create_deep_agent)
+ 12. PatchToolCallsMiddleware (auto — added by create_deep_agent)
+ 13. HumanInTheLoopMiddleware (auto via interrupt_on parameter)
 """
 
 from __future__ import annotations
@@ -50,6 +51,7 @@ from meta_agent.middleware.meta_state import MetaAgentStateMiddleware
 from meta_agent.middleware.dynamic_system_prompt import DynamicSystemPromptMiddleware
 from meta_agent.middleware.tool_error_handler import ToolErrorMiddleware
 from meta_agent.middleware.ask_user import AskUserMiddleware
+from meta_agent.middleware.artifact_protocol import ArtifactProtocolMiddleware
 from meta_agent.config.memory import get_memory_sources
 from meta_agent.tools import LANGCHAIN_TOOLS
 from meta_agent.tools.registry import HITL_GATED_TOOLS
@@ -144,6 +146,9 @@ def create_graph(
     # ToolErrorMiddleware
     tool_error_mw = ToolErrorMiddleware()
 
+    # ArtifactProtocolMiddleware
+    artifact_protocol_mw = ArtifactProtocolMiddleware(backend=bare_fs)
+
     # AskUserMiddleware — structured user questioning (ported from CLI)
     # Provides `ask_user` tool for multiple-choice + free-text questions.
     # The tool calls interrupt() internally, no interrupt_on entry needed.
@@ -156,8 +161,9 @@ def create_graph(
         ask_user_mw,           # 2. Structured user questioning
         memory_mw,             # 3. Per-agent AGENTS.md loading
         skills_mw,             # 4. Skills loading from SKILL.md files
-        summarization_tool_mw, # 5. Agent-controlled compact_conversation
-        tool_error_mw,         # 6. ToolError (catches tool exceptions)
+        artifact_protocol_mw,  # 5. Artifact protocols and validate tool
+        summarization_tool_mw, # 6. Agent-controlled compact_conversation
+        tool_error_mw,         # 7. ToolError (catches tool exceptions)
     ]
 
     # Build interrupt_on config for HITL-gated tools

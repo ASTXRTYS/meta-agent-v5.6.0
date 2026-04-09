@@ -122,7 +122,7 @@ class TestOrphanDetection:
             all_registered.update(agent_tools)
 
         # SDK-provided tools come from middleware, not TOOL_FUNCTIONS
-        sdk_tools = {"write_file", "read_file", "ls", "edit_file"}
+        sdk_tools = {"write_file", "read_file", "ls", "edit_file", "validate_artifact"}
         registered_custom = all_registered - sdk_tools
 
         tool_fn_names = set(TOOL_FUNCTIONS.keys())
@@ -139,7 +139,7 @@ class TestOrphanDetection:
     def test_registry_tools_have_implementations(self):
         """Every non-SDK tool in TOOL_REGISTRY should map to TOOL_FUNCTIONS."""
         sdk_tools = {"write_file", "read_file", "ls", "edit_file",
-                     "web_search", "web_fetch"}
+                     "web_search", "web_fetch", "validate_artifact"}
 
         for agent, tools in TOOL_REGISTRY.items():
             for tool_name in tools:

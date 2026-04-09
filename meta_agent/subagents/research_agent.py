@@ -28,6 +28,8 @@ from meta_agent.backend import (
 )
 from meta_agent.middleware.agent_decision_state import AgentDecisionStateMiddleware
 from meta_agent.middleware.tool_error_handler import ToolErrorMiddleware
+from meta_agent.middleware.ask_user import AskUserMiddleware
+from meta_agent.middleware.artifact_protocol import ArtifactProtocolMiddleware
 from meta_agent.model import get_configured_model, get_model_config
 from meta_agent.prompts.research_agent import construct_research_agent_prompt
 from meta_agent.safety import RECURSION_LIMITS
@@ -689,6 +691,8 @@ def create_research_agent_graph(
         system_prompt=construct_research_agent_prompt(project_dir, project_id),
         middleware=[
             AgentDecisionStateMiddleware(),
+            AskUserMiddleware(),
+            ArtifactProtocolMiddleware(backend=bare_fs),
             summarization_tool_mw,
             memory_mw,
             skills_mw,

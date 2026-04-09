@@ -24,7 +24,7 @@ COVERS = [
 ]
 
 # Tools auto-attached by SDK middleware — NOT in LANGCHAIN_TOOLS
-SDK_PROVIDED_TOOLS = {"write_file", "read_file", "ls", "edit_file"}
+SDK_PROVIDED_TOOLS = {"write_file", "read_file", "ls", "edit_file", "validate_artifact"}
 
 
 @pytest.mark.contract
@@ -163,7 +163,7 @@ class TestCrossAgentConsistency:
         """Every tool name in TOOL_REGISTRY is either SDK-provided,
         a LANGCHAIN_TOOLS bare name, or a server-side tool."""
         known_sdk = {"write_file", "read_file", "ls", "edit_file",
-                     "write_todos", "task", "compact_conversation"}
+                     "write_todos", "task", "compact_conversation", "validate_artifact"}
         server_side = {"web_search", "web_fetch"}
         # Workaround: strip _tool suffix until drift is resolved.
         langchain_bare = set()
@@ -190,7 +190,7 @@ class TestCrossAgentConsistency:
     def test_registry_names_match_langchain_directly(self):
         """Every TOOL_REGISTRY name should match LANGCHAIN_TOOLS .name directly."""
         known_sdk = {"write_file", "read_file", "ls", "edit_file",
-                     "write_todos", "task", "compact_conversation"}
+                     "write_todos", "task", "compact_conversation", "validate_artifact"}
         server_side = {"web_search", "web_fetch"}
         langchain_names = {t.name for t in LANGCHAIN_TOOLS}
         all_names = set()

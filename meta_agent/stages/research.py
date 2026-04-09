@@ -57,12 +57,19 @@ class ResearchStage(BaseStage):
     def _check_exit_impl(self, state: dict[str, Any]) -> ConditionResult:
         """Check RESEARCH exit conditions."""
         unmet = []
-        if not os.path.isfile(self.decomposition_path):
-            unmet.append(f"Research decomposition not found at {self.decomposition_path}")
-        if not os.path.isfile(self.research_clusters_path):
-            unmet.append(f"Research clusters not found at {self.research_clusters_path}")
-        if not os.path.isfile(self.research_bundle_path):
-            unmet.append(f"Research bundle not found at {self.research_bundle_path}")
+        
+        ok, reason = self._artifact_is_proven(self.decomposition_path, state, require_approval=False)
+        if not ok:
+            unmet.append(f"Provenance check failed for {self.decomposition_path}: {reason}")
+            
+        ok, reason = self._artifact_is_proven(self.research_clusters_path, state, require_approval=True, approval_alias="research_clusters")
+        if not ok:
+            unmet.append(f"Provenance check failed for {self.research_clusters_path}: {reason}")
+            
+        ok, reason = self._artifact_is_proven(self.research_bundle_path, state, require_approval=True, approval_alias="research_bundle")
+        if not ok:
+            unmet.append(f"Provenance check failed for {self.research_bundle_path}: {reason}")
+
         if not os.path.isfile(self.agents_md_path):
             unmet.append(f"Research-agent memory not found at {self.agents_md_path}")
         

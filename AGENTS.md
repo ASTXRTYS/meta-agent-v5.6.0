@@ -281,6 +281,8 @@ These are **auto-attached** by the SDK — we do NOT instantiate them:
 
 | Middleware | File | Hook Type | Purpose |
 | --- | --- | --- | --- |
+| ArtifactProtocolMiddleware | middleware/artifact_protocol.py | SDK middleware | Enforces structural validation (Pydantic/Regex/JSON) for artifacts defined in `.agents/protocols/artifacts.yaml` by injecting a `validate_artifact` tool. |
+| AskUserMiddleware | middleware/ask_user_middleware.py | SDK middleware | Provides the `ask_user` tool, converting classification approaches to structured LLM-driven HITL checkpoints. |
 | DynamicSystemPromptMiddleware | middleware/dynamic_system_prompt.py | @wrap_model_call / @before_model | Reads current_stage from state, builds stage-aware prompt, strips stale system messages from history in before_model, then applies request-level system prompt in wrap hooks. MUST be first in middleware list. |
 | MetaAgentStateMiddleware | middleware/meta_state.py | AgentMiddleware | Extends the graph state schema and keeps orchestrator state shape aligned with the spec. |
 | SummarizationToolMiddleware | graph.py (SDK middleware instance) | SDK middleware | Exposes compact_conversation for agent-controlled compaction on top of the auto-attached summarization layer. |
@@ -323,7 +325,7 @@ The `BaseStage` provides public template methods (`check_entry_conditions` and `
 5. **Post-processing**: Normalizes the `ConditionResult` to ensure `met` and `unmet` parity.
 
 ### 4. State Synchronization
-Permanent workflow counters (like `spec_generation_feedback_cycles`) must be hydrated in the `sync_from_state` method. This ensures that in-memory counters remain accurate across graph resumes from checkpoints.
+Permanent workflow counters (like `revision_count` via the `stage_metadata` dictionary) must be hydrated in the `sync_from_state` method. This ensures that in-memory counters remain accurate across graph resumes from checkpoints.
 
 ### 5. Telemetry & The `_span_carrier`
 The base class provides a `_span_carrier` helper. This is a no-op method used specifically to capture telemetry metadata. Do not remove or shadow this method in subclasses.

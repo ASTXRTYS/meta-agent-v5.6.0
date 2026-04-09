@@ -74,8 +74,7 @@ class TestMetaAgentStateFields:
         eval_fields = {
             "eval_suites", "eval_results",
             "current_eval_phase", "verification_results",
-            "spec_generation_feedback_cycles",
-            "pending_research_gap_request",
+            "stage_metadata",
         }
         assert eval_fields.issubset(set(annotations.keys())), (
             f"Missing eval fields: {eval_fields - set(annotations.keys())}"

@@ -9,6 +9,10 @@ build/
 .mypy_cache/
 tests/results/
 thread_state.json
+.hypothesis
+.kiro 
+.intent
+.reference
 
 # Phase 3 experiment artifacts
 exports/

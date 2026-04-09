@@ -40,10 +40,6 @@ class SpecGenerationStage(BaseStage):
         self.arch_eval_suite_path = self.resolve_path("evals", "eval-suite-architecture.json")
         self.tier1_eval_suite_path = self.resolve_path("evals", "eval-suite-prd.json")
 
-    def sync_from_state(self, state: dict[str, Any]) -> None:
-        """Hydrate revision_count from spec_generation_feedback_cycles."""
-        self.revision_count = int(state.get("spec_generation_feedback_cycles", 0))
-
     def _check_entry_impl(self, state: dict[str, Any]) -> ConditionResult:
         """Check SPEC_GENERATION entry conditions."""
         prd_path = state.get("current_prd_path") or self.prd_path
@@ -72,10 +68,14 @@ class SpecGenerationStage(BaseStage):
         self.sync_from_state(state)
 
         unmet = []
-        if not os.path.isfile(self.spec_path):
-            unmet.append(f"Technical spec not found at {self.spec_path}")
-        if not os.path.isfile(self.arch_eval_suite_path):
-            unmet.append(f"Tier 2 eval suite not found at {self.arch_eval_suite_path}")
+        
+        ok, reason = self._artifact_is_proven(self.spec_path, state, require_approval=False)
+        if not ok:
+            unmet.append(f"Provenance check failed for {self.spec_path}: {reason}")
+            
+        ok, reason = self._artifact_is_proven(self.arch_eval_suite_path, state, require_approval=False)
+        if not ok:
+            unmet.append(f"Provenance check failed for {self.arch_eval_suite_path}: {reason}")
 
         # Standard artifact state tracking validation
         current_spec_path = state.get("current_spec_path")

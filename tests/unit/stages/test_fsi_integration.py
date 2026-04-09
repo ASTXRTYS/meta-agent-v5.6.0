@@ -129,7 +129,11 @@ def test_prd_review_exit_logic_hydration_invariant(met_val):
         with open(os.path.join(tmpdir, "evals", "eval-suite-prd.json"), "w") as f:
             f.write("{}")
 
+        prd_path = os.path.join(tmpdir, "artifacts", "intake", "prd.md")
+        eval_suite_path = os.path.join(tmpdir, "evals", "eval-suite-prd.json")
+
         state = {
+            "artifacts_written": [prd_path, eval_suite_path] if met_val else [],
             "approval_history": [
                 {"artifact": "prd", "action": "approved"} if met_val else {},
                 {"artifact": "eval_suite", "action": "approved"} if met_val else {}

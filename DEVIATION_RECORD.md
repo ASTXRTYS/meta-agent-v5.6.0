@@ -659,3 +659,17 @@ All these failures trace back to the backend/middleware configuration bugs docum
 - Section 22.4 (Middleware ordering)
 - Section 11 (Skills)
 - Section 13.4.6 (MemoryMiddleware)
+
+## Deviation 21: Artifact Protocol Validation gated behind Provenance
+
+- **Date:** 2026-04-09
+- **Trigger:** Upgrading the PRD_REVIEW stage to validate structured protocols.
+- **Root Cause:** Spec definition implied protocol schema validation runs independently of provenance constraints context in `meta_agent/stages/prd_review.py`.
+
+### What Was Changed
+- `_run_artifact_validation()` relies on direct `open()` semantics locally for simplicity.
+- The runtime explicitly **gates** schema formatting validation behind `_artifact_is_proven`. If a file lacks provenance (i.e., not naturally produced via graph boundaries or manually tracked approvals), no schema validation evaluates its text.
+- Validation checks are enforced broadly via `ArtifactProtocolMiddleware` injected across all core runtime delegates (spec-writer, plan-writer, research-agent).
+
+### Why
+Validating the file contents of a ghost file inherently breaks zero-trust conventions when auditing provenance in agentic systems. Bypassing unproven files prioritizes surfacing the immediate orchestration concern (where did this file come from?) over distracting syntax errors (you missed an H2 section on a file the agent doesn't even know it spawned).

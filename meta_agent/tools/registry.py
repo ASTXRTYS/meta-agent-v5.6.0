@@ -82,7 +82,7 @@ TOOL_FUNCTIONS: dict[str, Callable[..., Any]] = {
 TOOL_REGISTRY: dict[str, list[str]] = {
     "pm": [
         # SDK-provided (FilesystemMiddleware auto-attaches these):
-        "write_file", "read_file", "ls", "edit_file",
+        "write_file", "read_file", "ls", "edit_file", "validate_artifact",
         # Custom tools registered via tools=[]:
         "glob", "grep",
         "transition_stage", "record_decision", "record_assumption",
@@ -94,21 +94,21 @@ TOOL_REGISTRY: dict[str, list[str]] = {
     ],
     "research-agent": [
         # SDK-provided:
-        "write_file", "read_file", "ls", "edit_file",
+        "write_file", "read_file", "ls", "edit_file", "validate_artifact",
         # Custom:
         "glob", "grep",
         "web_search", "web_fetch",
     ],
     "spec-writer": [
         # SDK-provided:
-        "write_file", "read_file", "ls", "edit_file",
+        "write_file", "read_file", "ls", "edit_file", "validate_artifact",
         # Custom:
         "glob", "grep",
         "propose_evals",
     ],
     "plan-writer": [
         # SDK-provided:
-        "write_file", "read_file", "ls", "edit_file",
+        "write_file", "read_file", "ls", "edit_file", "validate_artifact",
         # Custom:
         "glob", "grep",
     ],
@@ -121,13 +121,13 @@ TOOL_REGISTRY: dict[str, list[str]] = {
     ],
     "verification-agent": [
         # SDK-provided:
-        "read_file", "ls",
+        "read_file", "ls", "validate_artifact",
         # Custom:
         "glob", "grep",
     ],
     "evaluation-agent": [
         # SDK-provided:
-        "write_file", "read_file", "ls", "edit_file",
+        "write_file", "read_file", "ls", "edit_file", "validate_artifact",
         # Custom:
         "langsmith_trace_list", "langsmith_trace_get",
         "langsmith_dataset_create", "langsmith_eval_run",

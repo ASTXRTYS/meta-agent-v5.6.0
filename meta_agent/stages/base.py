@@ -12,7 +12,9 @@ import abc
 import os
 from typing import Any, TypedDict
 
+from meta_agent.state import make_stage_context
 from meta_agent.tracing import traceable as ls_traceable
+from .common import _get_field
 
 
 class ConditionResult(TypedDict):
@@ -124,6 +126,33 @@ class BaseStage(abc.ABC):
             raise ValueError("_fail requires at least one reason")
         return {"met": False, "unmet": reasons}
 
+    def _artifact_is_proven(
+        self,
+        artifact_path: str,
+        state: dict[str, Any],
+        require_approval: bool = False,
+        approval_alias: str | None = None,
+    ) -> tuple[bool, str]:
+        """Perform a three-part provenance check for an artifact."""
+        if not os.path.isfile(artifact_path):
+            return False, "not found on disk"
+            
+        artifacts_written = state.get("artifacts_written") or []
+        if artifact_path not in artifacts_written:
+            return False, "not recorded in artifacts_written"
+            
+        if require_approval:
+            approval_history = state.get("approval_history") or []
+            is_approved = any(
+                _get_field(entry, "action") == "approved"
+                and _get_field(entry, "artifact") in {artifact_path, approval_alias}
+                for entry in approval_history
+            )
+            if not is_approved:
+                return False, "not approved in current thread"
+                
+        return True, ""
+
     # ── Revision Tracking ───────────────────────────────────────────────────
 
     def increment_revision_count(self) -> bool:
@@ -138,10 +167,34 @@ class BaseStage(abc.ABC):
     def sync_from_state(self, state: dict[str, Any]) -> None:
         """Hydrate in-memory state from the persistent MetaAgentState.
 
-        Base implementation is a no-op; subclasses like SpecGenerationStage
-        must override this to sync their specific counters.
+        Reads this stage's StageContext from state["stage_metadata"][STAGE_NAME].
+        Falls back to make_stage_context() defaults when no entry exists.
+
+        Write pattern for stages:
+            Command(update={"stage_metadata": {self.STAGE_NAME: context}})
+        The operator.or_ reducer on stage_metadata shallow-merges this dict with
+        the existing value, preserving all other stages' entries.
         """
-        pass
+        stage_metadata = state.get("stage_metadata") or {}
+        ctx = stage_metadata.get(self.STAGE_NAME)
+
+        if ctx is None:
+            # Backward-compat: fall back to legacy top-level field if present
+            # TODO(state-encapsulation): remove after migration
+            legacy = state.get("spec_generation_feedback_cycles")
+            if legacy is not None:
+                import warnings
+                warnings.warn(
+                    f"spec_generation_feedback_cycles is deprecated; "
+                    f"use stage_metadata['{self.STAGE_NAME}'].revision_count",
+                    DeprecationWarning,
+                    stacklevel=2,
+                )
+                self.revision_count = int(legacy)
+                return
+            ctx = make_stage_context()
+
+        self.revision_count = int(ctx["revision_count"])
 
     # ── Telemetry ────────────────────────────────────────────────────────────
 

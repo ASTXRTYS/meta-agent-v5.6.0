@@ -169,6 +169,24 @@ class ApprovalEntry:
 
 
 # ---------------------------------------------------------------------------
+# Stage Context — Section 4.5
+# ---------------------------------------------------------------------------
+
+class StageContext(TypedDict):
+    """Context and execution metadata localized to a specific stage."""
+    revision_count: int
+    extra: dict
+
+
+def make_stage_context(
+    revision_count: int = 0,
+    extra: dict | None = None,
+) -> StageContext:
+    """Factory for creating default stage context objects."""
+    return {"revision_count": revision_count, "extra": extra or {}}
+
+
+# ---------------------------------------------------------------------------
 # MetaAgentState — Section 4.1
 # ---------------------------------------------------------------------------
 
@@ -208,8 +226,7 @@ class MetaAgentState(TypedDict):
     eval_results: dict  # Mapping eval run IDs to results
     current_eval_phase: Optional[str]  # Current phase being evaluated
     verification_results: dict  # Verification verdicts by artifact type
-    spec_generation_feedback_cycles: int  # Orchestrator-mediated research/spec retries
-    pending_research_gap_request: Optional[str]  # Targeted research request from spec-writer
+    stage_metadata: Annotated[dict[str, StageContext], operator.or_]  # Localized stage namespace
 
 
 def create_initial_state(project_id: str) -> dict:
@@ -237,6 +254,6 @@ def create_initial_state(project_id: str) -> dict:
         "eval_results": {},
         "current_eval_phase": None,
         "verification_results": {},
-        "spec_generation_feedback_cycles": 0,
-        "pending_research_gap_request": None,
+        "stage_metadata": {},
+        "artifact_protocols": None,
     }

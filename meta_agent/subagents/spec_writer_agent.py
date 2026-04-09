@@ -37,6 +37,8 @@ from meta_agent.backend import (
     create_store,
 )
 from meta_agent.middleware.tool_error_handler import ToolErrorMiddleware
+from meta_agent.middleware.ask_user import AskUserMiddleware
+from meta_agent.middleware.artifact_protocol import ArtifactProtocolMiddleware
 from meta_agent.model import get_configured_model, get_model_config
 from meta_agent.prompts.spec_writer import construct_spec_writer_prompt
 from meta_agent.config.memory import get_memory_sources
@@ -310,6 +312,8 @@ def create_spec_writer_agent_graph(
         tools=tools,
         system_prompt=construct_spec_writer_prompt(project_dir, project_id),
         middleware=[
+            AskUserMiddleware(),
+            ArtifactProtocolMiddleware(backend=bare_fs),
             skills_mw,
             memory_mw,
             ToolErrorMiddleware(),

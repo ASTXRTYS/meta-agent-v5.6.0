@@ -38,6 +38,8 @@ from meta_agent.backend import (
 )
 from meta_agent.middleware.agent_decision_state import AgentDecisionStateMiddleware
 from meta_agent.middleware.tool_error_handler import ToolErrorMiddleware
+from meta_agent.middleware.ask_user import AskUserMiddleware
+from meta_agent.middleware.artifact_protocol import ArtifactProtocolMiddleware
 from meta_agent.model import get_configured_model, get_model_config
 from meta_agent.prompts.plan_writer import construct_plan_writer_prompt
 from meta_agent.subagents.document_renderer import create_document_renderer_subagent
@@ -238,6 +240,8 @@ def create_plan_writer_agent_graph(
         system_prompt=construct_plan_writer_prompt(project_dir, project_id),
         middleware=[
             AgentDecisionStateMiddleware(),
+            AskUserMiddleware(),
+            ArtifactProtocolMiddleware(backend=bare_fs),
             summarization_tool_mw,
             memory_mw,
             skills_mw,

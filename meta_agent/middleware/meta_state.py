@@ -18,7 +18,10 @@ from typing import Annotated, Any, Optional
 from typing_extensions import NotRequired
 
 from langchain.agents.middleware import AgentMiddleware
-from langchain.agents.middleware.types import AgentState
+from langchain.agents.middleware.types import AgentState, PrivateStateAttr
+from langchain.tools import ToolRuntime
+from langgraph.runtime import Runtime
+from langchain_core.runnables import RunnableConfig
 
 # DecisionEntry / AssumptionEntry / ApprovalEntry mirror MetaAgentState element
 # types but are unused here; log fields below stay as plain list until annotated.
@@ -27,7 +30,9 @@ from meta_agent.state import (
     AssumptionEntry,
     DecisionEntry,
     WorkflowStage,
+    make_stage_context,
 )
+from meta_agent.utils.artifact_validator import ArtifactProtocol
 
 
 class MetaAgentStateSchema(AgentState):
@@ -68,11 +73,15 @@ class MetaAgentStateSchema(AgentState):
     eval_results: NotRequired[dict]
     current_eval_phase: NotRequired[Optional[str]]
     verification_results: NotRequired[dict]
-    spec_generation_feedback_cycles: NotRequired[int]
-    pending_research_gap_request: NotRequired[Optional[str]]
+    stage_metadata: NotRequired[Annotated[dict[str, Any], operator.or_]]
 
     # Runtime flags (injected via extra_state in eval runners)
     auto_approve_hitl: NotRequired[bool]
+
+    # Artifact Protocols (Internal)
+    artifact_protocols: NotRequired[
+        Annotated[dict[str, ArtifactProtocol], PrivateStateAttr]
+    ]
 
 
 class MetaAgentStateMiddleware(AgentMiddleware):
@@ -86,7 +95,9 @@ class MetaAgentStateMiddleware(AgentMiddleware):
     # SDK AgentMiddleware typing does not accept our schema class cleanly.
     state_schema = MetaAgentStateSchema  # type: ignore[assignment]
 
-    def before_agent(self, state: Any, runtime: Any) -> dict[str, Any] | None:
+    def before_agent(
+        self, state: Any, runtime: Runtime, config: RunnableConfig
+    ) -> dict[str, Any] | None:
         """Initialize default values on first run.
 
         Only sets defaults for fields that are missing — never overwrites
@@ -107,9 +118,18 @@ class MetaAgentStateMiddleware(AgentMiddleware):
             updates["active_participation_mode"] = False
         if "verification_results" not in state_dict:
             updates["verification_results"] = {}
-        if "spec_generation_feedback_cycles" not in state_dict:
-            updates["spec_generation_feedback_cycles"] = 0
-        if "pending_research_gap_request" not in state_dict:
-            updates["pending_research_gap_request"] = None
+        if "stage_metadata" not in state_dict:
+            updates["stage_metadata"] = {}
+
+        # Backward-compat migration: lift legacy top-level field into stage_metadata
+        # TODO(state-encapsulation): remove after migration
+        if "spec_generation_feedback_cycles" in state_dict:
+            existing = state_dict.get("stage_metadata", {})
+            if "SPEC_GENERATION" not in existing:
+                revision_count = int(state_dict["spec_generation_feedback_cycles"])
+                updates["stage_metadata"] = {
+                    **existing,
+                    "SPEC_GENERATION": make_stage_context(revision_count=revision_count),
+                }
 
         return updates if updates else None
