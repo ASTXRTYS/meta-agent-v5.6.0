@@ -1,0 +1,9 @@
+{
+  "hooks": {
+    "pre_user_prompt": [
+      {
+        "command": "/opt/homebrew/bin/python3 /Users/Jason/2026/v4/meta-agent-v5.6.0/.windsurf/hooks/sdk_alignment_hook.py"
+      }
+    ]
+  }
+}
