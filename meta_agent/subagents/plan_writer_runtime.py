@@ -8,16 +8,15 @@ and phase sequencing.
 
 Output contract:
   - plan_path       -> absolute path to the produced implementation plan
-  - status          -> "complete" | "needs_revision" | "blocked"
+  - status          -> "complete" | "needs_revision" | "blocked" | "parse_error"
   - revision_notes  -> non-empty when status == "needs_revision"
   - raw_result      -> full agent output for debugging
 """
 
 from __future__ import annotations
 
-import json
+import logging
 import os
-import re
 from pathlib import Path
 from typing import Any, Mapping
 
@@ -35,6 +34,11 @@ from meta_agent.model import get_configured_model
 from meta_agent.prompts.plan_writer import construct_plan_writer_prompt
 from meta_agent.subagents.document_renderer import create_document_renderer_subagent
 from meta_agent.subagents.provisioner import build_provisioning_plan
+from meta_agent.utils.parsing import ParseError, parse_status_block
+
+
+logger = logging.getLogger(__name__)
+VALID_STATUSES = frozenset({"complete", "needs_revision", "blocked"})
 
 
 # ---------------------------------------------------------------------------
@@ -78,38 +82,6 @@ def _resolve_skills_dirs(skills_paths: list[str] | None) -> list[str]:
     return resolved
 
 
-# ---------------------------------------------------------------------------
-# Status block extraction
-# ---------------------------------------------------------------------------
-
-
-def _extract_status_block(text: str) -> dict[str, Any]:
-    """Extract the JSON status block from the agent's final response."""
-    match = re.search(r"```json\s*(\{.*?\})\s*```", text, re.DOTALL)
-    if match:
-        try:
-            return json.loads(match.group(1))
-        except (json.JSONDecodeError, ValueError):
-            pass
-
-    match = re.search(r"```\s*(\{.*?\})\s*```", text, re.DOTALL)
-    if match:
-        try:
-            return json.loads(match.group(1))
-        except (json.JSONDecodeError, ValueError):
-            pass
-
-    for m in reversed(list(re.finditer(r"\{[^{}]*\}", text))):
-        try:
-            parsed = json.loads(m.group(0))
-            if "status" in parsed:
-                return parsed
-        except (json.JSONDecodeError, ValueError):
-            continue
-
-    return {}
-
-
 def _last_assistant_text(messages: list[Any]) -> str:
     """Return the text content of the last assistant message."""
     for msg in reversed(messages):
@@ -132,14 +104,6 @@ def _last_assistant_text(messages: list[Any]) -> str:
 # ---------------------------------------------------------------------------
 
 
-_DEFAULT_PLAN_RESULT: dict[str, Any] = {
-    "status": "blocked",
-    "plan_path": "",
-    "revision_notes": "Plan-writer did not produce a parseable status block.",
-    "raw_result": {},
-}
-
-
 def normalize_plan_writer_outputs(
     raw_result: Mapping[str, Any],
     *,
@@ -150,33 +114,58 @@ def normalize_plan_writer_outputs(
 
     Searches the agent message stream for a JSON status block from the
     last assistant message.  Falls back to a safe default with
-    ``status="blocked"`` if parsing fails.
+    ``status="parse_error"`` if parsing fails.
 
     Returns the evaluator-contract dict:
         plan_path, status, revision_notes, raw_result.
     """
     messages = list(raw_result.get("messages", [])) if isinstance(raw_result, Mapping) else []
     assistant_text = _last_assistant_text(messages)
-    status_block = _extract_status_block(assistant_text)
-
-    default_plan_path = os.path.join(
-        project_dir, "artifacts", "plan", "implementation-plan.md"
-    )
-    plan_path = status_block.get("plan_path", default_plan_path)
-    if plan_path and not os.path.isabs(plan_path):
-        candidate = os.path.join(project_dir, plan_path)
-        if os.path.isfile(candidate):
-            plan_path = candidate
-
-    raw_status = str(status_block.get("status", "")).strip().lower()
-    if raw_status in ("complete", "needs_revision", "blocked"):
-        status = raw_status
-    elif os.path.isfile(str(plan_path)):
-        status = "complete"
-    else:
-        status = "blocked"
-
-    revision_notes = str(status_block.get("revision_notes", "")).strip()
+    try:
+        status_block = parse_status_block(assistant_text)
+        raw_status = str(status_block.get("status", "")).strip().lower()
+        if raw_status not in VALID_STATUSES:
+            logger.warning(
+                "schema_violation: unrecognized status %r",
+                raw_status,
+                extra={
+                    "reason": "schema_violation",
+                    "actual_status": raw_status,
+                },
+            )
+            status = "parse_error"
+            plan_path = ""
+            revision_notes = ""
+        else:
+            default_plan_path = os.path.join(
+                project_dir, "artifacts", "plan", "implementation-plan.md"
+            )
+            plan_path = str(status_block.get("plan_path", default_plan_path))
+            if plan_path and not os.path.isabs(plan_path):
+                candidate = os.path.join(project_dir, plan_path)
+                if os.path.isfile(candidate):
+                    plan_path = candidate
+            status = raw_status
+            revision_notes = str(status_block.get("revision_notes", "")).strip()
+    except ParseError as error:
+        logger.warning(
+            "ParseError extracting status block: reason=%s char_offset=%d msg=%r lineno=%r colno=%r",
+            error.reason,
+            error.char_offset,
+            error.msg,
+            error.lineno,
+            error.colno,
+            extra={
+                "parse_error_reason": error.reason,
+                "parse_error_char_offset": error.char_offset,
+                "parse_error_msg": error.msg,
+                "parse_error_lineno": error.lineno,
+                "parse_error_colno": error.colno,
+            },
+        )
+        status = "parse_error"
+        plan_path = ""
+        revision_notes = ""
 
     return {
         "plan_path": plan_path,

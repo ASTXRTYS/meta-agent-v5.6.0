@@ -7,7 +7,7 @@ LangSmith SDK tools to list traces, create datasets, run evaluations, and
 propose eval suites.
 
 Output contract:
-  - status        -> "complete" | "in_progress" | "failed"
+  - status        -> "complete" | "in_progress" | "failed" | "parse_error"
   - eval_summary  -> human-readable summary of evaluation results
   - eval_results  -> structured dict of evaluation outcomes
   - raw_result    -> full agent output for debugging
@@ -15,9 +15,8 @@ Output contract:
 
 from __future__ import annotations
 
-import json
+import logging
 import os
-import re
 from pathlib import Path
 from typing import Any, Mapping
 
@@ -42,6 +41,11 @@ from meta_agent.tools import (
     langsmith_trace_list_tool,
     propose_evals_tool,
 )
+from meta_agent.utils.parsing import ParseError, parse_status_block
+
+
+logger = logging.getLogger(__name__)
+VALID_STATUSES = frozenset({"complete", "in_progress", "failed"})
 
 
 # ---------------------------------------------------------------------------
@@ -85,38 +89,6 @@ def _resolve_skills_dirs(skills_paths: list[str] | None) -> list[str]:
     return resolved
 
 
-# ---------------------------------------------------------------------------
-# Output normalization helpers
-# ---------------------------------------------------------------------------
-
-
-def _extract_status_block(text: str) -> dict[str, Any]:
-    """Extract the JSON status block from the agent's final response."""
-    match = re.search(r"```json\s*(\{.*?\})\s*```", text, re.DOTALL)
-    if match:
-        try:
-            return json.loads(match.group(1))
-        except (json.JSONDecodeError, ValueError):
-            pass
-
-    match = re.search(r"```\s*(\{.*?\})\s*```", text, re.DOTALL)
-    if match:
-        try:
-            return json.loads(match.group(1))
-        except (json.JSONDecodeError, ValueError):
-            pass
-
-    for m in reversed(list(re.finditer(r"\{[^{}]*\}", text))):
-        try:
-            parsed = json.loads(m.group(0))
-            if "status" in parsed:
-                return parsed
-        except (json.JSONDecodeError, ValueError):
-            continue
-
-    return {}
-
-
 def _last_assistant_text(messages: list[Any]) -> str:
     """Return the text content of the last assistant message."""
     for msg in reversed(messages):
@@ -147,7 +119,7 @@ def normalize_evaluation_agent_outputs(
     """Extract the structured eval results from the evaluation-agent output.
 
     Searches the agent message stream for a JSON status block from the
-    last assistant message.  Falls back to ``status="failed"`` if parsing
+    last assistant message.  Falls back to ``status="parse_error"`` if parsing
     fails.
 
     Returns the evaluator-contract dict:
@@ -155,19 +127,47 @@ def normalize_evaluation_agent_outputs(
     """
     messages = list(raw_result.get("messages", [])) if isinstance(raw_result, Mapping) else []
     assistant_text = _last_assistant_text(messages)
-    status_block = _extract_status_block(assistant_text)
-
-    raw_status = str(status_block.get("status", "")).strip().lower()
-    if raw_status in ("complete", "in_progress", "failed"):
-        status = raw_status
-    else:
-        status = "failed"
-
-    eval_summary = str(status_block.get("eval_summary", "")).strip()
-    eval_results: dict[str, Any] = {}
-    raw_results = status_block.get("eval_results", {})
-    if isinstance(raw_results, dict):
-        eval_results = raw_results
+    try:
+        status_block = parse_status_block(assistant_text)
+        raw_status = str(status_block.get("status", "")).strip().lower()
+        if raw_status not in VALID_STATUSES:
+            logger.warning(
+                "schema_violation: unrecognized status %r",
+                raw_status,
+                extra={
+                    "reason": "schema_violation",
+                    "actual_status": raw_status,
+                },
+            )
+            status = "parse_error"
+            eval_summary = ""
+            eval_results = {}
+        else:
+            status = raw_status
+            eval_summary = str(status_block.get("eval_summary", "")).strip()
+            eval_results: dict[str, Any] = {}
+            raw_results = status_block.get("eval_results", {})
+            if isinstance(raw_results, dict):
+                eval_results = raw_results
+    except ParseError as error:
+        logger.warning(
+            "ParseError extracting status block: reason=%s char_offset=%d msg=%r lineno=%r colno=%r",
+            error.reason,
+            error.char_offset,
+            error.msg,
+            error.lineno,
+            error.colno,
+            extra={
+                "parse_error_reason": error.reason,
+                "parse_error_char_offset": error.char_offset,
+                "parse_error_msg": error.msg,
+                "parse_error_lineno": error.lineno,
+                "parse_error_colno": error.colno,
+            },
+        )
+        status = "parse_error"
+        eval_summary = ""
+        eval_results = {}
 
     return {
         "status": status,

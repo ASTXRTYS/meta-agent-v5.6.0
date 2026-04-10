@@ -11,15 +11,6 @@ Cross-check protocol:
   - research bundle  -> verify against PRD
   - spec             -> verify against PRD + research bundle
   - plan             -> verify against spec
-
-Architecture Note:
-    This file contains the full Deep Agent runtime. Helper functions like
-    `_repo_root()`, `_read_text()`, and `_resolve_skills_dirs()` are local
-    duplicates shared with `research_agent.py` and other runtimes.
-
-    I like the solution of potentially having a `common.py` (or
-    `utils/runtime.py`) to consolidate these cross-cutting utilities while
-    keeping the runtime/agent separation intact.
 """
 
 from __future__ import annotations

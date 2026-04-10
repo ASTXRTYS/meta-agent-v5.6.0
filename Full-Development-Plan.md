@@ -77,6 +77,7 @@ This document is the authoritative development plan for the local-first meta-age
 - ✅ PM + runtime subagents aligned to canonical `.agents/skills/...` sources; integration assertions updated
 - ✅ Track A complete: evaluation-agent added to PROJECT_AGENTS scaffolding with regression + behavioral tests
 - ✅ Track B complete: centralized profile-driven subagent provisioner, parity gate tests, and runtime migration across 7 agents
+- ✅ Canonical JSON extraction track complete: shared `meta_agent.utils.parsing` utility, runtime parse-error signaling migration across 4 runtimes, and new contract/integration coverage
 
 - [x] End-to-end stage wiring validation (FSI migration)
 - [x] Stage wiring validation (RESEARCH → SPEC_GENERATION → SPEC_REVIEW)

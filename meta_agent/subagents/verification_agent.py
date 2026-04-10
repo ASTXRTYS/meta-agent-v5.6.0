@@ -1,20 +1,4 @@
 """Verification-agent helpers.
-
-Architecture Note:
-    This file contains pure parsing helpers and constants. The full runtime
-    (Deep Agent graph, middleware, standalone bridge) lives in
-    `verification_agent_runtime.py`.
-
-    Other agents follow different patterns:
-    - `research_agent.py` combines helpers + runtime in one file (32KB)
-    - `code_agent_runtime.py`, `plan_writer_runtime.py` use `_runtime.py` suffix
-
-    The split here is reasonable given simple/separable parsing logic, but naming
-    is inconsistent with `research_agent.py`.
-
-    Future consolidation: Consider `common.py` for shared utilities like
-    `_repo_root()`, `_read_text()`, `_resolve_skills_dirs()` which are currently
-    duplicated across runtime files.
 """
 
 from __future__ import annotations

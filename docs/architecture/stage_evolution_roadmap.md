@@ -40,3 +40,10 @@ This document preserves architectural opportunities identified during the Phase 
 - **Status:** Consolidated into `BaseStage._emit_span` template method.
 - **Implementation:** Integrates with Item #1 (BaseStage) using `@traceable`.
 - **Benefit:** Provides a "heat map" of where agents get stuck most often (e.g., "Agents fail PRD exit conditions 30% more on Windows").
+
+## 6. Canonical JSON Extraction (Hardening the Handshake) — ✅ IMPLEMENTED (v5.6.0)
+**Concept:** Move from brittle, heuristic regex to a deterministic, stack-based brace-counting algorithm.
+
+- **Status:** Integrated via `meta_agent/utils/parsing.py`.
+- **Implementation:** Replaces four identical, private regex helpers with a single, high-integrity parser verified by Hypothesis property-based testing.
+- **Benefit:** Eliminates silent runtime failures for complex nested JSON (Kubernetes manifests, IAM policies) and provides precise character-offset diagnostics for MTTR improvement.

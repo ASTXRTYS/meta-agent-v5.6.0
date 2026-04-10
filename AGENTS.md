@@ -349,6 +349,76 @@ All runtime subagents now use a centralized, profile-driven provisioning system:
 7. As a project owner, I can trust project-local agent memory (`/.agents/pm/projects/{project_id}/.agents/{agent}/AGENTS.md`) to override repo defaults predictably.
 8. As a document pipeline owner, I can keep document-renderer behavior intentionally isolated from project memory while still using shared provisioning logic.
 
+### Canonical JSON Extraction Convention (Track C)
+
+Post-hoc parsing of subagent handshake blocks is now centralized in
+`meta_agent/utils/parsing.py`. This utility exists to harden the
+already-completed-run normalization boundary used by the runtimes; it is
+**not** a replacement for Deep Agents or LangChain structured output at the
+agent invocation layer.
+
+**Developer comforts available now:**
+- **Single import surface:** `meta_agent.utils.parsing` exports
+  `ParseError`, `extract_json_block`, `iter_json_blocks`, and
+  `parse_status_block`; `meta_agent.utils` re-exports the same names for
+  convenience.
+- **Document-order scanning:** the parser scans candidate JSON blocks in text
+  order and handles fenced JSON, bare fences, and bare `{...}` objects.
+- **Nested JSON safety:** brace counting is string-aware, so nested objects and
+  `}` inside string literals no longer truncate status blocks.
+- **Malformed-example tolerance:** `extract_json_block` and
+  `parse_status_block` continue past malformed earlier candidates and only
+  raise after all candidates are exhausted; they do not stop at the first
+  `JSONDecodeError`.
+- **Failure truthfulness:** migrated runtimes normalize parse and schema
+  failures to `status="parse_error"` rather than silently mapping them to
+  domain statuses like `"complete"` or `"blocked"`.
+- **Precise diagnostics:** `ParseError` carries `reason`, `char_offset`, and,
+  for decode failures, `msg`, `lineno`, and `colno`.
+
+**SDK alignment boundary:**
+- Use `create_deep_agent(..., response_format=...)` when redesigning the
+  invocation layer and you control agent construction end to end.
+- Use `meta_agent.utils.parsing` when you are normalizing the last assistant
+  message from an already-completed run.
+- Do **not** copy regex-based `_extract_status_block` helpers into new runtimes.
+  If a runtime consumes post-hoc assistant text, start with
+  `parse_status_block(...)` plus a runtime-local `VALID_STATUSES` set.
+
+**Runtime migration contract:**
+- The current post-hoc parser contract is enforced in:
+  `spec_writer_agent.py`, `code_agent_runtime.py`, `plan_writer_runtime.py`,
+  and `evaluation_agent_runtime.py`.
+- New runtimes that parse assistant handshake blocks SHOULD follow the same
+  pattern:
+  1. Call `parse_status_block(assistant_text)`.
+  2. Validate `status` against a runtime-local `VALID_STATUSES` set.
+  3. On parse failure or schema violation, set `status="parse_error"`.
+  4. Reset optional fields to empty/default values.
+  5. Emit a `WARNING` log with structured parse diagnostics.
+
+**Required change protocol for maintainers:**
+1. Update `meta_agent/utils/parsing.py` first if parser semantics change.
+2. Preserve the single-scanner architecture; do not duplicate anchor-selection
+   or brace-counting logic across helpers or runtimes.
+3. If changing runtime normalization semantics, update all affected runtimes in
+   the same change so parse-failure behavior stays consistent.
+4. Run `tests/contracts/utils/test_parsing.py`.
+5. Run `tests/integration/subagents/test_runtime_parse_failure.py`.
+6. Run `tests/drift/test_collection_hygiene.py` if new test files or coverage
+   declarations were added.
+7. Regenerate `docs/testing/TEST_TRACEABILITY.*` if `COVERS:` declarations or
+   parser-related test inventory changed.
+8. Update this AGENTS.md if the parser boundary, public API, or normalization
+   contract changes.
+
+**Enabled user stories (Canonical JSON Extraction):**
+1. As a platform owner, I can let agents emit complex nested JSON in Markdown responses without regex truncation breaking the handshake.
+2. As a developer adding a runtime, I can import one shared parser utility instead of cloning brittle extraction code.
+3. As a DevOps engineer, I can see exact parse-failure diagnostics instead of debugging a fake domain status.
+4. As a downstream orchestrator or evaluator, I can trust that a parse failure is represented explicitly as `parse_error`, not silently converted into success or a misleading business status.
+5. As a reviewer, I can rely on contract and integration tests to catch regressions in block selection, malformed-example tolerance, and runtime normalization.
+
 ### Interrupt Communication Convention
 
 When pausing an agent workflow via LangGraph's `interrupt()`, the emitted payload **MUST NOT** be a raw primitive dictionary.

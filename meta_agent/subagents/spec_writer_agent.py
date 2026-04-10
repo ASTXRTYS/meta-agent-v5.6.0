@@ -17,9 +17,8 @@ Key differences from the research-agent runtime:
 
 from __future__ import annotations
 
-import json
+import logging
 import os
-import re
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Mapping
@@ -38,6 +37,10 @@ from meta_agent.model import get_configured_model
 from meta_agent.prompts.spec_writer import construct_spec_writer_prompt
 from meta_agent.subagents.provisioner import build_provisioning_plan
 from meta_agent.tools import propose_evals_tool
+from meta_agent.utils.parsing import ParseError, parse_status_block
+
+
+logger = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
@@ -108,48 +111,7 @@ def _resolve_skills_dirs(skills_paths: list[str] | None) -> list[str]:
     return resolved
 
 
-# ---------------------------------------------------------------------------
-# Status block extraction
-# ---------------------------------------------------------------------------
-
-def _extract_status_block(text: str) -> dict[str, Any]:
-    """Extract the JSON status block from the agent's final response.
-
-    The spec-writer prompt instructs the agent to end with a fenced JSON
-    block containing status, needs_additional_research, etc.
-    """
-    # TODO: Fix regex to handle nested JSON structures
-    # ISSUE: The regex r"```json\s*(\{.*?\})\s*```" uses non-greedy matching (.*?) which
-    # fails on nested JSON objects. If the spec-writer outputs nested JSON, this regex
-    # will only capture the outermost braces and fail to parse correctly.
-    # RECOMMENDED ACTION: Consolidate JSON extraction logic with plan_writer_runtime.py
-    # which likely has similar code. Use a proper JSON parser or improve the regex
-    # to handle nested structures (e.g., recursive matching or use a JSON library).
-    match = re.search(r"```json\s*(\{.*?\})\s*```", text, re.DOTALL)
-    if match:
-        try:
-            return json.loads(match.group(1))
-        except (json.JSONDecodeError, ValueError):
-            pass
-
-    # Try bare ``` ... ```
-    match = re.search(r"```\s*(\{.*?\})\s*```", text, re.DOTALL)
-    if match:
-        try:
-            return json.loads(match.group(1))
-        except (json.JSONDecodeError, ValueError):
-            pass
-
-    # Try last JSON object in text
-    for m in reversed(list(re.finditer(r"\{[^{}]*\}", text))):
-        try:
-            parsed = json.loads(m.group(0))
-            if "status" in parsed:
-                return parsed
-        except (json.JSONDecodeError, ValueError):
-            continue
-
-    return {}
+VALID_STATUSES = frozenset({"complete", "needs_additional_research"})
 
 
 def _last_assistant_text(messages: list[Any]) -> str:
@@ -215,7 +177,7 @@ def normalize_spec_writer_outputs(
         {
             "spec_path": str,
             "tier2_eval_suite_path": str,
-            "status": str,  # "complete" | "needs_additional_research"
+            "status": str,  # "complete" | "needs_additional_research" | "parse_error"
             "needs_additional_research": bool,
             "additional_research_request": str,
             "raw_result": dict,
@@ -225,30 +187,66 @@ def normalize_spec_writer_outputs(
 
     messages = list(raw_result.get("messages", [])) if isinstance(raw_result, Mapping) else []
     assistant_text = _last_assistant_text(messages)
-    status_block = _extract_status_block(assistant_text)
+    status_block: dict[str, Any] = {}
+    raw_status = "parse_error"
+    try:
+        status_block = parse_status_block(assistant_text)
+        raw_status = str(status_block.get("status", "")).strip().lower()
+        if raw_status not in VALID_STATUSES:
+            logger.warning(
+                "schema_violation: unrecognized status %r",
+                raw_status,
+                extra={
+                    "reason": "schema_violation",
+                    "actual_status": raw_status,
+                },
+            )
+            status_block = {}
+            raw_status = "parse_error"
+    except ParseError as error:
+        logger.warning(
+            "ParseError extracting status block: reason=%s char_offset=%d msg=%r lineno=%r colno=%r",
+            error.reason,
+            error.char_offset,
+            error.msg,
+            error.lineno,
+            error.colno,
+            extra={
+                "parse_error_reason": error.reason,
+                "parse_error_char_offset": error.char_offset,
+                "parse_error_msg": error.msg,
+                "parse_error_lineno": error.lineno,
+                "parse_error_colno": error.colno,
+            },
+        )
+        status_block = {}
+        raw_status = "parse_error"
 
     # Read produced artifacts
     spec_content = _read_text(paths.spec_path)
-    tier2_content = _read_text(paths.tier2_eval_suite_path)
 
     # Determine status from the agent's status block
-    raw_status = str(status_block.get("status", "")).strip().lower()
-    needs_research = (
-        status_block.get("needs_additional_research", False) is True
-        or raw_status == "needs_additional_research"
-    )
-    status = "needs_additional_research" if needs_research else "complete"
-    additional_request = str(status_block.get("additional_research_request", "")).strip()
+    if raw_status == "parse_error":
+        status = "parse_error"
+        needs_research = False
+        additional_request = ""
+    else:
+        needs_research = (
+            status_block.get("needs_additional_research", False) is True
+            or raw_status == "needs_additional_research"
+        )
+        status = "needs_additional_research" if needs_research else "complete"
+        additional_request = str(status_block.get("additional_research_request", "")).strip()
 
     # Resolve paths from status block or defaults
     spec_path = paths.spec_path
-    if status_block.get("technical_spec_path"):
+    if raw_status != "parse_error" and status_block.get("technical_spec_path"):
         candidate = os.path.join(project_dir, status_block["technical_spec_path"])
         if os.path.isfile(candidate):
             spec_path = candidate
 
     tier2_path = paths.tier2_eval_suite_path
-    if status_block.get("tier2_eval_suite_path"):
+    if raw_status != "parse_error" and status_block.get("tier2_eval_suite_path"):
         candidate = os.path.join(project_dir, status_block["tier2_eval_suite_path"])
         if os.path.isfile(candidate):
             tier2_path = candidate

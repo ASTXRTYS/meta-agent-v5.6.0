@@ -29,7 +29,8 @@
       "covered_by": [
         "tests/contracts/test_graph_runtime.py",
         "tests/contracts/test_tool_registry_parity.py",
-        "tests/contracts/test_tool_shapes.py"
+        "tests/contracts/test_tool_shapes.py",
+        "tests/integration/test_stage_transitions.py"
       ],
       "status": "covered"
     },
@@ -44,7 +45,8 @@
       "covered_by": [
         "tests/contracts/test_graph_runtime.py",
         "tests/contracts/test_tool_registry_parity.py",
-        "tests/contracts/test_tool_shapes.py"
+        "tests/contracts/test_tool_shapes.py",
+        "tests/integration/test_stage_transitions.py"
       ],
       "status": "covered"
     },
@@ -75,7 +77,8 @@
       "covered_by": [
         "tests/contracts/test_graph_runtime.py",
         "tests/contracts/test_tool_registry_parity.py",
-        "tests/contracts/test_tool_shapes.py"
+        "tests/contracts/test_tool_shapes.py",
+        "tests/integration/test_stage_transitions.py"
       ],
       "status": "covered"
     },
@@ -217,7 +220,8 @@
       "covered_by": [
         "tests/contracts/test_graph_runtime.py",
         "tests/contracts/test_tool_registry_parity.py",
-        "tests/contracts/test_tool_shapes.py"
+        "tests/contracts/test_tool_shapes.py",
+        "tests/integration/test_stage_transitions.py"
       ],
       "status": "covered"
     },
@@ -246,6 +250,7 @@
       ],
       "covered_by": [
         "tests/contracts/test_graph_runtime.py",
+        "tests/integration/test_memory_and_skills.py",
         "tests/evals/test_pm_intake.py"
       ],
       "status": "covered"
@@ -259,7 +264,8 @@
         "integration"
       ],
       "covered_by": [
-        "tests/contracts/test_graph_runtime.py"
+        "tests/contracts/test_graph_runtime.py",
+        "tests/integration/test_memory_and_skills.py"
       ],
       "status": "covered"
     },
@@ -272,6 +278,7 @@
         "integration"
       ],
       "covered_by": [
+        "tests/contracts/test_graph_runtime.py",
         "tests/integration/test_memory_and_skills.py"
       ],
       "status": "covered"
@@ -285,6 +292,7 @@
         "integration"
       ],
       "covered_by": [
+        "tests/contracts/test_graph_runtime.py",
         "tests/integration/test_memory_and_skills.py"
       ],
       "status": "covered"
@@ -310,19 +318,10 @@
         "integration"
       ],
       "covered_by": [
-        "tests/contracts/test_graph_runtime.py"
+        "tests/contracts/test_graph_runtime.py",
+        "tests/integration/test_memory_and_skills.py"
       ],
       "status": "covered"
-    },
-    {
-      "component_id": "middleware.completion_guard",
-      "kind": "middleware",
-      "criticality": "important",
-      "required_coverage": [
-        "contract"
-      ],
-      "covered_by": [],
-      "status": "uncovered"
     },
     {
       "component_id": "middleware.agent_decision_state",
@@ -403,17 +402,14 @@
       "status": "covered"
     },
     {
-      "component_id": "subagent.test-agent",
+      "component_id": "subagent.evaluation-agent",
       "kind": "subagent",
-      "criticality": "supporting",
+      "criticality": "important",
       "required_coverage": [
         "contract"
       ],
-      "covered_by": [
-        "tests/contracts/test_graph_runtime.py",
-        "tests/integration/test_subagent_delegation.py"
-      ],
-      "status": "covered"
+      "covered_by": [],
+      "status": "uncovered"
     },
     {
       "component_id": "subagent.document-renderer",
@@ -437,6 +433,7 @@
         "integration"
       ],
       "covered_by": [
+        "tests/contracts/test_graph_runtime.py",
         "tests/integration/test_backend_routing.py"
       ],
       "status": "covered"
@@ -450,6 +447,7 @@
         "integration"
       ],
       "covered_by": [
+        "tests/contracts/test_graph_runtime.py",
         "tests/integration/test_backend_routing.py"
       ],
       "status": "covered"
@@ -693,16 +691,6 @@
       "status": "uncovered"
     },
     {
-      "component_id": "state.pending_research_gap_request",
-      "kind": "state_field",
-      "criticality": "important",
-      "required_coverage": [
-        "contract"
-      ],
-      "covered_by": [],
-      "status": "uncovered"
-    },
-    {
       "component_id": "state.progress_log",
       "kind": "state_field",
       "criticality": "supporting",
@@ -713,7 +701,7 @@
       "status": "uncovered"
     },
     {
-      "component_id": "state.spec_generation_feedback_cycles",
+      "component_id": "state.stage_metadata",
       "kind": "state_field",
       "criticality": "important",
       "required_coverage": [
@@ -768,8 +756,10 @@
       "required_coverage": [
         "contract"
       ],
-      "covered_by": [],
-      "status": "uncovered"
+      "covered_by": [
+        "tests/contracts/test_tool_shapes.py"
+      ],
+      "status": "covered"
     },
     {
       "component_id": "guardrail.token_budgets",
@@ -789,8 +779,11 @@
         "contract",
         "integration"
       ],
-      "covered_by": [],
-      "status": "uncovered"
+      "covered_by": [
+        "tests/contracts/test_tool_shapes.py",
+        "tests/integration/test_hitl_flow.py"
+      ],
+      "status": "covered"
     },
     {
       "component_id": "guardrail.path_validation",
@@ -800,8 +793,11 @@
         "contract",
         "integration"
       ],
-      "covered_by": [],
-      "status": "uncovered"
+      "covered_by": [
+        "tests/contracts/test_tool_shapes.py",
+        "tests/integration/test_hitl_flow.py"
+      ],
+      "status": "covered"
     },
     {
       "component_id": "sdk.deepagents.create_deep_agent",
@@ -1000,8 +996,8 @@
     }
   ],
   "summary": {
-    "total": 82,
-    "covered": 53,
-    "uncovered": 29
+    "total": 80,
+    "covered": 55,
+    "uncovered": 25
   }
 }
