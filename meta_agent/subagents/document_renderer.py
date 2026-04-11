@@ -13,10 +13,8 @@ Utilizes MemoryMiddleware for stateful document rendering context.
 
 from __future__ import annotations
 
-import os
 from functools import lru_cache
 from pathlib import Path
-from typing import Any
 
 from deepagents import create_deep_agent
 from deepagents.middleware.subagents import CompiledSubAgent
@@ -32,21 +30,6 @@ PROMPT_MARKDOWN_PATH = Path(__file__).resolve().parent.parent / "prompts" / "Doc
 def _load_prompt_markdown() -> str:
     """Load the canonical markdown prompt."""
     return PROMPT_MARKDOWN_PATH.read_text().strip()
-
-
-
-
-# Rendering triggers per Section 6.9.2
-RENDERING_TRIGGERS: dict[str, list[str]] = {
-    "INTAKE": ["prd"],
-    "PRD_REVIEW": ["prd"],
-    "SPEC_GENERATION": ["technical-specification"],
-    "SPEC_REVIEW": ["technical-specification"],
-    "PLANNING": ["implementation-plan"],
-}
-
-# Output format per Section 6.9.3
-OUTPUT_FORMATS = ["docx", "pdf"]
 
 
 # Canonical description shared by both PM and research-agent subagent lists.
@@ -103,77 +86,3 @@ def create_document_renderer_subagent(
         runnable=graph,
     )
 
-
-
-
-
-def should_render(stage: str, artifact_name: str) -> bool:
-    """Check if an artifact should be rendered in the given stage."""
-    triggers = RENDERING_TRIGGERS.get(stage, [])
-    return artifact_name in triggers
-
-
-def get_output_path(source_path: str, output_format: str) -> str:
-    """Get the output path for a rendered document.
-
-    Per Section 6.9.3: rendered docs alongside source Markdown.
-    """
-    # ⚠️ INCONSISTENT: Using os.path despite importing pathlib.Path
-    # Other agents use Path operations consistently. TODO: Use Path(source_path).stem
-    base, _ = os.path.splitext(source_path)
-    return f"{base}.{output_format}"
-
-
-def render_artifact(
-    source_path: str,
-    stage: str,
-) -> dict[str, Any]:
-    """Render an artifact to DOCX and PDF formats.
-
-    ⚠️ STUB IMPLEMENTATION — DOES NOT ACTUALLY RENDER
-    This function returns "status": "pending" and defers to the subagent,
-    but the subagent invocation logic is elsewhere (or missing). The actual
-    rendering to DOCX/PDF never occurs in this code path.
-    
-    TODO: Either implement actual rendering here via skills/docx/pdf, or
-    remove this function and wire the subagent invocation properly.
-
-    Per Section 6.9.3, rendered documents are placed alongside the source
-    Markdown and regenerated on revision.
-
-    Args:
-        source_path: Path to the source Markdown file.
-        stage: Current workflow stage.
-
-    Returns:
-        Dict with render results (paths, status).
-    """
-    artifact_name = os.path.basename(source_path).replace(".md", "")
-
-    if not should_render(stage, artifact_name):
-        return {
-            "rendered": False,
-            "reason": f"No rendering trigger for {artifact_name} in {stage}",
-        }
-
-    if not os.path.isfile(source_path):
-        return {
-            "rendered": False,
-            "reason": f"Source file not found: {source_path}",
-        }
-
-    # Generate output paths
-    outputs = {}
-    for fmt in OUTPUT_FORMATS:
-        output_path = get_output_path(source_path, fmt)
-        outputs[fmt] = output_path
-
-    # Stub render — actual rendering delegated to document-renderer subagent
-    # with skills anthropic/docx and anthropic/pdf
-    return {
-        "rendered": True,
-        "source": source_path,
-        "outputs": outputs,
-        "status": "pending",
-        "note": "Rendering delegated to document-renderer subagent",
-    }

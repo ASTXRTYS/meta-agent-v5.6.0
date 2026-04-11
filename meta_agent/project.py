@@ -5,12 +5,34 @@ Spec References: Sections 3.1.1, 5.1
 Each project gets its own directory tree under .agents/pm/projects/{project_id}/
 with meta.yaml, artifact subdirectories, evals, logs, and per-agent memory.
 
-NOTE: Consolidation opportunities:
-- _write_yaml() duplicates YAML handling pattern from intake.py (stages/), test_infra.py (evals/infrastructure/)
-- PROJECT_AGENTS constant is defined here but .agents/{agent}/AGENTS.md path construction is repeated in:
-  * graph.py (root level)
-  * research_agent.py, code_agent_runtime.py, plan_writer_runtime.py, verification_agent_runtime.py, evaluation_agent_runtime.py (subagents/)
-- slugify() is a common utility that could use python-slugify or similar library
+Agent Registry Ecosystem
+~~~~~~~~~~~~~~~~~~~~~~~~
+Four registries must stay in sync when adding, removing, or modifying agents:
+
+1. **PROJECT_AGENTS** (this file)
+   Controls which agents get a project-local ``.agents/<name>/AGENTS.md``
+   scaffolded by ``init_project()``.  Agents that only need repo-root memory
+   (e.g. ``document-renderer``) are intentionally excluded.
+
+2. **PROFILE_REGISTRY** (``subagents/provisioner.py``)
+   Declares the middleware stack for each agent.  ``build_provisioning_plan()``
+   assembles middleware from these profiles — never hand-roll middleware.
+
+3. **AGENT_MODEL_REGISTRY** (``model_config.py``)
+   Per-agent model spec, effort level, and server-tool features.
+   ``resolve_agent_model(name)`` looks up this registry.
+
+4. **TOOL_REGISTRY** (``tools/registry.py``)
+   Per-agent tool inventory.  SDK-provided tools (filesystem) are noted but
+   auto-attached by middleware; custom tools are registered via ``tools=[]``.
+
+Adding a new agent checklist:
+  1. Add to PROJECT_AGENTS below (if it needs project-local memory).
+  2. Add a SubagentProvisioningProfile to PROFILE_REGISTRY.
+  3. Add an AgentModelConfig to AGENT_MODEL_REGISTRY.
+  4. Add a tool list to TOOL_REGISTRY.
+  5. Create a ``create_<agent>_graph()`` factory in ``subagents/``.
+  6. Register the agent config in ``subagents/configs.py``.
 """
 
 from __future__ import annotations
@@ -37,7 +59,9 @@ def create_thread_id(project_id: str, session_id: str | None = None) -> str:
     return f"project-{project_id}-{sid}"
 
 
-# Agent subdirectories created within each project
+# Agents that receive project-local .agents/<name>/AGENTS.md scaffolding.
+# Must stay in sync with PROFILE_REGISTRY entries where use_project_memory=True.
+# document-renderer is intentionally absent (repo-root memory only).
 PROJECT_AGENTS = [
     "pm",
     "research-agent",
