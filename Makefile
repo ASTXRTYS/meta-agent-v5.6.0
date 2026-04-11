@@ -12,7 +12,9 @@ test:
 lint:
 	python -m py_compile meta_agent/state.py
 	python -m py_compile meta_agent/configuration.py
-	python -m py_compile meta_agent/model.py
+	python -m py_compile meta_agent/anthropic_api.py
+	python -m py_compile meta_agent/openai_api.py
+	python -m py_compile meta_agent/model_config.py
 
 evals:
 	python -m meta_agent.evals.runner --all

@@ -1094,36 +1094,3 @@ LANGCHAIN_TOOLS = [
     propose_evals_tool,
     create_eval_dataset_tool,
 ]
-
-
-# ---------------------------------------------------------------------------
-# Server-side tool configurations — Sections 8.9-8.10
-#
-# These are passed as raw dicts to create_deep_agent(tools=[...]).
-# The SDK accepts dict[str, Any] alongside BaseTool and Callable entries.
-#
-# Regression fallback: if _20260209 server-side tools fail at runtime
-# (e.g. API version not yet available), swap to _20250305:
-#   "type": "web_search_20250305"  /  "type": "web_fetch_20250305"
-# ---------------------------------------------------------------------------
-
-SERVER_SIDE_TOOLS = {
-    "web_search": {
-        "type": "web_search_20260209",
-        "name": "web_search",
-        "max_uses": 10,
-    },
-    "web_fetch": {
-        "type": "web_fetch_20260209",
-        "name": "web_fetch",
-    },
-    "code_execution": {
-        "type": "code_execution_20260120",
-        "name": "code_execution",
-    },
-}
-
-
-def get_server_side_tools() -> list[dict[str, Any]]:
-    """Return server-side tool configurations for agent creation."""
-    return list(SERVER_SIDE_TOOLS.values())

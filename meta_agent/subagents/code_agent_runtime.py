@@ -31,7 +31,7 @@ from meta_agent.backend import (
     create_composite_backend,
     create_store,
 )
-from meta_agent.model import get_configured_model
+from meta_agent.model_config import resolve_agent_model
 from meta_agent.prompts.code_agent import construct_code_agent_prompt
 from meta_agent.safety import RECURSION_LIMITS
 from meta_agent.subagents.document_renderer import create_document_renderer_subagent
@@ -202,7 +202,7 @@ def create_code_agent_graph(
     Subagents: document-renderer
     interrupt_on: execute_command (HITL required for all shell execution)
     """
-    model = get_configured_model(effort="high")
+    resolution = resolve_agent_model('code-agent')
     repo_root = Path(__file__).resolve().parents[2]
     composite_backend = create_composite_backend(repo_root)
     bare_fs = create_bare_filesystem_backend()
@@ -210,6 +210,8 @@ def create_code_agent_graph(
     resolved_skills = _resolve_skills_dirs(skills_dirs)
     provisioning_plan = build_provisioning_plan(
         agent_name="code-agent",
+        model_spec=resolution.model_spec,
+        summarization_model=resolution.model,
         project_dir=project_dir,
         repo_root=repo_root,
         composite_backend=composite_backend,
@@ -227,7 +229,7 @@ def create_code_agent_graph(
     doc_renderer = create_document_renderer_subagent(resolved_skills)
 
     return create_deep_agent(
-        model=model,
+        model=resolution.model,
         tools=tools,
         system_prompt=construct_code_agent_prompt(project_dir, project_id),
         middleware=provisioning_plan.middleware,

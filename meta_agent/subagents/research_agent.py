@@ -21,14 +21,13 @@ from meta_agent.backend import (
     create_composite_backend,
     create_store,
 )
-from meta_agent.model import get_configured_model
+from meta_agent.model_config import resolve_agent_model
 from meta_agent.prompts.research_agent import construct_research_agent_prompt
 from meta_agent.safety import RECURSION_LIMITS
 from meta_agent.tracing import traceable
 from meta_agent.subagents.document_renderer import create_document_renderer_subagent
 from meta_agent.subagents.provisioner import build_provisioning_plan
 from meta_agent.tools import (
-    get_server_side_tools,
     record_assumption_tool,
     record_decision_tool,
     request_approval_tool,
@@ -646,7 +645,7 @@ def create_research_agent_graph(
     skills_dirs: list[str] | None = None,
 ) -> Any:
     """Create the internal research-agent graph."""
-    model = get_configured_model(effort=None, max_tokens=16000)
+    resolution = resolve_agent_model('research-agent')
     repo_root = Path(__file__).resolve().parents[2]
     composite_backend = create_composite_backend(repo_root)
     bare_fs = create_bare_filesystem_backend()
@@ -654,6 +653,8 @@ def create_research_agent_graph(
     resolved_skills = _resolve_skills_dirs(skills_dirs)
     provisioning_plan = build_provisioning_plan(
         agent_name="research-agent",
+        model_spec=resolution.model_spec,
+        summarization_model=resolution.model,
         project_dir=project_dir,
         repo_root=repo_root,
         composite_backend=composite_backend,
@@ -665,7 +666,7 @@ def create_research_agent_graph(
         request_approval_tool,
         record_decision_tool,
         record_assumption_tool,
-        *get_server_side_tools(),
+        *[dict(tool) for tool in resolution.server_side_tools],
     ]
 
     # Make document-renderer available as a named subagent so the
@@ -673,7 +674,7 @@ def create_research_agent_graph(
     doc_renderer = create_document_renderer_subagent(resolved_skills)
 
     return create_deep_agent(
-        model=model,
+        model=resolution.model,
         tools=tools,
         system_prompt=construct_research_agent_prompt(project_dir, project_id),
         middleware=provisioning_plan.middleware,

@@ -193,13 +193,13 @@ Features confirmed available and integrated in this project:
 
 | Feature | API Mechanism | Integration Point | Status |
 | --- | --- | --- | --- |
-| Adaptive Thinking | thinking: {type: "adaptive"} | ChatAnthropic constructor | ✅ Active |
-| Effort Levels | effort: "max"/"high"/"medium"/"low" | ChatAnthropic constructor | ✅ Active |
-| Streaming | streaming: True on ChatAnthropic | model.py get_configured_model() | ✅ Active |
-| Web Search | web_search_20260209 server-side tool | SERVER_SIDE_TOOLS dict | ✅ Active |
-| Web Fetch | web_fetch_20260209 server-side tool | SERVER_SIDE_TOOLS dict | ✅ Active |
+| Adaptive Thinking | thinking: {type: "adaptive"} | model_config.resolve_model() | ✅ Active |
+| Effort Levels | effort: "max"/"high"/"medium"/"low" | model_config.resolve_model() | ✅ Active |
+| Streaming | streaming: True on ChatAnthropic | model_config.resolve_model() | ✅ Active |
+| Web Search | web_search_20260209 server-side tool | ANTHROPIC_NATIVE_FEATURES registry | ✅ Active |
+| Web Fetch | web_fetch_20260209 server-side tool | ANTHROPIC_NATIVE_FEATURES registry | ✅ Active |
 | Dynamic Filtering | Built into _20260209 web tools (automatic) | No config needed | ✅ Active |
-| Code Execution | code_execution_20260120 server-side tool | SERVER_SIDE_TOOLS dict | ✅ Active |
+| Code Execution | code_execution_20260120 server-side tool | ANTHROPIC_NATIVE_FEATURES registry | ✅ Active |
 | Programmatic Tool Calling | allowed_callers on tool definitions | BaseTool.extras | ✅ Active |
 | Citations (web search) | Automatic with web_search | extract_api_citations() | ✅ Active |
 | tool_choice | tool_choice on bind_tools() | Not yet implemented | ⏸️ Planned |
@@ -459,7 +459,9 @@ meta_agent/
 ├── server.py           # get_agent() factory for langgraph.json
 ├── state.py            # MetaAgentState TypedDict, WorkflowStage enum
 ├── configuration.py    # MetaAgentConfig from env vars
-├── model.py            # Per-agent effort levels, adaptive thinking
+├── model_config.py     # Centralized model resolution, effort levels, adaptive thinking
+├── anthropic_api.py    # Anthropic feature registry (server-side tools)
+├── openai_api.py       # OpenAI provider defaults
 ├── backend.py          # Checkpointer and store creation helpers
 ├── project.py          # Multi-project init, directory trees
 ├── tracing.py          # @traceable stubs, trace spans

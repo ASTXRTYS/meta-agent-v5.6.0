@@ -45,7 +45,7 @@ from meta_agent.backend import (
     create_checkpointer,
     create_store,
 )
-from meta_agent.model import get_model_config, get_configured_model
+from meta_agent.model_config import resolve_agent_model
 from meta_agent.safety import RECURSION_LIMITS
 from meta_agent.middleware.meta_state import MetaAgentStateMiddleware
 from meta_agent.middleware.dynamic_system_prompt import DynamicSystemPromptMiddleware
@@ -118,10 +118,15 @@ def create_graph(
         project_id=project_id,
     )
 
+    resolution = resolve_agent_model(
+        'orchestrator',
+        model_spec=cfg.model_spec,
+    )
+
     # SummarizationToolMiddleware — agent-controlled compact_conversation
     # Uses composite_backend for /conversation_history/ offloading
     summarization_tool_mw = create_summarization_tool_middleware(
-        cfg.model_name, composite_backend
+        resolution.model, composite_backend
     )
 
     # MemoryMiddleware
@@ -197,7 +202,7 @@ def create_graph(
 
     # Create the real graph via deepagents SDK
     graph = create_deep_agent(
-        model=get_configured_model(effort="high"),
+        model=resolution.model,
         tools=LANGCHAIN_TOOLS,
         system_prompt=system_prompt,
         middleware=explicit_middleware,

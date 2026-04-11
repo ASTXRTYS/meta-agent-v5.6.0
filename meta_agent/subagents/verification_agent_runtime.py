@@ -30,7 +30,7 @@ from meta_agent.backend import (
     create_composite_backend,
     create_store,
 )
-from meta_agent.model import get_configured_model
+from meta_agent.model_config import resolve_agent_model
 from meta_agent.prompts.verification_agent import construct_verification_agent_prompt
 from meta_agent.subagents.provisioner import build_provisioning_plan
 from meta_agent.subagents.verification_agent import (
@@ -159,12 +159,12 @@ def create_verification_agent_graph(
 ) -> Any:
     """Create the verification-agent Deep Agent graph.
 
-    Effort: ``max`` (Section 10.5.3)
+    Effort: ``high`` (Section 10.5.3)
     Recursion limit: 50
     Tools: ``read_file`` (auto via FilesystemMiddleware)
     Middleware: 6 auto + SkillsMiddleware, ToolErrorMiddleware, MemoryMiddleware
     """
-    model = get_configured_model(effort="max")
+    resolution = resolve_agent_model('verification-agent')
     repo_root = Path(__file__).resolve().parents[2]
     composite_backend = create_composite_backend(repo_root)
     bare_fs = create_bare_filesystem_backend()
@@ -172,6 +172,8 @@ def create_verification_agent_graph(
     resolved_skills = _resolve_skills_dirs(skills_dirs)
     provisioning_plan = build_provisioning_plan(
         agent_name="verification-agent",
+        model_spec=resolution.model_spec,
+        summarization_model=resolution.model,
         project_dir=project_dir,
         repo_root=repo_root,
         composite_backend=composite_backend,
@@ -180,7 +182,7 @@ def create_verification_agent_graph(
     )
 
     return create_deep_agent(
-        model=model,
+        model=resolution.model,
         tools=[],  # read_file provided auto via FilesystemMiddleware
         system_prompt=construct_verification_agent_prompt(project_dir, project_id),
         middleware=provisioning_plan.middleware,

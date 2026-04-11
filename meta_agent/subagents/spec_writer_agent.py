@@ -33,7 +33,7 @@ from meta_agent.backend import (
     create_composite_backend,
     create_store,
 )
-from meta_agent.model import get_configured_model
+from meta_agent.model_config import resolve_agent_model
 from meta_agent.prompts.spec_writer import construct_spec_writer_prompt
 from meta_agent.subagents.provisioner import build_provisioning_plan
 from meta_agent.tools import propose_evals_tool
@@ -283,7 +283,7 @@ def create_spec_writer_agent_graph(
     - Middleware: 6 auto + ToolErrorMiddleware (no SubAgentMiddleware)
     - No web_search / web_fetch (spec-writer works from provided artifacts)
     """
-    model = get_configured_model(effort="high")
+    resolution = resolve_agent_model('spec-writer')
     repo_root = Path(__file__).resolve().parents[2]
     composite_backend = create_composite_backend(repo_root)
     bare_fs = create_bare_filesystem_backend()
@@ -291,6 +291,8 @@ def create_spec_writer_agent_graph(
     resolved_skills = _resolve_skills_dirs(skills_dirs)
     provisioning_plan = build_provisioning_plan(
         agent_name="spec-writer",
+        model_spec=resolution.model_spec,
+        summarization_model=resolution.model,
         project_dir=project_dir,
         repo_root=repo_root,
         composite_backend=composite_backend,
@@ -303,7 +305,7 @@ def create_spec_writer_agent_graph(
     ]
 
     return create_deep_agent(
-        model=model,
+        model=resolution.model,
         tools=tools,
         system_prompt=construct_spec_writer_prompt(project_dir, project_id),
         middleware=provisioning_plan.middleware,

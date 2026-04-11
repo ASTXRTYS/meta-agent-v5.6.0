@@ -21,7 +21,7 @@ from typing import Any
 from deepagents import create_deep_agent
 from deepagents.middleware.subagents import CompiledSubAgent
 from meta_agent.backend import create_bare_filesystem_backend, create_composite_backend, create_store, create_checkpointer
-from meta_agent.model import get_configured_model
+from meta_agent.model_config import resolve_agent_model
 from meta_agent.subagents.provisioner import build_provisioning_plan
 
 
@@ -70,12 +70,14 @@ def create_document_renderer_subagent(
     Returns:
         CompiledSubAgent ready for the orchestrator.
     """
-    model = get_configured_model(effort="low")
+    resolution = resolve_agent_model('document-renderer')
     repo_root = Path(__file__).resolve().parents[2]
     composite_backend = create_composite_backend(repo_root)
     bare_fs = create_bare_filesystem_backend()
     provisioning_plan = build_provisioning_plan(
         agent_name="document-renderer",
+        model_spec=resolution.model_spec,
+        summarization_model=resolution.model,
         project_dir="",
         repo_root=repo_root,
         composite_backend=composite_backend,
@@ -84,7 +86,7 @@ def create_document_renderer_subagent(
     )
 
     graph = create_deep_agent(
-        model=model,
+        model=resolution.model,
         tools=[],  # Filesystem tools auto-attached
         system_prompt=DOCUMENT_RENDERER_SYSTEM_PROMPT,
         middleware=provisioning_plan.middleware,

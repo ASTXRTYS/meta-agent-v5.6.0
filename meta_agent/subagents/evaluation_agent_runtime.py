@@ -30,7 +30,7 @@ from meta_agent.backend import (
     create_composite_backend,
     create_store,
 )
-from meta_agent.model import get_configured_model
+from meta_agent.model_config import resolve_agent_model
 from meta_agent.prompts.evaluation_agent import construct_evaluation_agent_prompt
 from meta_agent.subagents.provisioner import build_provisioning_plan
 from meta_agent.tools import (
@@ -198,7 +198,7 @@ def create_evaluation_agent_graph(
     Subagents: None (may be extended in Phase 5)
     System prompt: Placeholder — full prompt comes in Phase 2 of evaluation stack
     """
-    model = get_configured_model(effort="high")
+    resolution = resolve_agent_model('evaluation-agent')
     repo_root = Path(__file__).resolve().parents[2]
     composite_backend = create_composite_backend(repo_root)
     bare_fs = create_bare_filesystem_backend()
@@ -206,6 +206,8 @@ def create_evaluation_agent_graph(
     resolved_skills = _resolve_skills_dirs(skills_dirs)
     provisioning_plan = build_provisioning_plan(
         agent_name="evaluation-agent",
+        model_spec=resolution.model_spec,
+        summarization_model=resolution.model,
         project_dir=project_dir,
         repo_root=repo_root,
         composite_backend=composite_backend,
@@ -225,7 +227,7 @@ def create_evaluation_agent_graph(
     system_prompt = construct_evaluation_agent_prompt(project_dir, project_id)
 
     return create_deep_agent(
-        model=model,
+        model=resolution.model,
         tools=tools,
         system_prompt=system_prompt,
         middleware=provisioning_plan.middleware,

@@ -42,7 +42,7 @@ This document is the authoritative development plan for the local-first meta-age
 
 ## 1.5 Project Status Summary
 
-**Overall Completion: ~75%**
+**Overall Completion: ~78%**
 
 ### Phase-by-Phase Status
 
@@ -52,7 +52,7 @@ This document is the authoritative development plan for the local-first meta-age
 | Phase 1 | ✅ COMPLETE | 100% | Real Deep Agents SDK integration, orchestrator graph, 14+ tools | - |
 | Phase 2 | ✅ COMPLETE | 100% | INTAKE/PRD_REVIEW stages, HITL integration, 23 evals passing | - |
 | Phase 3 | ✅ COMPLETE | 100% | FSI migration, artifact provenance, state encapsulation, 38 research evals, 471 unit tests, state sync automation | - |
-| Phase 4 | 🔄 IN PROGRESS | ~12% | Agent memory/filesystem alignment Track A+B completed; profile-driven subagent middleware provisioner landed | Planning stage implementation |
+| Phase 4 | 🔄 IN PROGRESS | ~18% | Agent memory/filesystem alignment Track A+B completed; profile-driven subagent middleware provisioner and typed model control plane landed | Planning stage implementation |
 | Phase 5 | ⏸️ NOT STARTED | 0% | - | Complete Phase 4 |
 
 ### Current Focus: Phase 4 Planning + Execution
@@ -77,6 +77,7 @@ This document is the authoritative development plan for the local-first meta-age
 - ✅ PM + runtime subagents aligned to canonical `.agents/skills/...` sources; integration assertions updated
 - ✅ Track A complete: evaluation-agent added to PROJECT_AGENTS scaffolding with regression + behavioral tests
 - ✅ Track B complete: centralized profile-driven subagent provisioner, parity gate tests, and runtime migration across 7 agents
+- ✅ Model control plane complete: centralized `model_config.py` resolver, per-agent registry, provider inventories, and thawed role-scoped Anthropic server tools
 - ✅ Canonical JSON extraction track complete: shared `meta_agent.utils.parsing` utility, runtime parse-error signaling migration across 4 runtimes, and new contract/integration coverage
 
 - [x] End-to-end stage wiring validation (FSI migration)
@@ -2462,11 +2463,13 @@ If evals fail:
 
 - [ ] Progress committed to git
 
-### Phase 4: Planning + Execution ⏸️ NOT STARTED
+### Phase 4: Planning + Execution 🔄 IN PROGRESS
 
 #### 4.1 Overview
 
 Phase 4 implements the plan-writer-agent, full document renderer, PLANNING â†’ PLAN_REVIEW wiring, code-agent with sub-agents, test-agent, eval-agent stub, EXECUTION stage with phase gate protocol, and execution-phase eval tools. It depends on Phase 3 for an approved spec and Tier 1+2 eval suites.
+
+**2026-04-10 implementation status note:** The typed model control plane is now in place: `meta_agent/model_config.py` centrally resolves orchestrator/subagent/summarization models, provider inventories live in `meta_agent/anthropic_api.py` and `meta_agent/openai_api.py`, server-side Anthropic tools are role-scoped through the agent registry, and legacy `meta_agent/model.py` has been removed. Remaining Phase 4 work is still stage wiring, execution orchestration, and eval-gate behavior.
 
 **Dependencies:** Phase 3 (approved spec, Tier 1+2 eval suites, research bundle, verification agent)
 
