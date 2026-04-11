@@ -1,10 +1,8 @@
-I'm building an LLM application using Deep Agents as my harness. I have specifications for this LLM application and need guidance on how to make it possible. Some of the main things that I'm wrestling with is what should the topology of my agent be? Essentially, the actual harness itself. Yes, we'll be using the Deep Agent's harness, but obviously having one agent where all of these other agents that I'm mentioning as DICT agents clearly does not solve or satisfy the requirements that I'm mentioning here. We need to enable statefulness and enable loops where agents can loop together without having to bring in the project manager. Please read through all of my requirements and take into consideration, deeply think and consider what does Deep Agents offer for me to be able to make this system possible? I need the majority of your reasoning to go towards how I can create the statefulness and loops between agents, where each agent has its own state. Every time it's re-invoked, it gets back its same state and essentially has a solid understanding of all the decisions it's made thus far in the relevant project: its decision logs, its rationale, full reasoning trajectories, everything, so that the context is actually there. Each of these agents needs to do its own summarization, etc., its own context curating. I provided you all this information all as supporting context for you to be able to reason about this specifically. Don't focus so much on the file system, etc. I need you to focus more on how to make this possible. Basically, what I need you to wrestle with is: should these agents be sub-agents, compiled sub-agents of the PM, or do they all need to genuinely be their own create deep agent with their own checkpoint errs? Everything, and if so, how does the system work? How do these agents communicate with each other? How does the PM essentially then communicate to the harness engineer, "Hey, here's this, etc."
+## HIGH-LEVEL REQUIREMENTS  ~~(NOT YET RESOLVED)~~  ✅ 
 
----
-
-## HIGH-LEVEL REQUIREMENTS (NOT YET RESOLVED)
-
-### "PM Scopes Criteria, Harness Engineer Owns the Science"
+> **Status:** Initial topology and agent statefulness questions addressed in `meta_harness/SME.md` with assistance from a subject matter expert. Core decisions resolved: each agent should be its own `create_deep_agent()` with project-scoped `thread_id`, explicit handoff tools (not sub-agents), and filesystem-backed coordination.
+>
+> **Still open:** The suggested LangGraph coordination layer for deterministic phase gates, routing state, and pass/fail transitions. Need additional signal on how the thin coordinator integrates with the Deep Agents harness.
 
 ---
 

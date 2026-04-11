@@ -167,6 +167,21 @@ Before implementing, planning, or writing specs for anything touching these SDKs
 | LangChain Anthropic integration (`ChatAnthropic`, Claude-specific patterns) | `.venv/lib/python3.11/site-packages/langchain_anthropic/` |
 | Core LangChain patterns | `.venv/lib/python3.11/site-packages/langchain/` |
 
+### External Reference Links
+
+When in doubt, check the canonical sources for recent releases, commit history, and package versions:
+
+| Package | GitHub Repo | PyPI Package |
+|---|---|---|
+| Deep Agents | https://github.com/langchain-ai/deepagents | https://pypi.org/project/deepagents/ |
+| LangChain | https://github.com/langchain-ai/langchain | https://pypi.org/project/langchain/ |
+| LangChain Core | https://github.com/langchain-ai/langchain (libs/core) | https://pypi.org/project/langchain-core/ |
+| LangGraph | https://github.com/langchain-ai/langgraph | https://pypi.org/project/langgraph/ |
+| LangGraph SDK | https://github.com/langchain-ai/langgraph (libs/sdk-py) | https://pypi.org/project/langgraph-sdk/ |
+| LangGraph CLI | https://github.com/langchain-ai/langgraph (libs/cli) | https://pypi.org/project/langgraph-cli/ |
+| LangSmith | https://github.com/langchain-ai/langsmith-sdk | https://pypi.org/project/langsmith/ |
+| Agent Evals | https://github.com/langchain-ai/agentevals | https://pypi.org/project/agentevals/ |
+
 ## Harness-First Architecture  
   
 This section is a philosophical and technical guide for maintainers and contributors  
