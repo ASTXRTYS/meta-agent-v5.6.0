@@ -1,7 +1,0 @@
-{
-  "dependencies": ["."],
-  "graphs": {
-    "meta_agent": "meta_agent.server:get_agent"
-  },
-  "env": ".env"
-}
