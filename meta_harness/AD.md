@@ -11,7 +11,7 @@
 |---|---|
 | ADR ID | `ADR-001` |
 | Title | `Meta Harness Architecture` |
-| Status | `Accepted` |
+| Status | `Proposed` |
 | Date | `2025-10-15` |
 | Author(s) | `@Jason` |
 | Reviewers | `@Jason` |
@@ -27,14 +27,15 @@
 ```txt
 We will model the PM, Harness Engineer, Researcher, Architect, Planner,
 Developer, and Evaluator as peer, stateful Deep Agent graphs, coordinated by a
-thin LangGraph control plane. The control plane owns project-scoped thread
-identity, handoff routing, run status, and phase gates. The Deep Agent graphs own
-role-specific cognition, tools, memory, skills, summarization, and artifact work.
+thin LangGraph Project Coordination Graph. The Project Coordination Graph owns
+project-scoped thread identity, handoff routing, run status, and phase gates. The
+Deep Agent graphs own role-specific cognition, tools, memory, skills,
+summarization, and artifact work.
 ```
 
 ### Decision Badge
 
-`Status: Accepted` · `Risk: Medium` · `Impact: High`
+`Status: Proposed` · `Risk: Medium` · `Impact: High`
 
 ---
 
@@ -65,7 +66,7 @@ role-specific cognition, tools, memory, skills, summarization, and artifact work
 | A | PM owns core roles as declarative `SubAgent` dict specs | Lowest initial wiring; uses SDK-provided `task` tool | `task` subagent calls are explicitly ephemeral and stateless; specialists cannot reliably resume project-specific trajectory | `Rejected` |
 | B | PM owns core roles as `CompiledSubAgent` runnables | Can wrap full `create_deep_agent()` graphs | Stock `task` invocation passes only synthesized state, not a stable `thread_id` config; persistence would require a wrapper outside the first-class path | `Rejected as primary topology` |
 | C | PM uses stock `AsyncSubAgent` for each specialist | Supports remote/background execution, status checks, and follow-up updates on the same task thread | `start_async_task` creates a new remote thread each time; not enough by itself for project-scoped specialist identity | `Use only behind a project-aware wrapper` |
-| D | Peer `create_deep_agent()` graphs coordinated by a thin LangGraph control plane | Preserves per-agent state, permits direct specialist loops, keeps cognition inside Deep Agents, and makes handoffs observable | Requires a small deterministic control layer and thread/run registry | `Selected` |
+| D | Peer `create_deep_agent()` graphs coordinated by a thin LangGraph Project Coordination Graph | Preserves per-agent state, permits direct specialist loops, keeps cognition inside Deep Agents, and makes handoffs observable | Requires a small deterministic coordination layer and thread/run registry | `Selected` |
 
 <details>
 <summary><strong>Decision rationale notes</strong> (expand)</summary>
@@ -95,7 +96,7 @@ The core topology is:
 ```txt
 Human/UI
   -> PM Deep Agent thread
-      -> LangGraph control plane
+      -> LangGraph Project Coordination Graph
           -> Harness Engineer Deep Agent thread
           -> Researcher Deep Agent thread
           -> Architect Deep Agent thread
@@ -122,10 +123,20 @@ cannot: re-invoking the Harness Engineer for the same project must resume the
 Harness Engineer's project thread, not the PM thread and not a fresh subagent
 thread.
 
-### LangGraph Control Plane
+### LangGraph Project Coordination Graph
 
-LangGraph should be the deterministic control plane around the Deep Agent
-harnesses. It should not replace the harness. Its responsibilities are:
+The Project Coordination Graph is the thin LangGraph orchestration layer around
+the Deep Agent harnesses. It should not replace the harness.
+
+Committed naming decision: use `Project Coordination Graph` for this layer and
+`ProjectCoordination*` for its concrete schemas, such as
+`ProjectCoordinationState`, `ProjectCoordinationContext`,
+`ProjectCoordinationInput`, and `ProjectCoordinationOutput`. Do not use bare
+`ProjectState` or `ProjectContext` for this graph; those names imply ownership of
+the full project domain state and would blur the boundary between deterministic
+routing state, project artifacts, project memory, and agent cognition.
+
+Its responsibilities are:
 
 - Resolve the target agent for a handoff.
 - Compute the project-scoped target `thread_id`.
@@ -134,7 +145,8 @@ harnesses. It should not replace the harness. Its responsibilities are:
 - Track run IDs, handoff status, phase gates, and unresolved questions.
 - Route phase transitions when a handoff completes or fails.
 - Surface human-in-the-loop questions when an agent cannot proceed without stakeholder input.
-- Preserve enough control-plane state to reconstruct which agent handed work to whom, why, and with which artifact references.
+- Preserve enough Project Coordination Graph state to reconstruct which agent handed work
+  to whom, why, and with which artifact references.
 
 Its non-responsibilities are equally important:
 
@@ -143,8 +155,8 @@ Its non-responsibilities are equally important:
 - Do not use the PM as a pass-through for every specialist-to-specialist loop.
 - Do not reimplement Deep Agents middleware for planning, memory, skills, filesystem access, summarization, or tool calling.
 
-The control graph should be a small `StateGraph` with coarse nodes, not a large
-multi-agent monolith. A reasonable conceptual node set is:
+The Project Coordination Graph should be a small `StateGraph` with coarse nodes,
+not a large multi-agent monolith. A reasonable conceptual node set is:
 
 | Node | Purpose |
 |---|---|
@@ -163,7 +175,7 @@ work inside Deep Agents.
 ### Handoff Protocol
 
 All agent-to-agent communication should go through explicit handoff tools or
-control-plane commands. A handoff should carry:
+Project Coordination Graph commands. A handoff should carry:
 
 - `project_id`
 - `from_agent`
@@ -192,21 +204,21 @@ Recommended handoff tools:
 | `ask_pm` | Any specialist | PM | Ask stakeholder-facing questions without giving the specialist permanent ownership of PM scope. |
 
 Implementation can expose these as Deep Agent tools, but the tools should call a
-shared control-plane service rather than directly invoking arbitrary peers. That
+shared Project Coordination Graph entrypoint rather than directly invoking arbitrary peers. That
 keeps thread ID calculation, run tracking, and phase gating centralized.
 
 ### Local and Remote Invocation Modes
 
 Support two invocation modes behind the same handoff interface:
 
-1. Local-first mode: the control plane invokes an in-process compiled Deep Agent
+1. Local-first mode: the Project Coordination Graph invokes an in-process compiled Deep Agent
    graph with `agent.ainvoke(input, config={"configurable": {"thread_id":
    thread_id}})`. This is the simplest path for local development and testing.
    The local development harness should also expose the graph through a
    `langgraph.json` + `langgraph dev` workflow so LangGraph Studio can inspect
    local graph behavior, thread state, checkpoints, and routing before the
    remote/sandbox layer is introduced.
-2. Remote/sandbox mode: the control plane uses the LangGraph SDK. It should call
+2. Remote/sandbox mode: the Project Coordination Graph uses the LangGraph SDK. It should call
    `threads.create(thread_id=thread_id, if_exists="do_nothing", metadata=...)`
    and then `runs.create(thread_id=thread_id, assistant_id=graph_id, input=...,
    multitask_strategy=...)`.
@@ -231,10 +243,10 @@ specialist loop.
 
 ### Observability, Tracing, and Studio
 
-LangSmith tracing is a first-class requirement for this topology. The control
-plane should not rely on ad hoc logs to reconstruct agent behavior after the
-fact. Every control-plane handoff and Deep Agent invocation should be searchable
-by at least:
+LangSmith tracing is a first-class requirement for this topology. The
+Project Coordination Graph should not rely on ad hoc logs to reconstruct agent behavior
+after the fact. Every Project Coordination Graph handoff and Deep Agent invocation should
+be searchable by at least:
 
 - `project_id`
 - `agent_name`
@@ -251,7 +263,7 @@ LangSmith is the durable observability and evaluation plane for traces, run
 trees, feedback, datasets, experiments, and shareable thread/run links.
 
 Do not assume trace hierarchy will automatically remain intact across the
-local/remote/sandbox boundary. The control plane must persist handoff records
+local/remote/sandbox boundary. The Project Coordination Graph must persist handoff records
 and propagate correlation metadata so traces can still be stitched together
 when a specialist run occurs in a separate process, server, or sandbox.
 
@@ -273,7 +285,7 @@ needs stakeholder clarification or scope authority. Examples:
 
 The loop is not a direct shared-memory conversation. It is a sequence of
 project-scoped agent thread invocations, linked by handoff records and artifact
-references in the control plane.
+references in the Project Coordination Graph.
 
 The Developer needs explicit routing guidance because the Harness Engineer and
 Evaluator can both block a development phase:
@@ -298,152 +310,331 @@ the distinction so Developer feedback loops do not collapse into one vague
 - LangGraph checkpoint memory is keyed by `thread_id`; reusing the same thread accumulates state across invocations (`.venv/lib/python3.11/site-packages/langgraph/graph/state.py:1038-1074`).
 - The lower-level LangGraph SDK supports explicit thread creation and explicit run submission against a chosen thread (`.venv/lib/python3.11/site-packages/langgraph_sdk/_async/threads.py:98-143`, `.venv/lib/python3.11/site-packages/langgraph_sdk/_async/runs.py:435-462`, `552-585`).
 - The Deep Agents CLI scaffolds `langgraph.json` for `langgraph dev` with a graph entry point and optional checkpointer path (`.reference/libs/cli/deepagents_cli/server.py:85-119`, `.reference/libs/cli/deepagents_cli/server_manager.py:92-115`).
+- The Deep Agents CLI server graph is a module-level graph entrypoint: `server_graph.py` builds the graph from environment-backed server config and exports `graph = make_graph()` for the generated `langgraph.json` reference (`.reference/libs/cli/deepagents_cli/server_graph.py:1-10`, `93-196`).
+- The Deep Agents CLI server path creates sandbox backends through `deepagents_cli.integrations.sandbox_factory.create_sandbox(...)`, keeps the sandbox context manager open for the server process lifetime, and passes the resulting backend into `create_cli_agent(...)` (`.reference/libs/cli/deepagents_cli/server_graph.py:117-170`, `.reference/libs/cli/deepagents_cli/integrations/sandbox_factory.py:1-134`).
+- The Deep Agents CLI names its sandbox integration package `integrations/` and keeps the provider boundary in `sandbox_provider.py`; Meta Harness should follow that package convention instead of inventing a `runtime/sandbox.py` shape (`.reference/libs/cli/deepagents_cli/integrations/__init__.py`, `.reference/libs/cli/deepagents_cli/integrations/sandbox_provider.py:1-49`).
+- `create_cli_agent(...)` chooses SDK backends directly: local mode uses `LocalShellBackend` or `FilesystemBackend`, sandbox mode uses the supplied sandbox backend, and any `CompositeBackend` use is an SDK import for routing generated/temporary file areas rather than an app-owned backend module (`.reference/libs/cli/deepagents_cli/agent.py:1104-1218`, `.reference/libs/deepagents/deepagents/backends/composite.py:119-158`).
+- The Deep Agents deploy template also uses a graph factory entrypoint: generated `langgraph.json` points to `./deploy_graph.py:make_graph`, and the generated module exposes `graph = make_graph` for runtime factory loading (`.reference/libs/cli/deepagents_cli/deploy/bundler.py:192-201`, `.reference/libs/cli/deepagents_cli/deploy/templates.py:430-469`).
+- The deploy template is where the CLI builds a generated backend factory with an SDK `CompositeBackend`, a sandbox default, and store-backed `/memories/` and `/skills/` routes; that pattern should be imported or adapted from the SDK/CLI after a spike, not mirrored as a first-pass `runtime/` package or app-owned `checkpointers.py`, `stores.py`, or `model_policy.py` modules (`.reference/libs/cli/deepagents_cli/deploy/templates.py:199-207`, `405-424`).
+- LangGraph API treats callable graph exports as factories, compiles exported `StateGraph` builders automatically, and accepts already-compiled Pregel graphs (`.venv/lib/python3.11/site-packages/langgraph_api/graph.py:330-379`, `730-765`).
 - LangGraph SDK assistants use graph IDs that are normally set in `langgraph.json` (`.venv/lib/python3.11/site-packages/langgraph_sdk/_async/assistants.py:320-350`).
+- LangGraph local development docs show `langgraph.json` using `"dependencies": ["."]` and graph refs shaped like `"my_agent": "./my_agent/agent.py:graph"`, so a root `./graph.py:graph` or `./graph.py:make_graph` entrypoint is a valid project layout when the root is the app boundary ([LangGraph local development docs](https://docs.langchain.com/langsmith/local-dev-testing)).
 - Deep Agents CLI resolves LangSmith thread URLs only when tracing is configured, and its `/trace` flow tells users to set `LANGSMITH_API_KEY` and `LANGSMITH_TRACING=true` when unavailable (`.reference/libs/cli/deepagents_cli/config.py:1600-1745`, `.reference/libs/cli/deepagents_cli/app.py:2545-2579`).
 
-## Full Repo Structure *Proposed;subject to change.* 
+## Full Repo Structure *Proposal only*
 
-```
+The v1 repo should be organized around peer Deep Agent factories, not around a
+PM-owned `subagents/` bucket. The root `graph.py` should be the LangGraph
+application entrypoint and the self-contained deterministic Project Coordination Graph
+factory. The selected topology makes `agents/` the right module name for core
+roles. SDK `SubAgent` dicts, if any are later needed for ephemeral isolated
+tasks, should live under a narrowly named `task_agents/` module inside the owning
+role, not at the top level.
+
+```txt
 meta-harness/
 ├── pyproject.toml
-├── .env.example
-│
-├── agent.py                          # PM entry point
-│
-├── prompts/
-│   └── project_manager.md            # PM system prompt
-│
-├── backends/
-│   ├── __init__.py                   # make_backend() dispatcher
-│   ├── local.py                      # LocalShellBackend + FilesystemBackend
-│   └── daytona.py                    # DaytonaSandbox + StoreBackend composite
-│
-├── subagents/
-│   ├── __init__.py                   # exports all sub-agent instances
-│   ├── researcher/
-│   │   ├── __init__.py
-│   │   ├── agent.py                  # make_researcher() factory
-│   │   └── system_prompt.md
-│   ├── architect/
-│   │   ├── __init__.py
-│   │   ├── agent.py
-│   │   └── system_prompt.md
-│   ├── planner/
-│   │   ├── __init__.py
-│   │   ├── agent.py
-│   │   └── system_prompt.md
-│   ├── Dev/optimizer/generator/
-│   │   ├── __init__.py
-│   │   ├── agent.py
-│   │   └── system_prompt.md
-│   └── harness_engineer/
+├── README.md
+├── AGENTS.md
+├── AD.md
+├── langgraph.json
+├── graph.py                          # LangGraph Project Coordination Graph entrypoint/factory
+├── docs/
+│   ├── architecture/
+│   └── specs/
+├── src/
+│   └── meta_harness/
 │       ├── __init__.py
-│       ├── agent.py
-│       └── system_prompt.md
-│
-└── tools/
-    ├── __init__.py
-    ├── research_tools.py
-    ├── code_tools.py
-    └── eval_tools.py
+│       ├── agents/
+│       │   ├── __init__.py
+│       │   ├── catalog.py                  # one source of truth for role identity
+│       │   ├── project_manager/
+│       │   │   ├── __init__.py
+│       │   │   ├── agent.py                # create_deep_agent(name="project-manager", ...)
+│       │   │   └── system_prompt.md
+│       │   ├── harness_engineer/
+│       │   │   ├── __init__.py
+│       │   │   ├── agent.py
+│       │   │   └── system_prompt.md
+│       │   ├── researcher/
+│       │   │   ├── __init__.py
+│       │   │   ├── agent.py
+│       │   │   └── system_prompt.md
+│       │   ├── architect/
+│       │   │   ├── __init__.py
+│       │   │   ├── agent.py
+│       │   │   └── system_prompt.md
+│       │   ├── planner/
+│       │   │   ├── __init__.py
+│       │   │   ├── agent.py
+│       │   │   └── system_prompt.md
+│       │   ├── developer/
+│       │   │   ├── __init__.py
+│       │   │   ├── agent.py
+│       │   │   └── system_prompt.md
+│       │   └── evaluator/
+│       │       ├── __init__.py
+│       │       ├── agent.py
+│       │       └── system_prompt.md
+│       ├── integrations/
+│       │   ├── __init__.py
+│       │   ├── sandbox_factory.py          # follow deepagents_cli.integrations
+│       │   └── sandbox_provider.py         # provider boundary if wrappers are needed
+│       └── tools/
+└── tests/
+    ├── contract/
+    ├── integration/
+    └── eval/
 ```
 
-## Full backend memory file system structure *Proposed; subject to change.* 
+Naming choices embedded in this tree:
+
+- Use `agents/` for PM and peer specialists.
+- Do not use top-level `subagents/` for core roles.
+- Use `developer/` as the canonical module. Generator and optimizer are
+  responsibilities inside the Developer prompt and tool descriptions, not module
+  names.
+- Use root `graph.py` for the deterministic LangGraph Project Coordination Graph. This
+  mirrors the LangGraph and Deep Agents CLI graph-entrypoint convention while
+  preventing a premature `project_coordination_graph/` package from spreading the routing
+  logic across files before the first implementation proves its shape.
+- Put the Project Coordination Graph `StateGraph` state schema, node functions, conditional
+  routing, handoff record helpers, phase-gate transitions, project-role
+  `thread_id` helpers, and compile call in root `graph.py` initially. Split only
+  after the file has a concrete pressure point, such as shared typed contracts
+  needed outside graph tests, a remote SDK client adapter, or a production
+  persistence adapter.
+- Use `integrations/` for sandbox provider wiring. Mirror the Deep Agents CLI
+  convention: keep the provider interface in `sandbox_provider.py`, create or
+  connect to sandbox backends through `sandbox_factory.py`, and pass the resulting
+  SDK backend into the owning agent/Project Coordination Graph construction path.
+- Do not add a first-pass `runtime/` package, `runtime/backends/`, `runtime/sandbox.py`,
+  `checkpointers.py`, `stores.py`, `model_policy.py`, or `middleware_profiles.py`.
+  Those are not SDK/CLI conventions for this boundary. Add a module only after a
+  concrete SDK-aligned need appears and its name is approved.
+- Construct backend, checkpointer, store, model, and middleware configuration at
+  the SDK boundary that consumes it: the role Deep Agent factory, the root
+  Project Coordination Graph factory, or the CLI-aligned sandbox integration package.
+  Import SDK abstractions directly instead of wrapping them behind app-owned
+  convention files.
+- Keep `tools/` for now, but do not name nested tool modules until concrete tool
+  contracts exist.
+
+### LangGraph Project Coordination Graph Factory Contract
+
+The Project Coordination Graph is a LangGraph application boundary. It is not a
+Deep Agent and it is not an agent registry. A tasteful first implementation
+should keep this in root `graph.py`:
+
+```python
+def make_graph(...) -> CompiledStateGraph:
+    builder = StateGraph(
+        ProjectCoordinationState,
+        context_schema=ProjectCoordinationContext,
+        input_schema=ProjectCoordinationInput,
+        output_schema=ProjectCoordinationOutput,
+    )
+    builder.add_node("record_handoff", record_handoff)
+    builder.add_node("ensure_thread", ensure_thread)
+    builder.add_node("run_agent", run_agent)
+    builder.add_node("gate_phase", gate_phase)
+    builder.add_edge(START, "record_handoff")
+    builder.add_edge("record_handoff", "ensure_thread")
+    builder.add_edge("ensure_thread", "run_agent")
+    builder.add_conditional_edges("run_agent", route_after_agent)
+    return builder.compile(
+        checkpointer=checkpointer,
+        store=store,
+        name="meta-harness-project-coordination-graph",
+    )
 
 
+graph = make_graph
+```
 
-~/Agents/  
-├── AGENTS.md                    ← shared team memory (PM writes here)  
-├── pm/  
-│   ├── AGENTS.md                ← PM core memory (always loaded via memory=)  
-│   ├── memory/                  ← PM on-demand memory files  (not loaded via middleware, selectively, or the agent has full agency on deciding when to load memories or certain memories.)
-│   ├── skills/                  ← PM skills (SKILL.md subdirs)  
-│   └── projects/                ← PM project tracking (all tagged with a project ID)
-├── architect/  
-│   ├── AGENTS.md  
-│   ├── memory/  
-│   ├── skills/  
-│   └── projects/                ← Architect project specs
-│       ├── specs-(Previous)     ← Previous spec versions (tagged with a project ID. The purpose for storing previous specs and designs is for being able to have a log and an archive of what was designed in the past. Also, this will provide an opportunity later in the future for the agent to review its previous specs and lessons learned, so the agent can then have better procedural knowledge or potentially persist the information to skills.)
-│       └── target-spec/         ← Current target specification
+`make_graph()` is proposed because the Deep Agents deploy template uses an async
+`make_graph(config, runtime)` factory shape when graph construction needs runtime
+config, while the CLI server also supports a module-level `graph` export. The
+root `langgraph.json` can point to either `./graph.py:graph` or
+`./graph.py:make_graph`; prefer `./graph.py:make_graph` if the Project Coordination Graph
+needs invocation-time config/runtime, otherwise `./graph.py:graph` is simpler.
+The role factories should use `create_<role>_agent()` because those modules return
+Deep Agent graphs via `create_deep_agent()`.
+
+The Project Coordination Graph nodes should only do deterministic coordination:
+
+- `record_handoff`: persist or append a handoff record.
+- `ensure_thread`: compute and ensure the target project-role `thread_id`.
+- `run_agent`: invoke a peer Deep Agent locally or submit a remote run using the
+  stable target thread.
+- `gate_phase`: enforce deterministic pass/fail transition policy from recorded
+  Evaluator or Harness Engineer results.
+- `surface_question`: route a specialist's stakeholder question to PM or UI.
+
+The Project Coordination Graph must not implement research, architecture, planning,
+development, eval-science, prompt composition, or provider/model request policy.
+Those remain in peer Deep Agent factories, SDK configuration calls, and
+tool/prompt contracts. Do not create a runtime policy package before a concrete
+SDK-aligned need appears.
+
+## Project Workspace and Memory Structure Proposal
+
+The memory filesystem should keep the original role-scoped structure. This tree
+preserves a shared team memory file at the root plus per-role `AGENTS.md`,
+`memory/`, `skills/`, and project artifact directories. Backend routing can still
+map this layout onto disk or sandbox storage through SDK backends; the tree below
+describes the desired workspace semantics, not a new app-owned backend layer.
+The `dev/` path is a workspace bucket, not a Python module naming decision.
+
+```txt
+~/Agents/
+├── AGENTS.md                         # shared team memory; PM writes here
+├── pm/
+│   ├── AGENTS.md                     # PM core memory loaded via memory=
+│   ├── memory/                       # PM on-demand memory files
+│   ├── skills/                       # PM skills; SKILL.md subdirs
+│   └── projects/                     # PM project tracking, tagged by project ID
+├── architect/
+│   ├── AGENTS.md
+│   ├── memory/
+│   ├── skills/
+│   └── projects/                     # Architect project specs
+│       ├── specs-(Previous)          # Previous spec versions, tagged by project ID
+│       └── target-spec/              # Current target specification
 ├── researcher/
 │   ├── AGENTS.md
 │   ├── memory/
 │   ├── skills/
 │   └── projects/
-│       └── research-bundles/      ← Compiled research artifacts (tagged with a project ID)
+│       └── research-bundles/         # Compiled research artifacts, tagged by project ID
 ├── planner/
 │   ├── AGENTS.md
 │   ├── memory/
 │   ├── skills/
 │   └── projects/
-│       └── plans/                   ← Generated development plans
-├── dev/                             ← Developer / Generator / Optimizer
+│       └── plans/                    # Generated development plans
+├── dev/                              # Developer / Generator / Optimizer
 │   ├── AGENTS.md
 │   ├── memory/
 │   ├── skills/
 │   └── projects/
-│       └── wip/                     ← Work-in-progress implementations
+│       └── wip/                      # Work-in-progress implementations
 └── harness-engineer/
     ├── AGENTS.md
     ├── memory/
     ├── skills/
     └── projects/
-        ├── eval-harnesses/            ← Evaluation harness definitions
+        ├── eval-harnesses/           # Evaluation harness definitions
         ├── datasets/
-        │   ├── public/                ← Public datasets for dev phases
-        │   └── held-out/              ← Held-out datasets for final eval
-        ├── rubrics/                   ← Scoring rubrics and criteria
-        └── experiments/               ← Experiment logs and results  
+        │   ├── public/               # Public datasets for dev phases
+        │   └── held-out/             # Held-out datasets for final eval
+        ├── rubrics/                  # Scoring rubrics and criteria
+        └── experiments/              # Experiment logs and results
+```
 
 
-### System Overview (This should be contain a full system architecture diagram on how the system works, from the first user interaction with PM, to artifact generation, to where and how agent intergect at certain points, where agents loop with one another, and a full system flow diagram for how the agent is deployed, how it emits to any UI/UX layer and more TBD)
+### System Overview
 
 ```mermaid
 flowchart LR
     U["User / UI"] --> PM["PM Deep Agent\nthread: project:pm"]
-    PM --> CP["LangGraph Control Plane\nthreads, handoffs, phase gates"]
+    PM --> PCG["LangGraph Project Coordination Graph\nthreads, handoffs, phase gates"]
 
-    CP --> HE["Harness Engineer\nthread: project:harness-engineer"]
-    CP --> R["Researcher\nthread: project:researcher"]
-    CP --> A["Architect\nthread: project:architect"]
-    CP --> PL["Planner\nthread: project:planner"]
-    CP --> D["Developer\nthread: project:developer"]
-    CP --> E["Evaluator\nthread: project:evaluator"]
+    PCG --> HE["Harness Engineer\nthread: project:harness-engineer"]
+    PCG --> R["Researcher\nthread: project:researcher"]
+    PCG --> A["Architect\nthread: project:architect"]
+    PCG --> PL["Planner\nthread: project:planner"]
+    PCG --> D["Developer\nthread: project:developer"]
+    PCG --> E["Evaluator\nthread: project:evaluator"]
 
-    A -->|"request_research"| CP
-    HE -->|"ask_pm / evalability question"| CP
-    D -->|"request_evaluation"| CP
-    E -->|"pass/fail + findings"| CP
+    A -->|"request_research"| PCG
+    HE -->|"ask_pm / evalability question"| PCG
+    D -->|"request_evaluation"| PCG
+    E -->|"pass/fail + findings"| PCG
 
-    CP --> FS["Project Artifacts\nPRD, design, plans, evals, datasets"]
-    CP --> LG["LangGraph Server\nlanggraph.json graph IDs"]
+    PCG --> FS["Project Artifacts\nPRD, design, plans, evals, datasets"]
+    PCG --> LG["LangGraph Server\nlanggraph.json graph IDs"]
     LG --> STUDIO["LangGraph Studio\nlocal dev inspection"]
-    CP --> OBS["LangSmith\ntraces, run/thread links, evals"]
+    PCG --> OBS["LangSmith\ntraces, run/thread links, evals"]
 ```
 
 ### Sequence (optional)
 
 ```mermaid
 sequenceDiagram
-    participant User
-    participant Agent
-    participant Tool
-    User->>Agent: Request
-    Agent->>Tool: Invoke
-    Tool-->>Agent: Result
-    Agent-->>User: Response
+    participant User as User / UI
+    participant PM as PM Deep Agent
+    participant PCG as LangGraph Project Coordination Graph
+    participant HE as Harness Engineer
+    participant R as Researcher
+    participant A as Architect
+    participant PL as Planner
+    participant D as Developer
+    participant E as Evaluator
+    participant FS as Project Workspace
+    participant LS as LangSmith
+
+    User->>PM: Scope request and requirements
+    PM->>PCG: handoff_to_harness_engineer(project_id, brief, artifact_refs)
+    PCG->>FS: Append handoff record and artifact refs
+    PCG->>HE: Invoke stable project-role thread
+    HE-->>PCG: Eval criteria, rubrics, dataset questions
+
+    alt Stakeholder clarification needed
+        PCG->>PM: surface_question(question, asking_agent)
+        PM->>User: Ask scoped clarification
+        User-->>PM: Answer
+        PM-->>PCG: Answer with project context
+        PCG->>HE: Resume same Harness Engineer thread
+    end
+
+    PCG->>A: Invoke Architect with PRD and eval refs
+    A->>PCG: request_research(targeted_gap, artifact_refs)
+    PCG->>R: Invoke Researcher stable project-role thread
+    R-->>PCG: Research bundle refs
+    PCG-->>A: Resume Architect thread with research refs
+    A-->>PCG: Design/spec artifact refs
+    PCG->>PL: Invoke Planner stable project-role thread
+    PL-->>PCG: Phase plan refs
+    PCG->>D: Invoke Developer stable project-role thread
+    D->>PCG: request_evaluation(phase, artifact_refs)
+
+    par Implementation acceptance
+        PCG->>E: Invoke Evaluator stable project-role thread
+        E-->>PCG: Pass/fail findings
+    and Eval science review
+        PCG->>HE: Invoke Harness Engineer for eval harness questions
+        HE-->>PCG: Experiment and eval findings
+    end
+
+    PCG->>LS: Emit correlation metadata
+    PCG-->>PM: Phase gate result and next action
+    PM-->>User: Status, question, or delivery summary
 ```
 
 ### Data Contracts
 
+The exact Pydantic or `TypedDict` contracts should be defined in the
+implementation spec. For this AD, the minimum proposed Project Coordination Graph handoff
+record is:
+
 ```json
 {
-  "input": "<shape>",
-  "output": "<shape>",
-  "errors": ["<error_type>"]
+  "project_id": "string",
+  "handoff_id": "string",
+  "source_agent": "project-manager|harness-engineer|researcher|architect|planner|developer|evaluator",
+  "target_agent": "project-manager|harness-engineer|researcher|architect|planner|developer|evaluator",
+  "target_thread_id": "{project_id}:{target_agent}",
+  "reason": "string",
+  "artifact_refs": ["string"],
+  "run_id": "string|null",
+  "status": "queued|running|blocked|failed|completed",
+  "question": "string|null",
+  "created_at": "RFC3339 timestamp"
 }
 ```
+
+This is a proposed minimum, not a final wire format.
 
 ---
 
@@ -475,7 +666,7 @@ sequenceDiagram
 ### Required Signals
 
 - LangSmith traces for PM and every specialist Deep Agent invocation.
-- Control-plane handoff records keyed by `project_id`, `handoff_id`, source agent, target agent, phase, artifact refs, run ID, and resulting gate decision.
+- Project Coordination Graph handoff records keyed by `project_id`, `handoff_id`, source agent, target agent, phase, artifact refs, run ID, and resulting gate decision.
 - Stable `thread_id` metadata on every project-role run.
 - LangGraph Studio local inspection path through `langgraph.json` and `langgraph dev`.
 - LangSmith thread/run links exposed in the UI when tracing is configured.
@@ -486,9 +677,9 @@ sequenceDiagram
 | Metric | Baseline | Target | Window |
 |---|---|---|---|
 | Project-role thread reuse | No stable baseline | Same `(project_id, agent_name)` resumes the same LangGraph thread | Every handoff |
-| Handoff traceability | Manual reconstruction | Each handoff has a control-plane record and a LangSmith run/thread reference when configured | Every handoff |
+| Handoff traceability | Manual reconstruction | Each handoff has a Project Coordination Graph record and a LangSmith run/thread reference when configured | Every handoff |
 | Developer gate routing | Ambiguous `request_evaluation` target | Developer can distinguish Harness Engineer scientific eval issues from Evaluator implementation/spec acceptance issues | Every phase gate |
-| Local dev inspection | Ad hoc terminal logs | A local `langgraph dev` workflow can inspect the control graph in LangGraph Studio | Before remote/sandbox spike |
+| Local dev inspection | Ad hoc terminal logs | A local `langgraph dev` workflow can inspect the Project Coordination Graph in LangGraph Studio | Before remote/sandbox spike |
 
 ### Validation Plan
 
@@ -509,7 +700,7 @@ sequenceDiagram
 | Core specialists accidentally implemented as ephemeral `task` subagents | `M` | `H` | Treat `task` as an isolated-worker tool only. Add tests or trace checks that core roles receive stable project-scoped `thread_id`s. | `@Jason` |
 | Stock `AsyncSubAgent` creates fresh remote threads for project-role work | `M` | `H` | Use a project-aware handoff wrapper that calls LangGraph SDK thread creation with explicit `thread_id` and `if_exists="do_nothing"`. | `@Jason` |
 | Remote/sandbox handoff layer is underestimated | `H` | `H` | Treat as a separate spike. Prove one loop before committing to module names, tool contracts, or production async behavior. | `@Jason` |
-| LangGraph control plane grows into a second agent brain | `M` | `M` | Keep LangGraph nodes deterministic and coarse. Deep Agents own cognition; LangGraph owns routing, state, and gates. | `@Jason` |
+| LangGraph Project Coordination Graph grows into a second agent brain | `M` | `M` | Keep LangGraph nodes deterministic and coarse. Deep Agents own cognition; LangGraph owns routing, state, and gates. | `@Jason` |
 | Handoff loops become invisible or hard to debug | `M` | `H` | Persist structured handoff records with caller, target, reason, artifact refs, run ID, and resulting gate decision. | `@Jason` |
 | LangSmith traces fragment across local, server, and sandbox execution | `M` | `H` | Standardize correlation metadata and expose LangSmith links from the UI. Do not depend on implicit parent/child trace structure across process boundaries. | `@Jason` |
 | Developer confuses Harness Engineer feedback with Evaluator feedback | `M` | `M` | Encode the owner split in Developer prompt/tool descriptions and phase-gate records. | `@Jason` |
@@ -528,12 +719,12 @@ sequenceDiagram
 
 ## 9) Open Questions
 
-- [ ] Confirm the final module naming for peer specialist agents. The current tree uses `subagents/`, but the selected architecture should not imply these roles are ephemeral SDK `SubAgent` dicts.
+- [ ] Jason approval: adopt the section 4 repo-structure proposal that uses root `graph.py` for the LangGraph Project Coordination Graph entrypoint, uses `agents/` for peer role modules, reserves `task_agents/` for ephemeral SDK `SubAgent` helpers, uses `developer/` as the canonical Developer module name, and follows the Deep Agents CLI `integrations/` sandbox convention.
 - [ ] Decide the production checkpointer and store backend for local-first and remote/sandbox modes.
-- [ ] Decide whether the project-aware handoff wrapper is implemented as a LangGraph control graph node, a tool service, custom Deep Agents middleware, or a combination.
+- [ ] Decide whether the project-aware handoff wrapper is implemented as a LangGraph Project Coordination Graph node, a tool service, custom Deep Agents middleware, or a combination.
 - [ ] Define the minimal handoff record schema and phase gate enum in the implementation spec.
 - [ ] Decide how LangSmith thread/run links will be exposed in the UI for each project-role thread.
-- [ ] Define the `langgraph.json` graph ID convention for PM, control plane, and specialist agents in local development.
+- [ ] Define the `langgraph.json` graph ID convention for PM, Project Coordination Graph, and specialist agents in local development.
 - [ ] Spike the remote/sandbox handoff path across Deep Agents backends, LangGraph SDK thread/run APIs, and LangSmith trace correlation.
 - [ ] Decide whether the Harness Engineer vs Evaluator gate-owner boundary belongs in this AD, a Developer prompt spec, or a separate evaluation architecture spec.
 
@@ -543,8 +734,16 @@ sequenceDiagram
 
 | Date | Author | Change |
 |---|---|---|
+| `2026-04-11` | `@Codex` | Locked the committed `Project Coordination Graph` naming decision and `ProjectCoordination*` schema prefix. |
+| `2026-04-11` | `@Codex` | Replaced the placeholder data-contract block with a proposed Project Coordination Graph handoff record shape. |
+| `2026-04-11` | `@Codex` | Adopted `Project Coordination Graph` as the name for the thin LangGraph orchestration layer. |
+| `2026-04-11` | `@Codex` | Restored Jason's original role-scoped memory filesystem proposal. |
+| `2026-04-11` | `@Codex` | Changed ADR status to Proposed and replaced the generic sequence diagram with the Meta Harness handoff flow. |
+| `2026-04-11` | `@Codex` | Replaced first-pass `runtime/` module proposal with the Deep Agents CLI `integrations/` sandbox convention. |
+| `2026-04-11` | `@Codex` | Revised repo proposal to use root `graph.py` as the LangGraph Project Coordination Graph entrypoint and added graph factory evidence from Deep Agents CLI and LangGraph API source. |
+| `2026-04-11` | `@Codex` | Proposed peer-agent repo structure and project workspace layout; left final module naming pending Jason approval. |
 | `2026-04-11` | `@Codex` | Added LangSmith tracing, LangGraph Studio, remote/sandbox spike, and Developer gate-owner guidance. |
-| `2026-04-11` | `@Codex` | Added stateful peer Deep Agents topology and LangGraph control-plane guidance. |
+| `2026-04-11` | `@Codex` | Added stateful peer Deep Agents topology and LangGraph Project Coordination Graph guidance. |
 | `YYYY-MM-DD` | `@name` | Initial draft |
 
 ---
