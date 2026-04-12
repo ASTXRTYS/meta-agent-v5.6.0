@@ -580,6 +580,9 @@ Skills progressive disclosure via `SkillsMiddleware`: [17](#8-16) (`.reference/l
   at least one of: `AGENTS.md`, `AD.md`, or the relevant spec doc.
 - `AD.md` status changes (`Proposed`, `Accepted`, `Superseded`, `Deprecated`)
   must be reflected in the header and changelog in the same edit.
+- Any contributor who touches `AD.md` must append a row to the §10 Changelog
+  with their author ID, date, and a one-line summary of what changed. A PR or
+  commit reference is sufficient — no large prose blocks required.
 - `Accepted` decisions should not retain unresolved placeholders (for example:
   `TBD`, `<...>`) without an explicit owner and target date.
 - High-signal technical assertions in `AD.md` should include local source
