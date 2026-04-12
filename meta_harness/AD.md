@@ -155,14 +155,14 @@ routing state, project artifacts, project memory, and agent cognition.
 
 Its responsibilities are:
 
-- Resolve the target agent for a handoff.
-- Route the handoff through the parent graph using `Command.PARENT`.
+- Accept the handoff command from a Deep Agent tool via `Command.PARENT`.
+- Record the handoff in Project Coordination Graph state.
 - Invoke the target mounted Deep Agent child graph under its stable role namespace.
-- Track run IDs, handoff status, phase gates, and unresolved questions.
-- Route phase transitions when a handoff completes or fails.
-- Surface human-in-the-loop questions when an agent cannot proceed without stakeholder input.
 - Preserve enough Project Coordination Graph state to reconstruct which agent handed work
   to whom, why, and with which artifact references.
+
+Phase gate enforcement and HITL question surfacing are **not** PCG responsibilities.
+They are handled by middleware hooks on the handoff tools (see Handoff Protocol below).
 
 Its non-responsibilities are equally important:
 
@@ -170,72 +170,258 @@ Its non-responsibilities are equally important:
 - Do not put all specialist messages into one shared graph state.
 - Do not use the PM as a pass-through for every specialist-to-specialist loop.
 - Do not reimplement Deep Agents middleware for planning, memory, skills, filesystem access, summarization, or tool calling.
-
-The Project Coordination Graph should be a small `StateGraph` with coarse nodes,
-not a large multi-agent monolith. The first conceptual node set is still
-discussion-needed; the table below is a working candidate for co-authoring, not
-an accepted implementation contract:
+- Do not implement phase gate logic in PCG nodes or conditional edges — phase gates are middleware hooks on handoff tools.
+- Do not implement routing intelligence — the calling agent chooses its target via the handoff tool; the PCG is plumbing, not a router.
 
 | Node | Purpose |
 |---|---|
-| `receive_user_input` | Accept new stakeholder input and route it to PM when project scope is still being shaped. |
-| `run_agent` | Invoke a named mounted Deep Agent child graph with a handoff brief and stable role namespace. |
-| `ensure_role_state` | Ensure the target role has an initialized checkpoint namespace and project workspace paths before invocation. |
-| `record_handoff` | Append a structured handoff record with caller, target, reason, artifact refs, and run ID. |
-| `route_after_agent` | Decide whether the next step is another agent, a phase gate, a human question, or done. |
-| `gate_phase` | Enforce required review/eval gates before moving from scoping to harness engineering, architecture, planning, development, and final acceptance. |
-| `surface_question` | Turn a specialist question into PM or user-facing HITL, then route the answer back to the asking role graph. |
+| `receive_user_input` | Accept new stakeholder input and write it into state for the PM. |
+| `process_handoff` | Record the handoff, ensure the target role's checkpoint namespace and workspace paths are initialized, and prepare the invocation payload. |
+| `run_agent` | Invoke the target mounted Deep Agent child graph under its stable role namespace. |
 
-This node list is an architecture guide, not a final schema. Before this AD is
-treated as accepted, Jason and Codex should scope the first node set together:
-which nodes are genuinely separate, which are implementation details inside one
-node, and what each node is allowed to read, write, and route. The final spec
-should keep the same separation: deterministic routing in LangGraph, open-ended
-work inside Deep Agents.
+The topology is linear:
+
+```txt
+START → receive_user_input → run_agent(PM)
+                                    │
+                              PM calls handoff tool
+                              middleware hook fires (phase gate)
+                                    │
+                              gate passes → Command.PARENT emitted
+                              gate fails → tool returns revision prompt to agent
+                                    │
+                              process_handoff → run_agent(target)
+                                    │
+                              target calls handoff or returns
+                                    │
+                              process_handoff → run_agent(next target)  (loop)
+```
+
+There are no conditional edges. The only branching happens *before* the
+`Command.PARENT` reaches the PCG: the middleware hook on the handoff tool
+decides whether to allow the handoff through or return a revision prompt to
+the calling agent. If the command reaches the PCG, it always flows through
+`process_handoff` → `run_agent`.
 
 ### Handoff Protocol
 
-All agent-to-agent communication should go through explicit handoff tools or
-Project Coordination Graph commands. A handoff should carry:
+All agent-to-agent communication goes through explicit handoff tools. A handoff
+tool returns `Command(graph=Command.PARENT, goto="process_handoff",
+update=<handoff_payload>)` rather than directly invoking arbitrary peers. The
+PCG records the handoff and invokes the target mounted role graph.
+
+A handoff should carry:
 
 - `project_id`
-- `from_agent`
-- `to_agent`
-- `reason`
-- `brief`
-- `artifact_refs`
-- `expected_output`
-- `blocking`
-- `phase`
+- `source_agent`
+- `target_agent`
+- `reason` (enum: `deliver | return | submit | consult | announce | coordinate | question`)
+- `brief` (prose summary for the receiving agent)
+- `artifact_paths`
 
-The receiving agent should get a concise brief plus artifact references, not a
-dump of the caller's full conversation. The receiving agent resumes its own
-role state and decides what context to load.
+The `reason` enum encodes the *type of transition*, not the pipeline phase.
+Middleware dispatches on the `(source_agent, target_agent, reason)` triple to
+determine which gate logic to apply. For example, `(PM, HE, deliver)` triggers
+the Stage 1 PRD-finalized gate, while `(Architect, HE, submit)` triggers the
+Stage 2 spec-acceptance gate.
 
-Provisional handoff tool names, still discussion-needed:
+The receiving agent gets a concise brief plus artifact paths, not a dump of the
+caller's full conversation. The receiving agent resumes its own role state and
+decides what context to load.
 
-Jason likes the self-explanatory direction of these names, but the use cases are
-not fully scoped yet. Before downstream implementation, each tool needs an
-approved use-case matrix: allowed callers, target role, triggering scenarios,
-required payload fields, blocking behavior, expected outputs, and whether the
-tool is available in normal flow, phase gates, exception handling, or final
-acceptance.
+Artifact paths are references by default — the receiving agent reads artifacts
+from the caller's namespace via the provided paths. Each agent owns its own
+filesystem namespace and tags its artifacts with the `project_id`.
 
-| Tool | Caller | Target | Use |
-|---|---|---|---|
-| `handoff_to_harness_engineer` | PM, Architect, Developer | Harness Engineer | Eval criteria, rubric design, calibration, public/held-out datasets, and milestone evals. |
-| `request_research` | Architect, Harness Engineer, PM | Researcher | Targeted SDK/API/model capability research. |
-| `handoff_to_architect` | PM, Researcher, Harness Engineer | Architect | Design synthesis from PRD, research, and eval constraints. |
-| `handoff_to_planner` | Architect, Harness Engineer | Planner | Convert accepted design and public eval criteria into an implementation plan. |
-| `handoff_to_developer` | Planner | Developer | Execute an approved phase plan. |
-| `request_evaluation` | Developer, PM | Evaluator and/or Harness Engineer | Validate code/spec alignment and run technical evals. |
-| `ask_pm` | Any specialist | PM | Ask stakeholder-facing questions without giving the specialist permanent ownership of PM scope. |
+**Exception: PM-assembled handoff packages.** For downstream pipeline delivery
+tools where the receiving agent needs the full accumulated artifact set, the PM
+assembles a consolidated project handoff package — a directory that gets copied
+into the receiving agent's filesystem. The receiving agent then owns and organizes
+that copy. This applies to:
 
-Implementation can expose these as Deep Agent tools, but each handoff tool should
-return `Command(graph=Command.PARENT, goto=<coordination_node>,
-update=<handoff_payload>)` rather than directly invoking arbitrary peers. The
-Project Coordination Graph records the handoff, applies routing and phase-gate
-policy, and invokes the target mounted role graph.
+- `deliver_spec_to_planner` — Planner receives an organized package of design spec,
+  public eval criteria, and public datasets.
+- `deliver_plan_to_developer` — Developer receives the full project package: plan,
+  spec, public eval, PRD, and research highlights. The Developer organizes this
+  into a structured filesystem layout optimized for implementation and human
+  readability.
+
+Early-stage deliveries (`deliver_prd_to_harness_engineer`,
+`deliver_prd_to_researcher`, `deliver_prd_to_architect`) remain as references
+because those specialists only need a few specific artifacts from the PM's
+already-organized namespace. The PM's role as organizer aligns with its identity
+as the business-oriented project manager who ensures artifacts are properly
+stored and structured before they flow downstream.
+
+### Phase Gate Middleware
+
+Phase gate enforcement is a middleware hook on each handoff tool, not a PCG node
+or conditional edge. When an agent calls a handoff tool, the middleware hook
+fires before the `Command.PARENT` is emitted:
+
+1. Inspect the handoff tool call (`source_agent`, `target_agent`, `reason`,
+   `artifact_paths`).
+2. Check phase prerequisites (e.g., PRD finalized before `(PM, HE, deliver)`;
+   spec approved before `(Architect, HE, submit)`;
+   deliverables match plan before `(Developer, Evaluator, submit)`).
+3. Gate passes → allow the `Command.PARENT` through to the PCG.
+4. Gate fails → return a revision/validation prompt to the calling agent instead
+   of the command. The agent reflects, revises, and re-attempts.
+
+This keeps the PCG topology linear (no conditional edges) and makes gate logic
+extensible: new phase gates are middleware additions, not PCG topology changes.
+Different agents can have different gate middleware — the `(PM, HE, deliver)`
+gate checks different things than the `(Architect, HE, submit)` gate. The
+`(source_agent, target_agent, reason)` triple tells the middleware which gate
+logic to apply.
+
+#### Handoff Tool Use-Case Matrix
+
+Tools are organized into four categories by transition type. The naming
+convention is `<verb>_<artifact|phase>_package_to_<role>`: the tool name reads
+as a sentence that tells both the calling agent and any maintainer exactly what
+is flowing where. Single-artifact deliveries use the artifact name
+(e.g. `deliver_prd_to_harness_engineer`); composite package deliveries use the
+phase name plus `package` (e.g. `deliver_design_package_to_architect`) to signal
+that the PM is handing off a consolidated bundle of accumulated artifacts.
+
+Verb semantics also encode blocking behavior:
+- **`deliver`** = the caller is handing off ownership of a pipeline stage (blocking)
+- **`return`** = the specialist is returning completed work to the PM or calling specialist (blocking)
+- **`submit`** = the caller is submitting work for review or evaluation (blocking)
+- **`consult`** = the caller is requesting expert input without transferring ownership (non-blocking)
+- **`announce`** = the caller is pushing intent or a heads-up without expecting a deliverable back (non-blocking)
+- **`ask`** = the caller is asking a question (non-blocking)
+- **`coordinate`** = QA agents are aligning with each other (non-blocking)
+
+**Pipeline Delivery** — PM delivers artifact to start a pipeline stage:
+
+| # | Tool | `reason` | Caller | Target | Artifact Flow | Middleware Gate |
+|---|---|---|---|---|---|---|
+| 1 | `deliver_prd_to_harness_engineer` | `deliver` | PM | HE | PRD + proposed eval criteria + business-logic datasets → refined eval criteria, rubrics, public/held-out datasets, calibrated judges | Stage 1: PRD finalized |
+| 2 | `deliver_prd_to_researcher` | `deliver` | PM | Researcher | PRD + refined eval criteria + public datasets → research bundle | HE Stage 1 complete |
+| 3 | `deliver_design_package_to_architect` | `deliver` | PM | Architect | PRD + eval suite + research bundle → design spec | Research complete |
+| 4 | `deliver_planning_package_to_planner` | `deliver` | PM | Planner | Design spec + public eval criteria + public datasets → implementation plan | HE Stage 2 complete |
+| 5 | `deliver_development_package_to_developer` | `deliver` | PM | Developer | Plan + spec + public eval + PRD → phase deliverables | Plan accepted |
+
+**Pipeline Return** — Specialist returns completed work to PM:
+
+| # | Tool | `reason` | Caller | Target | Artifact Flow | Middleware Gate |
+|---|---|---|---|---|---|---|
+| 6 | `return_eval_suite_to_pm` | `return` | HE | PM | Refined eval criteria + rubrics + public datasets (HE retains held-out datasets + copies in its own filesystem) | None |
+| 7 | `return_research_bundle_to_pm` | `return` | Researcher | PM | Research bundle with findings and refs | None |
+| 8 | `return_design_package_to_pm` | `return` | Architect | PM | Design spec + tool schemas + system prompts | None |
+| 9 | `return_plan_to_pm` | `return` | Planner | PM | Phased implementation plan with eval break points | None |
+
+**Stage Review** — Specialist submits work to HE for eval coverage:
+
+| # | Tool | `reason` | Caller | Target | Artifact Flow | Middleware Gate |
+|---|---|---|---|---|---|---|
+| 10 | `submit_spec_to_harness_engineer` | `submit` | Architect | HE | Design spec → evalability review + dev-phase eval harness (Stage 2 intervention) | Spec accepted |
+| 11 | `return_eval_coverage_to_architect` | `return` | HE | Architect | Eval coverage for new components + dev-phase eval criteria | None |
+
+**Phase Review** — Developer submits phase deliverables for QA:
+
+| # | Tool | `reason` | Caller | Target | Artifact Flow | Middleware Gate |
+|---|---|---|---|---|---|---|
+| 12 | `announce_phase_to_evaluator` | `announce` | Developer | Evaluator | Phase intent + eval criteria acknowledgment → "agreed, awaiting submission" | None |
+| 13 | `announce_phase_to_harness_engineer` | `announce` | Developer | HE | Phase intent + eval criteria acknowledgment → "agreed, awaiting submission" | None |
+| 14 | `submit_phase_to_evaluator` | `submit` | Developer | Evaluator | Phase deliverables → pass/fail findings, spec/plan compliance report | Deliverables match plan |
+| 15 | `submit_phase_to_harness_engineer` | `submit` | Developer | HE | Phase deliverables → EBDR-1 feedback packet (eval science findings, no scoring logic leaked) | None |
+
+**Specialist Consultation** — Non-ownership-transfer expert input:
+
+| # | Tool | `reason` | Caller | Target | Artifact Flow | Middleware Gate |
+|---|---|---|---|---|---|---|
+| 16 | `consult_harness_engineer_on_gates` | `consult` | Planner | HE | Plan draft → eval gate placement recommendations (Stage 3 intervention) | None |
+| 17 | `consult_evaluator_on_gates` | `consult` | Planner | Evaluator | Plan draft → acceptance gate placement recommendations | None |
+| 18 | `request_research_from_researcher` | `consult` | Architect, HE, PM | Researcher | Research question → targeted findings | None |
+| 19 | `ask_pm` | `question` | Any specialist | PM | Stakeholder question → answer/clarification | None |
+| 20 | `coordinate_qa` | `coordinate` | HE ↔ Evaluator | Evaluator ↔ HE | QA findings → aligned review strategy | None |
+
+#### Agent-Scoped Tool Ownership
+
+Each agent only receives the tools relevant to its role. An agent cannot call a
+tool it does not own.
+
+| Agent | Pipeline Delivery | Pipeline Return | Stage Review | Phase Review | Consultation |
+|---|---|---|---|---|---|
+| PM | `deliver_prd_to_harness_engineer`, `deliver_prd_to_researcher`, `deliver_design_package_to_architect`, `deliver_planning_package_to_planner`, `deliver_development_package_to_developer` | — | — | — | `request_research_from_researcher` |
+| Harness Engineer | — | `return_eval_suite_to_pm`, `return_eval_coverage_to_architect` | `submit_spec_to_harness_engineer` (receives) | `announce_phase_to_harness_engineer` (receives), `submit_phase_to_harness_engineer` (receives) | `consult_harness_engineer_on_gates` (receives), `request_research_from_researcher`, `coordinate_qa` |
+| Researcher | — | `return_research_bundle_to_pm` | — | — | `request_research_from_researcher` (receives) |
+| Architect | — | `return_design_package_to_pm` | `submit_spec_to_harness_engineer` | — | `request_research_from_researcher` |
+| Planner | — | `return_plan_to_pm` | — | — | `consult_harness_engineer_on_gates`, `consult_evaluator_on_gates` |
+| Developer | — | — | — | `announce_phase_to_evaluator`, `announce_phase_to_harness_engineer`, `submit_phase_to_evaluator`, `submit_phase_to_harness_engineer` | `ask_pm` |
+| Evaluator | — | — | — | `announce_phase_to_evaluator` (receives), `submit_phase_to_evaluator` (receives) | `consult_evaluator_on_gates` (receives), `coordinate_qa` |
+
+#### Pipeline Flow Diagram
+
+The pipeline progression flows through the PM as hub. Specialists return
+completed work to the PM, who then delivers to the next specialist. Direct
+specialist-to-specialist interactions exist for stage reviews and consultations. 
+
+```txt
+Stakeholder → PM
+              │
+              ├─ deliver_prd_to_harness_engineer ──→ HE (Stage 1)
+              │     ← return_eval_suite_to_pm
+              │
+              ├─ deliver_prd_to_researcher ──→ Researcher
+              │     ← return_research_bundle_to_pm
+              │
+              ├─ deliver_design_package_to_architect ──→ Architect
+              │     │
+              │     ├─ submit_spec_to_harness_engineer ──→ HE (Stage 2)
+              │     │     ← return_eval_coverage_to_architect
+              │     │
+              │     ← return_design_package_to_pm
+              │
+              ├─ deliver_planning_package_to_planner ──→ Planner
+              │     │
+              │     ├─ consult_harness_engineer_on_gates (non-blocking)
+              │     ├─ consult_evaluator_on_gates (non-blocking)
+              │     │
+              │     ← return_plan_to_pm
+              │
+              ├─ deliver_development_package_to_developer ──→ Developer
+                    │
+                    ├─ announce_phase_to_evaluator (non-blocking)
+                    ├─ announce_phase_to_harness_engineer (non-blocking)
+                    │
+                    │  ... developer executes phase ...
+                    │
+                    ├─ submit_phase_to_evaluator ──→ Evaluator
+                    ├─ submit_phase_to_harness_engineer ──→ HE
+                    ├─ ask_pm (non-blocking)
+                    │
+                    ← phase deliverables
+
+Phase communication arc:
+  1. Developer announces phase intent to each QA agent (non-blocking)
+     "I'm starting phase N end-to-end, will meet these eval criteria"
+     QA agents respond: "Agreed, awaiting your submission"
+  2. Developer executes the phase
+  3. Developer submits phase deliverables to each QA agent (blocking)
+     Cannot proceed to next phase without feedback
+
+Core evaluation loops (blocking — developer cannot proceed without feedback):
+  Developer ──submit_phase_to_evaluator──→ Evaluator
+       ← pass/fail findings, spec/plan compliance report
+  Developer ──submit_phase_to_harness_engineer──→ HE
+       ← EBDR-1 feedback packet (directional signal, no scoring logic leaked)
+
+  Both loops enforce information isolation:
+  - Evaluator: validates code against spec/plan, hard fails/passes phases
+  - HE: runs eval science, produces EBDR-1 feedback that gives the optimizer
+    directional signal without exposing rubrics, judge configs, or held-out data
+  - Developer is completely blind to evaluation artifacts — only sees feedback
+    packets and can inspect its own traces in LangSmith
+
+Specialist loops (non-blocking):
+  Architect ↔ Researcher  (request_research_from_researcher)
+  HE ↔ Evaluator          (coordinate_qa)
+  Any specialist → PM      (ask_pm)
+```
 
 ### Mounted Graph Execution and Sandbox Semantics
 
@@ -513,14 +699,12 @@ def make_graph(...) -> CompiledStateGraph:
         input_schema=ProjectCoordinationInput,
         output_schema=ProjectCoordinationOutput,
     )
-    builder.add_node("record_handoff", record_handoff)
-    builder.add_node("ensure_role_state", ensure_role_state)
+    builder.add_node("receive_user_input", receive_user_input)
+    builder.add_node("process_handoff", process_handoff)
     builder.add_node("run_agent", run_agent)
-    builder.add_node("gate_phase", gate_phase)
-    builder.add_edge(START, "record_handoff")
-    builder.add_edge("record_handoff", "ensure_role_state")
-    builder.add_edge("ensure_role_state", "run_agent")
-    builder.add_conditional_edges("run_agent", route_after_agent)
+    builder.add_edge(START, "receive_user_input")
+    builder.add_edge("receive_user_input", "run_agent")
+    builder.add_edge("process_handoff", "run_agent")
     return builder.compile(
         checkpointer=checkpointer,
         store=store,
@@ -540,22 +724,24 @@ needs invocation-time config/runtime, otherwise `./graph.py:graph` is simpler.
 The role factories should use `create_<role>_agent()` because those modules return
 Deep Agent graphs via `create_deep_agent()`.
 
-The Project Coordination Graph nodes should only do deterministic coordination:
+The Project Coordination Graph nodes should only do deterministic plumbing:
 
-- `record_handoff`: persist or append a handoff record.
-- `ensure_role_state`: initialize or look up the target role checkpoint namespace
-  and project workspace paths.
-- `run_agent`: invoke a mounted peer Deep Agent child graph using the parent
+- `receive_user_input`: write user input into state.
+- `process_handoff`: record the handoff, ensure the target role's checkpoint
+  namespace and workspace paths are initialized, and prepare the invocation payload.
+- `run_agent`: invoke the target mounted Deep Agent child graph using the parent
   project thread and target role namespace.
-- `gate_phase`: enforce deterministic pass/fail transition policy from recorded
-  Evaluator or Harness Engineer results.
-- `surface_question`: route a specialist's stakeholder question to PM or UI.
+
+Phase gate enforcement, HITL question surfacing, and routing intelligence are
+**not** PCG responsibilities. Phase gates are middleware hooks on handoff tools.
+HITL questions are handled by the `ask_user` middleware provided by the Deep
+Agents SDK. Routing decisions are made by the calling agent via tool selection.
 
 The Project Coordination Graph must not implement research, architecture, planning,
-development, eval-science, prompt composition, or provider/model request policy.
-Those remain in peer Deep Agent factories, SDK configuration calls, and
-tool/prompt contracts. Do not create a runtime policy package before a concrete
-SDK-aligned need appears.
+development, eval-science, prompt composition, phase gate logic, or provider/model
+request policy. Those remain in peer Deep Agent factories, SDK configuration calls,
+tool/prompt contracts, and middleware hooks. Do not create a runtime policy package
+before a concrete SDK-aligned need appears.
 
 ## Project Workspace and Memory Structure Proposal
 
@@ -696,9 +882,8 @@ sequenceDiagram
 
 ### Data Contracts
 
-The exact Pydantic or `TypedDict` contracts should be defined in the
-implementation spec. For this AD, the minimum proposed Project Coordination Graph handoff
-record is:
+The exact Pydantic or `TypedDict` wire format should be defined in the
+implementation spec. The field set and enum values below are locked as an AD decision.
 
 ```json
 {
@@ -706,18 +891,25 @@ record is:
   "handoff_id": "string",
   "source_agent": "project-manager|harness-engineer|researcher|architect|planner|developer|evaluator",
   "target_agent": "project-manager|harness-engineer|researcher|architect|planner|developer|evaluator",
-  "project_thread_id": "{project_id}",
-  "target_role_namespace": "project_manager|harness_engineer|researcher|architect|planner|developer|evaluator",
-  "reason": "string",
-  "artifact_refs": ["string"],
-  "run_id": "string|null",
-  "status": "queued|running|blocked|failed|completed",
-  "question": "string|null",
+  "reason": "deliver|return|submit|consult|announce|coordinate|question",
+  "brief": "string",
+  "artifact_paths": ["string"],
+  "langsmith_run_id": "string|null",
+  "status": "queued|running|completed|failed",
   "created_at": "RFC3339 timestamp"
 }
 ```
 
-This is a proposed minimum, not a final wire format.
+Field notes:
+
+- `project_id` doubles as the root `thread_id`; no separate `project_thread_id` field needed.
+- `target_agent` maps 1:1 to the checkpoint namespace in v1; no separate `target_role_namespace` field needed.
+- `reason` encodes the *type of transition* (not the pipeline phase). Middleware dispatches on the `(source_agent, target_agent, reason)` triple to determine which gate logic to apply. The `question` reason covers specialist-to-PM stakeholder questions — no separate `question` field needed.
+- `brief` is the concise summary the receiving agent reads; was listed in the Handoff Protocol but previously missing from this schema.
+- `artifact_paths` are filesystem paths to artifacts the calling agent produced, so the receiver knows what to load.
+- `langsmith_run_id` is the LangSmith run ID for the mounted role graph invocation, for trace correlation.
+- `status` tracks the handoff lifecycle (queued → running → completed/failed), not the agent's task status.
+- `created_at` is an RFC3339 timestamp set by the PCG when the handoff is recorded.
 
 ---
 
@@ -805,11 +997,13 @@ This is a proposed minimum, not a final wire format.
 - [x] Jason approval: adopt the section 4 repo-structure naming decision that uses root `graph.py` for the LangGraph Project Coordination Graph entrypoint, uses `agents/` for peer role modules, reserves `task_agents/` only for future role-owned ephemeral SDK `SubAgent` helpers, uses `developer/` as the canonical Developer module name, and follows the Deep Agents CLI `integrations/` sandbox convention. Approved by Jason on `2026-04-11`.
 - [x] Decide the production checkpointer and store backend for local-first and sandbox-backed mounted graph execution. Decision: three runtime modes, two code paths. (1) **Local dev** (`langgraph dev`): `SqliteSaver` checkpointer and managed store are auto-injected by the dev server — factory passes neither. (2) **CLI TUI shipped to end users**: `SqliteSaver` (from `langgraph-checkpoint-sqlite`) at a user-local path (e.g. `~/.metaharness/state.db`) explicitly passed to the Project Coordination Graph factory; `InMemoryStore()` for store (no `StoreBackend` needed — `FilesystemBackend` owns disk persistence). (3) **Web app / LangGraph Platform**: managed Postgres-backed checkpointer and store are auto-injected by the platform — factory passes neither. `StoreBackend()` with no args resolves from the LangGraph execution context via `get_store()` in all platform-managed modes. `langgraph-checkpoint-sqlite` is a required production dependency. Approved by Jason on `2026-04-12`.
 - [x] Decide whether the project-aware handoff wrapper is implemented as a LangGraph Project Coordination Graph node, a tool service, custom Deep Agents middleware, or a combination. Decision: v1 handoffs are explicit Deep Agent tools that return `Command(graph=Command.PARENT, goto=<coordination_node>, update=<handoff_payload>)`; Project Coordination Graph nodes record and route the handoff; custom handoff middleware is out of v1. Approved by Jason on `2026-04-12`.
-- [ ] Co-author and approve the first Project Coordination Graph node set, including exact node names, responsibilities, and read/write/routing boundaries.
-- [ ] Co-author and approve the handoff tool use-case matrix, including allowed callers, triggering scenarios, payload requirements, blocking behavior, expected outputs, and phase-gate relevance.
-- [ ] Define the minimal handoff record schema and phase gate enum in the implementation spec.
+- [x] Co-author and approve the first Project Coordination Graph node set. Decision: three nodes (`receive_user_input`, `process_handoff`, `run_agent`), no conditional edges, linear topology. Phase gates moved to middleware hooks on handoff tools. Routing intelligence owned by calling agents via tool selection. Removed `record_handoff` and `ensure_role_state` as separate nodes (merged into `process_handoff`). Removed `route_after_agent`, `gate_phase`, and `surface_question` (routing is agent-driven, gates are middleware, HITL is SDK `ask_user`). Approved by Jason on `2026-04-12`.
+- [x] Co-author and approve the handoff tool use-case matrix. Decision: 19 tools across 5 categories (Pipeline Delivery, Pipeline Return, Stage Review, Phase Review, Specialist Consultation). Naming convention `<verb>_<artifact>_to_<role>` — verb encodes blocking semantics. PM is the pipeline hub: specialists return to PM, PM delivers to next specialist. Direct specialist-to-specialist interactions for stage reviews and consultations. `reason` enum changed from phase-based (`scope_handoff|eval_request|...`) to verb-based (`deliver|return|submit|consult|coordinate|question`) — middleware dispatches on `(source, target, reason)` triple. Agent-scoped tool ownership: each agent only receives relevant tools. Artifact paths are references, not copies. Approved by Jason on `2026-04-12`.
+- [x] Define the minimal handoff record schema in the AD; delegate exact Pydantic/TypedDict wire format to the implementation spec. Decision: locked field set is `project_id`, `handoff_id`, `source_agent`, `target_agent`, `reason`, `brief`, `artifact_paths`, `langsmith_run_id`, `status`, `created_at`. Removed `project_thread_id` (redundant with `project_id`), `target_role_namespace` (derivable from `target_agent` in v1), and `question` (folded into `reason`). Renamed `artifact_refs` → `artifact_paths` and `run_id` → `langsmith_run_id` for clarity. Added `brief` (was in Handoff Protocol but missing from schema). Approved by Jason on `2026-04-12`.
+- [ ] Define the phase gate enum values in the AD (e.g., scoping, harness-engineering, research, architecture, planning, development, acceptance) and which gate transitions require explicit approval vs. automatic advancement.
 - [x] Decide whether sandbox execution changes the v1 graph topology. Decision: sandbox support is backend/runtime configuration for mounted role agents and does not split roles into separate top-level assistants. Separate remotely deployed role assistants are out of scope for v1. Approved by Jason on `2026-04-12`.
 - [ ] Decide whether the Harness Engineer vs Evaluator gate-owner boundary belongs in this AD, a Developer prompt spec, or a separate evaluation architecture spec.
+- [ ] As a context engineering matter: is it wise to allow the PCG state to grow unboundedly with every handoff record? Furthermore, does the PCG's accumulated state flood each mounted child agent's context window at invocation, or does the child agent selectively pull only the context it needs? Clarify the LangGraph parent-to-child state propagation contract and determine whether a compaction/summarization strategy is needed for the PCG handoff log.
 
 ---
 
@@ -817,6 +1011,12 @@ This is a proposed minimum, not a final wire format.
 
 | Date | Author | Change |
 |---|---|---|
+| `2026-04-12` | `@Cascade` | Refined artifact path semantics: references by default, but PM-assembled handoff packages for `deliver_spec_to_planner` and `deliver_plan_to_developer`. The PM consolidates the full artifact set into an organized directory that gets copied into the receiving agent's filesystem. Early-stage deliveries remain as references. |
+| `2026-04-12` | `@Cascade` | Overhauled handoff tool use-case matrix: 7 → 19 tools across 5 categories. Adopted `<verb>_<artifact>_to_<role>` naming convention (verb encodes blocking semantics). PM-as-hub pipeline topology: specialists return to PM, PM delivers to next specialist. Added Pipeline Return category for specialist→PM returns. Added Stage Review category for Architect↔HE Stage 2 loop. Added `coordinate_qa` for HE↔Evaluator alignment. Changed `reason` enum from phase-based to verb-based (`deliver|return|submit|consult|coordinate|question`) — middleware dispatches on `(source, target, reason)` triple. Added agent-scoped tool ownership table. Added artifact path reference semantics (paths, not copies). |
+| `2026-04-12` | `@Cascade` | Locked handoff tool use-case matrix (v1): 7 tools with `reason` enum mapping, triggering scenarios, required payload, blocking behavior, middleware gates, and expected outputs. Only `request_research` and `ask_pm` are non-blocking. |
+| `2026-04-12` | `@Cascade` | Session arc: set out to close the handoff record schema open question; reasoning through field purposes (what's redundant, what's ambiguous, who fills what) revealed that the PCG node set was also answerable. Key insight from Jason: if each node is a Deep Agent that decides its own peer target via tool call, then the PCG doesn't route — it plumbs. Phase gates are middleware hooks, not graph nodes or conditional edges. Closed two open questions for the price of one. |
+| `2026-04-12` | `@Cascade` | Simplified PCG topology to 3 nodes (`receive_user_input`, `process_handoff`, `run_agent`) with no conditional edges. Moved phase gate enforcement to middleware hooks on handoff tools. Moved routing intelligence to calling agents (tool selection). Merged `record_handoff` + `ensure_role_state` into `process_handoff`. Removed `route_after_agent`, `gate_phase`, `surface_question` from node set. Added `reason` enum for middleware dispatch. Updated factory contract, responsibilities, and handoff protocol sections. |
+| `2026-04-12` | `@Cascade` | Locked handoff record schema field set in the AD: `project_id`, `handoff_id`, `source_agent`, `target_agent`, `reason`, `brief`, `artifact_paths`, `langsmith_run_id`, `status`, `created_at`. Removed `project_thread_id`, `target_role_namespace`, `question`. Renamed `artifact_refs` → `artifact_paths`, `run_id` → `langsmith_run_id`. Added `brief`. Opened question on PCG state growth and parent-to-child context propagation. |
 | `2026-04-12` | `@Cascade` | Locked local development tracing configuration and architecture: `LANGSMITH_TRACING=true` must be explicit, `LANGSMITH_PROJECT=meta-harness` as v1 project name, `LANGCHAIN_CALLBACKS_BACKGROUND=false` required for eval runs. Documented that LangGraph Pregel propagates child callback context automatically — no `parent_run_id` wiring needed. Role identity free via `create_deep_agent(name=)`. Correlation metadata split: `project_id`/`agent_name`/`thread_id` on PCG `.with_config()`; handoff-scoped fields carried by handoff record schema. Removed ambiguous LangSmith UI exposure open question. |
 | `2026-04-12` | `@Cascade` | Closed checkpointer and store backend decision: `SqliteSaver` for CLI TUI (explicit, user-local path), platform-managed for web app and `langgraph dev`. Added `langgraph-checkpoint-sqlite` as required dependency. |
 | `2026-04-12` | `@Codex` | Marked the Project Coordination Graph node set and handoff tool use-case matrix as discussion-needed before AD acceptance. |
