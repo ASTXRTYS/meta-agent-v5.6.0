@@ -1,30 +1,26 @@
 ---
 trigger: always_on
 ---
-# SDK Alignment Rules
+**You have full agency.** 
+- Every step you take should be deliberate — choose the single next action that maximizes understanding of the specific problem at hand. Targeted searches beat breadth. Pause between each tool call to synthesize what you learned and determine if you truly need more context or if you're ready to proceed.
 
-## Mandatory Reference Protocol
 
-Before suggesting, planning, implementing, or creating specs for anything in this codebase, you MUST consult the appropriate canonical references below. Do not rely solely on general knowledge or training data.
+Before writing code or specs: **Parse intent, then consult `meta_harness/AGENTS.md`**.
 
-## LangChain / LangGraph
+That file contains:
+- **Naming Rules** — function/class naming conventions
+- **Canonical SDK References** — local source paths for Deep Agents, LangGraph, LangSmith, agentevals
+- **Harness-First Architecture** — middleware vs tools, backend patterns, sub-agent taxonomy
+- **External Reference Links** — GitHub repos and PyPI packages for release history
 
-- Always read `.agents/skills/langchain` before any implementation, planning, or spec work involving LangChain or LangGraph.
-- If the skill leaves you below 95% confidence on an import, middleware behavior, or SDK convention, escalate to the canonical SDK source at `.reference/libs/deepagents/deepagents/` or at the production example listed below.
+**Hard rules:**
+1. If <95% confident on any SDK behavior (imports, middleware, harness init), consult the canonical source in `.reference/` or `.venv/` before proceeding.
+2. Do not hand-roll logic the SDK already handles.
+3. Targeted skill reading beats breadth — only load skills relevant to this specific request.
 
-## Deep Agents SDK
+**Research tasks:** When the user asks you to research, you **must** consult `meta_harness/AGENTS.md` first. Use:
+- **External Reference Links** — GitHub repos and PyPI packages for release history, commits, recent changes
+- **Canonical SDK References** — local paths in `.reference/` and `.venv/` for authoritative implementation details
+- **Skills** — `.agents/skills/` for structured guidance (Claude API, LangGraph, LangSmith, Deep Agents, agentevals) *Reference these skills for baseline and abstract knowledge, the signal in your skills is high and can amplify the preciseness of your next step and decisions in research scenarios*
 
-- The canonical SDK reference is `.reference/libs/deepagents/deepagents/`.
-- A production usage example is at `.reference/libs/cli/deepagents_cli`.
-- Any time you are uncertain about `create_deep_agent()`, middleware, backends, or SDK imports, read the local source directly — do not guess.
-
-## LangSmith Tracing & Evaluations
-
-- Always read `.agents/skills/langsmith` before implementing tracing, observability, or any evaluation logic.
-- The canonical LangSmith Python SDK reference is `.venv/lib/python3.11/site-packages/langsmith/`.
-- For evaluation logic specifically, also reference `.venv/lib/python3.11/site-packages/agentevals/` — this is the SDK used for creating evals in this project.
-- These references apply to: discussing evals, planning eval structure, writing eval code, or running experiments.
-
-## Confidence Threshold
-
-If you are below 95% confident about how any import, middleware, or SDK behavior works, you MUST read the local source before proceeding. Skill files are baseline context — not exhaustive references.
+Skills provide high-signal patterns, but they leave gaps around "taste" and edge cases. Always supplement skill guidance with canonical SDK source inspection when the answer isn't 100% clear from the skill file.

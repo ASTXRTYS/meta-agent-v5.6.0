@@ -289,6 +289,60 @@ The Project Coordination Graph must persist handoff records and propagate
 correlation metadata so sandbox-backed tool work, role graph runs, and phase-gate
 decisions can be stitched together in LangSmith.
 
+#### Local Development Tracing — Configuration and Architecture
+
+**Environment setup (`.env` / `.env.example`):**
+
+```
+LANGSMITH_API_KEY=<key>
+LANGSMITH_TRACING=true
+LANGSMITH_PROJECT=meta-harness
+LANGCHAIN_CALLBACKS_BACKGROUND=false
+```
+
+- `LANGSMITH_TRACING=true` must be explicit. Neither `langgraph dev` nor the
+  Deep Agents CLI auto-enables tracing — both check for `LANGSMITH_API_KEY` and
+  `LANGSMITH_TRACING` before activating the tracing pipeline
+  (`.reference/libs/cli/deepagents_cli/config.py:1622-1628`).
+- `LANGSMITH_PROJECT=meta-harness` is the v1 project name. All local dev, CI,
+  and production runs flow to the same LangSmith project; environment is
+  distinguished by `metadata` on the run, not by project name.
+- `LANGCHAIN_CALLBACKS_BACKGROUND=false` is required for eval and experiment
+  runs to flush traces synchronously before process exit. Safe to leave on for
+  interactive dev sessions.
+
+**Trace hierarchy — no explicit wiring required:**
+
+LangGraph Pregel automatically propagates a child callback manager (scoped to
+`graph:step:<N>`) into every node's `RunnableConfig` via
+`manager.get_child(f"graph:step:{step}")` (`.venv/lib/python3.11/site-packages/langgraph/pregel/_algo.py:694-698`).
+When a mounted Deep Agent child graph executes as a subgraph node inside the
+Project Coordination Graph, it inherits the parent's LangSmith run context
+through this mechanism. Each role agent invocation appears as a nested run
+under the PCG root run automatically. No `parent_run_id` threading in
+application code is needed or appropriate.
+
+**Role identity in traces — free via `name=`:**
+
+`create_deep_agent(name=<role>)` passes the name to `create_agent()` as the
+graph run name and also embeds it as `lc_agent_name` in the `metadata` block
+on every run from that agent
+(`.reference/libs/deepagents/deepagents/graph.py:617-622`). Every role
+(e.g. `"pm"`, `"developer"`, `"harness-engineer"`) will be identifiable by
+name in LangSmith without additional instrumentation.
+
+**Correlation metadata placement:**
+
+The seven required searchable fields are split across two concerns:
+
+- `project_id`, `agent_name`, `thread_id` — set once on the PCG's
+  `.with_config({"metadata": {...}})` at graph initialization time, scoped to
+  the project thread.
+- `handoff_id`, `phase`, `from_agent`, `to_agent` — handoff-scoped fields;
+  carried by the handoff record schema and not set as LangSmith run metadata
+  directly. These are retrieved by querying handoff records, not by filtering
+  LangSmith runs.
+
 ### Specialist Loops
 
 Specialist-to-specialist loops should not require PM mediation unless the loop
@@ -745,17 +799,15 @@ This is a proposed minimum, not a final wire format.
 - Retention policy: `<duration + deletion mechanism>`
 
 ---
-
+ 
 ## 9) Open Questions
 
 - [x] Jason approval: adopt the section 4 repo-structure naming decision that uses root `graph.py` for the LangGraph Project Coordination Graph entrypoint, uses `agents/` for peer role modules, reserves `task_agents/` only for future role-owned ephemeral SDK `SubAgent` helpers, uses `developer/` as the canonical Developer module name, and follows the Deep Agents CLI `integrations/` sandbox convention. Approved by Jason on `2026-04-11`.
-- [ ] Decide the production checkpointer and store backend for local-first and sandbox-backed mounted graph execution.
+- [x] Decide the production checkpointer and store backend for local-first and sandbox-backed mounted graph execution. Decision: three runtime modes, two code paths. (1) **Local dev** (`langgraph dev`): `SqliteSaver` checkpointer and managed store are auto-injected by the dev server — factory passes neither. (2) **CLI TUI shipped to end users**: `SqliteSaver` (from `langgraph-checkpoint-sqlite`) at a user-local path (e.g. `~/.metaharness/state.db`) explicitly passed to the Project Coordination Graph factory; `InMemoryStore()` for store (no `StoreBackend` needed — `FilesystemBackend` owns disk persistence). (3) **Web app / LangGraph Platform**: managed Postgres-backed checkpointer and store are auto-injected by the platform — factory passes neither. `StoreBackend()` with no args resolves from the LangGraph execution context via `get_store()` in all platform-managed modes. `langgraph-checkpoint-sqlite` is a required production dependency. Approved by Jason on `2026-04-12`.
 - [x] Decide whether the project-aware handoff wrapper is implemented as a LangGraph Project Coordination Graph node, a tool service, custom Deep Agents middleware, or a combination. Decision: v1 handoffs are explicit Deep Agent tools that return `Command(graph=Command.PARENT, goto=<coordination_node>, update=<handoff_payload>)`; Project Coordination Graph nodes record and route the handoff; custom handoff middleware is out of v1. Approved by Jason on `2026-04-12`.
 - [ ] Co-author and approve the first Project Coordination Graph node set, including exact node names, responsibilities, and read/write/routing boundaries.
 - [ ] Co-author and approve the handoff tool use-case matrix, including allowed callers, triggering scenarios, payload requirements, blocking behavior, expected outputs, and phase-gate relevance.
 - [ ] Define the minimal handoff record schema and phase gate enum in the implementation spec.
-- [ ] Decide how LangSmith thread/run links will be exposed in the UI for each project and mounted role invocation.
-- [ ] Define the `langgraph.json` graph ID convention for PM, Project Coordination Graph, and specialist agents in local development.
 - [x] Decide whether sandbox execution changes the v1 graph topology. Decision: sandbox support is backend/runtime configuration for mounted role agents and does not split roles into separate top-level assistants. Separate remotely deployed role assistants are out of scope for v1. Approved by Jason on `2026-04-12`.
 - [ ] Decide whether the Harness Engineer vs Evaluator gate-owner boundary belongs in this AD, a Developer prompt spec, or a separate evaluation architecture spec.
 
@@ -765,6 +817,8 @@ This is a proposed minimum, not a final wire format.
 
 | Date | Author | Change |
 |---|---|---|
+| `2026-04-12` | `@Cascade` | Locked local development tracing configuration and architecture: `LANGSMITH_TRACING=true` must be explicit, `LANGSMITH_PROJECT=meta-harness` as v1 project name, `LANGCHAIN_CALLBACKS_BACKGROUND=false` required for eval runs. Documented that LangGraph Pregel propagates child callback context automatically — no `parent_run_id` wiring needed. Role identity free via `create_deep_agent(name=)`. Correlation metadata split: `project_id`/`agent_name`/`thread_id` on PCG `.with_config()`; handoff-scoped fields carried by handoff record schema. Removed ambiguous LangSmith UI exposure open question. |
+| `2026-04-12` | `@Cascade` | Closed checkpointer and store backend decision: `SqliteSaver` for CLI TUI (explicit, user-local path), platform-managed for web app and `langgraph dev`. Added `langgraph-checkpoint-sqlite` as required dependency. |
 | `2026-04-12` | `@Codex` | Marked the Project Coordination Graph node set and handoff tool use-case matrix as discussion-needed before AD acceptance. |
 | `2026-04-12` | `@Codex` | Locked the mounted Project Coordination Graph handoff decision: PM remains UI-facing, role agents are child graphs, handoff tools return `Command.PARENT`, and sandbox support does not change topology. |
 | `2026-04-11` | `@Codex` | Closed Jason approval on the repo-structure naming decision for `graph.py`, `agents/`, `developer/`, `task_agents/`, and `integrations/`. |
