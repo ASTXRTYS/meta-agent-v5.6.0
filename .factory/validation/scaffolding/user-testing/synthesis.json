@@ -1,0 +1,19 @@
+{
+  "milestone": "scaffolding",
+  "round": 2,
+  "status": "pass",
+  "assertionsSummary": {
+    "total": 2,
+    "passed": 2,
+    "failed": 0,
+    "blocked": 0
+  },
+  "passedAssertions": [
+    "VAL-FOUND-015",
+    "VAL-FOUND-016"
+  ],
+  "failedAssertions": [],
+  "blockedAssertions": [],
+  "appliedUpdates": [],
+  "previousRound": ".factory/validation/scaffolding/user-testing/synthesis.round1.json"
+}
