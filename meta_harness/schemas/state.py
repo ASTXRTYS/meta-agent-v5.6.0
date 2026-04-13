@@ -7,13 +7,12 @@ Defines ``ProjectCoordinationState`` (the full PCG state), plus
 
 from __future__ import annotations
 
-from typing import Annotated
+from typing import Annotated, Literal
 
 from langchain_core.messages import AnyMessage
 from langgraph.graph.message import add_messages
 from typing_extensions import TypedDict
 
-from meta_harness.schemas.enums import AgentRole, Phase
 from meta_harness.schemas.handoff import HandoffRecord
 
 __all__ = [
@@ -45,10 +44,25 @@ class ProjectCoordinationState(TypedDict):
     project_id: str
     """Root thread identifier; doubles as project namespace."""
 
-    current_phase: Phase
+    current_phase: Literal[
+        "scoping",
+        "research",
+        "architecture",
+        "planning",
+        "development",
+        "acceptance",
+    ]
     """Current project phase; middleware reads this for gate dispatch."""
 
-    current_agent: AgentRole
+    current_agent: Literal[
+        "project_manager",
+        "harness_engineer",
+        "researcher",
+        "architect",
+        "planner",
+        "developer",
+        "evaluator",
+    ]
     """Which role graph is currently active."""
 
     handoff_log: Annotated[list[HandoffRecord], add_messages]
