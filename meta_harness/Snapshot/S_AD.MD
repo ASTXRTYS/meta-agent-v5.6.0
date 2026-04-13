@@ -11,7 +11,7 @@
 |---|---|
 | ADR ID | `ADR-001` |
 | Title | `Meta Harness Architecture` |
-| Status | `Approved for Spec` |
+| Status | `Pending` |
 | Date | `2026-04-12` |
 | Author(s) | `@Jason` |
 | Reviewers | `@Jason` |
@@ -36,7 +36,7 @@ checkpoint namespaces.
 
 ### Decision Badge
 
-`Status: Approved for Spec` · `Risk: Medium` · `Impact: High`
+`Status: Pending` · `Risk: Medium` · `Impact: High`
 
 ---
 
@@ -699,146 +699,6 @@ does not need the final schema, but the later implementation spec should encode
 the distinction so Developer feedback loops do not collapse into one vague
 `request_evaluation` path.
 
-### Agent Primitive Decisions
-
-The following per-agent configuration decisions extend the base architecture. They were resolved as Q8–Q13 in the agent primitives round (2026-04-13). Full rationale and design detail are in [DECISIONS.md](./DECISIONS.md); the tables below capture the locked constraints that the spec must satisfy.
-
-#### Per-Agent Middleware (Q8)
-
-All 7 agents share the same `create_deep_agent()` call shape. Per-agent variation is in values, not presence.
-
-**Custom middleware in the `middleware=` slot:**
-
-| Middleware | PM | HE | Researcher | Architect | Planner | Developer | Evaluator |
-|---|---|---|---|---|---|---|---|
-| CollapseMiddleware | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
-| ContextEditingMiddleware | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
-| SummarizationToolMiddleware | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
-| ModelCallLimitMiddleware | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
-| StagnationGuardMiddleware | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
-| Phase gate middleware | ✓ | — | — | ✓ | — | ✓ | — |
-| AskUserMiddleware | ✓ | — | — | ✓ | — | — | — |
-| ShellAllowListMiddleware | sandbox | sandbox | sandbox | sandbox | sandbox | sandbox | sandbox |
-
-**Per-agent parameter values:**
-
-| Agent | `thread_limit` | `check_interval` |
-|---|---|---|
-| PM | 150 | 20 |
-| Developer | 500 | 50 |
-| Architect | 250 | 35 |
-| HE | 300 | 40 |
-| Researcher | 300 | 40 |
-| Planner | 200 | 30 |
-| Evaluator | 200 | 30 |
-
-**Phase gate middleware — per-agent gate logic:**
-
-| Agent | Gated tools | Gate type | What middleware checks |
-|---|---|---|---|
-| PM | `deliver_prd_to_harness_engineer` (D1) | Prerequisite | `artifact_paths` non-empty with PRD |
-| PM | `deliver_prd_to_researcher` (D2) | Prerequisite + User Approval | `(HE, PM, return)` in `handoff_log` AND `(PM, PM, submit, accepted=true)` |
-| PM | `deliver_design_package_to_architect` (D3) | Prerequisite | `(Researcher, PM, return)` in `handoff_log` |
-| PM | `deliver_planning_package_to_planner` (D4) | Prerequisite + User Approval | `(Architect, PM, return)` in `handoff_log` AND `(PM, PM, submit, accepted=true)` |
-| PM | `deliver_development_package_to_developer` (D5) | Prerequisite | `(Planner, PM, return)` in `handoff_log` |
-| Developer | `return_product_to_pm` (R5) | Acceptance stamps | `(Evaluator, PM, submit, accepted=true)`; if HE participated → also `(HE, PM, submit, accepted=true)` |
-| Developer | `submit_phase_to_evaluator` (P3) | Prerequisite | `(Developer, Evaluator, announce)` with matching `phase`; `artifact_paths` non-empty |
-| Architect | `submit_spec_to_harness_engineer` (S1) | Prerequisite | `artifact_paths` non-empty with spec artifacts |
-
-4 agents (HE, Researcher, Planner, Evaluator) own no gated tools and receive no phase gate middleware.
-
-#### Middleware Dispatch Table (Q9)
-
-29 distinct `(source, target, reason)` triples from 23 tools:
-
-| Gate Type | Count | Triples |
-|---|---|---|
-| Ungated (pass-through) | 19 | R1–R4, S2, P1–P2, P4, C1–C13 |
-| Prerequisite only | 6 | D1, D3, D5, R5, S1, P3 |
-| Prerequisite + User Approval | 2 | D2, D4 |
-| Stamp only (no gate on emission) | 2 | A1, A2 |
-
-`current_phase` is NOT a gate authority — `handoff_log` is the append-only ground truth. Implementation may use `current_phase` as a fast-fail optimization, but the AD does not mandate it as a gate condition. User approval is recorded as `(PM, PM, submit, accepted=true/false)` — PM is both source and target.
-
-#### Tool Schema Contracts (Q10)
-
-**Common parameter shape — 2 LLM-facing parameters across all 23 tools:**
-
-| Parameter | Type | Required | Default |
-|---|---|---|---|
-| `brief` | `str` | Yes | — |
-| `artifact_paths` | `list[str]` | No | `[]` |
-
-`source_agent`, `target_agent`, `reason`, and `project_id` are derived at call time — not LLM parameters.
-
-**6 of 23 tools require one extra parameter:**
-- Acceptance tools (2): add `accepted: bool`
-- Phase Review tools (4): add `phase: str` (free-form plan phase identifier, not the 6-value PCG phase enum)
-
-**Acceptance stamp contract:** `HandoffRecord` extended with `accepted: bool | None` (default `None`). Normal records: `accepted=None`. Acceptance stamps: `accepted=true` or `accepted=false`.
-
-#### Model Selection Per Agent (Q11)
-
-Model-agnostic architecture — no provider lock-in. Per-agent model selection, thread-scoped (immutable for project lifespan). Provider-specific tools injected based on selected model.
-
-**v1 experimental defaults:**
-
-| Agent | Default model | Notes |
-|---|---|---|
-| PM | Opus 4.6 | — |
-| Researcher | Opus 4.6 | — |
-| Architect | TBD | Experiment: Opus 4.6 vs GPT 5.4 extra-high thinking vs GPT 5.4 Pro |
-| Planner | Opus 4.6 | — |
-| HE | TBD | Likely GPT 5.4 Pro |
-| Evaluator | Opus 4.6 | — |
-| Developer | TBD | Experiment: Opus 4.6 (server-side tools) vs GPT 5.4 + Codex vs GPT 5.4 Pro |
-
-#### System Prompt Behavioral Contracts (Q12)
-
-System prompts live in external `.md` files next to each agent factory (not hardcoded in Python). The AD locks behavioral invariants; prompt text is spec territory.
-
-**Per-agent behavioral invariants:**
-
-| Agent | Must Recognize | Must Not Do | Self-Awareness Trigger |
-|---|---|---|---|
-| PM | PRD finalization → invoke HE delivery; HE return → invoke next delivery; user approval for scoping→research and architecture→planning | Research, design, or code directly | "I have the full PRD. Time to bring in the expert." |
-| HE | PRD delivery → begin eval design; Architect spec → evaluate new tools; Developer phase → advisory review | Make business decisions or override PM scope | "I've received the PRD. My job is the science of evaluation." |
-| Researcher | PM delivery → begin research; Architect consultation → targeted research | Design solutions or make architectural decisions | "I've found what the Architect needs. Time to return the bundle." |
-| Architect | Research bundle + PRD → begin design; knowledge gap → request research | Research (Researcher's domain) or plan implementation (Planner's domain) | "I have a knowledge gap on X. I need targeted research." |
-| Planner | Design spec + eval criteria → begin planning | Design (Architect) or implement (Developer) | "I have the full design. My job is to decompose it." |
-| Developer | Plan + eval criteria → begin implementation; phase completion → announce to QA | Self-certify acceptance; call `submit_phase_to_evaluator` for eval-science concerns | "Phase N complete. Time to submit for evaluation." |
-| Evaluator | Developer phase submission → evaluate against spec/plan; final product → acceptance stamp | Modify code or design; gate on eval-science concerns (HE's domain) | "I've verified against the spec. Here's my assessment." |
-
-Autonomous mode: PM auto-approves the two user-approval gates by creating `(PM, PM, submit, accepted=true)` records. All other invariants unchanged. `MEMORY_SYSTEM_PROMPT` per-role tuning: act on handoff brief first, then check memory directory.
-
-#### Anthropic Provider-Specific Middleware (Q13)
-
-**Adopted** (via Anthropic provider profile `extra_middleware`):
-- `ClaudeBashToolMiddleware` — native `bash` tool for Anthropic models (additive, no overlap with `FilesystemMiddleware`)
-- `FilesystemClaudeMemoryMiddleware` — `/memories/` tool for short-horizon working memory (two-layer memory: AGENTS.md = long-term, `/memories/` = short-term)
-
-**Rejected** (overlap with `FilesystemMiddleware`):
-- Text editor middleware — `FilesystemMiddleware` already provides `edit_file`
-- File search middleware — `FilesystemMiddleware` already provides `glob` + `grep`
-
-**Deferred to v2:** Anthropic server-side tools (`web_search`, `web_fetch`, `code_execution`, `tool_search`)
-
-**Injection mechanism:** Provider profile registered via `_register_harness_profile()` in a provider profile module (e.g., `agents/profiles/_anthropic.py`). Profile is resolved automatically by `create_deep_agent()` when model provider is `"anthropic"`. Agent factory files remain clean — they only call `create_deep_agent(model=<string>)`.
-
-### User Interface Surface (Q14)
-
-v1 ships a Textual TUI launched via `langgraph dev`. The Deep Agents CLI TUI is adopted as the base layer — same framework, same brand theme, same widget patterns — extended for multi-agent pipeline awareness.
-
-**Adopted from CLI (direct reuse):** `AskUserMenu`, `ApprovalMenu`, `ChatInput`, message rendering widgets, status bar, loading widgets, theme system.
-
-**Adapted from CLI:** `ThreadSelector` → project selector, `ModelSelector` → per-agent model config, `WelcomeBanner` → Meta Harness branding.
-
-**Novel extension — pipeline awareness:** Active agent indicator, phase progress, handoff progress visualization, approval gate status, autonomous mode toggle. No reference implementation exists; spec team owns the widget design.
-
-**AD locks information requirements, not visual design.** The TUI must surface: active agent, current phase, handoff log, user messages, `ask_user` prompts, approval gates, autonomous mode, model selections, LangSmith trace links. How these render is spec territory.
-
-**Deployment evolution:** v1 = `langgraph dev` + TUI + Studio; v2 = LangGraph Platform + `pip install meta-harness`.
-
 ### Source Alignment Notes
 
 - `create_deep_agent()` accepts `checkpointer`, `store`, `backend`, `memory`, `skills`, `subagents`, and `name`, and passes `checkpointer`, `store`, and `name` through to the compiled agent (`.reference/libs/deepagents/deepagents/graph.py:217-236`, `602-623`).
@@ -1206,68 +1066,15 @@ Field notes:
 
 ---
 
-## 5) Spec Handoff
+## 5) Implementation Plan
 
-Three spec documents under `docs/spec/`:
+The implementation plan (Upon Approval will be transfered to) is decomposed into three spec documents under `docs/spec/`:
 
 1. **Requirements Document** — EARS-format functional and non-functional requirements derived from this AD.
 2. **Design Document** — Technical design derived from the requirements: TypedDict/Pydantic wire formats, middleware dispatch tables, system prompt behavioral contracts, tool schemas, and integration patterns.
 3. **Task Document** — Phased task list derived from the design document: ordered implementation work items with acceptance criteria.
 
-### Spec Dependency Map
-
-Design work must proceed in this order — each layer depends on the one above it:
-
-```
-Layer 1: Foundation (no dependencies)
-  ├─ PCG state schema → TypedDict/Pydantic wire formats
-  ├─ Handoff record → TypedDict/Pydantic wire formats
-  └─ Repo structure → module layout, __init__.py contracts
-
-Layer 2: Agent primitives (depends on Layer 1)
-  ├─ Middleware stack → per-agent create_deep_agent() call shapes (Q12, Q8)
-  ├─ Tool schemas → 23 handoff tool InputSchema definitions (Q10)
-  ├─ Model routing → per-agent model resolution from project config (Q11)
-  └─ Anthropic profile → provider profile registration (Q13)
-
-Layer 3: Behavioral contracts (depends on Layer 2)
-  ├─ System prompt .md files → per-agent prompt authoring (Q12 behavioral)
-  └─ MEMORY_SYSTEM_PROMPT overrides → per-role memory tuning (Q13)
-
-Layer 4: Integration (depends on Layers 1–3)
-  ├─ Phase gate middleware → gate logic implementation (Q9 dispatch table)
-  ├─ StagnationGuardMiddleware → full implementation (Q12 design vision)
-  ├─ Sandbox integration → sandbox_factory + provider (Q8)
-  └─ Observability wiring → LangSmith metadata, Studio config
-
-Layer 5: Validation (depends on Layer 4)
-  └─ Validation plan scenarios → §6 validation plan
-```
-
-**Parallelism.** Within each layer, items can be designed in parallel. Between layers, the dependency is real — you cannot design tool schemas without the handoff record wire format, and you cannot author system prompts without knowing which tools and middleware each agent receives.
-
-### Consolidated Spec-Owns List
-
-Everything the AD delegates to the implementation spec, in one place:
-
-| Topic | AD locks | Spec owns | Source |
-|---|---|---|---|
-| Handoff record wire format | Field set, enum values (Q6, Q10) | Exact Pydantic/TypedDict types, `HandoffRecord.id` protocol for `add_messages` | §4 Data Contracts |
-| PCG state wire format | 5 keys + types + invariants (Q11) | Exact `ProjectCoordinationState` TypedDict, `input_schema` wiring | §4 PCG State Schema |
-| Handoff log cap | Cap required, N is runtime constant (Q10) | Cap mechanism (summarize, migrate to Store, discard) | §4 PCG State Growth |
-| Tool descriptions | 23 tool names, common + extra params (Q10) | Exact description text, `phase` identifier format, `artifact_paths` conventions | §4 Tool Use-Case Matrix |
-| Acceptance rejection flow | `accepted=false` is audit record (Q10) | Rejection feedback flow — does agent retry? return to Developer? | §4 Acceptance |
-| User approval tool | PM owns approval tool, prompt-driven (Q7) | Tool schema, document rendering format (docx/pdf/pptx) | §4 Phase Gates |
-| System prompt text | Behavioral invariants per agent (Q12) | Exact prompt text in `.md` files | §4 + Q12 |
-| Prompt loading mechanism | External `.md` files next to factory (Q12) | Path resolution, `Path.read_text()` vs backend, caching, template vars | Q12 |
-| Model routing | Model-agnostic, per-agent, thread-scoped (Q11) | Runtime model resolution, provider adapter patterns | Q11 |
-| Anthropic profile registration | Adopt BashTool + Memory middleware (Q13) | `workspace_root`, `root_path` values per deployment mode | Q13 |
-| `MEMORY_SYSTEM_PROMPT` per-role tuning | Override belongs in prompt files (Q12, Q13) | Exact override text per role | Q12 + Q13 |
-| StagnationGuardMiddleware | Two-tier nudge→stop, pluggable signals, graceful absence (Q12) | Full implementation, signal provider bodies, nudge templates, testing | Q12 |
-| Phase gate middleware | Gate logic per triple (Q9), per-agent ownership (Q8) | Middleware implementation, `handoff_log` query patterns | Q8 + Q9 |
-| Sandbox integration | Follows CLI `integrations/` convention (Q1, Q8) | `sandbox_factory.py`, `sandbox_provider.py` implementation | §4 Repo Structure |
-| TUI pipeline awareness widgets | Information requirements locked (Q14) | Widget layout, animations, handoff progress visualization, approval gate rendering | §4 User Interface Surface (Q14) |
-| TUI adoption from CLI | Adopt CLI TUI base layer (Q14) | Fork vs. import decision, TUI module structure, welcome banner, non-interactive mode | §4 User Interface Surface (Q14) |
+These three documents, together with this AD, form the four sources of truth for v1 development.
 
 ---
 
@@ -1331,39 +1138,18 @@ Web application deployment, multi-tenant access control, and compliance hardenin
 
 ---
  
-## 9) Decision Index
+## 9) Open Questions
 
-All architectural questions are closed. This index maps each question to its primary location in this document and its detailed rationale in [DECISIONS.md](./DECISIONS.md). **Changelog** is archived in [CHANGELOG.md](./CHANGELOG.md).
+> **Closed decisions** are archived in [DECISIONS.md](./DECISIONS.md). **Changelog** is archived in [CHANGELOG.md](./CHANGELOG.md).
 
-**Topology and protocol round (Q1–Q8, 2026-04-11/12):**
+**Agent primitive decisions (closed 2026-04-13):**
 
-| Q# | Topic | AD section | Detail |
-|---|---|---|---|
-| Q1 | Repo structure naming | §4 Repo Structure | [DECISIONS.md](./DECISIONS.md) |
-| Q2 | Checkpointer and store backend | §4 Sandbox, §4 Factory Contract | [DECISIONS.md](./DECISIONS.md) |
-| Q3 | Handoff wrapper implementation | §4 Handoff Protocol | [DECISIONS.md](./DECISIONS.md) |
-| Q4 | PCG node set | §4 PCG | [DECISIONS.md](./DECISIONS.md) |
-| Q5 | Handoff tool use-case matrix | §4 Tool Use-Case Matrix | [DECISIONS.md](./DECISIONS.md) |
-| Q6 | Handoff record schema | §4 Data Contracts | [DECISIONS.md](./DECISIONS.md) |
-| Q7 | Phase gate enum and approval | §4 Phase Gates | [DECISIONS.md](./DECISIONS.md) |
-| Q8 | Sandbox topology impact | §4 Sandbox | [DECISIONS.md](./DECISIONS.md) |
-
-**Agent primitives round (Q8–Q13, 2026-04-13):**
-
-| Q# | Topic | AD section | Detail |
-|---|---|---|---|
-| Q8 | Extended middleware per agent | §4 Agent Primitives (Q8) | [DECISIONS.md](./DECISIONS.md) |
-| Q9 | Middleware dispatch table | §4 Agent Primitives (Q9) | [DECISIONS.md](./DECISIONS.md) |
-| Q10 | Tool schema contracts | §4 Agent Primitives (Q10) | [DECISIONS.md](./DECISIONS.md) |
-| Q11 | Model selection per agent | §4 Agent Primitives (Q11) | [DECISIONS.md](./DECISIONS.md) |
-| Q12 | System prompt behavioral contracts | §4 Agent Primitives (Q12) | [DECISIONS.md](./DECISIONS.md) |
-| Q13 | Anthropic provider-specific middleware | §4 Agent Primitives (Q13) | [DECISIONS.md](./DECISIONS.md) |
-
-**Interface surface round (Q14, 2026-04-13):**
-
-| Q# | Topic | AD section | Detail |
-|---|---|---|---|
-| Q14 | User interface surface | §4 User Interface Surface (Q14) | [DECISIONS.md](./DECISIONS.md) |
+- [x] **Q8: Extended middleware per agent.** Closed 2026-04-13 → archived in [DECISIONS.md](./DECISIONS.md).
+- [x] **Q9: Middleware dispatch table.** Closed 2026-04-13 → archived in [DECISIONS.md](./DECISIONS.md).
+- [x] **Q10: Tool schema contracts.** Closed 2026-04-13 → archived in [DECISIONS.md](./DECISIONS.md).
+- [x] **Q11: Model selection per agent.** Closed 2026-04-13 → archived in [DECISIONS.md](./DECISIONS.md).
+- [x] **Q13: Anthropic provider-specific middleware integration.** Closed 2026-04-13 → archived in [DECISIONS.md](./DECISIONS.md). Adopt `ClaudeBashToolMiddleware` and `FilesystemClaudeMemoryMiddleware` via Anthropic provider profile; reject text editor and file search middleware (overlap with `FilesystemMiddleware`); two-layer memory architecture (AGENTS.md = long-term, `/memories/` = short-term); server-side tools deferred to v2.
+- [x] **Q12: System prompt behavioral contracts.** Closed 2026-04-13 → archived in [DECISIONS.md](./DECISIONS.md). External `.md` files next to each agent factory (not hardcoded). AD locks behavioral invariants (must-recognize, must-not-do, self-awareness triggers); prompt text is spec territory. Per-role `MEMORY_SYSTEM_PROMPT` tuning. Autonomous mode auto-approves user-approval gates.
 
 ---
 

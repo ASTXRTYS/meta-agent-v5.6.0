@@ -566,7 +566,17 @@ Skills progressive disclosure via `SkillsMiddleware`: [17](#8-16) (`.reference/l
 
 ## Documentation Policy
 
-- 
+### AD Document Suite
+
+The `AD.md` is supported by two companion documents that keep the main AD lean:
+
+| Document | Purpose | Location |
+|---|---|---|
+| `AD.md` | Architecture decision baseline — active decisions, open questions, rationale | `meta_harness/AD.md` |
+| `DECISIONS.md` | Closed (frozen) decision records — reference material, not active content | `meta_harness/DECISIONS.md` |
+| `CHANGELOG.md` | Historical change audit trail — who changed what, when | `meta_harness/CHANGELOG.md` |
+
+When a question in `AD.md` §9 is resolved, the decision record moves to `DECISIONS.md` and the question is removed from `AD.md`. Open questions remain in `AD.md` §9 inline — they are active decision-making context.
 
 ### AD Governance (`AD.md`)
 
@@ -579,10 +589,12 @@ Skills progressive disclosure via `SkillsMiddleware`: [17](#8-16) (`.reference/l
 - Any PR that changes architecture, runtime policy, or agent behavior must update
   at least one of: `AGENTS.md`, `AD.md`, or the relevant spec doc.
 - `AD.md` status changes (`Proposed`, `Accepted`, `Superseded`, `Deprecated`)
-  must be reflected in the header and changelog in the same edit.
-- Any contributor who touches `AD.md` must append a row to the §10 Changelog
+  must be reflected in the header and `CHANGELOG.md` in the same edit.
+- Any contributor who touches `AD.md` must append a row to `CHANGELOG.md`
   with their author ID, date, and a one-line summary of what changed. A PR or
   commit reference is sufficient — no large prose blocks required.
+- Closed decisions must be archived in `DECISIONS.md` and removed from `AD.md` §9.
+  `AD.md` §9 retains only open (active) questions.
 - `Accepted` decisions should not retain unresolved placeholders (for example:
   `TBD`, `<...>`) without an explicit owner and target date.
 - High-signal technical assertions in `AD.md` should include local source
