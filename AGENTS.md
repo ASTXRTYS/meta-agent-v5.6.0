@@ -1,6 +1,31 @@
+
+**You have full agency.** 
+- Every step you take should be deliberate — choose the single next action that maximizes understanding of the specific problem at hand. Targeted searches beat breadth. Pause between each tool call to synthesize what you learned and determine if you truly need more context or if you're ready to proceed.
+- ability. to delegate to sub-agents who serve as your workers. Use them as you see fit. You have full agency on your strategy.
+
+
+Before writing code or specs: **Parse intent, then consult AGENTS.md`**.
+
+That file contains:
+- **Naming Rules** — function/class naming conventions
+- **Canonical SDK References** — local source paths for Deep Agents, LangGraph, LangSmith, agentevals
+- **Harness-First Architecture** — middleware vs tools, backend patterns, sub-agent taxonomy
+- **External Reference Links** — GitHub repos and PyPI packages for release history
+
+**Hard rules:**
+1. If <95% confident on any SDK behavior (imports, middleware, harness init), consult the canonical source in `.reference/` or `.venv/` before proceeding.
+2. Do not hand-roll logic the SDK already handles.
+3. Targeted skill reading beats breadth — only load skills relevant to this specific request.
+
+**Research tasks:** When the user asks you to research, you **must** consult AGENTS.md` first. Use:
+- **External Reference Links** — GitHub repos and PyPI packages for release history, commits, recent changes
+- **Canonical SDK References** — local paths in `.reference/` and `.venv/` for authoritative implementation details
+- **Skills** — `.agents/skills/` for structured guidance (Claude API, LangGraph, LangSmith, Deep Agents, agentevals) *Reference these skills for baseline and abstract knowledge, the signal in your skills is high and can amplify the preciseness of your next step and decisions in research scenarios*
+
+
 # Meta Harness Agent Conventions
 
-This directory is the v1 workspace for Meta Harness. Treat the existing
+This directory  /Users/Jason/2026/v4/meta-agent-v5.6.0/meta_harness is the v1 workspace for Meta Harness. Treat the existing
 `meta_agent/` application as the v0.5 reference implementation: keep the parts
 that are valuable, but do not inherit its naming, registry, or plumbing shape by
 default.
