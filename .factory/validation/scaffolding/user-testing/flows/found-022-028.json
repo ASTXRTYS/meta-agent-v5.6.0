@@ -1,0 +1,121 @@
+{
+  "groupId": "found-022-028",
+  "testedAt": "2026-04-13T22:46:43.449380+00:00",
+  "isolation": {
+    "missionDir": "/Users/Jason/.factory/missions/d770dc03-0e63-4d5f-a139-f8705d3774c6",
+    "repoRoot": "/Users/Jason/2026/v4/meta-agent-v5.6.0",
+    "toolRestriction": "pytest only",
+    "cacheDir": ".pytest_cache_found_022_028",
+    "focusSelector": "TestAgentRoleEnum or TestPhaseEnum or TestHandoffReasonEnum or TestHandoffStatusEnum or TestProjectCoordinationOutput or TestProjectCoordinationContext or TestEnumStateConsistency"
+  },
+  "toolsUsed": [
+    "pytest"
+  ],
+  "commands": [
+    {
+      "command": "meta_harness/.venv/bin/python -m pytest meta_harness/tests/contract/test_foundation_types.py -v -k \"TestAgentRoleEnum or TestPhaseEnum or TestHandoffReasonEnum or TestHandoffStatusEnum or TestProjectCoordinationOutput or TestProjectCoordinationContext or TestEnumStateConsistency\" -o cache_dir=.pytest_cache_found_022_028",
+      "workingDirectory": "/Users/Jason/2026/v4/meta-agent-v5.6.0",
+      "exitCode": 0,
+      "observation": "Collected 51 tests; 13 selected tests passed, 38 deselected, runtime 0.24s.",
+      "evidence": {
+        "terminalLog": "scaffolding/found-022-028/pytest-found-022-028.log",
+        "exitCodeFile": "scaffolding/found-022-028/pytest-found-022-028.exitcode"
+      }
+    }
+  ],
+  "assertions": [
+    {
+      "id": "VAL-FOUND-018",
+      "title": "Agent enum completeness — 7 agents",
+      "status": "pass",
+      "reason": "All TestAgentRoleEnum checks passed for member count and expected values.",
+      "evidence": {
+        "matchedTests": [
+          "TestAgentRoleEnum::test_exactly_seven_members",
+          "TestAgentRoleEnum::test_expected_values",
+          "TestAgentRoleEnum::test_string_enum"
+        ],
+        "terminalLog": "scaffolding/found-022-028/pytest-found-022-028.log"
+      }
+    },
+    {
+      "id": "VAL-FOUND-019",
+      "title": "Phase enum completeness — 6 phases",
+      "status": "pass",
+      "reason": "All TestPhaseEnum checks passed for member count and exact phase values.",
+      "evidence": {
+        "matchedTests": [
+          "TestPhaseEnum::test_exactly_six_members",
+          "TestPhaseEnum::test_expected_values"
+        ],
+        "terminalLog": "scaffolding/found-022-028/pytest-found-022-028.log"
+      }
+    },
+    {
+      "id": "VAL-FOUND-020",
+      "title": "Reason enum completeness — 7 reasons",
+      "status": "pass",
+      "reason": "All TestHandoffReasonEnum checks passed for member count and expected reason values.",
+      "evidence": {
+        "matchedTests": [
+          "TestHandoffReasonEnum::test_exactly_seven_members",
+          "TestHandoffReasonEnum::test_expected_values"
+        ],
+        "terminalLog": "scaffolding/found-022-028/pytest-found-022-028.log"
+      }
+    },
+    {
+      "id": "VAL-FOUND-021",
+      "title": "Status enum completeness — 4 statuses",
+      "status": "pass",
+      "reason": "All TestHandoffStatusEnum checks passed for member count and expected status values.",
+      "evidence": {
+        "matchedTests": [
+          "TestHandoffStatusEnum::test_exactly_four_members",
+          "TestHandoffStatusEnum::test_expected_values"
+        ],
+        "terminalLog": "scaffolding/found-022-028/pytest-found-022-028.log"
+      }
+    },
+    {
+      "id": "VAL-FOUND-023",
+      "title": "ProjectCoordinationOutput schema is defined",
+      "status": "pass",
+      "reason": "Both ProjectCoordinationOutput import/annotation and StateGraph output_schema usage tests passed.",
+      "evidence": {
+        "matchedTests": [
+          "TestProjectCoordinationOutput::test_importable_and_has_annotations",
+          "TestProjectCoordinationOutput::test_usable_as_output_schema"
+        ],
+        "terminalLog": "scaffolding/found-022-028/pytest-found-022-028.log"
+      }
+    },
+    {
+      "id": "VAL-FOUND-024",
+      "title": "ProjectCoordinationContext schema is defined",
+      "status": "pass",
+      "reason": "TestProjectCoordinationContext importability test passed.",
+      "evidence": {
+        "matchedTests": [
+          "TestProjectCoordinationContext::test_importable"
+        ],
+        "terminalLog": "scaffolding/found-022-028/pytest-found-022-028.log"
+      }
+    },
+    {
+      "id": "VAL-FOUND-025",
+      "title": "Agent enum values match current_agent Literal",
+      "status": "pass",
+      "reason": "Enum/state consistency test for underscored AgentRole values passed.",
+      "evidence": {
+        "matchedTests": [
+          "TestEnumStateConsistency::test_agent_role_values_are_underscored"
+        ],
+        "terminalLog": "scaffolding/found-022-028/pytest-found-022-028.log"
+      }
+    }
+  ],
+  "frictions": [],
+  "blockers": [],
+  "summary": "Validated 7 assigned foundation assertions via focused pytest contract tests; all assigned assertions passed."
+}

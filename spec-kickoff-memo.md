@@ -9,7 +9,7 @@
 
 ## What you're getting
 
-One document: **`AD.md`** (Architecture Decision Record). It is the single source of truth for every architectural decision in this project. All 14 questions are closed. Nothing is still being debated.
+One document: **`AD.md`** /Users/Jason/2026/v4/meta-agent-v5.6.0/meta_harness/AD.md (Architecture Decision Record). It is the single source of truth for every architectural decision in this project. All 14 questions are closed. Nothing is still being debated.
 
 There is a companion file, **`DECISIONS.md`**, which contains the full rationale and design detail for each decision. Think of it as the appendix — you read it when you need to understand *why* a decision was made, not *what* was decided. The AD itself contains the locked constraints you must satisfy.
 
@@ -79,7 +79,7 @@ Layer 5 (Validation):     Validation plan scenarios
 
 ## Three things to know
 
-1. **Run the Deep Agents CLI before designing the TUI.** The CLI (`pip install deepagents && deepagents`) is your reference implementation. Spend 15 minutes using it — the chat flow, the approval interaction, the theme switching, the `ask_user` widget. You'll get more signal from hands-on than from reading source code. Your job is to adopt this base layer and extend it for our 7-agent pipeline (active agent indicator, phase progress, handoff progress, approval gates, autonomous mode toggle).
+1. **Run the Deep Agents CLI before designing the TUI.** The CLI (`pip install deepagents && deepagents`) is your reference implementation. Spend `N` minutes using it — the menu flow, the approval interaction, the theme switching, the `ask_user` widget. You'll get more signal from hands-on than from reading source code. Your job is to adopt this base layer and extend it for our 7-agent pipeline (active agent indicator, phase progress, handoff progress, approval gates, autonomous mode toggle).
 
 2. **Three model slots are intentionally TBD.** Architect, Harness Engineer, and Developer models are marked for experimentation (Opus 4.6 vs GPT 5.4 variants). The AD locks the architecture (model-agnostic, per-agent, thread-scoped); the exact model choices will be determined by deployment-level experimentation. This is not a gap — it's a deliberate decision to defer until we have real benchmark data.
 
@@ -87,15 +87,6 @@ Layer 5 (Validation):     Validation plan scenarios
 
 4. **Do not reimplement SDK capabilities.** The AD is explicit: leverage Deep Agents SDK as the primary harness. If the SDK already does it (FilesystemMiddleware, SummarizationMiddleware, SubAgentMiddleware, etc.), use it. If you think something is missing, check the SDK source at `.reference/libs/deepagents/deepagents/` before proposing a custom implementation.
 
-## Deliverables
-
-Three spec documents under `docs/spec/`:
-
-1. **Requirements Document** — EARS-format functional and non-functional requirements derived from the AD.
-2. **Design Document** — Technical design: wire formats, dispatch tables, behavioral contracts, tool schemas, integration patterns.
-3. **Task Document** — Phased task list with acceptance criteria.
-
-These three, together with the AD, form the four sources of truth for v1 development.
 
 ---
 

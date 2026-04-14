@@ -1,0 +1,124 @@
+{
+  "groupId": "found-008-014",
+  "testedAt": "2026-04-13T22:44:21.936031+00:00",
+  "milestone": "scaffolding",
+  "isolation": {
+    "repoRoot": "/Users/Jason/2026/v4/meta-agent-v5.6.0",
+    "missionDir": "/Users/Jason/.factory/missions/d770dc03-0e63-4d5f-a139-f8705d3774c6",
+    "toolConstraint": "pytest only",
+    "cacheDir": ".pytest_cache_found_008_014",
+    "focusSelector": "TestHandoffRecordMessageProtocol or TestHandoffRecordCreatedAt or TestHandoffRecordFrozen or langsmith_run_id_defaults_to_none or status_defaults_to_queued or test_project_id_is_str",
+    "assignedAssertions": [
+      "VAL-FOUND-007",
+      "VAL-FOUND-008",
+      "VAL-FOUND-010",
+      "VAL-FOUND-017",
+      "VAL-FOUND-026",
+      "VAL-FOUND-027",
+      "VAL-FOUND-028"
+    ]
+  },
+  "toolsUsed": [
+    "pytest"
+  ],
+  "commandsRun": [
+    {
+      "command": "meta_harness/.venv/bin/python -m pytest meta_harness/tests/contract/test_foundation_types.py -v -k \"TestHandoffRecordMessageProtocol or TestHandoffRecordCreatedAt or TestHandoffRecordFrozen or langsmith_run_id_defaults_to_none or status_defaults_to_queued or test_project_id_is_str\" -o cache_dir=.pytest_cache_found_008_014",
+      "workingDirectory": "/Users/Jason/2026/v4/meta-agent-v5.6.0",
+      "exitCode": 0,
+      "observation": "Collected 51 tests, ran 10 selected tests, all 10 passed (41 deselected) in 0.25s."
+    }
+  ],
+  "assertions": [
+    {
+      "id": "VAL-FOUND-007",
+      "title": "HandoffRecord implements message protocol (`id` field)",
+      "status": "pass",
+      "reason": "Message-protocol tests passed for id presence/type and add_messages behavior with distinct/same IDs.",
+      "evidence": {
+        "pytestTests": [
+          "TestHandoffRecordMessageProtocol::test_has_id_field",
+          "TestHandoffRecordMessageProtocol::test_add_messages_retains_distinct_ids",
+          "TestHandoffRecordMessageProtocol::test_add_messages_deduplicates_same_id"
+        ],
+        "log": "scaffolding/found-008-014/pytest-found-008-014.log"
+      }
+    },
+    {
+      "id": "VAL-FOUND-008",
+      "title": "HandoffRecord id is derived from handoff_id",
+      "status": "pass",
+      "reason": "Derivation check passed (`record.id == handoff_id`).",
+      "evidence": {
+        "pytestTests": [
+          "TestHandoffRecordMessageProtocol::test_id_derived_from_handoff_id"
+        ],
+        "log": "scaffolding/found-008-014/pytest-found-008-014.log"
+      }
+    },
+    {
+      "id": "VAL-FOUND-010",
+      "title": "HandoffRecord langsmith_run_id defaults to None",
+      "status": "pass",
+      "reason": "Default-value test passed for omitted langsmith_run_id.",
+      "evidence": {
+        "pytestTests": [
+          "TestHandoffRecordDefaults::test_langsmith_run_id_defaults_to_none"
+        ],
+        "log": "scaffolding/found-008-014/pytest-found-008-014.log"
+      }
+    },
+    {
+      "id": "VAL-FOUND-017",
+      "title": "project_id is a plain str",
+      "status": "pass",
+      "reason": "Type-hint test passed confirming project_id is plain str (no reducer annotation).",
+      "evidence": {
+        "pytestTests": [
+          "TestProjectCoordinationState::test_project_id_is_str"
+        ],
+        "log": "scaffolding/found-008-014/pytest-found-008-014.log"
+      }
+    },
+    {
+      "id": "VAL-FOUND-026",
+      "title": "HandoffRecord created_at is RFC3339 compatible",
+      "status": "pass",
+      "reason": "Serialization roundtrip test passed using RFC3339-compatible datetime parsing.",
+      "evidence": {
+        "pytestTests": [
+          "TestHandoffRecordCreatedAt::test_created_at_rfc3339_serialization"
+        ],
+        "log": "scaffolding/found-008-014/pytest-found-008-014.log"
+      }
+    },
+    {
+      "id": "VAL-FOUND-027",
+      "title": "HandoffRecord status defaults to queued",
+      "status": "pass",
+      "reason": "Default status test passed with omitted status field.",
+      "evidence": {
+        "pytestTests": [
+          "TestHandoffRecordDefaults::test_status_defaults_to_queued"
+        ],
+        "log": "scaffolding/found-008-014/pytest-found-008-014.log"
+      }
+    },
+    {
+      "id": "VAL-FOUND-028",
+      "title": "HandoffRecord is immutable/frozen after creation",
+      "status": "pass",
+      "reason": "Mutation attempts on brief and status correctly raised exceptions in frozen-model tests.",
+      "evidence": {
+        "pytestTests": [
+          "TestHandoffRecordFrozen::test_frozen_rejects_mutation",
+          "TestHandoffRecordFrozen::test_frozen_rejects_status_mutation"
+        ],
+        "log": "scaffolding/found-008-014/pytest-found-008-014.log"
+      }
+    }
+  ],
+  "frictions": [],
+  "blockers": [],
+  "summary": "Tested 7 assigned assertions via focused pytest contract run; all assigned assertions passed."
+}
