@@ -23,6 +23,16 @@ DEVIATION_RECORD.md
 Droid-Hooks.md
 Hooks-Codex.md
 .windsurf/hooks/hook.log
+.agents
+.factory
+.ignore
+.intent
+.kiro
+.pytest_cache_found_001_007
+.pytest_cache_found_015_016_r2
+.vscode
+.windsurf
+skills
 
 # Phase 3 experiment artifacts
 exports/
