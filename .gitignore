@@ -51,3 +51,10 @@ phase3-implementation-prompt.md
 
 # Meta Harness Web — standalone nested repo (has its own .git)
 meta-harness-web/
+
+# Project configuration files
+package-lock.json
+Makefile
+.mcp.json
+.gitignore
+.gitattributes
