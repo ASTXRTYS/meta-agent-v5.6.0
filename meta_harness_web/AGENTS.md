@@ -372,6 +372,21 @@ Mockups live in `meta_harness_web/mockups/`. They are disposable — the goal is
 - Commit to final component APIs
 - Replace the AGENTS.md conventions
 
+### Parallel Frontend Iteration
+
+The frontend development track runs independently of backend harness construction. While droids implement the PCG and 7 peer agents, humans (or frontend agents) iterate on layout, components, and flows using live hot-reload.
+
+**Prerequisites:** None. No backend connection required.
+
+**Workflow:**
+1. Scaffold Next.js + shadcn/ui project
+2. Create mock components with hardcoded stream data matching PCG state schema
+3. `npm run dev` → iterate visually on layout (Q1), pipeline visibility (Q2), approval flows (Q3)
+4. Commit refined components to `mockups/` — disposable learning artifacts
+5. Graduate to production component tree when backend contract stabilizes
+
+**Decision trigger:** Q1 (Layout Structure) resolution requires visual validation. Start this track immediately — layout exploration is not blocked by backend completion.
+
 ---
 
 ## Tier 2: Deep Agent Internal Subagents (SDK-Provided)
