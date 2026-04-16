@@ -4,6 +4,16 @@
 
 ---
 
+## 🚩 Flagged Items Requiring Droid Attention
+
+The following items are **high-urgency** and must be scoped into the current droid implementation plan. These represent course corrections or clarifications to prior decisions:
+
+| Flag | Question | Location | Status |
+|------|----------|----------|--------|
+| 🚩 **URGENT** | Anthropic server-side tools (web_search, web_fetch, code_execution, tool_search) — previously deferred to v2, now **required for v1 launch** | Q13 §(5) | **REVISED 2026-04-15** — See updated decision below |
+
+---
+
 ### Q1: Repo structure naming
 
 **Status:** Closed · **Approved by:** Jason · **Date:** 2026-04-11
@@ -726,19 +736,40 @@ The Anthropic `MEMORY_SYSTEM_PROMPT` (`.venv/lib/python3.11/site-packages/langch
 
 This is not a blocker — `FilesystemClaudeMemoryMiddleware.__init__` accepts `system_prompt=` as a parameter (line 1138), so we can override it. v1 accepts the default prompt. Per-role prompt tuning (e.g., "check memory after processing the handoff brief" vs. "check memory first") belongs in **Q12 behavioral contracts** — the prompt steers behavior through the capabilities that middleware provides.
 
-**(5) Anthropic server-side tools — not yet in `langchain_anthropic.middleware`, deferred to v2:**
+**(5) Anthropic server-side tools — REQUIRED for v1 launch (revised 2026-04-15):**
 
-The Anthropic API `ToolUnionParam` (`.venv/lib/python3.11/site-packages/anthropic/types/tool_union_param.py`) includes server-side tools that execute on Anthropic's infrastructure (model emits `server_tool_use` → Anthropic executes → result returns inline in same response, no turn break, no `ToolMessage`). These have NO middleware in `langchain_anthropic` yet:
+> 🚩 **FLAGGED:** This item was previously marked "deferred to v2" but is now **required for the v1 production launch**. There is no v2 — this is the launching version. All subsequent work is refinement of the production application.
 
-| Server-side tool | Type constants | What it does | Relevant agents |
+The Anthropic API `ToolUnionParam` (`.venv/lib/python3.11/site-packages/anthropic/types/tool_union_param.py`) includes server-side tools that execute on Anthropic's infrastructure (model emits `server_tool_use` → Anthropic executes → result returns inline in same response, no turn break, no `ToolMessage`). These have NO middleware in `langchain_anthropic` yet, but **must be integrated for v1**.
+
+| Server-side tool | Type constants | What it does | Target Agents |
 |---|---|---|---|
-| `web_search` | `web_search_20250305`, `web_search_20260209` | Web search with domain filtering, location awareness, max_uses | Researcher, Architect |
-| `web_fetch` | `web_fetch_20250910`, `web_fetch_20260209`, `web_fetch_20260309` | URL content fetching with citations, caching control | Researcher |
-| `code_execution` | `code_execution_20250522`, `code_execution_20250825`, `code_execution_20260120` | Server-side REPL with daemon mode + gVisor checkpoint | Developer |
-| `tool_search_tool_bm25` | `tool_search_tool_bm25_20251119` | BM25-based tool discovery (for `defer_loading` pattern) | Developer (tool-heavy agent) |
-| `tool_search_tool_regex` | `tool_search_tool_regex_20251119` | Regex-based tool discovery | Developer |
+| `web_search` | `web_search_20250305`, `web_search_20260209` | Web search with domain filtering, location awareness, max_uses | **Researcher, Architect** (primary); HE, Planner, Evaluator (secondary) |
+| `web_fetch` | `web_fetch_20250910`, `web_fetch_20260209`, `web_fetch_20260309` | URL content fetching with citations, caching control | **Researcher** (primary); Architect (secondary) |
+| `code_execution` | `code_execution_20250522`, `code_execution_20250825`, `code_execution_20260120` | Server-side REPL with daemon mode + gVisor checkpoint | **Developer, HE, Evaluator** (tool-heavy agents) |
+| `tool_search_tool_bm25` | `tool_search_tool_bm25_20251119` | BM25-based tool discovery (for `defer_loading` pattern) | **Developer** (tool-heavy agent) |
+| `tool_search_tool_regex` | `tool_search_tool_regex_20251119` | Regex-based tool discovery | **Developer** |
 
-**Why deferred.** These require a different integration pattern than client-side middleware — they only need the descriptor present in the API request, and Anthropic handles execution server-side. `langchain_anthropic.middleware` does not provide middleware for these yet. Options for integration: (a) write lightweight descriptor-injection middleware following the existing pattern, (b) pass descriptors as dict tools via `tools=[]` param, (c) contribute upstream to `langchain-anthropic`. The right approach depends on whether `langchain-anthropic` adds server-side tool middleware in a future release. v1 defers this decision; v2 will revisit when the SDK landscape is clearer.
+**Options weighed:**
+
+| Option | Description | Verdict |
+|--------|-------------|---------|
+| (a) **Lightweight descriptor-injection middleware** | Create middleware that detects Anthropic models and appends server-side tool descriptors to `request.tools`. Follows the existing `AnthropicPromptCachingMiddleware` pattern where middleware gracefully ignores non-Anthropic models. | **RECOMMENDED** — Clean, testable, follows SDK conventions |
+| (b) Pass descriptors via `tools=[]` param | Add dict-style tool descriptors directly to agent factory `tools` lists. | Rejected — pollutes agent factories with provider-specific concerns; violates model-agnostic design |
+| (c) Contribute upstream to `langchain-anthropic` | Wait for SDK to provide official server-side tool middleware. | Rejected — timeline unknown; v1 cannot block on upstream |
+| (d) Hardcode into `create_deep_agent()` | Add server-side tool injection directly into SDK's `graph.py`. | Rejected — requires SDK fork/contribution; out of scope for Meta Harness |
+
+**Selected approach (signal intent for droids):**
+
+Implement a lightweight middleware (e.g., `AnthropicServerSideToolsMiddleware`) that:
+- Detects Anthropic models via `isinstance(request.model, ChatAnthropic)` check
+- Appends server-side tool descriptors to `request.tools` before model invocation
+- Gracefully ignores non-Anthropic models (mirrors `AnthropicPromptCachingMiddleware` pattern)
+- Is injected via the **Anthropic provider profile** (`agents/profiles/_anthropic.py`) alongside `ClaudeBashToolMiddleware` and `FilesystemClaudeMemoryMiddleware`
+
+**Droid implementation authority:** The droids own the final implementation spec. This decision provides signal intent and constraints, not a complete technical specification. The droids should evaluate whether the recommended middleware pattern aligns with their architecture and adjust as needed to achieve an elegant, production-grade solution.
+
+**Agent-specific tool provisioning:** The droids should determine which agents receive which server-side tools. Initial guidance: Researcher receives `web_search` 2026 + `web_fetch`2026; Architect receives `web_search`; Developer receives `code_execution` + `tool_search_*`; HE and Evaluator receive subsets based on their tool-usage patterns but ideally are allocated tool search, code execution etc.
 
 **Beta-only tools (not in stable API union, out of scope):** `computer_use` (3 versions), `mcp_toolset`.
 

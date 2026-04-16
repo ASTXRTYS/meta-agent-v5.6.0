@@ -1,5 +1,6 @@
 ---
-trigger: always_on
+trigger: model_decision
+description: when working directley with harness code, not harness web app
 ---
 **You have full agency.** 
 - Every step you take should be deliberate — choose the single next action that maximizes understanding of the specific problem at hand. Targeted searches beat breadth. Pause between each tool call to synthesize what you learned and determine if you truly need more context or if you're ready to proceed.

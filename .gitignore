@@ -38,3 +38,6 @@ phase3-implementation-prompt.md
 .agents/pm/projects/*/results/
 .agents/pm/projects/*/evals/reports/
 .langgraph_api/
+
+# Meta Harness Web — standalone nested repo (has its own .git)
+meta-harness-web/
