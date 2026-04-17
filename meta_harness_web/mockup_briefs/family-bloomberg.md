@@ -5,7 +5,7 @@
 **Primary audience bias:** Operator — designed for the power user who lives in the app, measures UI by data-per-pixel, and wants cockpit leverage; the client portal inherits this gravitas but strips cockpit noise.
 **Governing docs:** `POSITIONING.md`, `JOURNEY.md` (progressive-reveal journey states), `DECISIONS.md` D1–D18 (**note D18: Pure Broadcast Portal — the client portal has no chat and no action buttons; stakeholder side is observation-only**), `AD-WebApp.md` §1, `ROADMAP.md`
 
-> **Status note (2026-04-17, updated):** This brief's "canonical mockup screens" in §4 are now understood as the **rich-state (J6 / J7) visual specification** per `JOURNEY.md`. They remain the authoritative visual target for rich-state work. Earlier journey states (J0 virgin through J5 Gate 2 pending) are built first and reveal progressively into this endpoint. J6 covers Planning & Development; J7 covers Acceptance & Delivery. Voice exemplars in §5 and candidate names in §3 remain fully valid.
+> **Status note (2026-04-17, updated):** This brief describes the **hypothesis and approach** for the Bloomberg family. §4 "Exploration Starting Points" offers concrete visual ideas for rich-state (J6/J7) to ground exploration, but these are **not prescriptive specifications**. The actual visual form emerges through open-ended mockup sessions across the full journey (J0-J7). Earlier states (J0 virgin through J5 Gate 2 pending) are explored first and reveal progressively toward rich-state. Voice exemplars in §5 and candidate names in §3 remain fully valid.
 
 ---
 
@@ -76,13 +76,13 @@ Think: *Bloomberg Terminal (the 2020s reimagining, not the DOS nostalgia), Palan
 
 ---
 
-## §4 — Canonical Mockup Screens
+## §4 — Exploration Starting Points (Rich-State J6/J7)
 
-Same canonical project state as Family A (see `family-linear.md` §4):
+These are **concrete visual ideas** for rich-state (Planning & Development J6, Acceptance & Delivery J7) to ground exploration. They are not prescriptive specifications — the actual visual form emerges through mockup sessions. Earlier journey states (J0-J5) are explored first and reveal progressively toward these endpoint ideas.
 
-> Tavern Assistant project for Luma Tavern Group, currently in Architecture phase, Gate 2 approval pending.
+**Canonical project state for exploration:** Tavern Assistant project for Luma Tavern Group, currently in Architecture phase, Gate 2 approval pending.
 
-### Screens required (both surfaces unless noted)
+### Visual ideas to explore (both surfaces unless noted)
 
 1. **Project landing** — ambient mode.
    - *Cockpit:* full multi-panel layout. Left rail: all 7 agents with activity indicators (idle/active/blocked, semantic color). Center: phase progress bar + live event stream (timestamp-prefixed, monospace, like a log tail). Right rail: compact eval status + dataset counts + handoff log (last 10). Bottom status bar: project ID, thread ID, checkpoint namespace, model, connection state.

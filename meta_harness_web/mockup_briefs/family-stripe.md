@@ -5,7 +5,7 @@
 **Primary audience bias:** Stakeholder — designed for the founder/executive who wants the product to feel safe, legible, and credible; the Cockpit inherits this gravitas and adds operator leverage on top.
 **Governing docs:** `POSITIONING.md`, `JOURNEY.md` (progressive-reveal journey states), `DECISIONS.md` D1–D18 (**note D18: Pure Broadcast Portal — the client portal has no chat and no action buttons; stakeholder side is observation-only**), `AD-WebApp.md` §1, `ROADMAP.md`
 
-> **Status note (2026-04-16 late evening):** This brief's "canonical mockup screens" in §4 are now understood as the **rich-state (t=4) visual specification** per `JOURNEY.md`. They remain the authoritative visual target for rich-state work. Earlier journey states (t=0 virgin through t=3 pipeline-emergent) are built first and reveal progressively into this endpoint. Voice exemplars in §5 and candidate names in §3 remain fully valid.
+> **Status note (2026-04-17, updated):** This brief describes the **hypothesis and approach** for the Stripe family. §4 "Exploration Starting Points" offers concrete visual ideas for rich-state (J6/J7) to ground exploration, but these are **not prescriptive specifications**. The actual visual form emerges through open-ended mockup sessions across the full journey (J0-J7). Earlier states (J0 virgin through J5 Gate 2 pending) are explored first and reveal progressively toward rich-state. Voice exemplars in §5 and candidate names in §3 remain fully valid.
 
 ---
 
@@ -77,13 +77,13 @@ Think: *Stripe Dashboard, Notion (especially post-2023), Retool's editor chrome,
 
 ---
 
-## §4 — Canonical Mockup Screens
+## §4 — Exploration Starting Points (Rich-State J6/J7)
 
-Same canonical project state as Family A & B (see `family-linear.md` §4):
+These are **concrete visual ideas** for rich-state (Planning & Development J6, Acceptance & Delivery J7) to ground exploration. They are not prescriptive specifications — the actual visual form emerges through mockup sessions. Earlier journey states (J0-J5) are explored first and reveal progressively toward these endpoint ideas.
 
-> Tavern Assistant project for Luma Tavern Group, currently in Architecture phase, Gate 2 approval pending.
+**Canonical project state for exploration:** Tavern Assistant project for Luma Tavern Group, currently in Architecture phase, Gate 2 approval pending.
 
-### Screens required (both surfaces unless noted)
+### Visual ideas to explore (both surfaces unless noted)
 
 1. **Project landing** — ambient mode.
    - *Portal (primary for this family):* hero area displays the project name "Tavern Assistant" in display type (possibly a soft-serif accent), one-line status ("Architecture phase — design in progress"), a prominent "Recent activity" card with narrative entries ("The Architect submitted the design package 12 minutes ago; your operator is reviewing it with you"), a deliverables-so-far card, and the subtle "Operated by" credit per D17. **No chat card per D18.** Lots of breathing room. Light mode. Card-based layout with subtle shadows.

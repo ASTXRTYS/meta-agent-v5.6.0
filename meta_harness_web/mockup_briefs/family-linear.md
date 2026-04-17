@@ -5,7 +5,7 @@
 **Primary audience bias:** Unified — designed for the AI-literate operator who appreciates that their tools look as good as the product they're shipping; the client portal inherits the same taste and feels like a peer product.
 **Governing docs:** `POSITIONING.md`, `JOURNEY.md` (progressive-reveal journey states), `DECISIONS.md` D1–D18 (**note D18: Pure Broadcast Portal — the client portal has no chat and no action buttons; stakeholder side is observation-only**), `AD-WebApp.md` §1, `ROADMAP.md`
 
-> **Status note (2026-04-17, updated):** This brief's "canonical mockup screens" in §4 are now understood as the **rich-state (J6 / J7) visual specification** per `JOURNEY.md`. They remain the authoritative visual target for rich-state work. Earlier journey states (J0 virgin through J5 Gate 2 pending) are built first and reveal progressively into this endpoint. J6 covers Planning & Development; J7 covers Acceptance & Delivery. Voice exemplars in §5 and candidate names in §3 remain fully valid.
+> **Status note (2026-04-17, updated):** This brief describes the **hypothesis and approach** for the Linear family. §4 "Exploration Starting Points" offers concrete visual ideas for rich-state (J6/J7) to ground exploration, but these are **not prescriptive specifications**. The actual visual form emerges through open-ended mockup sessions across the full journey (J0-J7). Earlier states (J0 virgin through J5 Gate 2 pending) are explored first and reveal progressively toward rich-state. Voice exemplars in §5 and candidate names in §3 remain fully valid.
 
 ---
 
@@ -75,17 +75,13 @@ Think: *Linear's Inbox, Vercel's deployment dashboard, Arc's command bar, Raycas
 
 ---
 
-## §4 — Canonical Mockup Screens
+## §4 — Exploration Starting Points (Rich-State J6/J7)
 
-All three families mock up the **same canonical project state** for apples-to-apples comparison:
+These are **concrete visual ideas** for rich-state (Planning & Development J6, Acceptance & Delivery J7) to ground exploration. They are not prescriptive specifications — the actual visual form emerges through mockup sessions. Earlier journey states (J0-J5) are explored first and reveal progressively toward these endpoint ideas.
 
-> **Project:** "Tavern Assistant" — a conversational restaurant-menu agent for Luma Tavern Group (fictional midmarket restaurant chain client).
-> **Current phase:** Architecture. Architect has returned a design package to the PM. PM is packaging for stakeholder approval (Gate 2).
-> **Pipeline so far:** PM → HE (eval suite authored) → PM → Researcher (research bundle returned) → PM → Architect (design package returned) → PM (now packaging for stakeholder review).
-> **Eval suite:** 5 rubric criteria (score 1–5), 3 binary tests (pass/fail). 2 experiments already run during eval calibration.
-> **Datasets:** 1 public dataset (60 examples of real customer queries), 1 held-out dataset (20 examples, locked to HE).
+**Canonical project state for exploration:** Tavern Assistant project for Luma Tavern Group, currently in Architecture phase, Gate 2 approval pending.
 
-### Screens required (both surfaces unless noted)
+### Visual ideas to explore (both surfaces unless noted)
 
 1. **Project landing** — ambient mode, user just logged in, no action required.
    - *Cockpit:* pipeline status timeline + active agent + recent handoffs + eval status card + chat pane (collapsed).

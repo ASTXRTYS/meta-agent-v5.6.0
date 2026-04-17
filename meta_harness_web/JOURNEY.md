@@ -41,7 +41,22 @@ The progressive reveal is **not a hidden-panels pattern**. It is a compositional
 
 ---
 
-## §3 — Grounding: PCG State Is Journey Ground Truth
+## §3 — Grounding: PCG State + Agent Definitions Are Journey Ground Truth
+
+Ground truth is two-fold:
+
+1. **PCG state** — the deterministic coordination state that tells the UI where it is in the project lifecycle:
+   - `current_phase` — one of `scoping | research | architecture | planning | development | acceptance` (`@/Users/Jason/2026/v4/meta-agent-v5.6.0/meta_harness/AD.md:203`, `@/Users/Jason/2026/v4/meta-agent-v5.6.0/meta_harness/AD.md:353`)
+   - `current_agent` — one of `project_manager | harness_engineer | researcher | architect | planner | developer | evaluator` (`@/Users/Jason/2026/v4/meta-agent-v5.6.0/meta_harness/AD.md:204`)
+   - `handoff_log` — append-only audit trail of every handoff + acceptance stamp (`@/Users/Jason/2026/v4/meta-agent-v5.6.0/meta_harness/AD.md:205`)
+
+2. **Agent definitions** — the role, identity, and capabilities of each agent as defined in `@/Users/Jason/2026/v4/meta-agent-v5.6.0/meta_harness/AD.md`:
+   - Agent role and tool ownership matrix (`@/Users/Jason/2026/v4/meta-agent-v5.6.0/meta_harness/AD.md:468-481`) — which tools each agent owns and can call
+   - Agent identity — what each agent does, its scope, its relationship to other agents
+   - Points in time where each agent becomes relevant — the pipeline flow determines when an agent first appears and what it does
+   - Agent-to-agent communication patterns — which specialists can loop directly vs. which must route through PM
+
+The UI reads PCG state to know *where* it is in the journey. It reads agent definitions to know *who* is present, *what* they can do, and *how* they relate to each other. Both are ground truth — the journey states in §4 are defined by the intersection of PCG state and agent role definitions.
 
 The PCG pipeline flow is fixed and is defined by the agent-scoped tool-ownership matrix at `@/Users/Jason/2026/v4/meta-agent-v5.6.0/meta_harness/AD.md:468-481` and the pipeline flow diagram at `@/Users/Jason/2026/v4/meta-agent-v5.6.0/meta_harness/AD.md:485-533`. The normative lifecycle:
 
@@ -321,7 +336,7 @@ All portal composition is **ambient or drill-down only** — per D18's amendment
 - **`AD-WebApp.md` Q1** (layout) — this doc **resolves** the "single-canonical-layout" framing of Q1 at a higher level: there is no single layout; there are eight cockpit states and five portal states. Residual layout sub-questions resolve in mockup sessions.
 - **`AD-WebApp.md` Q3 / Q4 / Q6 / Q7** — rescoped to cockpit-only per D18; this doc assigns each rescoped question to the journey state where it surfaces (Q3 at J3/J5/J7; Q4 + Q6 + Q7 at J6).
 - **`mockup_briefs/family-*.md`** — remain valid as rich-state visual specifications per family. Now understood as the endpoint of the reveal (J6 / J7), not the starting point.
-- **`ROADMAP.md`** — the execution plan for building these journey states across three families, in parallel-branded fashion. The session sequence maps onto journey states: Session 1 = J0; Session 2 = J1–J3; Session 3 = J4–J6a; Session 4 = J6b–J7.
+- **`ROADMAP.md`** — the execution plan for building these journey states across three separate repos (one per family). The session sequence maps onto journey states: Session 1 = J0; Session 2 = J1–J3; Session 3 = J4–J6a; Session 4 = J6b–J7.
 - **`../meta_harness/AD.md`** and **`../meta_harness/DECISIONS.md`** — the backend source of truth. Every assertion in this document is cross-cited against these files.
 
 ---

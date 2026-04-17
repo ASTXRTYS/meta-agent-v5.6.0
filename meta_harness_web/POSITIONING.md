@@ -126,7 +126,7 @@ The UI is **context-adaptive** — it reshapes based on project state, not user 
 
 ### Progressive Reveal Across Project States *(→ `JOURNEY.md`)*
 
-Within any surface, the four modes above describe *within-state* UI responses. Between states — i.e., as a project progresses from freshly-scoped through architecture through development — the UI undergoes **compositional change**, not just panel-toggle change. The product is a **progressive reveal** across five journey states (t=0 virgin through t=4 rich). At t=0, the operator sees a single conversational surface and nothing else; at t=4, they see the full cockpit. Each state is a genuinely different composition earned by the project state that now exists. Full specification lives in `JOURNEY.md`.
+Within any surface, the four modes above describe *within-state* UI responses. Between states — i.e., as a project progresses from freshly-scoped through architecture through development — the UI undergoes **compositional change**, not just panel-toggle change. The product is a **progressive reveal** across eight PCG-grounded journey states (J0 Virgin through J7 Acceptance & Delivery). At J0, the operator sees a single conversational surface and nothing else; by J6/J7, they see the full cockpit. Each state is a genuinely different composition earned by the project state that now exists. Full specification lives in `JOURNEY.md`.
 
 ---
 
@@ -203,7 +203,7 @@ We are **ecosystem-native without being ecosystem-bound**.
 
 ## §9 — Naming *(→ D16)*
 
-"Meta Harness" is a **working codename** (specifically: `meta-harness-web` for the product itself; `meta_harness` for the backend harness). The final name is deferred until after t=0–t=2 journey-state mockups render across all three visual families and the visual evidence supports a confident selection. Each family brief proposes 2–3 candidate names aligned with its visual register.
+"Meta Harness" is a **working codename** (specifically: `meta-harness-web` for the product itself; `meta_harness` for the backend harness). The final name is deferred until after J0-J3 journey-state mockups render across all three visual families and the visual evidence supports a confident selection. Each family brief proposes 2–3 candidate names aligned with its visual register.
 
 ### Constraints
 

@@ -339,31 +339,32 @@ These are the *information requirements* the UI must surface for Tier 1. The spe
 
 ---
 
-## UI/UX Exploration (Next Step)
+## UI/UX Exploration (Journey-State Design)
 
-Before committing to component implementation, we need to explore what the UI should *look and feel* like. This is the frontend equivalent of the backend's AD process — we lock the "what" (information requirements) before designing the "how" (visual form).
+**Canonical design spec:** `JOURNEY.md` — defines the eight PCG-grounded journey states (J0 Virgin → J7 Acceptance & Delivery) that the UI progressively reveals through. Each state is a genuinely different composition, not a collapsed version of the final layout. Read JOURNEY.md first; this section describes the execution approach.
 
 ### Framework Selection (Locked)
 
 - **React** — primary UI framework (aligned with `@langchain/react` SDK)
+- **Next.js 15** — App Router for routing structure
 - **Tailwind CSS** — utility-first styling
 - **shadcn/ui** — component primitives (composable, not opinionated about layout)
 
 This is locked because it determines the SDK integration surface and the component authoring pattern. Changing frameworks after implementation is costly; choosing early is high-leverage.
 
-### Mockup Approach
+### Mockup Approach: Journey-State Progressive Reveal
 
-Static mockups using React + Tailwind + shadcn/ui with **hardcoded stream data** (no backend required). Purpose: explore layout, interaction, and information density before writing production code.
+Three separate Next.js apps, one per visual family (Linear, Bloomberg, Stripe), each with **hardcoded stream data** (no backend required). Purpose: explore genuinely different layout, interaction, and information density approaches across the journey states before writing production code. No shared theme system — each repo owns its own architectural and stylistic decisions.
 
-Mockups should demonstrate:
-1. **Pipeline awareness** — user can see which phase is active, which agent is running, handoff history
-2. **Chat experience** — primary interaction surface, agent messages attributed to the correct agent
-3. **Approval flow** — what happens when an interrupt surfaces, how the user approves/rejects
-4. **Autonomous mode** — what changes when the user toggles between autonomous and approval-required
-5. **Tier 2 subagent visibility** — how internal subagent activity appears within an agent's turn
-6. **Todo/plan progress** — `stream.values.todos` displayed alongside pipeline state
+**Each repo implements journey states, not screens.** The route structure is `/[family]/[surface]/[state]` (e.g., `/linear/operator/virgin`, `/bloomberg/portal/gate-1`). Each state is inhabitable at its own URL in Windsurf's browser preview. Jason annotates in-context; Cascade iterates with hot reload.
 
-Mockups live in `meta_harness_web/mockups/`. They are disposable — the goal is learning, not shipping.
+**Journey-state sequence per ROADMAP.md:**
+- **Session 1:** J0 Virgin × 3 repos — operator surface only (portal doesn't exist at J0 per D18)
+- **Session 2:** J1-J3 Scoping + Gate 1 × 3 repos — first portal appearance at J3
+- **Session 3:** J4-J6a Pipeline-Emergent × surviving repos — specialist loops, engaged-agent rails
+- **Session 4:** J6b-J7 Rich Development + Acceptance × surviving repos — full cockpit state
+
+Each repo lives in its own directory: `meta_harness_web/linear/`, `meta_harness_web/bloomberg/`, `meta_harness_web/stripe/`. These are disposable learning artifacts — the goal is comparing genuinely different approaches across journey states, not shipping shared components.
 
 ### What Mockups Must Not Do
 
@@ -371,21 +372,23 @@ Mockups live in `meta_harness_web/mockups/`. They are disposable — the goal is
 - Implement production streaming logic
 - Commit to final component APIs
 - Replace the AGENTS.md conventions
+- Share components or theme abstractions between repos (defeats the purpose of separate approaches)
+- Build "screens" — build journey states instead (each is a different composition, not panels-hidden)
 
 ### Parallel Frontend Iteration
 
-The frontend development track runs independently of backend harness construction. While droids implement the PCG and 7 peer agents, humans (or frontend agents) iterate on layout, components, and flows using live hot-reload.
+The frontend development track runs independently of backend harness construction. While droids implement the PCG and 7 peer agents, humans (or frontend agents) iterate on journey-state compositions using live hot-reload across three repos in parallel.
 
 **Prerequisites:** None. No backend connection required.
 
-**Workflow:**
-1. Scaffold Next.js + shadcn/ui project
-2. Create mock components with hardcoded stream data matching PCG state schema
-3. `npm run dev` → iterate visually on layout (Q1), pipeline visibility (Q2), approval flows (Q3)
-4. Commit refined components to `mockups/` — disposable learning artifacts
-5. Graduate to production component tree when backend contract stabilizes
+**Workflow (per ROADMAP.md):**
+1. Scaffold three Next.js 15 + shadcn/ui projects (one per family) with `src/` directory and `@/*` alias
+2. Build J0 Virgin state in each repo with hardcoded PCG state data matching JOURNEY.md §4
+3. Each repo kicks off its own dev server; inhabit each state at its URL in Windsurf browser preview
+4. Iterate per repo based on in-context annotations; down-select families gradually on evidence across states
+5. Graduate the winning repo's components to production when backend contract stabilizes
 
-**Decision trigger:** Q1 (Layout Structure) resolution requires visual validation. Start this track immediately — layout exploration is not blocked by backend completion.
+**Decision trigger:** Journey-state design is the approach — no separate "layout exploration" phase. Start Session 1 immediately; J0-J3 mockups are not blocked by backend completion.
 
 ---
 

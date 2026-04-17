@@ -136,26 +136,29 @@ How much information is visible at once?
 
 The original framing of Q1 asked "what is *the* primary layout?" — implying a single canonical answer (chat-only vs. split-panel vs. multi-panel cockpit). That framing was **wrong**.
 
-**Resolved at a higher level via `JOURNEY.md`:** the UI is a **progressive reveal** across five journey states (t=0 virgin → t=4 rich). There are five layouts, not one. Each state is a genuinely different composition:
+**Resolved at a higher level via `JOURNEY.md`:** the UI is a **progressive reveal** across eight PCG-grounded journey states (J0 Virgin → J7 Acceptance & Delivery). There is no single canonical layout. Each state is a genuinely different composition:
 
-- **t=0** — chat-only, full viewport (Option A at maximum)
-- **t=1** — chat-dominant with faint memory-hint card (A/B hybrid)
-- **t=2** — first-class document as hero, chat as side panel (B with inverted hierarchy)
-- **t=3** — multi-panel with emergent left + right rails (C, sparse)
-- **t=4** — full cockpit density (C at maximum, per the family briefs' rich-state spec)
+- **J0 Virgin** — no project thread exists; operator sees identity chrome + PM-centered conversational surface.
+- **J1 Scoping: PM <-> Stakeholder** — chat-dominant; first faint working-draft affordance appears.
+- **J2 Scoping: HE Authors Eval Suite** — first multi-agent handoff; engaged-agent rail and slim handoff log materialize.
+- **J3 Gate 1 Pending** — first-class PRD + eval-suite package; cockpit approval gate; portal appears for the first time as read-only Gate 1 surface.
+- **J4 Research & Design Exploration** — specialist loops and research/design artifacts become visible.
+- **J5 Gate 2 Pending** — first-class design package; second cockpit approval gate; portal informational rendering.
+- **J6 Planning & Development** — rich cockpit density stabilizes; phase telemetry, todos, Tier 2 subagent visibility, and sandbox affordances surface.
+- **J7 Acceptance & Delivery** — acceptance stamps, final deliverable hero, and cockpit-only satisfaction check.
 
 Q1 is therefore **resolved by the journey-state framing**, not by picking one of the options. The original sub-questions below are still useful but reframe:
 
-1. **Primary workflow bias** — *varies by state.* At t=0/t=1, chat-first. At t=3/t=4, workbench-first. The product supports both because the project supports both.
-2. **Persistent vs. on-demand information** — *varies by state.* Pipeline rail becomes persistent at t=3; before then, it doesn't exist.
+1. **Primary workflow bias** — *varies by state.* J0/J1 are chat-first. J4-J7 become workbench-first as PCG state accrues. The product supports both because the project supports both.
+2. **Persistent vs. on-demand information** — *varies by state.* The agent rail and handoff rail begin at J2 and get denser through J7; before J2, they do not exist.
 3. **Viewport minimums** — **still open.** Mockup work will determine.
 4. **Phase-responsive layout** — *yes, emphatically.* This is the core JOURNEY.md thesis.
-5. **Interrupt prominence** — **cockpit-only per D18, rendered at t=4.** Session 4 produces the first visual answer.
-6. **Entry pattern** — **operator enters at t=0** (virgin chat), not at a project picker. Multi-project picker is Q10; emerges when the operator has >1 active project.
+5. **Interrupt prominence** — **cockpit-only per D18, first rendered at J3/J5 and refined at J7.** Sessions 2 and 4 produce the visual answer.
+6. **Entry pattern** — **operator enters at J0** (virgin chat), not at a project picker. Multi-project picker is Q10; emerges when the operator has >1 active project.
 
 **Status:** Q1 as originally written is resolved. Residual layout questions are operational and resolve during mockup Sessions 1–4.
 
-**Depends on:** `JOURNEY.md` (authoritative), `mockup_briefs/family-*.md` (rich-state t=4 specs per family), B5 (density — also reframed, per JOURNEY.md)
+**Depends on:** `JOURNEY.md` (authoritative), `mockup_briefs/family-*.md` (rich-state J6/J7 specs per family), B5 (density — also reframed, per JOURNEY.md)
 **Blocks:** Nothing structurally; individual state-layouts are session-bounded
 
 ---
@@ -349,18 +352,18 @@ Rescoped to cockpit-only / narrowed (still open but constrained):
   Q12 (residual — handover inheritance, held-out regeneration)
 
 Reframed by JOURNEY.md (no longer "open" as originally framed):
-  ✅ Q1 (Layout Structure)   → resolved at higher level: five journey-state layouts, not one
+  ✅ Q1 (Layout Structure)   → resolved at higher level: eight PCG-grounded journey states, not one layout
 
 Still open, resolved progressively via journey-state mockup sessions:
 
-  B3 (Agent Personification) ─── first signal at t=0 (PM chip), resolves across t=0–t=4
-  B5 (Density Philosophy)    ─── each journey state has its own density; resolves across t=0–t=4
-  Q2 (Pipeline State)        ─── first surfaces at t=3 (Session 3)
-  Q3 (cockpit Approval Flow) ─── surfaces at t=4 (Session 4), cockpit-only per D18
-  Q4 (cockpit Subagent Vis)  ─── surfaces at t=3 or t=4 depending on subagent usage
-  Q5 (Autonomous Mode)       ─── surfaces at t=4 (Session 4)
-  Q6 (cockpit Todo Progress) ─── surfaces at t=3+ (Session 3)
-  Q7 (cockpit Sandbox Form)  ─── post-t=4, when sandbox backend engages
+  B3 (Agent Personification) ─── first signal at J0 (PM chip), resolves across J0–J7
+  B5 (Density Philosophy)    ─── each journey state has its own density; resolves across J0–J7
+  Q2 (Pipeline State)        ─── first surfaces at J2 and becomes central by J4/J6
+  Q3 (cockpit Approval Flow) ─── surfaces at J3/J5 and is refined by J7, cockpit-only per D18
+  Q4 (cockpit Subagent Vis)  ─── surfaces at J6 depending on subagent usage
+  Q5 (Autonomous Mode)       ─── surfaces around J3/J5/J6 gate and execution flows
+  Q6 (cockpit Todo Progress) ─── surfaces at J6
+  Q7 (cockpit Sandbox Form)  ─── surfaces at J6 when sandbox backend engages
 
 Non-journey residuals:
   Q9  (Auth & Seats)         ─── D19 (pending, post-mockup)
@@ -368,19 +371,19 @@ Non-journey residuals:
   Q13 (TUI↔Web Coordination) ─── operational, can defer
 ```
 
-**Status (2026-04-16 late evening, post-JOURNEY.md adoption):**
+**Status (2026-04-17, post-J0-J7 nomenclature normalization):**
 
-- **Resolved / locked:** D1–D18 (18 decisions). D18 is the newest and reshapes §2 substantially. **Q1 reframed by `JOURNEY.md`** — the "single canonical layout" question is resolved at a higher level by the progressive-reveal thesis (five journey-state layouts, not one).
+- **Resolved / locked:** D1–D18 (18 decisions). D18 is the newest and reshapes §2 substantially. **Q1 reframed by `JOURNEY.md`** — the "single canonical layout" question is resolved at a higher level by the progressive-reveal thesis (eight PCG-grounded journey states, not one layout).
 - **Pending decision records:** D19 (Auth & Seats — resolves residual Q9).
-- **Journey-state mockup-dependent (resolve via visual exploration across sessions 1–4):** B3 (agent personification — first signal at t=0 PM chip), B5 (density — reframed: each state has its own density), Q2 (pipeline state visibility — surfaces at t=3), Q5 (autonomous mode — likely t=4), Q6 (cockpit todo progress — t=3+).
-- **Cockpit-scoped residuals (mockup-dependent, surface at t=3 or t=4):** Q3, Q4, Q7.
+- **Journey-state mockup-dependent (resolve via visual exploration across sessions 1–4):** B3 (agent personification — first signal at J0 PM chip), B5 (density — reframed: each state has its own density), Q2 (pipeline state visibility — starts at J2 and matures by J4/J6), Q5 (autonomous mode — gate/execution states), Q6 (cockpit todo progress — J6).
+- **Cockpit-scoped residuals (mockup-dependent, surface at J3/J5/J6/J7):** Q3, Q4, Q7.
 - **Operational residuals:** Q10 (multi-project nav — deferred until operator has >1 project), Q13 (TUI↔web coordination), Q12 residuals (handover inheritance), Q8 residual sub-questions — all tractable post-mockup or inline with mockups.
 
-**Mockup production is no longer gated on further interviews.** D17 + D18 + `JOURNEY.md` together specify enough of the product-shape to scaffold the Next.js app and start building t=0 virgin state across three families on a live dev server. See `ROADMAP.md` for the boot sequence and session plan.
+**Mockup production is no longer gated on further interviews.** D17 + D18 + `JOURNEY.md` together specify enough of the product-shape to scaffold the Next.js app and start building J0 Virgin across three families on a live dev server. See `ROADMAP.md` for the boot sequence and session plan.
 
 ## §4 — Resolution Process
 
-1. **Mockups resolve open questions.** Each mockup scenario (defined in AGENTS.md §"UI/UX Exploration") exercises one or more open questions.
+1. **Mockups resolve open questions.** Journey-state mockups (defined in AGENTS.md §"UI/UX Exploration (Journey-State Design)" and ROADMAP.md session sequence) exercise open questions across J0-J7 states.
 2. **When a question is resolved**, the decision record moves to `DECISIONS.md` and the question is removed from this section.
 3. **Locked decisions** (§1) are not re-opened without a proposal in `CHANGELOG.md` and Jason's approval.
 4. **AGENTS.md is authoritative** — if this AD and AGENTS.md conflict, AGENTS.md wins.

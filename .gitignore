@@ -58,3 +58,5 @@ Makefile
 .mcp.json
 .gitignore
 .gitattributes
+!meta_harness_web/app/.gitignore
+!meta_harness_web/app/package-lock.json

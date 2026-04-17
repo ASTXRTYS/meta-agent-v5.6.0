@@ -1,8 +1,8 @@
 # Meta Harness Web — Current Roadmap
 
 **Status:** Active
-**Last Updated:** 2026-04-16 (late evening: D18 locked + journey-state/parallel-brand approach adopted)
-**Working codename:** `meta-harness-web` — formal name deferred until t=0–t=2 mockups render in all three families
+**Last Updated:** 2026-04-17 (J0-J7 journey nomenclature normalized)
+**Working codename:** `meta-harness-web` — formal name deferred until J0-J3 mockups render in all three families
 **Owner:** Jason (product) + Cascade (design + execution)
 **Companion documents:** `POSITIONING.md` (product vision), `JOURNEY.md` (design spec — progressive reveal states), `DECISIONS.md` (locked decisions D1–D18), `AD-WebApp.md` (open questions), `CHANGELOG.md` (audit trail)
 
@@ -14,21 +14,26 @@
 
 **Design approach locked (same evening):**
 
-- **Journey-state, not screen-by-screen.** UI is a *progressive reveal* across five canonical states (t=0 virgin → t=4 rich). See `JOURNEY.md` for the full spec. Each state is a genuinely different composition, not a collapsed version of the final layout.
-- **Parallel-branded, not family-sequential.** All three families (Linear, Bloomberg, Stripe) get themed simultaneously via a shared theme system. Every journey-state mockup produces three family variants near-free. Down-selection happens on evidence across states, not on depth-first commitment to one family.
-- **Live dev server, not static HTML.** One Next.js app with route-based addressing (`/[family]/[surface]/[state]`). You inhabit each state at its own URL in Windsurf's browser preview, annotate in-context, iterate with hot reload.
-- **Working codename:** `meta-harness-web`. Name selection deferred — we'll pick a name once we've seen t=0–t=2 rendered across families and the visual evidence supports a confident decision.
+- **Journey-state, not screen-by-screen.** UI is a *progressive reveal* across eight PCG-grounded states (J0 Virgin → J7 Acceptance & Delivery). See `JOURNEY.md` for the full spec. Each state is a genuinely different composition, not a collapsed version of the final layout.
+- **Three separate repos, not shared theme system.** Each family (Linear, Bloomberg, Stripe) gets its own independent Next.js app with genuine architectural and stylistic differences. No shared theme abstraction that encourages recoloring. Each repo is a full implementation of the journey states in its own style.
+- **Live dev servers, not static HTML.** Each repo runs its own dev server. You inhabit each state at its own URL in Windsurf's browser preview, annotate in-context, iterate with hot reload per repo.
+- **Working codename:** `meta-harness-web`. Name selection deferred — we'll pick a name once visual evidence from sequential family explorations supports a confident decision.
 
 ---
 
-## Tomorrow Morning Boot Sequence
+## First Session Boot Sequence
 
-Open the IDE. Read this section. Approve three commands. Dev server is up within ~30 minutes of sitting down.
+Open the IDE. Read this section. Choose the first family to explore. Approve one command. One dev server up within ~30 minutes of sitting down.
 
-### Step 1 — Scaffold the Next.js app (~5 min after approval)
+### Step 1 — Choose first family and scaffold one Next.js app
 
-Cascade will propose a `create-next-app` command to scaffold into `meta_harness_web/app/`:
+You choose which family to start with (Linear, Bloomberg, or Stripe). agent will propose one `create-next-app` command to scaffold into the corresponding directory:
 
+- `meta_harness_web/app/linear/` — Linear family
+- `meta_harness_web/app/bloomberg/` — Bloomberg family
+- `meta_harness_web/app/stripe/` — Stripe family
+
+With:
 - Framework: Next.js 15, App Router
 - TypeScript: yes
 - Tailwind CSS: yes
@@ -36,104 +41,83 @@ Cascade will propose a `create-next-app` command to scaffold into `meta_harness_
 - `src/` directory: yes
 - Import alias: `@/*`
 
-You approve the command; Cascade runs it; project scaffolds.
+You approve the command; agent runs it; one project scaffolded.
 
-### Step 2 — Install shadcn/ui + theme infrastructure (~5 min)
+### Step 2 — Install shadcn/ui for this family 
 
-Cascade proposes:
+agent proposes `shadcn@latest init` for this repo, with family-specific configuration sourced from the chosen `mockup_briefs/family-*.md` §2 palette + typography + motion tokens. This repo owns its own design system implementation.
 
-- `shadcn@latest init` (per D3)
-- Three family theme configurations (Tailwind config + CSS variable sets for `linear`, `bloomberg`, `stripe` — sourced from each `mockup_briefs/family-*.md` §2 palette + typography + motion tokens)
-- A `<FamilyProvider>` context component that reads the family from the URL and applies the corresponding theme
-- Route structure: `src/app/[family]/[surface]/[state]/page.tsx`
+You approve; agent installs + configures.
 
-You approve; Cascade installs + configures.
+### Step 3 — Build J0 Virgin state
 
-### Step 3 — Build the t=0 virgin state (~20 min)
-
-Cascade builds the first page: the virgin state per `JOURNEY.md` §3 (t=0):
+agent builds the first page: the virgin state per `JOURNEY.md` §4 (J0):
 
 - Identity chrome (header with `Meta Harness` codename, minimal profile menu)
 - Centered conversational input with the canonical placeholder from `JOURNEY.md`
 - Small PM identity chip above or below the input
 - PM-voiced opening message (from the voice exemplars per family)
-- Full-viewport, themed three ways
+- Full-viewport, styled per family's aesthetic
 
-Routes go live:
-- `/linear/operator/virgin`
-- `/bloomberg/operator/virgin`
-- `/stripe/operator/virgin`
-
-Cascade kicks off `pnpm dev`; you open Windsurf's browser preview at each URL and react. You annotate; we iterate. First real design review inside of ~45 minutes of starting the session.
+The repo kicks off its dev server. You open Windsurf's browser preview at the URL and react. You annotate; we iterate. First real design review.
 
 ---
 
-## Session Sequence (Journey-State, Parallel-Branded)
+## Sequential Family Exploration Process
 
-Each session builds **one or two journey states across all three families in parallel** (not one family deep). Down-selection of families happens gradually, on evidence across states — not on premature commitment to a single family.
+Explore one family at a time through the journey states. Build progressively, close questions, discover new ones, then move to the next family. The process is open-ended — you decide when to stop exploring a family and move to the next, or when to commit to a family and build deeper.
 
-### Session 1 (tomorrow, ~90 min) — t=0 Virgin × 3 families
+### First Family Exploration
 
-**Goal:** three inhabitable t=0 virgin-state pages, live on dev server. Operator surface only (portal doesn't exist at t=0 per D18 + `JOURNEY.md` §5).
+**Goal:** Choose one family (Linear, Bloomberg, or Stripe). Scaffold one repo. Build journey states progressively through that family's aesthetic. Inhabit each state in browser preview, annotate, iterate.
 
-**Artifacts produced:** 3 routes. `/linear/operator/virgin`, `/bloomberg/operator/virgin`, `/stripe/operator/virgin`.
+**Process:**
+- Start with J0 Virgin state
+- Build subsequent journey states (J1, J2, J3, etc.) as you decide
+- Close questions that this family's approach resolves
+- Discover new questions that arise from this family's implementation
+- Decide when to stop this family's exploration and move to the next
 
-**Design review:** You inhabit each URL. Compare *inside* the page, not in a gallery. Annotate reactions ("the Bloomberg header feels cold here," "Stripe's breathing room is perfect for this moment," "Linear's accent color on the PM chip is too loud," etc.). Cascade iterates in response.
+**Design review:** At each journey state, inhabit the page in Windsurf's browser preview. Annotate reactions directly in-context. Iterate based on your feedback.
 
-**Closes / informs:** B5 (density philosophy) — t=0 is the most honest test of how each family handles restraint. Possible early signal on B3 (agent personification) since the PM chip is the product's first agent expression.
+**Questions closed/discovered:** Document which questions from `AD-WebApp.md` this family's approach closes, and which new questions arise. This informs the next family's exploration.
 
-**Stretch goal if time remains:** begin t=1 (scoping) for whichever family felt strongest at t=0. Not committing to a family; just exploring whether the transition t=0 → t=1 lands in that family.
+### Second Family Exploration
 
----
+**Goal:** Scaffold a second repo. Apply lessons learned from the first family. Build the same journey states through the second family's aesthetic lens.
 
-### Session 2 (day 2, ~90 min) — t=1 Scoping + t=2 Scoped × 3 families
+**Process:**
+- Scaffold the second family's Next.js app
+- Build journey states, applying lessons from first family
+- Compare: what questions closed differently? What new questions arose?
+- Decide when to stop this family's exploration
 
-**Goal:** render the transitions that show the UI actually adapting.
+**Design review:** Same process — inhabit, annotate, iterate per state.
 
-- **t=1 Scoping** — working draft card materializing in previously-empty space. Three family variants of the first memory-hint affordance.
-- **t=2 Scoped** — PRD renders as a first-class document. Chat compresses to a side panel. First handoff prompt. **This is where the portal also appears for the first time** per `JOURNEY.md` §5; so t=2 doubles up — 3 families × (operator + portal) = 6 artifacts.
+**Learning transfer:** Document how lessons from the first family informed this family's exploration, and where this family diverged.
 
-**Routes added:** 9 new routes.
+### Third Family Exploration (optional)
 
-**Design review:** Does the transition *feel* earned? Does the PRD-as-first-class-document land with craft? Does the portal at t=2 feel empty-in-a-good-way (per D18) or empty-in-a-bad-way?
+**Goal:** Scaffold the third repo. Apply lessons learned from the first two families. Build journey states through the third family's aesthetic lens.
 
-**Closes / informs:** D17 (portal first-login UX) — now rendered, not imagined. Possible D17 amendment based on visual evidence. First evidence on B3 (agent personification) as the PM's voice meets the PM's visual treatment.
+**Process:**
+- Scaffold the third family's Next.js app (if you want to explore all three)
+- Build journey states, applying lessons from previous families
+- Full comparison across all families at the journey states you've explored
 
-**Down-select signal:** if one family is clearly weakest after t=0 and t=1–t=2, we may **eliminate** it at end of Session 2 rather than continue carrying it through t=3 and t=4. Not a forced elimination — only if evidence is decisive.
+**Design review:** Same process — inhabit, annotate, iterate per state.
 
----
+### Family Commitment and Deep Exploration
 
-### Session 3 (day 3, ~90 min) — t=3 Pipeline-Emergent
+**Goal:** Commit to one family based on evidence from sequential explorations. Build the full journey through rich state (J4-J7 if not already reached).
 
-**Goal:** the first appearance of the left rail (engaged agents) and right rail (handoff log, emergent). This is where the cockpit *shape* becomes recognizable — but sparse. Portal variant shows narrative updates.
-
-**Routes added:** 6 if all 3 families survive Session 2, 4 if one was eliminated.
-
-**Design review:** Does the left rail land at the right scale? (Showing 3 engaged agents, not 7 ghost-idle ones, per `JOURNEY.md` §3 t=3 restraint.) Does the right rail feel informative without being overwhelming?
-
-**Closes / informs:** Q2 (pipeline state display), Q4 (Tier 2 subagent visibility — if subagents surface in the left rail at this state), Q6 (todo progress display — first appearance in cockpit).
-
----
-
-### Session 4 (day 4, ~90 min) — t=4 Rich + state-transitions
-
-**Goal:** the full cockpit state that the mockup briefs described. This is the *endpoint* of the reveal, not the starting point. Rich state for both surfaces (per D18: cockpit = interactive, portal = observation-only).
-
-**Artifacts produced:** the full canonical screens from each family brief, but now understood in the context of having been reached through the journey.
-
-**Design review:** Does t=4 feel like the natural destination of the reveal? Does it feel overwhelming (failure mode) or empowering? Does the transition t=3 → t=4 land?
-
-**Closes / informs:** Q1 (layout at rich-state), Q3 (approval flow interaction, cockpit-only per D18), Q5 (autonomous mode toggle — likely lives in the rich state).
-
----
-
-### Session 5+ — Final family selection + brand-token lock
-
-- Down-select to the one family that survives the full journey.
-- Lock brand tokens (palette, typography, motion system codified).
+**Process:**
+- Choose the winning family based on visual evidence and question closure
+- Continue building remaining journey states in that family's repo
+- Lock brand tokens (palette, typography, motion system codified)
 - **Select the product name** from the winning family's candidate list (or a fresh proposal if visuals demand it). Per `DECISIONS.md` D16 naming policy.
-- Any D13 / D17 amendments based on visual evidence.
-- Begin the style guide.
+- Any D13 / D17 amendments based on visual evidence
+- Begin the style guide
 
 ### Post-Mockup — D19 (Auth & Seats)
 
@@ -146,7 +130,7 @@ Once visual family + name are selected and mockups stabilize, run the **D19 sess
 These were locked in prose; mockup evidence can overturn or amend them. If a mockup surfaces evidence that contradicts one, the revision path is: record the challenge in `CHANGELOG.md` → propose the revision → Jason approves → amend `DECISIONS.md`.
 
 - **D13** (four context-adaptive modes) — already amended by D18 (portal is ambient + drill-down only). The journey-state work in `JOURNEY.md` extends D13 by specifying *between-state* composition changes; a formal D13 amendment may land once visual evidence arrives.
-- **D17** (portal first-login UX) — Gate 1 hero framing, source-material visibility default, PM-as-face treatment. All three become visual hypotheses the moment t=2 portal is rendered in Session 2.
+- **D17** (portal first-login UX) — Gate 1 hero framing, source-material visibility default, PM-as-face treatment. All three become visual hypotheses the moment J3 portal is rendered in Session 2.
 - **D18** (pure broadcast portal) — **the single most important decision under test**. If mockups reveal the Portal feels hollow / purposeless / disengaging without any interaction affordance, we re-open. Known watch-item.
 
 ## Decisions Locked (Not Under Revision)
@@ -161,14 +145,14 @@ These are structural. Mockups express them; mockups should not challenge them.
 
 ## Current Known Risks
 
-1. **D18 hollowness risk** — if the portal mockups at t=2 / t=3 / t=4 feel disengaging without any stakeholder-initiated interaction, we need to fix the problem through richer narrative, better artifact rendering, selective animation, etc. — not by re-opening D18 unless evidence is overwhelming.
-2. **Bloomberg-family stakeholder-readability risk** (per `mockup_briefs/family-bloomberg.md:164`) — family could feel intimidating to non-technical founders. t=2 portal in Bloomberg is the single highest-signal artifact for evaluating the risk; it lands in Session 2.
-3. **Stripe-family cockpit-density ceiling** (per `mockup_briefs/family-stripe.md:166`) — light-mode, generous-spacing aesthetic may cap cockpit leverage at t=4. Rendered first in Session 4.
-4. **Linear-family warmth risk** — Linear aesthetic is cool/precise by default; Client Portal must find warmth through copy + spacing alone. t=2 portal in Linear is the highest-signal test.
-5. **Parallel-branding infrastructure cost** — the theme-provider + three-family Tailwind configuration is front-loaded work in Session 1. If the abstraction is wrong, later sessions pay for it. Mitigation: keep the theme system thin (palette + type + motion as CSS variables), avoid forcing shared components through complex family-prop gymnastics.
-6. **Journey-state thrashing** — risk that t=0 looks great in Family A but t=3 looks great in Family B, and we can't commit. Mitigation: weighted evaluation — t=4 (rich state) carries the most weight because it's where users spend the most time; t=0 matters but is a 30-second moment.
+1. **D18 hollowness risk** — if the portal mockups feel disengaging without any stakeholder-initiated interaction, we need to fix the problem through richer narrative, better artifact rendering, selective animation, etc. — not by re-opening D18 unless evidence is overwhelming.
+2. **Bloomberg-family stakeholder-readability risk** (per `mockup_briefs/family-bloomberg.md:164`) — family could feel intimidating to non-technical founders. The portal state in Bloomberg is the highest-signal artifact for evaluating this risk.
+3. **Stripe-family cockpit-density ceiling** (per `mockup_briefs/family-stripe.md:166`) — light-mode, generous-spacing aesthetic may cap cockpit leverage at rich development states. This becomes visible when building deeper journey states.
+4. **Linear-family warmth risk** — Linear aesthetic is cool/precise by default; Client Portal must find warmth through copy + spacing alone. The portal state in Linear is the highest-signal test.
+5. **Sequential commitment risk** — risk that you invest deeply in one family's journey states before seeing the others, and later discover a different family would have been better. Mitigation: the process is open-ended — you decide when to stop exploring a family and move to the next. You're not locked into building all states for one family before seeing others.
+6. **Learning transfer overhead** — lessons learned from one family must be consciously applied to the next. Without side-by-side comparison, you rely on memory and documentation. Mitigation: document observations and question closures per family as you go.
 
-Each family brief's §7 documents its own honest failure modes. Track any of these that materialize during Sessions 1–4; they feed the progressive down-select.
+Each family brief's §7 documents its own honest failure modes. Track any of these that materialize during sequential explorations; they inform family selection.
 
 ---
 
@@ -177,16 +161,16 @@ Each family brief's §7 documents its own honest failure modes. Track any of the
 | Document | Purpose |
 |---|---|
 | `POSITIONING.md` | Brand/product source of truth. Read this first. |
-| `JOURNEY.md` | Design spec — five progressive-reveal journey states (t=0 virgin → t=4 rich). The *what-to-build* for every mockup session. |
+| `JOURNEY.md` | Design spec — eight PCG-grounded journey states (J0 Virgin → J7 Acceptance & Delivery). The *what-to-build* for every mockup session. |
 | `DECISIONS.md` | D1–D18, full rationale per decision. |
 | `AD-WebApp.md` | Residual open questions (§2), decision dependency map (§3). |
 | `ROADMAP.md` (this file) | Current plan + tomorrow's boot sequence. |
 | `AGENTS.md` | Frontend engineering conventions, SDK references. |
 | `CHANGELOG.md` | Full audit trail of every edit to the above. |
-| `mockup_briefs/family-*.md` | Three visual-family briefs — now understood as the **rich-state (t=4)** visual specifications per family. Voice exemplars and candidate names remain useful; "canonical screens" are the endpoint of the reveal, not the starting point. |
+| `mockup_briefs/family-*.md` | Three visual-family briefs — rich-state (J6/J7) visual specifications per family. Voice exemplars and candidate names remain useful; "canonical screens" are the endpoint of the reveal, not the starting point. |
 
 ---
 
 ## One-Line Summary
 
-> Tomorrow: scaffold Next.js, build the **t=0 virgin state** across all three families as themed routes on a live dev server. You inhabit each URL in Windsurf's browser preview, annotate, iterate. No galleries, no static HTML, no screen-by-screen — we design the journey, and the UI proves it adapts.
+> Next: choose one family to explore, scaffold one Next.js app, build the **J0 Virgin state**, inhabit it in Windsurf's browser preview, annotate, iterate. Explore journey states progressively, close questions, discover new ones, then move to the next family. Open-ended process — you decide when to stop exploring a family and when to commit.
