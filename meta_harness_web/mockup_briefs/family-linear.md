@@ -3,7 +3,9 @@
 **Family archetype:** Sleek contemporary premium
 **Primary hypothesis tested:** *A single tasteful design language can flex across both surfaces (Client Portal and Developer Cockpit) without needing two different brand expressions. The surfaces differ in density and chrome, but share palette, type, and motion.*
 **Primary audience bias:** Unified — designed for the AI-literate operator who appreciates that their tools look as good as the product they're shipping; the client portal inherits the same taste and feels like a peer product.
-**Governing docs:** `POSITIONING.md`, `DECISIONS.md` D9–D16, `AD-WebApp.md` §1
+**Governing docs:** `POSITIONING.md`, `JOURNEY.md` (progressive-reveal journey states), `DECISIONS.md` D1–D18 (**note D18: Pure Broadcast Portal — the client portal has no chat and no action buttons; stakeholder side is observation-only**), `AD-WebApp.md` §1, `ROADMAP.md`
+
+> **Status note (2026-04-17, updated):** This brief's "canonical mockup screens" in §4 are now understood as the **rich-state (J6 / J7) visual specification** per `JOURNEY.md`. They remain the authoritative visual target for rich-state work. Earlier journey states (J0 virgin through J5 Gate 2 pending) are built first and reveal progressively into this endpoint. J6 covers Planning & Development; J7 covers Acceptance & Delivery. Voice exemplars in §5 and candidate names in §3 remain fully valid.
 
 ---
 
@@ -87,19 +89,18 @@ All three families mock up the **same canonical project state** for apples-to-ap
 
 1. **Project landing** — ambient mode, user just logged in, no action required.
    - *Cockpit:* pipeline status timeline + active agent + recent handoffs + eval status card + chat pane (collapsed).
-   - *Portal:* current phase prominently, "Next action from you" card (none pending yet), deliverables-so-far list, chat-with-PM card.
+   - *Portal:* current phase prominently, a "Recent activity" narrative card (PM-voiced), deliverables-so-far list, subtle "Operated by" credit per D17. **No chat affordance per D18.**
 
-2. **Approval gate moment** — action-required mode, Gate 2 approval is waiting on the user.
-   - *Cockpit:* hero callout "Gate 2 — Design Package ready for your review" with the packaged deliverable inline, approve/revise/reject buttons.
-   - *Portal:* same hero callout, but wrapped in warmer language, with the packaged design document (rendered as a first-class in-app document) and a chat affordance to ask the PM questions about it.
+2. **Approval gate moment** — action-required mode in cockpit; **informational mode in portal** per D18.
+   - *Cockpit:* hero callout "Gate 2 — Design Package ready for your review" with the packaged deliverable inline, approve/revise/reject buttons. **This is where the operator decides.**
+   - *Portal:* the packaged design document rendered as a beautifully-presented first-class in-app document — **read-only, no action buttons**. Narrative framing: "The Architect has delivered the design package. Your operator is reviewing it with you. Share any feedback directly with your operator." Stakeholder reads; any response flows out-of-band through the operator (per D18).
 
 3. **Eval suite detail** — drill-down mode, user clicked into the HE's eval suite.
    - *Cockpit:* full rubric with all 5 criteria, per-score descriptions, 3 binary tests, both dataset previews (public + held-out), experiment history table, "↗ View run in LangSmith" links per experiment.
    - *Portal:* same rubric but with HE's authored narrative paragraph at the top explaining *why* these criteria matter for Luma Tavern's use case; public dataset shown, held-out dataset shown as "Held-out (operator-only)" with no preview.
 
-4. **Chat with PM** — conversational mode, user is mid-scoping conversation.
+4. **Chat with PM** — **cockpit-only** (portal has no chat per D18).
    - *Cockpit:* chat pane takes ~60% of width, PM conversation with timestamps and `lc_agent_name` attribution, collapsed right rail with phase/handoff compact view.
-   - *Portal:* chat takes ~70% of width, softer framing, "You are chatting with: the Project Manager" header, no right rail at all.
 
 5. **Handoff log narrative** — drill-down mode, user clicked on the handoff timeline.
    - *Cockpit only:* full `handoff_log` entries as a table with source/target agents, reason enums, briefs, artifact paths, timestamps. Each row expandable for full brief text.
@@ -119,14 +120,17 @@ All three families mock up the **same canonical project state** for apples-to-ap
 
 The family's visual register must support both voice modes from D15. Sample microcopy rendered in this family's aesthetic:
 
-### Client Portal (warm-knowledgeable-peer register)
+### Client Portal (warm-knowledgeable-peer register, **monologue only** per D18)
 
-**Gate 2 approval hero:**
-> *"Meridian's design package is ready for your review. The Architect flagged two tradeoffs worth your opinion — both are marked in the document. My recommendation: approve as-written; the tradeoffs are sensible for v1. Want to review?"*
-> [ Review Design Package ] [ Chat with PM ]
+**Gate 2 informational hero (D18 framing):**
+> *"The Architect has returned the design package for **Tavern Assistant**. I've reviewed it — it's solid. Two tradeoffs are flagged in the document; both are sensible for v1. My recommendation to your operator: approve as-written. You can read the full package below; share any reactions directly with your operator, who will carry them back to me."*
+> [ Read the Design Package ]
 
-**Empty state (no projects yet):**
-> *"No projects yet. To start, share what your client needs — a summary, a transcript, a brief — and I'll scope the PRD with you."*
+*(Note: no action buttons beyond "Read." No chat affordance. The PM speaks in first person to the stakeholder; the stakeholder responds through the operator per D18.)*
+
+**Empty state (operator's first-login view of a not-yet-scoped project):**
+> *"No project scoped yet. When you're ready, share what your client needs — a summary, a transcript, a brief — and I'll scope the PRD with you."*
+*(This state is seen by the operator in cockpit, not by stakeholders in portal.)*
 
 ### Developer Cockpit (precise-technical-operator register)
 

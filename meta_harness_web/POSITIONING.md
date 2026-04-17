@@ -1,9 +1,9 @@
 # Meta Harness — Brand & Product Positioning
 
 **Status:** Active source of truth
-**Last Updated:** 2026-04-16
+**Last Updated:** 2026-04-16 (late evening update: D18 pure-broadcast-portal locked)
 **Owner:** Jason (product vision) + Cascade (marketing/design)
-**Companion documents:** `DECISIONS.md` (locked decisions D1–D16), `AD-WebApp.md` (architecture), `CHANGELOG.md` (audit trail), `mockup_briefs/` (visual family explorations)
+**Companion documents:** `DECISIONS.md` (locked decisions D1–D18), `AD-WebApp.md` (architecture), `ROADMAP.md` (current plan), `CHANGELOG.md` (audit trail), `mockup_briefs/` (visual family explorations)
 
 ---
 
@@ -18,8 +18,8 @@ Meta Harness is an **LLM application development studio operated by a team of AI
 It is simultaneously:
 
 - **A tool** — a working environment Jason uses to deliver LLM applications to clients faster and with higher quality than he could as a solo operator.
-- **A product** — a client-facing portal that gives stakeholders real-time transparency into work-in-progress, approval gates at critical moments, and a chat interface to the Project Manager agent.
-- **A transferable asset** — at project delivery, the user can hand the client the keys to the cockpit, upgrading them from stakeholder to self-service operator and converting a one-time consulting engagement into ongoing product stickiness.
+- **A product** — a client-facing **observation window** that gives stakeholders real-time transparency into work-in-progress. Stakeholders watch, review artifacts, and consume progress narratives; they do not transact with the agent team directly. All stakeholder↔agent interaction is mediated by the operator (see D18).
+- **A transferable asset** — at project delivery, the user can hand the client the "keys to the cockpit," upgrading them from stakeholder (observation-only) to self-service operator (full agent-interaction capability). This capability delta is the soft-handover monetization mechanism.
 
 ---
 
@@ -60,10 +60,10 @@ The pattern is consistent: the curator of signal beats the provider of raw data 
 - **Eval criteria** — what is the target application being tested against?
 - **Scoring rubrics** — full rubric with per-score descriptions ("score 1 means X, score 5 means Y"), binary test descriptions, and pass/fail thresholds.
 - **Experiment results** — scorecards, pass/fail summaries, attempt counts, trends across runs.
-- **Datasets** — public and held-out dataset previews (with appropriate access control), row-level inspection of business-logic examples.
+- **Datasets** — public and held-out dataset previews (with appropriate access control — held-out is cockpit-only per D18), row-level inspection of business-logic examples.
 - **Pipeline state** — current phase, current active agent, handoff history as a readable narrative.
-- **Packaged deliverables** — PRDs, design specs, implementation plans, final artifacts — rendered as first-class in-app documents with approve/reject/revise actions.
-- **Agent conversations** — the user talks to the PM (or currently active agent) in a chat surface.
+- **Packaged deliverables** — PRDs, design specs, implementation plans, final artifacts — rendered as first-class in-app documents. *Cockpit:* approve/reject/revise actions available to the operator. *Portal:* rendered for stakeholder review only; no interactive submissions (D18).
+- **Agent conversations** — **cockpit-only.** The operator talks to the PM (or currently active agent) in a chat surface. *The Client Portal has no chat affordance by design (D18).*
 
 ### What Meta Harness Does *Not* Surface (Link Out To LangSmith)
 
@@ -98,31 +98,35 @@ Meta Harness serves two primary audiences inside a single app via **role-adaptiv
 
 **Who:** External stakeholders — founders of small-to-medium businesses, executives at enterprises, occasionally their AI-savvy technical leads. Most are AI-literate enough to have written ChatGPT prompts; few are deeply technical. They are paying for an outcome, not a tool.
 
-**Mindset:** *"I want to know my project is progressing, see the work my operator is doing on my behalf, and chime in when my input is needed."*
+**Mindset:** *"I want to see my project progressing, review the work my operator is doing on my behalf, and read what the agent team has produced. I'll give feedback through my operator when something needs my input."*
 
-**Surface:** Client Portal — distilled signal, packaged deliverables, approval gates, chat-with-PM for scoping and aftercare.
+**Surface:** Client Portal — **pure observation window** (D18). Distilled signal, packaged deliverables rendered as first-class documents, phase status, eval results, handoff narratives. **No chat, no approval buttons, no interactive submissions.** All feedback, approvals, and clarifying questions flow through the operator as exclusive intermediary. This is by design: the portal's job is transparency and trust-signaling; agency lives in the paying relationship with the operator.
 
-**Register:** Warm knowledgeable peer (see §6).
+**Register:** Warm knowledgeable peer (see §6) — in **monologue form only**. The PM agent narrates; the stakeholder consumes.
 
 ### Access model
 
 - Role is assigned per-user per-project. A single human can be an operator on their own projects *and* a stakeholder (via client view) on projects someone else is operating.
-- **Soft handover is a product feature**: at delivery, the operator grants the client cockpit access, and the client's next project uses the delivered project's UUID as seed context.
+- **Soft handover is a product feature**: at delivery, the operator grants the client cockpit access — a genuine capability unlock under D18 (stakeholder-mode cannot transact with agents; cockpit-mode can). The client's next project uses the delivered project's UUID as seed context.
 
 ---
 
 ## §5 — Interaction Model *(→ D13)*
 
-Within each surface, the UI is **context-adaptive** — it reshapes based on project state, not user action. Four modes:
+The UI is **context-adaptive** — it reshapes based on project state, not user action. Four modes exist, but their scope differs per surface under D18:
 
-| Mode | Trigger | Hero | De-emphasized |
-|---|---|---|---|
-| **Ambient** | Nothing blocking | Pipeline / project status | Chat (collapsed) |
-| **Action-required** | Gate pending, interrupt fired, agent asked a question | Hero callout card dominates viewport | Everything else dims |
-| **Conversational** | User engages chat | Chat pane expands | Pipeline compresses to status strip |
-| **Drill-down** | User clicks an eval / dataset / artifact / handoff | Selected entity fills viewport | Breadcrumb trail back |
+| Mode | Trigger | Hero | De-emphasized | Portal? | Cockpit? |
+|---|---|---|---|---|---|
+| **Ambient** | Nothing blocking | Pipeline / project status | Chat (collapsed, cockpit only) | ✅ | ✅ |
+| **Action-required** | Gate pending, interrupt fired, agent asked a question | Hero callout card dominates viewport | Everything else dims | ❌ (no stakeholder actions per D18) | ✅ |
+| **Conversational** | User engages chat | Chat pane expands | Pipeline compresses to status strip | ❌ (portal has no chat per D18) | ✅ |
+| **Drill-down** | User clicks an eval / dataset / artifact / handoff | Selected entity fills viewport | Breadcrumb trail back | ✅ | ✅ |
 
-This applies to *both* surfaces. The Cockpit and Portal have different baseline density and different sets of available drill-downs, but they both obey the same four-mode grammar.
+**Portal supports *ambient* and *drill-down* only.** Cockpit supports all four. When a gate is pending in the portal, the stakeholder sees the deliverable rendered as a beautifully-presented read-only document — they can drill into it, but there's no "required action" framing because no action is theirs to take.
+
+### Progressive Reveal Across Project States *(→ `JOURNEY.md`)*
+
+Within any surface, the four modes above describe *within-state* UI responses. Between states — i.e., as a project progresses from freshly-scoped through architecture through development — the UI undergoes **compositional change**, not just panel-toggle change. The product is a **progressive reveal** across five journey states (t=0 virgin through t=4 rich). At t=0, the operator sees a single conversational surface and nothing else; at t=4, they see the full cockpit. Each state is a genuinely different composition earned by the project state that now exists. Full specification lives in `JOURNEY.md`.
 
 ---
 
@@ -136,10 +140,11 @@ Every agent output must take a stance. The default LLM failure mode is to enumer
 
 | | **Client Portal** | **Developer Cockpit** |
 |---|---|---|
-| Persona | Warm knowledgeable peer | Precise technical operator |
+| Persona | Warm knowledgeable peer, **in monologue** | Precise technical operator, in dialog |
+| Mode | One-way narration (stakeholder reads; no reply channel per D18) | Two-way interaction (operator chats, approves, drills, overrides) |
 | Sentence shape | Complete sentences, contractions OK, explanatory "why" | Fragments, declarative, no hedging |
 | Warmth | Light — friendly consultant, not bubbly | Minimal — respect the reader's time |
-| Recommendation style | *"My recommendation: X. Because Y. Want me to proceed?"* | *"Recommend X. Blocker: Y. Approve?"* |
+| Recommendation style | *"My recommendation: X. Because Y. Your operator will carry this back."* | *"Recommend X. Blocker: Y. Approve?"* |
 | Opinionation | Required | Required |
 
 ### Anti-patterns (do not ship)
@@ -198,7 +203,7 @@ We are **ecosystem-native without being ecosystem-bound**.
 
 ## §9 — Naming *(→ D16)*
 
-"Meta Harness" is a **working codename**. The final name is deferred until after the three-family mockup exploration. Each family brief proposes 2–3 candidate names aligned with its visual register.
+"Meta Harness" is a **working codename** (specifically: `meta-harness-web` for the product itself; `meta_harness` for the backend harness). The final name is deferred until after t=0–t=2 journey-state mockups render across all three visual families and the visual evidence supports a confident selection. Each family brief proposes 2–3 candidate names aligned with its visual register.
 
 ### Constraints
 
@@ -248,4 +253,4 @@ Each family produces mockups of the same canonical screens for both the Client P
 
 ## §12 — Canonical Summary (TL;DR for new contributors)
 
-> Meta Harness is a **premium orchestration layer** above the LangChain ecosystem. It is an **LLM application development studio** where **a team of AI agents** scope, design, plan, build, and evaluate LLM applications for clients. It has **two surfaces**: a **client portal** (warm, distilled, approval-gated) and a **developer cockpit** (dense, instrument-grade, full-leverage). Both surfaces are **context-adaptive** — they reshape around what's happening, not who's logged in. All agents speak with opinionated voice (**"Always Land The Plane"**) — warm to clients, precise to operators, never hedging. We **link out to LangSmith** for raw trajectory detail; we never embed LangSmith's UI. Our differentiation is **project-coordinated build + client-facing portal + cockpit-handover stickiness** — no competitor ships all three.
+> Meta Harness is a **premium orchestration layer** above the LangChain ecosystem. It is an **LLM application development studio** where **a team of AI agents** scope, design, plan, build, and evaluate LLM applications for clients. It has **two surfaces**: a **client portal** (pure observation window, warm PM-narrated monologue) and a **developer cockpit** (dense, instrument-grade, full-leverage, operator-interactive). Per D18, stakeholders watch and read; operators are the 100% exclusive interaction channel with the agent team. Portal is ambient/drill-down only; cockpit supports all four context-adaptive modes. All agents speak with opinionated voice (**"Always Land The Plane"**) — warm monologue to clients, precise dialog to operators, never hedging. We **link out to LangSmith** for raw trajectory detail; we never embed LangSmith's UI. Our differentiation is **project-coordinated build + observation-only client portal + cockpit-handover stickiness** — no competitor ships all three, and the observation-only posture is what makes the handover a genuine capability unlock instead of a permissions toggle.

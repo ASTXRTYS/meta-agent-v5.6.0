@@ -1,8 +1,8 @@
 # Meta Harness Web — Architecture Decision Record
 
 **Status:** Proposed
-**Last Updated:** 2026-04-16
-**Companion:** `AGENTS.md` (normative conventions), `DECISIONS.md` (frozen decisions), `CHANGELOG.md` (audit trail)
+**Last Updated:** 2026-04-16 (late evening: D18 pure-broadcast-portal locked; §2 rescoped accordingly)
+**Companion:** `AGENTS.md` (normative conventions), `DECISIONS.md` (frozen decisions D1–D18), `POSITIONING.md` (brand/product source of truth), `ROADMAP.md` (current plan), `CHANGELOG.md` (audit trail)
 
 ---
 
@@ -93,46 +93,11 @@
 
 These questions require UI/UX exploration (mockups) before they can be resolved. They are ordered by dependency: earlier questions constrain later ones.
 
-> **Resolution note (2026-04-16):** The 2026-04-16 brand/positioning interview (archived in `DECISIONS.md` D9–D16 and consolidated in `POSITIONING.md`) resolved B1, B2, B4, B6, B7. Those subsections are retained below for historical context and each carries a **✅ RESOLVED** banner pointing to the governing decision. B3, B5, and Q1–Q7 remain open pending the three-family mockup exploration (`mockup_briefs/`).
-
-### B1: Core Metaphor
-
-> **✅ RESOLVED by D12 + D13.** The organizing metaphor is **"two adaptive surfaces of one project studio"** — not a single metaphor from the original option list. The Client Portal surface biases toward options B/D/E (workshop / orchestra / war room — collaborative, stakeholder-visible); the Developer Cockpit surface biases toward options A/C (mission control / assembly line — dense, phase-gated). Each of the three visual families will express these biases in its own emotional register. See `POSITIONING.md` §1, §4, §5.
-
-What is the organizing metaphor for the application?
-
-**Options:**
-- A) Mission control — dark cockpit, dense status, operators monitoring autonomous systems
-- B) Workshop / workbench — light, spacious, tools laid out for hands-on work
-- C) Assembly line — phase-gated, sequential, progress-forward motion
-- D) Orchestra — conductor + specialists, harmonious coordination
-- E) War room — collaborative, high-stakes, shared situational awareness
-
-**Depends on:** None (foundational — upstream of all visual decisions)
-**Blocks:** B2, B3, Q1
-
-**Why this matters:** The metaphor shapes naming, iconography, transitions, and layout instinct before any structural question is answered. A "mission control" metaphor makes a dark cockpit layout feel right; a "workshop" metaphor makes a light, spacious workbench feel right.
-
----
-
-### B2: Brand Personality / Emotional Tone
-
-> **✅ RESOLVED by D9 + D15.** Brand posture is **premium orchestration layer** (D9). Voice principle is **"Always Land The Plane"** — opinionated, register-adaptive (warm-knowledgeable-peer in the Client Portal, precise-technical-operator in the Developer Cockpit) (D15). The three visual families test three distinct expressions of that posture; the winning family will lock the final personality. See `POSITIONING.md` §2, §6.
-
-What is the emotional register of the UI?
-
-**Options:**
-- A) Precise and clinical — scientific instrument, minimal decoration, data-dense
-- B) Calm and authoritative — executive dashboard, confident spacing, muted palette
-- C) Alive and kinetic — streaming, animated, breathing, real-time pulse
-- D) Warm and conversational — chat-forward, human, approachable
-
-**Depends on:** B1 (metaphor constrains personality — mission control is not warm)
-**Blocks:** B4, Q1
-
-**Why this matters:** Determines animation philosophy, spacing, and whether the UI feels like it's *observing* agents or *conversing* with them.
-
----
+> **Per §4 resolution process:** Resolved questions are *removed* from this section and live only in `DECISIONS.md`. Questions B1, B2, B4, B6, B7 were resolved on 2026-04-16 by D9–D16. Q9.3, Q9.4, Q9.6 were resolved the same day by D17 (portal first-login UX, scoped). Later that evening, **D18 (Pure Broadcast Portal)** resolved Q9.5 and Q11 and substantially rescoped Q3, Q4, Q6, Q7, Q8, Q12 to cockpit-only or narrowed them. The residual Q9 is now Q9 (Auth & Seats), pending the forthcoming D19 decision. Decision narratives live in `DECISIONS.md`; `POSITIONING.md` is the consolidated marketing source of truth; `ROADMAP.md` tracks the current plan.
+>
+> **Question series:**
+> - **B-series** — brand/feel questions (B3, B5 still open)
+> - **Q-series** — structural / product-feature questions (Q1–Q13, with Q11 resolved and several others narrowed per D18)
 
 ### B3: Agent Personification
 
@@ -144,28 +109,10 @@ Do the 7 agents have visual identities, and if so, how far?
 - C) Named avatars — icons/illustrations per agent, with color identity
 - D) Full characters — illustrated personas, personality in copy and visuals
 
-**Depends on:** B1 (metaphor constrains how far personification makes sense)
+**Depends on:** None (each visual family has an implicit stance; final decision locks with family winner)
 **Blocks:** Q2 (pipeline state visibility depends on whether agents have visual identity)
 
-**Why this matters:** Affects every component that shows agent attribution — which is most of the UI. Retroactive personification means re-doing every component.
-
----
-
-### B4: Color Strategy
-
-> **✅ RESOLVED at the framing level by D11.** Because LangSmith is link-out only (D11), we have **zero constraint to share LangSmith's palette**. The final palette is deferred to family-winner selection. Each of the three mockup briefs (`mockup_briefs/family-*.md`) proposes its own palette consistent with its emotional register; comparison happens in Phase B. Options A/B/C/D/E from the original list are all still on the table *per family* — Bloomberg family leans A (dark primary), Stripe leans B (light primary), Linear often C (dual mode). D (phase-responsive) and E (agent-attributed) remain candidates for specific components within a family, not whole-app strategies.
-
-**Options:**
-- A) Dark mode primary — dark background, light text, accent color for actions
-- B) Light mode primary — light background, dark text, accent color for actions
-- C) Dual mode — both dark and light, user toggle
-- D) Phase-responsive — color shifts with `current_phase` (e.g., research = blue, development = green)
-- E) Agent-attributed — each agent's color identity pervades its turn/section
-
-**Depends on:** B1, B2 (metaphor + personality constrain color strategy)
-**Blocks:** Q1 (layout mockups need a color system to evaluate)
-
-**Why this matters:** Color is the fastest brand signal. It needs intent, not default. Mocking up in the wrong mode and then switching is a full rework.
+**Why this matters:** Affects every component that shows agent attribution — which is most of the UI. Retroactive personification means re-doing every component. Each of the three mockup briefs (`mockup_briefs/family-*.md`) will express an implicit personification stance; this question formally locks when the winning family is selected.
 
 ---
 
@@ -178,79 +125,38 @@ How much information is visible at once?
 - B) Balanced — primary content visible, details on demand
 - C) Cockpit — everything visible, high density, glanceable
 
-**Depends on:** B1, B2 (metaphor + personality set density expectations)
+**Depends on:** None (each visual family has an explicit density baseline in its brief)
 **Blocks:** Q1 (layout must respect density philosophy)
 
-**Why this matters:** Related to Q1 but distinct — Q1 is *where* things go, this is *how much* goes there. A client-facing view may want zen; a Jason-facing view may want cockpit.
+**Why this matters:** Related to Q1 but distinct — Q1 is *where* things go, this is *how much* goes there. Per `POSITIONING.md` §5 and D13, density also varies *within* a surface by context-adaptive mode (ambient vs. drill-down). The open question is whether the two surfaces (Portal and Cockpit) share a single density scale with dial-up/down semantics, or use separate scales.
 
 ---
 
-### B6: Audience Self-Image
+### Q1: Layout Structure *(reframed by JOURNEY.md — there is no single layout)*
 
-> **✅ RESOLVED by D12 + D13.** The user's self-image is **determined by surface, not by the app as a whole**. In the Developer Cockpit the user is **Conductor/Developer** (option A + C from the original list — directing agents, debugging the harness). In the Client Portal the user is **Stakeholder** (option B — reviewing deliverables, checking progress, providing input). Option D ("all of the above — UI adapts to role/context") is essentially the answer, resolved via D12 (role-adaptive surface) + D13 (context-adaptive within surface). See `POSITIONING.md` §4.
+The original framing of Q1 asked "what is *the* primary layout?" — implying a single canonical answer (chat-only vs. split-panel vs. multi-panel cockpit). That framing was **wrong**.
 
-When you or a client looks at this app, who are you?
+**Resolved at a higher level via `JOURNEY.md`:** the UI is a **progressive reveal** across five journey states (t=0 virgin → t=4 rich). There are five layouts, not one. Each state is a genuinely different composition:
 
-**Options:**
-- A) Conductor — directing agents, approving handoffs, setting vision
-- B) Stakeholder — reviewing deliverables, checking progress, providing input
-- C) Developer — debugging a harness, inspecting traces, iterating on prompts
-- D) All of the above — the UI adapts to role/context
+- **t=0** — chat-only, full viewport (Option A at maximum)
+- **t=1** — chat-dominant with faint memory-hint card (A/B hybrid)
+- **t=2** — first-class document as hero, chat as side panel (B with inverted hierarchy)
+- **t=3** — multi-panel with emergent left + right rails (C, sparse)
+- **t=4** — full cockpit density (C at maximum, per the family briefs' rich-state spec)
 
-**Depends on:** B1 (metaphor implies a user role)
-**Blocks:** Q1, Q3 (approval flow design depends on whether the user sees themselves as conductor or stakeholder)
+Q1 is therefore **resolved by the journey-state framing**, not by picking one of the options. The original sub-questions below are still useful but reframe:
 
-**Why this matters:** The answer changes whether the UI is a *control panel*, an *observation deck*, or a *workbench*.
+1. **Primary workflow bias** — *varies by state.* At t=0/t=1, chat-first. At t=3/t=4, workbench-first. The product supports both because the project supports both.
+2. **Persistent vs. on-demand information** — *varies by state.* Pipeline rail becomes persistent at t=3; before then, it doesn't exist.
+3. **Viewport minimums** — **still open.** Mockup work will determine.
+4. **Phase-responsive layout** — *yes, emphatically.* This is the core JOURNEY.md thesis.
+5. **Interrupt prominence** — **cockpit-only per D18, rendered at t=4.** Session 4 produces the first visual answer.
+6. **Entry pattern** — **operator enters at t=0** (virgin chat), not at a project picker. Multi-project picker is Q10; emerges when the operator has >1 active project.
 
----
+**Status:** Q1 as originally written is resolved. Residual layout questions are operational and resolve during mockup Sessions 1–4.
 
-### B7: Trust Signal
-
-> **✅ RESOLVED by D10.** Trust is signaled by **the quality of distillation** — we are the executive summary above raw observability. Option C (transparency of process) is correct *in essence* but realized as **curated narrative over raw traces**, not raw-trace exposure. Options A/B/D are tactics each family will apply in its own register. See `POSITIONING.md` §3.
-
-How does the UI project competence and reliability for autonomous agent work?
-
-**Options:**
-- A) Precision of layout — tight grid, consistent spacing, nothing misaligned
-- B) Granular status — every agent action visible, streaming logs, trace links
-- C) Transparency of process — showing the work, intermediate artifacts, reasoning
-- D) Confidence — showing only results, clean summaries, minimal noise
-
-**Depends on:** B2, B5 (personality + density constrain trust expression)
-**Blocks:** Q2 (pipeline state visibility is partially a trust signal decision)
-
-**Why this matters:** Agents work autonomously. The UI must project that the system is competent and reliable. This is a brand decision, not just a UX decision.
-
----
-
-### Q1: Layout Structure
-
-What is the primary layout of the application?
-
-**Options:**
-- A) Single-panel chat (like ChatGPT) — pipeline state as inline indicators
-- B) Split-panel (chat + sidebar) — pipeline state in a dedicated sidebar
-- C) Multi-panel IDE — chat, pipeline state, file viewer, code viewer
-- D) Hybrid — chat-primary with collapsible/expanding panels for pipeline state
-
-**Depends on:** B1, B2, B4, B5 (metaphor, personality, color, density constrain layout)
-**Blocks:** Q2, Q3, Q4, Q5
-
-**Sub-questions to resolve Q1:**
-
-1. **Primary Workflow Bias** — Is this a "chat-first" app where users mainly converse, or a "workbench" where users watch agents work? (Biases toward A/B vs C/D)
-
-2. **Persistent vs. On-Demand Information** — Which must stay visible during active work: pipeline phase, current agent, handoff history? Which can hide behind hover/click?
-
-3. **Viewport Minimums** — What's the narrowest meaningful width? (Determines if split-panel is viable or if we need collapsible/drawer patterns)
-
-4. **Phase-Responsive Layout** — Does the layout change shape based on `current_phase`? (e.g., file viewer expands during Developer phase, shrinks during PM phase)
-
-5. **Interrupt Prominence** — Where do approval interrupts surface? Modal overlay? Inline banner? Dedicated "action zone"?
-
-6. **Entry Pattern** — Does the user land in a project picker first, or straight into chat? (Determines if sidebar starts collapsed)
-
-7. **Secondary Content Strategy** — File tree, code viewer, agent state — these compete for space. Are they panels, tabs, or floating overlays?
+**Depends on:** `JOURNEY.md` (authoritative), `mockup_briefs/family-*.md` (rich-state t=4 specs per family), B5 (density — also reframed, per JOURNEY.md)
+**Blocks:** Nothing structurally; individual state-layouts are session-bounded
 
 ---
 
@@ -269,26 +175,34 @@ How does the user see which phase is active, which agent is running, and the han
 
 ---
 
-### Q3: Approval Flow Interaction
+### Q3: Approval Flow Interaction *(cockpit-only, rescoped by D18)*
 
-How does the user approve or reject a handoff interrupt? What does the approval UI look like?
+How does the **operator** approve or reject a handoff interrupt from within the cockpit? What does the approval UI look like?
+
+**Rescoped by D18:** approvals are a cockpit-only action. The portal shows gate moments as informational ("The Architect has delivered the design package; your operator is reviewing it with you"), with no action buttons on the stakeholder side. Sub-questions 1 and 3 below no longer apply (stakeholder doesn't approve in-portal and doesn't receive approval-via-email links for in-system actions). Sub-questions 4 and 5 also simplify since only the operator is the approver.
 
 **Information requirements:**
 - `stream.interrupts` — HITL interrupt state
 - `pending_handoff` — handoff awaiting approval
 
-**Depends on:** Q1, Q2 (approval must fit within the layout and pipeline state display)
+**Residual sub-questions (all cockpit-side):**
+
+1. **Rejection routing** — when the operator rejects a gate, does control return to the originating agent (e.g., Architect re-opens design), to the PM (who triages where to route), or does it open a PM chat to capture the rejection reason before routing?
+2. **Timeout behavior** — if a gate approval sits unresolved, what happens in the cockpit? Escalating notifications to the operator? Silent wait?
+3. **Partial approval / revise-in-place** — can the operator edit sections of the deliverable inline and submit as "approve with revisions," or is the choice binary?
+
+**Depends on:** Q1, Q2 (approval must fit within the cockpit layout and pipeline state display); D13 (action-required mode, cockpit-only per D18)
 **Blocks:** Q5
 
 ---
 
-### Q4: Tier 2 Subagent Visibility
+### Q4: Tier 2 Subagent Visibility *(cockpit-only, rescoped by D18)*
 
-How are internal subagent activities (when an agent spawns subagents via `task` tool) displayed within an agent's turn?
+How are internal subagent activities (when an agent spawns subagents via `task` tool) displayed within an agent's turn in the **cockpit**? Portal does not expose subagent-level detail under D18.
 
-**SDK provides:** `SubagentCard`, `SubagentProgress`, `MessageWithSubagents` patterns. But visual integration with the pipeline-aware layout is open.
+**SDK provides:** `SubagentCard`, `SubagentProgress`, `MessageWithSubagents` patterns. But visual integration with the pipeline-aware cockpit layout is open.
 
-**Depends on:** Q1, Q2 (subagent display must fit within the layout)
+**Depends on:** Q1, Q2 (subagent display must fit within the cockpit layout)
 **Blocks:** None
 
 ---
@@ -302,37 +216,167 @@ What changes in the UI when the user toggles between autonomous and approval-req
 
 ---
 
-### Q6: Todo/Plan Progress Display
+### Q6: Todo/Plan Progress Display *(cockpit-primary, rescoped by D18)*
 
-How is `stream.values.todos` displayed alongside pipeline state? Is it per-agent, global, or both?
+How is `stream.values.todos` displayed in the **cockpit** alongside pipeline state? Is it per-agent, global, or both? Portal, under D18, shows progress at phase-level narrative abstraction ("The Architect is finalizing the design package"), not agent-level todos.
 
 **Depends on:** Q1, Q2
 **Blocks:** None
 
 ---
 
-### Q7: Sandbox Visual Form (v1 Scope)
+### Q7: Sandbox Visual Form *(cockpit-only, rescoped by D18)*
 
-When agents run with sandbox backends, what does the IDE experience look like? Three-panel layout? File tree + code viewer + chat?
+When agents run with sandbox backends, what does the **cockpit's** IDE experience look like? Three-panel layout? File tree + code viewer + chat? Portal does not expose the sandbox under D18 — stakeholders see narrative progress and packaged deliverables, not live agent filesystems.
 
-**Depends on:** Q1 (sandbox layout must be consistent with or an extension of the primary layout)
+**Depends on:** Q1 (sandbox layout must be consistent with or an extension of the primary cockpit layout)
 **Blocks:** None
+
+---
+
+### Q8: Soft Handover UX Mechanics *(simplified by D18)*
+
+How does an operator transfer cockpit access to a client at project delivery, and how does the client experience that upgrade?
+
+**Context:** D12 establishes soft handover as a monetization feature. D18 sharpens the mechanic: handover = granting a new cockpit account for the client's organization. The capability delta is now structural (stakeholder-mode cannot transact with agents; cockpit-mode can), which makes the upgrade narrative concrete.
+
+**Residual sub-questions:**
+
+1. **Trigger mechanism** — UI button in the cockpit (operator: "promote stakeholder to cockpit")? CLI command? Instruction to the PM agent? Most likely a simple cockpit-side affordance.
+2. **Client-side upgrade experience** — email notification ("You now have cockpit access to your Tavern Assistant project") + a first-cockpit-login orientation card explaining new capabilities. "Supervised cockpit" training-wheels mode deferred unless user research demands it.
+3. **Operator residual access** — after full handover, does the operator retain read-only observer access, billing/support access, or no access at all? Open — likely a checkbox at handover time.
+4. **Revocability** — can a handover be undone (e.g., retainer resumes)? If so, what happens to work the client did in the cockpit meanwhile?
+5. **Seeding behavior** — D12 says the delivered project's UUID becomes seed context for the client's next PM-scoped work. Automatic on first new-project creation, or explicit "start new project from this context" action?
+6. **Billing/commercial integration** — handled by D19 (auth & seats) + Stripe subscription primitives. Retainer = Stripe subscription on operator org; handover = new Stripe customer relationship with client org.
+
+**Depends on:** D12, D14, D18, D19 (auth/seats); Q1 (integration points in the cockpit layout)
+**Blocks:** Post-v1 monetization surfaces
+
+**Why this matters:** Soft handover is the product's primary stickiness mechanism. Shipping a vague handover UX forfeits the monetization advantage D18 just made structural.
+
+---
+
+### Q9: Auth & Seats *(pending D19, residual after D17 + D18)*
+
+After D17 (portal first-login UX) and D18 (pure broadcast portal), only two Q9 sub-questions remain open, both about auth architecture:
+
+1. **Invite mechanism** — operator provisions a stakeholder organization in cockpit → sends email invite with magic link → recipient sets a password (or uses Google OAuth if shipped) → persistent session-based login thereafter. *Working model; finalized by D19.*
+2. **Authentication architecture** — specific auth provider choice (Clerk / Supabase Auth / Auth.js / roll-our-own), session model, password-reset flow, Google OAuth inclusion in v1 or deferred. Scope simplified by D18: stakeholder seats are **viewer-only** (no write actions to model); operator seats have full cockpit-write capability; Stripe subscription primitives handle operator retainer billing and handover-to-client-org billing.
+
+**Depends on:** D12 (two surfaces), D17 (first-login UX), D18 (viewer-only stakeholder seats)
+**Blocks:** Nothing on canonical mockup screens (login/settings are out-of-scope in `mockup_briefs/*.md`). Blocks implementation work once mockups begin informing code.
+**Pending record:** D19 (Auth & Seats)
+
+---
+
+### Q10: Multi-Project Navigation
+
+How does an operator (or a handed-over client with multiple projects) manage and navigate between concurrent projects?
+
+**Sub-questions:**
+
+1. **Project picker surface** — `cmd-K` command palette? Dedicated projects index page? Top-bar dropdown? Left-rail project list?
+2. **Cross-project overview** — does the cockpit ever show a "home" view listing all active projects with their status, or is the app always project-scoped with the picker as the only cross-project surface?
+3. **Cross-project notifications** — when operator is in Project A's cockpit, how do they learn "Project B has a Gate 2 pending"? A universal notifications tray? A status bar indicator?
+4. **Project-to-client cardinality** — is a project always 1:1 with a client, or can multiple clients co-view a project's portal (e.g., founder + their CTO)?
+5. **Archival behavior** — delivered/archived projects surface as history? Hidden by default? Searchable?
+6. **Operator project vs. client project** — when an operator has 10 active client projects and also personal/internal projects, do they mix in the same picker or live in separate workspaces?
+
+**Depends on:** D8 (internal-tool scope), D12 (two surfaces), Q1 (layout)
+**Blocks:** Q1 (entry-state design depends on whether there's a picker before/after login)
+
+**Why this matters:** Consultants will have multiple simultaneous client projects from day one. No project picker = app is single-project only, which contradicts D8's "tool Jason uses for client work."
+
+---
+
+### Q12: Held-Out Dataset Access-Control Affordance *(largely resolved by D18; residual edge case)*
+
+**Resolved by D18 (for the primary cases):**
+- **Portal visibility:** hidden entirely — the portal shows eval results and public dataset previews only. Held-out dataset is invisible to stakeholders.
+- **Cockpit visibility for operator:** full preview access (operator is acting as both operator and harness engineer in practice; role-separation ceremony deferred unless user research demands it).
+
+**Residual edge cases (open):**
+
+1. **Handover inheritance** — when a stakeholder receives cockpit via soft handover, do they inherit access to the held-out dataset? *Philosophically* the project is theirs now; *practically* this could undermine evaluation integrity if held-out data leaks into their iteration loops for subsequent work. Likely default: yes-they-inherit, because the project is theirs; flag as a known watch-item for commercial-agreement adjustment.
+2. **Held-out regeneration** — if a handed-over client starts a new project using the delivered project as seed context (per D12), should the new project get a newly-generated held-out set, inherit the old one, or opt-out of held-out entirely? Open.
+
+**Depends on:** D10, D12, D18, Q8 (handover mechanics)
+**Blocks:** None
+
+---
+
+### Q13: TUI ↔ Web Active-Session Coordination
+
+How does the web app behave when the TUI (backend) is simultaneously active on the same project thread? What's the conflict model?
+
+**Context:** D14 establishes the TUI and web app as parallel windows into the same project thread. Two windows means potential simultaneous writes.
+
+**Sub-questions:**
+
+1. **Activity indication** — does the web app show a "TUI session active on this project" indicator (e.g., "Jason is currently driving this project from terminal")?
+2. **Write conflict model** — last-write-wins? Optimistic locking with user-visible conflict resolution? Serialized writes via checkpointer ordering? The LangGraph checkpointer's actual semantics need to be verified (consult `.venv/lib/python3.11/site-packages/langgraph/pregel/main.py` before locking a choice).
+3. **Read freshness** — does the web app subscribe to checkpointer deltas, poll on interval, or refresh-on-focus? Latency budget?
+4. **Interrupt race** — if both TUI and web app try to resume the same HITL interrupt simultaneously, what resolves first? Is there a lock acquisition step, or does the checkpointer serialize?
+5. **Read-only mode opt-in** — should the web app offer an explicit "Viewer" mode for projects actively being driven elsewhere, to prevent accidental double-writes?
+
+**Depends on:** D14; SDK checkpointer semantics (must verify before deciding)
+**Blocks:** None (operational concern, can launch with a conservative default)
+
+**Why this matters:** A single-operator scenario (Jason only) makes race conditions rare but possible. Multi-operator scenarios (handed-over client + original operator both active) make them routine. An undefined model ships as last-write-wins by default, which may silently lose state.
 
 ---
 
 ## §3 — Decision Dependency Map
 
 ```
-✅ B1 (Metaphor)  ─→ ✅ B2 (Personality) ─→ ✅ B4 (Color) ──┐
-                  └→    B3 (Personification) ────────────┤
-                  └→    B5 (Density) ───────────────────┤
-                  └→ ✅ B6 (Audience Self-Image) ────────┼─→ Q1 (Layout) ─→ Q2 (Pipeline State) ─→ Q3 (Approval Flow) ─→ Q5 (Autonomous Mode)
-                  └→ ✅ B7 (Trust Signal) ──────────────┘              │                        └─→ Q4 (Tier 2 Visibility)
-                                                                         └─→ Q6 (Todo Progress)
-                                                                         └─→ Q7 (Sandbox Form)
+Resolved (see DECISIONS.md D9–D18):
+  ✅ B1 Core Metaphor               → D12, D13
+  ✅ B2 Brand Personality           → D9, D15
+  ✅ B4 Color Strategy (framing)    → D11 (per-family palettes in mockup_briefs/)
+  ✅ B6 Audience Self-Image         → D12, D13
+  ✅ B7 Trust Signal                → D10
+  ✅ Q9.3/Q9.4/Q9.6 (Portal first-login UX)       → D17
+  ✅ Q9.5 (First meaningful action, no chat)       → D18
+  ✅ Q11 (Chat-with-PM gating — moot, no chat)    → D18
+  ✅ Q12 (primary cases — held-out hidden in portal, visible in cockpit) → D18
+
+Rescoped to cockpit-only / narrowed (still open but constrained):
+  Q3  (Approval Flow)        → cockpit-only per D18
+  Q4  (Tier 2 Subagent Vis)  → cockpit-only per D18
+  Q6  (Todo/Plan Display)    → cockpit-primary per D18
+  Q7  (Sandbox IDE Form)     → cockpit-only per D18
+  Q8  (Soft Handover UX)     → simplified by D18; handover = cockpit account provisioning
+  Q12 (residual — handover inheritance, held-out regeneration)
+
+Reframed by JOURNEY.md (no longer "open" as originally framed):
+  ✅ Q1 (Layout Structure)   → resolved at higher level: five journey-state layouts, not one
+
+Still open, resolved progressively via journey-state mockup sessions:
+
+  B3 (Agent Personification) ─── first signal at t=0 (PM chip), resolves across t=0–t=4
+  B5 (Density Philosophy)    ─── each journey state has its own density; resolves across t=0–t=4
+  Q2 (Pipeline State)        ─── first surfaces at t=3 (Session 3)
+  Q3 (cockpit Approval Flow) ─── surfaces at t=4 (Session 4), cockpit-only per D18
+  Q4 (cockpit Subagent Vis)  ─── surfaces at t=3 or t=4 depending on subagent usage
+  Q5 (Autonomous Mode)       ─── surfaces at t=4 (Session 4)
+  Q6 (cockpit Todo Progress) ─── surfaces at t=3+ (Session 3)
+  Q7 (cockpit Sandbox Form)  ─── post-t=4, when sandbox backend engages
+
+Non-journey residuals:
+  Q9  (Auth & Seats)         ─── D19 (pending, post-mockup)
+  Q10 (Multi-Project Nav)    ─── deferred until operator has >1 active project
+  Q13 (TUI↔Web Coordination) ─── operational, can defer
 ```
 
-**Status (2026-04-16):** B1, B2, B4, B6, B7 resolved by `DECISIONS.md` D9–D16 and `POSITIONING.md`. B3 (Agent Personification) and B5 (Density Philosophy) remain open — they are expressed differently per visual family and will be decided during family-winner selection. Q1–Q7 remain open pending mockup production; they are now unblocked because their brand-feel upstream dependencies have been resolved.
+**Status (2026-04-16 late evening, post-JOURNEY.md adoption):**
+
+- **Resolved / locked:** D1–D18 (18 decisions). D18 is the newest and reshapes §2 substantially. **Q1 reframed by `JOURNEY.md`** — the "single canonical layout" question is resolved at a higher level by the progressive-reveal thesis (five journey-state layouts, not one).
+- **Pending decision records:** D19 (Auth & Seats — resolves residual Q9).
+- **Journey-state mockup-dependent (resolve via visual exploration across sessions 1–4):** B3 (agent personification — first signal at t=0 PM chip), B5 (density — reframed: each state has its own density), Q2 (pipeline state visibility — surfaces at t=3), Q5 (autonomous mode — likely t=4), Q6 (cockpit todo progress — t=3+).
+- **Cockpit-scoped residuals (mockup-dependent, surface at t=3 or t=4):** Q3, Q4, Q7.
+- **Operational residuals:** Q10 (multi-project nav — deferred until operator has >1 project), Q13 (TUI↔web coordination), Q12 residuals (handover inheritance), Q8 residual sub-questions — all tractable post-mockup or inline with mockups.
+
+**Mockup production is no longer gated on further interviews.** D17 + D18 + `JOURNEY.md` together specify enough of the product-shape to scaffold the Next.js app and start building t=0 virgin state across three families on a live dev server. See `ROADMAP.md` for the boot sequence and session plan.
 
 ## §4 — Resolution Process
 

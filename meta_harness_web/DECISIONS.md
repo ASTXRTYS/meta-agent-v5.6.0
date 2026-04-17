@@ -149,3 +149,76 @@ Same backbone (opinionation + recommendation); different bandwidth (warmth + exp
 
 **Source:** Q3 of 2026-04-16 brand interview.
 
+---
+
+### D17: Portal First-Login UX (Scoped)
+
+**Decision:** Three aspects of first-time client portal entry are locked; the remainder of Q9 is deferred to dedicated decisions (D18, D19) noted below.
+
+1. **First-login state** — a newly-invited stakeholder lands on a **pre-populated portal at the Gate 1 hero**: the scoped PRD is already rendered as a first-class in-app document, ready for review. No empty states, no guided tour. The PM's voice (per D15) carries any explanation inline.
+
+2. **Operator-fed source material visibility** — raw inputs the operator fed to the PM during pre-scoping (call transcripts, summaries, briefs) live under a **collapsed "Source material" section, hidden by default, operator-controlled per-project toggle to reveal**. Default posture is "show the scoped output, not the sausage." Operators may enable source-material visibility when transparency is commercially advantageous (e.g., showing the client "here is what I heard you say, here is how I translated it" as a trust move).
+
+3. **Identity & trust signaling** — the **PM agent is the face of the portal chrome** (header, navigation, primary conversational voice). The operator is named in a **small "Operated by" credit** with photo, clickable to reveal operator context. Not hidden, not dominant. This preserves the product's transferability (D12 soft handover, D16 name ownership-transfer constraint) — a handed-over client must feel they own the named product, not an operator's tool.
+
+**Rationale:** These three points are the portal's first-impression contract and descend directly from D9 (premium orchestration layer), D12 (two surfaces, handover-as-feature), D15 (opinionated voice), and D16 (name must support ownership-transfer). They resolve cleanly and independently of the larger auth/billing architecture and commercial-discipline questions, so locking them tonight is low-risk and unblocks the ambient-landing portions of the Screen 1 mockups across all three visual families.
+
+**Scope exclusions — deferred to dedicated decisions:**
+
+- **D18 — Pure Broadcast Portal (Client-Side Product Shape)** *(see below, locked 2026-04-16 late evening).* Supersedes what was originally going to be D19's chat-gating question by resolving the underlying product-shape question: the portal has no chat affordance at all. D17's point 3 ("PM as portal chrome face") was written anticipating a conversational portal; under D18, "PM is the face" means PM is the **narrative voice** of the portal — all copy the stakeholder reads is PM-authored — not a conversational partner.
+
+- **D19 (pending) — Auth & Seats.** Covers Q9.1 (invite mechanism) and Q9.2 (authentication + multi-seat). Scope simplified substantially by D18: stakeholder seats are **viewer-only** (no write actions to model); operator seats retain full cockpit-write capability; Stripe subscription primitives are for the operator-retainer relationship. Still requires a grounded research session (Clerk / Supabase Auth / Auth.js tradeoffs) before locking. Does NOT block canonical mockup screens (login/settings are out-of-scope in `mockup_briefs/*.md`).
+
+**Tradeoffs:** Splitting Q9 across D17, D18, D19 produces more audit trail entries than a single monolithic onboarding decision would. Accepted — each record stays small enough to revise independently, and forcing closure on auth/billing/chat at 9:30pm on interview day would have locked decisions we would re-open within two weeks. In fact, the D18 scope-narrowing (which happened later that same evening) validated this caution: locking the originally-planned "chat-gating with per-project operator toggle" would have been overturned within hours by the product-shape conversation.
+
+**Source:** Q9.3, Q9.4, Q9.6 of 2026-04-16 Q9 mini-interview; companion to `AD-WebApp.md` §2 Q9 residual sub-questions. Forward-references amended 2026-04-16 late evening when D18 locked.
+
+---
+
+### D18: Pure Broadcast Portal — Client-Side Product Shape
+
+**Decision:** The Client Portal is a **pure observation window**, not a collaboration surface. Stakeholders read, view, and receive. They do not submit, approve, revise, reject, or converse *into* the system. The operator is the **100% exclusive interaction channel** between stakeholder and agent team. This is the product thesis for the client side.
+
+**What this means concretely:**
+
+- **No chat affordance on the portal side.** Does not exist. Not hidden, not toggleable, not feature-flagged — simply absent from the Client Portal surface. Chat-with-PM is a cockpit affordance only.
+- **No approval / revision / rejection buttons on the portal side.** Stakeholders view rendered artifacts (PRDs, design packages, eval rubrics, packaged deliverables) but submit **no** state-changing actions.
+- **All `ask_user` agent interrupts route to the operator.** Gate approvals, clarifying questions, every human-in-the-loop checkpoint is the operator's responsibility. The stakeholder never receives an agent interrupt directly.
+- **Stakeholder feedback flows out-of-band and is carried in by the operator.** Email, calls, document markup, Slack — whatever channel the commercial relationship uses. The operator translates that feedback into cockpit actions.
+- **PM agent is the narrative voice of the portal**, not a conversational partner. Every piece of copy the stakeholder reads (phase status, artifact introductions, eval explanations, handoff summaries) is PM-voiced and carries the "Always Land The Plane" opinionation (D15) — but the stakeholder consumes, never responds through the UI.
+
+**Rationale:** This shape is the cleanest expression of the "premium orchestration layer" positioning (D9) and the "executive summary, not trace reimplementation" product philosophy (D10). It matches the Bloomberg Terminal / Datadog / Reuters reference pattern — curated signal for the reader, not a chat with the analysts. It eliminates commercial-scope-creep **by design, not by policy** — stakeholders literally cannot initiate scope expansion because they cannot message into the system. It sharpens the soft-handover monetization (D12) — handing over cockpit keys becomes a genuine capability unlock (stakeholder-mode cannot transact with agents; cockpit-mode can), not a permissions toggle. And it lets the voice principle (D15) express as pure monologue-with-stance in the portal, which is a tighter creative constraint and a stronger brand signal.
+
+**What this closes:**
+
+- **Q9.5** (first meaningful action, pre-gate chat semantics) — resolved. No chat exists; the stakeholder's "meaningful action" is *reading* the rendered PRD and conveying any response out-of-band.
+- **Q11** (chat-with-PM availability gating) — resolved as inapplicable to the portal.
+- **Previously-planned D19 (Commercial Scope Discipline & Chat Gating)** — moot. The question "when should chat be gated?" is answered by "portal has no chat."
+
+**What this simplifies:**
+
+- **D19 (auth) scope:** stakeholder seats are viewer-only. No write-scope permissions to model. Auth architecture shrinks.
+- **Q3 (approval flow interaction, `AD-WebApp.md` §2):** becomes **cockpit-only**. Approvals are an operator action. The portal's rendering of a gate moment is purely informational ("The Architect has delivered the design package; your operator is reviewing it with you").
+- **Q4 (Tier 2 subagent visibility):** **cockpit-only** in practice. Stakeholders don't need sub-agent detail.
+- **Q6 (todo progress):** **cockpit-only** or heavily abstracted in portal (phase-level, not agent-level).
+- **Q7 (sandbox IDE form):** **cockpit-only**. Stakeholders don't see agent filesystems.
+- **Q8 (soft handover):** mechanism gets cleaner — granting cockpit credentials is a genuine capability unlock. The "upgrade experience" question is easier to answer.
+- **Q12 (held-out datasets):** largely resolved by D18 — portal = hidden (stakeholders don't see the held-out set at all); cockpit = full operator access. Handover-inheritance edge case persists but narrows.
+- **Mockup scope:** each family's **Screen 4 (Chat with PM)** becomes cockpit-only. Portal canonical screens shrink. Screen 2 (approval gate) portal treatment loses its action buttons and becomes a beautifully-presented informational view.
+
+**Tradeoffs:**
+
+- Clients who would specifically want to converse with the PM agent as a product feature cannot do so in v1. **Accepted** — the commercial discipline payoff and the positioning clarity are worth more than that feature. Clients who want direct agent access can pay for the soft handover and get *full* cockpit access, which is a stronger commercial story than "limited-chat tier."
+- Some stakeholders may feel a lack of agency on first login ("I can't do anything in here"). **Accepted** — the portal's job is transparency and trust-signaling, not interactive agency. Agency lives in the paying relationship with the operator, who is named and reachable.
+- If user research later reveals that stakeholders strongly want direct PM access, we'd need to revisit. **Accepted as a known watch-item** — this is a product-shape commitment that the visual mockup phase will stress-test; if the Client Portal feels hollow without chat in mockups, we re-open the question.
+
+**Relationship to other decisions:**
+- **Strengthens D9** (premium orchestration layer) — instruments don't chat back.
+- **Strengthens D10** (executive summary) — summaries are read, not conversed with.
+- **Strengthens D12** (soft handover monetization) — the capability delta between stakeholder-mode and cockpit-mode is now maximal.
+- **Strengthens D15** (Always Land The Plane) — portal voice is pure opinionated monologue; cockpit voice is telegraphic operator dialog. The two registers are now structurally different, not just tonally.
+- **Amends D13** (context-adaptive modes) — the Client Portal supports only **ambient** and **drill-down** modes. *Action-required* mode doesn't apply to the portal (actions are operator-owned). *Conversational* mode doesn't exist in the portal. Cockpit retains all four.
+- **Amends D17 point 3** — PM is the **narrative voice** of the portal (always monologue), not a conversational face.
+
+**Source:** 2026-04-16 late-evening scope-narrowing conversation following the Q9 mini-interview. Locked in response to Jason's product-lead judgment that the cleanest product shape is the one that makes commercial discipline structural rather than procedural. No interview prep; decision emerged from direct product reasoning about scope, positioning, and monetization alignment.
+

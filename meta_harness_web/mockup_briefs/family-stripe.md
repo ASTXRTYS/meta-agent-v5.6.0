@@ -3,7 +3,9 @@
 **Family archetype:** Calm authoritative clarity
 **Primary hypothesis tested:** *A stakeholder-first aesthetic — calm, trustworthy, light-primary — can scale upward to cockpit-grade density by progressively adding panels, data, and affordances, without losing its core "grown-up software" register. The Portal is the home base; the Cockpit is the same brand with the knob turned up.*
 **Primary audience bias:** Stakeholder — designed for the founder/executive who wants the product to feel safe, legible, and credible; the Cockpit inherits this gravitas and adds operator leverage on top.
-**Governing docs:** `POSITIONING.md`, `DECISIONS.md` D9–D16, `AD-WebApp.md` §1
+**Governing docs:** `POSITIONING.md`, `JOURNEY.md` (progressive-reveal journey states), `DECISIONS.md` D1–D18 (**note D18: Pure Broadcast Portal — the client portal has no chat and no action buttons; stakeholder side is observation-only**), `AD-WebApp.md` §1, `ROADMAP.md`
+
+> **Status note (2026-04-16 late evening):** This brief's "canonical mockup screens" in §4 are now understood as the **rich-state (t=4) visual specification** per `JOURNEY.md`. They remain the authoritative visual target for rich-state work. Earlier journey states (t=0 virgin through t=3 pipeline-emergent) are built first and reveal progressively into this endpoint. Voice exemplars in §5 and candidate names in §3 remain fully valid.
 
 ---
 
@@ -84,20 +86,19 @@ Same canonical project state as Family A & B (see `family-linear.md` §4):
 ### Screens required (both surfaces unless noted)
 
 1. **Project landing** — ambient mode.
-   - *Portal (primary for this family):* hero area displays the project name "Tavern Assistant" in display type (possibly a soft-serif accent), one-line status ("Architecture phase — design in progress"), a prominent "Recent activity" card with narrative entries ("The Architect submitted the design package for your review 12 minutes ago"), a deliverables-so-far card, a chat-with-PM card. Lots of breathing room. Light mode. Card-based layout with subtle shadows.
-   - *Cockpit:* the same page with **additional panels revealed** — left rail shows all 7 agents, center still shows narrative but with more activity items, right rail shows eval status + handoff log. Density higher; chrome identical; brand tokens unchanged. "The Portal with the knob turned up."
+   - *Portal (primary for this family):* hero area displays the project name "Tavern Assistant" in display type (possibly a soft-serif accent), one-line status ("Architecture phase — design in progress"), a prominent "Recent activity" card with narrative entries ("The Architect submitted the design package 12 minutes ago; your operator is reviewing it with you"), a deliverables-so-far card, and the subtle "Operated by" credit per D17. **No chat card per D18.** Lots of breathing room. Light mode. Card-based layout with subtle shadows.
+   - *Cockpit:* the same page with **additional panels revealed** — left rail shows all 7 agents, center still shows narrative but with more activity items, right rail shows eval status + handoff log, chat pane (collapsed) available per D18. Density higher; chrome identical; brand tokens unchanged. "The Portal with the knob turned up, plus cockpit-exclusive interaction affordances."
 
-2. **Approval gate moment** — action-required mode.
-   - *Portal:* a hero callout card dominates the viewport. The design package renders as a beautifully-typeset first-class document (think: Stripe's email receipts, Mercury's invoice view, Notion's doc view). Approve / Request Revision / Discuss with PM buttons. The document *looks* like a formal deliverable the stakeholder would be proud to forward to their team.
-   - *Cockpit:* same hero callout but positioned in the center column with pipeline/logs still visible in peripheral panels. The operator can see gate context + pipeline at once.
+2. **Approval gate moment** — action-required mode in cockpit; **informational mode in portal** per D18.
+   - *Portal:* a hero card presents the packaged design package as a beautifully-typeset first-class document (think: Stripe's email receipts, Mercury's invoice view, Notion's doc view). The document *looks* like a formal deliverable the stakeholder would be proud to forward to their team. PM-voiced introduction explaining the package's context and recommendation. **Read-only; no action buttons, no chat.** Any stakeholder response flows out-of-band through the operator (per D18).
+   - *Cockpit:* the same rendered document + approve/revise/inspect buttons positioned in the center column with pipeline/logs still visible in peripheral panels. The operator can see gate context + pipeline at once. **This is where the operator decides.**
 
 3. **Eval suite detail** — drill-down mode.
    - *Portal:* rendered as a beautifully-presented scrollable article: intro paragraph from HE ("For Luma Tavern's Tavern Assistant, we're evaluating five dimensions of quality..."), each rubric criterion as its own titled section with the per-score descriptions as nested cards, the binary tests as a clear checklist, a dataset preview section with representative examples rendered as quote-cards. This is the family's signature move: *eval science made stakeholder-readable*. No tables unless necessary.
    - *Cockpit:* the same content available in a denser "analytical view" — tables of criteria, tables of experiments, inline dataset previews. Operator can toggle between "Article View" and "Table View."
 
-4. **Chat with PM** — conversational mode.
-   - *Portal:* chat expands to ~75% viewport. Bubble-style messages with generous padding. Agent label is a small badge above the bubble. The chat feels like iMessage with the pro-dial turned up — inviting, not intimidating. Input field has a "Press ⏎ to send, or Shift⏎ for new line" hint.
-   - *Cockpit:* chat still dominates but ~65% width, with pipeline state in a compact side panel. Timestamps visible by default. Agent labels more technical.
+4. **Chat with PM** — **cockpit-only** (portal has no chat per D18).
+   - *Cockpit:* chat dominates at ~65% width, with pipeline state in a compact side panel. Timestamps visible by default. Agent labels technical. Input field has a "Press ⏎ to send, or Shift⏎ for new line" hint.
 
 5. **Handoff log narrative** — drill-down mode.
    - *Portal:* renders the handoff log as a **narrative timeline** — "12:04 PM · The Harness Engineer returned the evaluation suite to the Project Manager." Plain-language, timeline-scrolled, each entry expandable into a longer narrative. No enum values ("reason: deliver"), no artifact paths — just story.
@@ -114,19 +115,19 @@ Login screens, project picker (D8), settings, billing not required for these moc
 
 ## §5 — Voice Exemplars
 
-### Client Portal (warm-knowledgeable-peer register)
+### Client Portal (warm-knowledgeable-peer register, **monologue only** per D18)
 
-**Gate 2 approval hero:**
-> *"The Architect's design package for **Tavern Assistant** is ready for your review.*
+**Gate 2 informational hero (D18 framing):**
+> *"The Architect's design package for **Tavern Assistant** is ready.*
 >
-> *I've looked it over. It's thoughtful work, and the architecture lines up with what we scoped on the call. Two tradeoffs the Architect wants your opinion on are flagged in the document. My recommendation: both tradeoffs are sensible for the v1 scope — I'd approve.*
+> *I've looked it over. It's thoughtful work, and the architecture lines up with what we scoped on the call. Two tradeoffs the Architect wants opinion on are flagged in the document. My recommendation to your operator: both tradeoffs are sensible for the v1 scope — approve.*
 >
-> *You can read it through, chat with me about any section, or approve directly."*
+> *Read the package below; share any reactions directly with your operator, who will carry them back to me."*
 >
-> [ Read the Design Package ] · [ Discuss with PM ] · [ Approve ]
+> [ Read the Design Package ]
 
-**Empty state:**
-> *"No projects yet. When you're ready, share what your client needs — a brief, a call transcript, a summary — and I'll scope the PRD with you. We'll refine it together before anything else happens."*
+**Empty state (operator's first-login view of a not-yet-scoped project, seen in cockpit):**
+> *"No project scoped yet. When you're ready, share what your client needs — a brief, a call transcript, a summary — and I'll scope the PRD with you. We'll refine it together before anything else happens."*
 
 ### Developer Cockpit (precise-technical-operator register, in Stripe chrome)
 

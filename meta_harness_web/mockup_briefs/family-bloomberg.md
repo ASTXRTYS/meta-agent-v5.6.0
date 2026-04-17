@@ -3,7 +3,9 @@
 **Family archetype:** Dense authoritative instrument
 **Primary hypothesis tested:** *An instrument-grade cockpit can be the product's primary identity, with the Client Portal serving as a "softened instrument" — muted chrome, alerts made more prominent, telemetry hidden — without feeling like a different product.*
 **Primary audience bias:** Operator — designed for the power user who lives in the app, measures UI by data-per-pixel, and wants cockpit leverage; the client portal inherits this gravitas but strips cockpit noise.
-**Governing docs:** `POSITIONING.md`, `DECISIONS.md` D9–D16, `AD-WebApp.md` §1
+**Governing docs:** `POSITIONING.md`, `JOURNEY.md` (progressive-reveal journey states), `DECISIONS.md` D1–D18 (**note D18: Pure Broadcast Portal — the client portal has no chat and no action buttons; stakeholder side is observation-only**), `AD-WebApp.md` §1, `ROADMAP.md`
+
+> **Status note (2026-04-17, updated):** This brief's "canonical mockup screens" in §4 are now understood as the **rich-state (J6 / J7) visual specification** per `JOURNEY.md`. They remain the authoritative visual target for rich-state work. Earlier journey states (J0 virgin through J5 Gate 2 pending) are built first and reveal progressively into this endpoint. J6 covers Planning & Development; J7 covers Acceptance & Delivery. Voice exemplars in §5 and candidate names in §3 remain fully valid.
 
 ---
 
@@ -86,17 +88,16 @@ Same canonical project state as Family A (see `family-linear.md` §4):
    - *Cockpit:* full multi-panel layout. Left rail: all 7 agents with activity indicators (idle/active/blocked, semantic color). Center: phase progress bar + live event stream (timestamp-prefixed, monospace, like a log tail). Right rail: compact eval status + dataset counts + handoff log (last 10). Bottom status bar: project ID, thread ID, checkpoint namespace, model, connection state.
    - *Portal:* the same layout but **heavily muted** — only 3 agents visible (PM, and whichever two are currently/recently active), no log tail (instead: narrative cards describing recent activity), no status bar. Still dark. Still monospace for timestamps. But density knob turned from 10 down to 5.
 
-2. **Approval gate moment** — action-required mode.
-   - *Cockpit:* the live event stream pauses and a prominent red-bordered callout card appears at top: *"GATE 2 PENDING — Design Package (awaiting operator decision)"* with timestamp, source agent, and inline buttons. No modal overlay — the cockpit doesn't block you, it escalates one panel. Everything else remains readable.
-   - *Portal:* same information, but rendered as a warm-amber-bordered "Next action required" card, much larger, with the packaged design document rendered inline below it. The client can't ignore it, but it's also not militant.
+2. **Approval gate moment** — action-required mode in cockpit; **informational mode in portal** per D18.
+   - *Cockpit:* the live event stream pauses and a prominent red-bordered callout card appears at top: *"GATE 2 PENDING — Design Package (awaiting operator decision)"* with timestamp, source agent, and inline approve/revise/inspect buttons. No modal overlay — the cockpit doesn't block you, it escalates one panel. Everything else remains readable. **This is where the operator decides.**
+   - *Portal:* same information rendered as a muted-amber-bordered "Recent activity" card, with the packaged design document below it. **No action buttons.** PM-voiced narrative introduction ("The Architect delivered this design package; your operator is reviewing it with you"). Read-only. Any stakeholder feedback flows out-of-band through the operator (per D18).
 
 3. **Eval suite detail** — drill-down mode.
    - *Cockpit:* a dedicated panel with 4 sub-tabs: `RUBRIC`, `BINARY TESTS`, `DATASETS`, `EXPERIMENTS`. Rubric tab shows all 5 criteria in a compact table with per-score descriptions in expandable rows. Experiments tab shows a table of runs with scores, timestamps, `lc_agent_name`, and `↗` links to LangSmith. Monospace is heavy here. This is where power-users live.
    - *Portal:* the same information but re-rendered as **narrative cards**, not tables. "Luma Tavern's agent will be tested against five criteria," then each criterion as a card with the HE's authored explanation. Held-out dataset section says "Operator-only" with a subtle lock icon.
 
-4. **Chat with PM** — conversational mode.
+4. **Chat with PM** — **cockpit-only** (portal has no chat per D18).
    - *Cockpit:* chat is a *panel*, not the hero. It takes the center column but left rail and right rail remain present. Chat messages have monospace timestamps and colored `lc_agent_name` labels. Terminal-feel without being LARPy.
-   - *Portal:* chat expands to dominate the viewport (~80% width). Timestamps hidden by default (available on hover). Agent labels are full words, not abbreviations.
 
 5. **Handoff log narrative** — drill-down mode.
    - *Cockpit only:* a full-viewport table of `handoff_log` entries. Sortable, filterable, keyboard-navigable. Columns: timestamp, source → target, reason (colored by enum), brief (truncated), artifact count. Row expand shows full brief text in monospace with artifact paths as clickable file-tree links.
@@ -111,13 +112,13 @@ Same canonical project state as Family A (see `family-linear.md` §4):
 
 ## §5 — Voice Exemplars
 
-### Client Portal (warm-knowledgeable-peer register, in Bloomberg chrome)
+### Client Portal (warm-knowledgeable-peer register, in Bloomberg chrome, **monologue only** per D18)
 
-**Gate 2 approval hero:**
-> *"The Architect has returned the design package for **Tavern Assistant**. I've reviewed it — it's solid. There are two tradeoffs flagged for your attention; both are reasonable. My recommendation: approve. If you'd rather discuss first, use the chat below."*
-> [ Review Package ] [ Approve ] [ Request Revision ]
+**Gate 2 informational hero (D18 framing):**
+> *"The Architect has returned the design package for **Tavern Assistant**. I've reviewed it — it's solid. Two tradeoffs are flagged for attention; both are reasonable. My recommendation to your operator: approve. You can read the full package below — share any reactions directly with your operator, who will carry them back to me."*
+> [ Read the Design Package ]
 
-*(Notice: even in Bloomberg chrome, the Client Portal's copy is warm. The dense visual language does the heavy lifting of signaling "instrument quality"; the warmth is carried by words.)*
+*(Notice: even in Bloomberg chrome, the Client Portal's copy is warm. The dense visual language does the heavy lifting of signaling "instrument quality"; the warmth is carried by words. No chat affordance, no approval buttons — per D18, portal is observation-only.)*
 
 ### Developer Cockpit (precise-technical-operator register, in Bloomberg chrome)
 
