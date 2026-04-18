@@ -4,9 +4,11 @@ Frozen decisions archived from `AD.md`. Reference material, not active content.
 
 ---
 
-### D8: Internal Tool Scope — No Landing Page for v1
+### D1: Product Purpose 
 
-**Decision:** v1 is an internal tool for Jason + client portal for progress visibility. No public SaaS, no marketing landing page needed for v1. Simple login screen suffices for authentication.
+**Decision:** The website/app for the meta harness will serve as the public face of the application and may potentially be the first in a series of different applications that will be built on top of the meta harness wich will extend the scope of what we offer as an Agents as a Service platform. The first service we are offering is a team of agents that scope business, enterprise, individual needs and ultimatley output agent harnesses that automate workflows, augment staff productivity, enrich processes and ultimately deliver measurable ROI. This is what we precieve to be the main purpose businesses, big or small, are seeking the implementaion of ai in their organizations.
+
+
 
 **Rationale:** Primary use cases are (1) recording demos of the full web app and agents executing e2e, seeing how artifacts are stored in the ui, seeing eval results, experiment results and direct links to traces in langsmith, etc (2) giving clients visibility into what they're paying for. These are internal/admin workflows, not consumer onboarding flows.
 
@@ -60,24 +62,24 @@ Frozen decisions archived from `AD.md`. Reference material, not active content.
 
 ---
 
-### D12: Surface Strategy — Two-Surface Role-Adaptive (Client Portal + Developer Cockpit)
+### D12: Surface Strategy — Two-Surface Role-Adaptive (Stakeholder Portal + Developer Cockpit)
 
 **Decision:** Meta Harness is **one web app with two role-adaptive surfaces**:
 
-- **Client Portal** — for external stakeholders (clients, founders, executives). Shows distilled signal: current phase, eval results, packaged deliverables, approval gates, and a chat affordance to the Project Manager agent for scoping/aftercare conversations. Does not expose raw agent chatter or cockpit density.
-- **Developer Cockpit** — for the operator (initially Jason, eventually handed-over clients). Full pipeline visibility, all 7 agents' activity, handoff log, eval authoring surfaces, drill-down into any artifact, LangSmith deep links. High density, high leverage.
+- **Stakeholder Portal** — for external clients, founders, executives, or internal executives in a company deployment. Shows distilled signal: current phase, eval results, packaged deliverables, gate moments rendered as read-only documents, and PM-authored narrative. Per D18, it has no chat, no approval buttons, and no state-changing affordances.
+- **Developer Cockpit** — for the operator (initially Jason; eventually a handed-over client, internal developer team, or company operator). Full pipeline visibility, all 7 agents' activity, handoff log, eval authoring surfaces, drill-down into any artifact, LangSmith deep links, approval controls, and PM chat. High density, high leverage.
 
-Both surfaces read from the **same PCG state, same project thread (`thread_id = project_id`), same data sources**. They differ in layout hierarchy, density, access-controlled affordances, and voice register (see D15). Role is assigned per-user per-project via access control; a single human can have cockpit access on their own projects and client access on projects they are the stakeholder for.
+Both surfaces read from the **same PCG state, same project thread (`thread_id = project_id`), same data sources**. This is one product with two role-scoped sides, not two unrelated websites. They differ in layout hierarchy, density, access-controlled affordances, and voice register (see D15). Role is assigned per-user per-project via access control; a single human can have cockpit access on their own projects and stakeholder access on projects they are observing.
 
 **Stickiness mechanism — soft handover:** At project delivery, the operator chooses (a) **retainer** — operator retains cockpit, client retains portal; or (b) **full handover** — client is granted cockpit access; the delivered project's UUID becomes seed context for their next scoped work with the PM. The web app is the product asset being transferred. Cockpit handover is a monetizable product feature, not just a UX pattern.
 
 **Rationale:** Q5-clarify resolved this: stakeholders are external parties (clients of Jason's consulting practice, and eventually of any operator using Meta Harness) who require access-controlled separation from cockpit internals. The retainer-vs-handover split creates genuine product stickiness — clients either pay ongoing for operator-managed projects, or pay for the handover that grants them self-service capability. Both lanes monetize the app; a role-adaptive surface strategy is what enables both.
 
-**Scope note:** This decision *extends* D8 (Internal Tool Scope — No Landing Page for v1) rather than replacing it. D8 correctly locked "v1 = internal tool + client portal." D12 specifies *how* that dual-audience product is organized structurally.
+**Scope note:** This decision *extends* D8 (Internal Tool Scope — No Landing Page for v1) rather than replacing it. D8 correctly locked "v1 = internal tool + stakeholder portal." D12 specifies *how* that dual-audience product is organized structurally.
 
 **Tradeoffs:** Two surfaces means roughly 2× the mockup work per visual family, and two sets of components to maintain in production. Mitigated by: shared data layer (same `useStream`, same reactive reads), shared component library (eval scorecard, dataset browser, LangSmith link treatment), and explicit design discipline — the two surfaces must share brand tokens even when they diverge in layout and density.
 
-**Source:** Q5 + Q5-clarify of 2026-04-16 brand interview; extends D8.
+**Source:** Q5 + Q5-clarify of 2026-04-16 brand interview; extends D8. Extended by D18 on 2026-04-16. Clarified by Jason on 2026-04-17 that the same split applies to external-client and internal-company deployments.
 
 ---
 
@@ -105,7 +107,7 @@ Both surfaces read from the **same PCG state, same project thread (`thread_id = 
 **Implications:**
 - Work started in the TUI is fully resumable in the web app, and vice versa, within the same project thread.
 - The web app cockpit surface must expose every capability the TUI exposes (agent interaction, handoff inspection, artifact browsing, eval authoring, etc.) — the TUI is not a superset.
-- The client portal surface is *only* available in the web app (no TUI client-facing mode). The TUI is an operator-only interface.
+- The stakeholder portal surface is *only* available in the web app (no TUI stakeholder-facing mode). The TUI is an operator-only interface.
 
 **Rationale:** User requirement: seamless cross-window workflows. "I should be able to make project progress inside the terminal and have all the information emitted to the web app." This aligns with the LangGraph Platform checkpointer model — state lives in the checkpointer, not in a particular UI — so this is architecturally free as long as both UIs are disciplined about reading/writing through the SDK, not through UI-local caches.
 
@@ -121,7 +123,7 @@ Both surfaces read from the **same PCG state, same project thread (`thread_id = 
 
 **Register-adaptation:** The voice principle is register-agnostic. Implementation varies by surface:
 
-- **Client Portal (warm-knowledgeable-peer register)** — complete sentences, light warmth, explanatory "why" included. Example: *"I've drafted the PRD. I have concerns about scope item 3 — the external-data dependency adds roughly two weeks. My recommendation is to cut it from v1 and revisit in v1.1. Want me to proceed with that trim?"*
+- **Stakeholder Portal (warm-knowledgeable-peer register)** — complete sentences, light warmth, explanatory "why" included. Example: *"I've drafted the PRD. I have concerns about scope item 3 — the external-data dependency adds roughly two weeks. My recommendation is to cut it from v1 and revisit in v1.1. Want me to proceed with that trim?"*
 - **Developer Cockpit (precise-technical-operator register)** — spare, fragmented, telegraphic, no softeners. Example: *"PRD scoped. Blocker: scope item 3 adds 2wk external-data integration. Recommend cut from v1. Approve trim?"*
 
 Same backbone (opinionation + recommendation); different bandwidth (warmth + explanation vs. precision + terseness).
@@ -153,7 +155,7 @@ Same backbone (opinionation + recommendation); different bandwidth (warmth + exp
 
 ### D17: Portal First-Login UX (Scoped)
 
-**Decision:** Three aspects of first-time client portal entry are locked; the remainder of Q9 is deferred to dedicated decisions (D18, D19) noted below.
+**Decision:** Three aspects of first-time stakeholder portal entry are locked; the remainder of Q9 is deferred to dedicated decisions (D18, D20) noted below.
 
 1. **First-login state** — a newly-invited stakeholder lands on a **pre-populated portal at the Gate 1 hero**: the scoped PRD is already rendered as a first-class in-app document, ready for review. No empty states, no guided tour. The PM's voice (per D15) carries any explanation inline.
 
@@ -161,27 +163,27 @@ Same backbone (opinionation + recommendation); different bandwidth (warmth + exp
 
 3. **Identity & trust signaling** — the **PM agent is the face of the portal chrome** (header, navigation, primary conversational voice). The operator is named in a **small "Operated by" credit** with photo, clickable to reveal operator context. Not hidden, not dominant. This preserves the product's transferability (D12 soft handover, D16 name ownership-transfer constraint) — a handed-over client must feel they own the named product, not an operator's tool.
 
-**Rationale:** These three points are the portal's first-impression contract and descend directly from D9 (premium orchestration layer), D12 (two surfaces, handover-as-feature), D15 (opinionated voice), and D16 (name must support ownership-transfer). They resolve cleanly and independently of the larger auth/billing architecture and commercial-discipline questions, so locking them tonight is low-risk and unblocks the ambient-landing portions of the Screen 1 mockups across all three visual families.
+**Rationale:** These three points are the portal's first-impression contract and descend directly from D9 (premium orchestration layer), D12 (two surfaces, handover-as-feature), D15 (opinionated voice), and D16 (name must support ownership-transfer). They resolve cleanly and independently of the larger auth/billing architecture and commercial-discipline questions, so locking them tonight is low-risk and unblocks the first stakeholder-facing J3 mockups across all three visual families.
 
 **Scope exclusions — deferred to dedicated decisions:**
 
-- **D18 — Pure Broadcast Portal (Client-Side Product Shape)** *(see below, locked 2026-04-16 late evening).* Supersedes what was originally going to be D19's chat-gating question by resolving the underlying product-shape question: the portal has no chat affordance at all. D17's point 3 ("PM as portal chrome face") was written anticipating a conversational portal; under D18, "PM is the face" means PM is the **narrative voice** of the portal — all copy the stakeholder reads is PM-authored — not a conversational partner.
+- **D18 — Pure Broadcast Portal (Stakeholder-Side Product Shape)** *(see below, locked 2026-04-16 late evening).* Supersedes what was originally going to be D19's chat-gating question by resolving the underlying product-shape question: the portal has no chat affordance at all. D17's point 3 ("PM as portal chrome face") was written anticipating a conversational portal; under D18, "PM is the face" means PM is the **narrative voice** of the portal — all copy the stakeholder reads is PM-authored — not a conversational partner.
 
-- **D19 (pending) — Auth & Seats.** Covers Q9.1 (invite mechanism) and Q9.2 (authentication + multi-seat). Scope simplified substantially by D18: stakeholder seats are **viewer-only** (no write actions to model); operator seats retain full cockpit-write capability; Stripe subscription primitives are for the operator-retainer relationship. Still requires a grounded research session (Clerk / Supabase Auth / Auth.js tradeoffs) before locking. Does NOT block canonical mockup screens (login/settings are out-of-scope in `mockup_briefs/*.md`).
+- **D20 (pending) — Auth & Seats.** Covers Q9.1 (invite mechanism) and Q9.2 (authentication + multi-seat). Scope simplified substantially by D18: stakeholder seats are **viewer-only** (no write actions to model); operator seats retain full cockpit-write capability; Stripe subscription primitives are for the operator-retainer relationship. Still requires a grounded research session (Clerk / Supabase Auth / Auth.js tradeoffs) before locking. Does NOT block canonical mockup screens (login/settings are out-of-scope in `mockup_briefs/*.md`).
 
-**Tradeoffs:** Splitting Q9 across D17, D18, D19 produces more audit trail entries than a single monolithic onboarding decision would. Accepted — each record stays small enough to revise independently, and forcing closure on auth/billing/chat at 9:30pm on interview day would have locked decisions we would re-open within two weeks. In fact, the D18 scope-narrowing (which happened later that same evening) validated this caution: locking the originally-planned "chat-gating with per-project operator toggle" would have been overturned within hours by the product-shape conversation.
+**Tradeoffs:** Splitting Q9 across D17, D18, D20 produces more audit trail entries than a single monolithic onboarding decision would. Accepted — each record stays small enough to revise independently, and forcing closure on auth/billing/chat at 9:30pm on interview day would have locked decisions we would re-open within two weeks. In fact, the D18 scope-narrowing (which happened later that same evening) validated this caution: locking the originally-planned "chat-gating with per-project operator toggle" would have been overturned within hours by the product-shape conversation.
 
 **Source:** Q9.3, Q9.4, Q9.6 of 2026-04-16 Q9 mini-interview; companion to `AD-WebApp.md` §2 Q9 residual sub-questions. Forward-references amended 2026-04-16 late evening when D18 locked.
 
 ---
 
-### D18: Pure Broadcast Portal — Client-Side Product Shape
+### D18: Pure Broadcast Portal — Stakeholder-Side Product Shape
 
-**Decision:** The Client Portal is a **pure observation window**, not a collaboration surface. Stakeholders read, view, and receive. They do not submit, approve, revise, reject, or converse *into* the system. The operator is the **100% exclusive interaction channel** between stakeholder and agent team. This is the product thesis for the client side.
+**Decision:** The Stakeholder Portal is a **pure observation window**, not a collaboration surface. Stakeholders read, view, and receive. They do not submit, approve, revise, reject, or converse *into* the system. The operator is the **100% exclusive interaction channel** between stakeholder and agent team. This is the product thesis for the stakeholder side.
 
 **What this means concretely:**
 
-- **No chat affordance on the portal side.** Does not exist. Not hidden, not toggleable, not feature-flagged — simply absent from the Client Portal surface. Chat-with-PM is a cockpit affordance only.
+- **No chat affordance on the portal side.** Does not exist. Not hidden, not toggleable, not feature-flagged — simply absent from the Stakeholder Portal surface. Chat-with-PM is a cockpit affordance only.
 - **No approval / revision / rejection buttons on the portal side.** Stakeholders view rendered artifacts (PRDs, design packages, eval rubrics, packaged deliverables) but submit **no** state-changing actions.
 - **All `ask_user` agent interrupts route to the operator.** Gate approvals, clarifying questions, every human-in-the-loop checkpoint is the operator's responsibility. The stakeholder never receives an agent interrupt directly.
 - **Stakeholder feedback flows out-of-band and is carried in by the operator.** Email, calls, document markup, Slack — whatever channel the commercial relationship uses. The operator translates that feedback into cockpit actions.
@@ -197,7 +199,7 @@ Same backbone (opinionation + recommendation); different bandwidth (warmth + exp
 
 **What this simplifies:**
 
-- **D19 (auth) scope:** stakeholder seats are viewer-only. No write-scope permissions to model. Auth architecture shrinks.
+- **D20 (auth) scope:** stakeholder seats are viewer-only. No write-scope permissions to model. Auth architecture shrinks.
 - **Q3 (approval flow interaction, `AD-WebApp.md` §2):** becomes **cockpit-only**. Approvals are an operator action. The portal's rendering of a gate moment is purely informational ("The Architect has delivered the design package; your operator is reviewing it with you").
 - **Q4 (Tier 2 subagent visibility):** **cockpit-only** in practice. Stakeholders don't need sub-agent detail.
 - **Q6 (todo progress):** **cockpit-only** or heavily abstracted in portal (phase-level, not agent-level).
@@ -210,15 +212,33 @@ Same backbone (opinionation + recommendation); different bandwidth (warmth + exp
 
 - Clients who would specifically want to converse with the PM agent as a product feature cannot do so in v1. **Accepted** — the commercial discipline payoff and the positioning clarity are worth more than that feature. Clients who want direct agent access can pay for the soft handover and get *full* cockpit access, which is a stronger commercial story than "limited-chat tier."
 - Some stakeholders may feel a lack of agency on first login ("I can't do anything in here"). **Accepted** — the portal's job is transparency and trust-signaling, not interactive agency. Agency lives in the paying relationship with the operator, who is named and reachable.
-- If user research later reveals that stakeholders strongly want direct PM access, we'd need to revisit. **Accepted as a known watch-item** — this is a product-shape commitment that the visual mockup phase will stress-test; if the Client Portal feels hollow without chat in mockups, we re-open the question.
+- If user research later reveals that stakeholders strongly want direct PM access, we'd need to revisit. **Accepted as a known watch-item** — this is a product-shape commitment that the visual mockup phase will stress-test; if the Stakeholder Portal feels hollow without chat in mockups, we re-open the question.
 
 **Relationship to other decisions:**
 - **Strengthens D9** (premium orchestration layer) — instruments don't chat back.
 - **Strengthens D10** (executive summary) — summaries are read, not conversed with.
 - **Strengthens D12** (soft handover monetization) — the capability delta between stakeholder-mode and cockpit-mode is now maximal.
 - **Strengthens D15** (Always Land The Plane) — portal voice is pure opinionated monologue; cockpit voice is telegraphic operator dialog. The two registers are now structurally different, not just tonally.
-- **Amends D13** (context-adaptive modes) — the Client Portal supports only **ambient** and **drill-down** modes. *Action-required* mode doesn't apply to the portal (actions are operator-owned). *Conversational* mode doesn't exist in the portal. Cockpit retains all four.
+- **Amends D13** (context-adaptive modes) — the Stakeholder Portal supports only **ambient** and **drill-down** modes. *Action-required* mode doesn't apply to the portal (actions are operator-owned). *Conversational* mode doesn't exist in the portal. Cockpit retains all four.
 - **Amends D17 point 3** — PM is the **narrative voice** of the portal (always monologue), not a conversational face.
 
 **Source:** 2026-04-16 late-evening scope-narrowing conversation following the Q9 mini-interview. Locked in response to Jason's product-lead judgment that the cleanest product shape is the one that makes commercial discipline structural rather than procedural. No interview prep; decision emerged from direct product reasoning about scope, positioning, and monetization alignment.
 
+---
+
+### D19: Mockup Scope — Two Product Sides Per Family Through Gate 1
+
+**Decision:** The first meaningful mockup milestone for each visual family is **J0 through J3**, ending at the Gate 1 package: the Harness Engineer has returned the completed evaluation suite to the Project Manager, and the Project Manager now has the PRD, business-logic datasets, evaluation criteria, scoring rubrics, testing methodology, hypotheses, and related scoping artifacts ready for operator approval.
+
+Each family must design **both product sides** by that milestone:
+
+- **Developer Cockpit:** J0, J1, J2, and J3. The operator starts with the PM, sees the first working-draft hint, watches the PM hand the PRD to the Harness Engineer, then reviews/approves or requests revision on the Gate 1 package.
+- **Stakeholder Portal:** J3 only for the first milestone, because the portal does not exist before Gate 1. It renders the same Gate 1 package as a read-only observation window with PM-authored narrative and no action affordances.
+
+**Execution shape:** Originally, each visual family got an isolated Next.js app under `meta_harness_web/app/<family>/`, starting with Stripe. As of 2026-04-18, the frontend iteration convention has changed: active work happens in `meta_harness_web/app/meta-harness-web/`, while rejected or superseded source snapshots live under `meta_harness_web/mockup_iterations/<family>/pass-###/source/`. The D19 milestone remains the product coverage target; the source-tree convention is now active-app plus evidence archive.
+
+**Rationale:** Stopping at J0 alone tests little beyond empty-state taste. Stopping at J3 tests the first real Meta Harness product moment: the operator has meaningful work to approve, the stakeholder has a real observation artifact, and D18's pure-broadcast portal thesis can be judged against a concrete deliverable instead of prose. Designing both sides is required because the Stakeholder Portal is a real product surface, not a reduced cockpit skin.
+
+**Tradeoffs:** This makes each family pass heavier than a single operator-only J0 mockup. Accepted — a family cannot be evaluated without seeing whether its visual language can carry both cockpit control and stakeholder trust at the first gate.
+
+**Source:** Jason clarification on 2026-04-17 frontend iteration session.

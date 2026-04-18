@@ -158,6 +158,18 @@ This AGENTS.md owns **conventions and SDK contracts**. It does NOT own visual de
 
 The Tier 1 component names listed below (`PipelinePhaseTracker`, `AgentActivityIndicator`, etc.) are **candidates**, not commitments. They describe the *information requirements* — what data the UI must surface — not the visual form. The actual components may merge, split, or take entirely different shapes based on what we learn from mockups.
 
+### Active Frontend Exploration Memory
+
+Current frontend exploration is app-first, not wireframe-first. Future workers should build the website/application experience and use journey states as product state transitions inside that app.
+
+- Use `FRONTEND_INTERACTION_TRUTH.md` as the primary interaction guidance before frontend optimizer work.
+- Do not turn architecture docs into visible UI copy. Internal terms like PCG, J0/J1/J2/J3, command spine, scoping signal, snapshot, Gate package, and eval criteria stub must earn their place before appearing in product UI.
+- The first product object is a project. Empty state, create project, project selection, and active project thread are more important than static route screenshots.
+- The center of the app should be the working thread/workspace; after project creation, the composer should be near the bottom of the active workspace.
+- The right rail is project-bound. It starts empty when no project is selected and progressively earns artifacts, evaluations, LangSmith links, and project insights as mocked state develops.
+- Future passes must include meaningful interactions, not just screenshots: create project, select project, click suggestions, send a message, expand/collapse rail sections, and show active/hover/focus states.
+- Keep essential AD, decision, roadmap, positioning, journey, and changelog docs in place. Organize transient iteration artifacts under `mockup_iterations/` and worker instructions under `worker_contracts/`.
+
 ---
 
 ## Stream-First Frontend (Core Thesis)
@@ -354,17 +366,16 @@ This is locked because it determines the SDK integration surface and the compone
 
 ### Mockup Approach: Journey-State Progressive Reveal
 
-Three separate Next.js apps, one per visual family (Linear, Bloomberg, Stripe), each with **hardcoded stream data** (no backend required). Purpose: explore genuinely different layout, interaction, and information density approaches across the journey states before writing production code. No shared theme system — each repo owns its own architectural and stylistic decisions.
+Current frontend exploration uses one living Next.js app at `meta_harness_web/app/meta-harness-web/`, with retired pass evidence under `meta_harness_web/mockup_iterations/`. Earlier one-app-per-family experiments remain archived as source snapshots, not active implementation targets.
 
-**Each repo implements journey states, not screens.** The route structure is `/[family]/[surface]/[state]` (e.g., `/linear/operator/virgin`, `/bloomberg/portal/gate-1`). Each state is inhabitable at its own URL in Windsurf's browser preview. Jason annotates in-context; Cascade iterates with hot reload.
+The app should implement a coherent website/product flow, not isolated state screens. Journey states still matter, but they should appear as user-reachable product state transitions inside the active app.
 
 **Journey-state sequence per ROADMAP.md:**
-- **Session 1:** J0 Virgin × 3 repos — operator surface only (portal doesn't exist at J0 per D18)
-- **Session 2:** J1-J3 Scoping + Gate 1 × 3 repos — first portal appearance at J3
-- **Session 3:** J4-J6a Pipeline-Emergent × surviving repos — specialist loops, engaged-agent rails
-- **Session 4:** J6b-J7 Rich Development + Acceptance × surviving repos — full cockpit state
+- **Milestone 1:** app entry through first useful project flow. Journey-state concepts from J0-J3 inform the product state model, but the deliverable should feel like a website/app.
+- **Milestone 2:** J4-J6a Pipeline-Emergent behavior inside the active app — specialist loops, engaged-agent rails, and earned project artifacts.
+- **Milestone 3:** J6b-J7 Rich Development + Acceptance inside the active app — full cockpit state and delivery/acceptance surfaces.
 
-Each repo lives in its own directory: `meta_harness_web/linear/`, `meta_harness_web/bloomberg/`, `meta_harness_web/stripe/`. These are disposable learning artifacts — the goal is comparing genuinely different approaches across journey states, not shipping shared components.
+Rejected source snapshots live under `meta_harness_web/mockup_iterations/<family>/pass-###/source/`. Screenshots, verdicts, and optimizer context live beside those snapshots.
 
 ### What Mockups Must Not Do
 
@@ -372,23 +383,24 @@ Each repo lives in its own directory: `meta_harness_web/linear/`, `meta_harness_
 - Implement production streaming logic
 - Commit to final component APIs
 - Replace the AGENTS.md conventions
-- Share components or theme abstractions between repos (defeats the purpose of separate approaches)
-- Build "screens" — build journey states instead (each is a different composition, not panels-hidden)
+- Treat retired pass snapshots as the active codebase
+- Build static screenshot routes as the primary deliverable
+- Surface internal architecture terms as product copy unless they have earned their place
 
 ### Parallel Frontend Iteration
 
-The frontend development track runs independently of backend harness construction. While droids implement the PCG and 7 peer agents, humans (or frontend agents) iterate on journey-state compositions using live hot-reload across three repos in parallel.
+The frontend development track runs independently of backend harness construction. While droids implement the PCG and 7 peer agents, humans or frontend workers iterate on the active website/app using live hot reload, then archive screenshots and retired source as evidence.
 
 **Prerequisites:** None. No backend connection required.
 
 **Workflow (per ROADMAP.md):**
-1. Scaffold three Next.js 15 + shadcn/ui projects (one per family) with `src/` directory and `@/*` alias
-2. Build J0 Virgin state in each repo with hardcoded PCG state data matching JOURNEY.md §4
-3. Each repo kicks off its own dev server; inhabit each state at its URL in Windsurf browser preview
-4. Iterate per repo based on in-context annotations; down-select families gradually on evidence across states
-5. Graduate the winning repo's components to production when backend contract stabilizes
+1. Improve `meta_harness_web/app/meta-harness-web/` unless Jason deliberately requests a separate concept app.
+2. Use `FRONTEND_INTERACTION_TRUTH.md` before assigning or implementing frontend optimizer work.
+3. Keep dev server usage stable when possible; use `npm run dev -- --port 3201` from the active app unless occupied.
+4. Capture screenshots and notes under `mockup_iterations/<family>/pass-###/` after the app works.
+5. Keep worker instruction packets under `worker_contracts/`; they are execution history, not product docs.
 
-**Decision trigger:** Journey-state design is the approach — no separate "layout exploration" phase. Start Session 1 immediately; J0-J3 mockups are not blocked by backend completion.
+**Decision trigger:** The active frontend direction is app-first. A new app directory requires explicit intent to explore a separate concept, not just another optimizer pass.
 
 ---
 

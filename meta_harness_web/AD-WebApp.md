@@ -1,8 +1,8 @@
 # Meta Harness Web — Architecture Decision Record
 
 **Status:** Proposed
-**Last Updated:** 2026-04-16 (late evening: D18 pure-broadcast-portal locked; §2 rescoped accordingly)
-**Companion:** `AGENTS.md` (normative conventions), `DECISIONS.md` (frozen decisions D1–D18), `POSITIONING.md` (brand/product source of truth), `ROADMAP.md` (current plan), `CHANGELOG.md` (audit trail)
+**Last Updated:** 2026-04-17 (D19 mockup scope + D20 auth queue)
+**Companion:** `AGENTS.md` (normative conventions), `DECISIONS.md` (frozen decisions D1–D19), `POSITIONING.md` (brand/product source of truth), `ROADMAP.md` (current plan), `CHANGELOG.md` (audit trail)
 
 ---
 
@@ -93,7 +93,7 @@
 
 These questions require UI/UX exploration (mockups) before they can be resolved. They are ordered by dependency: earlier questions constrain later ones.
 
-> **Per §4 resolution process:** Resolved questions are *removed* from this section and live only in `DECISIONS.md`. Questions B1, B2, B4, B6, B7 were resolved on 2026-04-16 by D9–D16. Q9.3, Q9.4, Q9.6 were resolved the same day by D17 (portal first-login UX, scoped). Later that evening, **D18 (Pure Broadcast Portal)** resolved Q9.5 and Q11 and substantially rescoped Q3, Q4, Q6, Q7, Q8, Q12 to cockpit-only or narrowed them. The residual Q9 is now Q9 (Auth & Seats), pending the forthcoming D19 decision. Decision narratives live in `DECISIONS.md`; `POSITIONING.md` is the consolidated marketing source of truth; `ROADMAP.md` tracks the current plan.
+> **Per §4 resolution process:** Resolved questions are *removed* from this section and live only in `DECISIONS.md`. Questions B1, B2, B4, B6, B7 were resolved on 2026-04-16 by D9–D16. Q9.3, Q9.4, Q9.6 were resolved the same day by D17 (portal first-login UX, scoped). Later that evening, **D18 (Pure Broadcast Portal)** resolved Q9.5 and Q11 and substantially rescoped Q3, Q4, Q6, Q7, Q8, Q12 to cockpit-only or narrowed them. **D19** locked the first mockup milestone (J0-J3 Gate 1), the obligation to design both product sides per family, and Stripe-first sequencing. On 2026-04-18 the execution convention changed from "one app per family" to one active app at `meta_harness_web/app/meta-harness-web/` plus retired source snapshots under `mockup_iterations/`. The residual Q9 is now Q9 (Auth & Seats), pending the forthcoming D20 decision. Decision narratives live in `DECISIONS.md`; `POSITIONING.md` is the consolidated marketing source of truth; `ROADMAP.md` tracks the current plan.
 >
 > **Question series:**
 > - **B-series** — brand/feel questions (B3, B5 still open)
@@ -153,7 +153,7 @@ Q1 is therefore **resolved by the journey-state framing**, not by picking one of
 2. **Persistent vs. on-demand information** — *varies by state.* The agent rail and handoff rail begin at J2 and get denser through J7; before J2, they do not exist.
 3. **Viewport minimums** — **still open.** Mockup work will determine.
 4. **Phase-responsive layout** — *yes, emphatically.* This is the core JOURNEY.md thesis.
-5. **Interrupt prominence** — **cockpit-only per D18, first rendered at J3/J5 and refined at J7.** Sessions 2 and 4 produce the visual answer.
+5. **Interrupt prominence** — **cockpit-only per D18, first rendered at J3/J5 and refined at J7.** J3 in the first family milestone produces the first visual answer.
 6. **Entry pattern** — **operator enters at J0** (virgin chat), not at a project picker. Multi-project picker is Q10; emerges when the operator has >1 active project.
 
 **Status:** Q1 as originally written is resolved. Residual layout questions are operational and resolve during mockup Sessions 1–4.
@@ -250,25 +250,25 @@ How does an operator transfer cockpit access to a client at project delivery, an
 3. **Operator residual access** — after full handover, does the operator retain read-only observer access, billing/support access, or no access at all? Open — likely a checkbox at handover time.
 4. **Revocability** — can a handover be undone (e.g., retainer resumes)? If so, what happens to work the client did in the cockpit meanwhile?
 5. **Seeding behavior** — D12 says the delivered project's UUID becomes seed context for the client's next PM-scoped work. Automatic on first new-project creation, or explicit "start new project from this context" action?
-6. **Billing/commercial integration** — handled by D19 (auth & seats) + Stripe subscription primitives. Retainer = Stripe subscription on operator org; handover = new Stripe customer relationship with client org.
+6. **Billing/commercial integration** — handled by D20 (auth & seats) + Stripe subscription primitives. Retainer = Stripe subscription on operator org; handover = new Stripe customer relationship with client org.
 
-**Depends on:** D12, D14, D18, D19 (auth/seats); Q1 (integration points in the cockpit layout)
+**Depends on:** D12, D14, D18, D20 (auth/seats); Q1 (integration points in the cockpit layout)
 **Blocks:** Post-v1 monetization surfaces
 
 **Why this matters:** Soft handover is the product's primary stickiness mechanism. Shipping a vague handover UX forfeits the monetization advantage D18 just made structural.
 
 ---
 
-### Q9: Auth & Seats *(pending D19, residual after D17 + D18)*
+### Q9: Auth & Seats *(pending D20, residual after D17 + D18)*
 
 After D17 (portal first-login UX) and D18 (pure broadcast portal), only two Q9 sub-questions remain open, both about auth architecture:
 
-1. **Invite mechanism** — operator provisions a stakeholder organization in cockpit → sends email invite with magic link → recipient sets a password (or uses Google OAuth if shipped) → persistent session-based login thereafter. *Working model; finalized by D19.*
+1. **Invite mechanism** — operator provisions a stakeholder organization in cockpit → sends email invite with magic link → recipient sets a password (or uses Google OAuth if shipped) → persistent session-based login thereafter. *Working model; finalized by D20.*
 2. **Authentication architecture** — specific auth provider choice (Clerk / Supabase Auth / Auth.js / roll-our-own), session model, password-reset flow, Google OAuth inclusion in v1 or deferred. Scope simplified by D18: stakeholder seats are **viewer-only** (no write actions to model); operator seats have full cockpit-write capability; Stripe subscription primitives handle operator retainer billing and handover-to-client-org billing.
 
 **Depends on:** D12 (two surfaces), D17 (first-login UX), D18 (viewer-only stakeholder seats)
 **Blocks:** Nothing on canonical mockup screens (login/settings are out-of-scope in `mockup_briefs/*.md`). Blocks implementation work once mockups begin informing code.
-**Pending record:** D19 (Auth & Seats)
+**Pending record:** D20 (Auth & Seats)
 
 ---
 
@@ -332,7 +332,7 @@ How does the web app behave when the TUI (backend) is simultaneously active on t
 ## §3 — Decision Dependency Map
 
 ```
-Resolved (see DECISIONS.md D9–D18):
+Resolved (see DECISIONS.md D9–D19):
   ✅ B1 Core Metaphor               → D12, D13
   ✅ B2 Brand Personality           → D9, D15
   ✅ B4 Color Strategy (framing)    → D11 (per-family palettes in mockup_briefs/)
@@ -342,6 +342,7 @@ Resolved (see DECISIONS.md D9–D18):
   ✅ Q9.5 (First meaningful action, no chat)       → D18
   ✅ Q11 (Chat-with-PM gating — moot, no chat)    → D18
   ✅ Q12 (primary cases — held-out hidden in portal, visible in cockpit) → D18
+  ✅ First mockup milestone + per-family app isolation → D19
 
 Rescoped to cockpit-only / narrowed (still open but constrained):
   Q3  (Approval Flow)        → cockpit-only per D18
@@ -366,20 +367,20 @@ Still open, resolved progressively via journey-state mockup sessions:
   Q7 (cockpit Sandbox Form)  ─── surfaces at J6 when sandbox backend engages
 
 Non-journey residuals:
-  Q9  (Auth & Seats)         ─── D19 (pending, post-mockup)
+  Q9  (Auth & Seats)         ─── D20 (pending, post-mockup)
   Q10 (Multi-Project Nav)    ─── deferred until operator has >1 active project
   Q13 (TUI↔Web Coordination) ─── operational, can defer
 ```
 
 **Status (2026-04-17, post-J0-J7 nomenclature normalization):**
 
-- **Resolved / locked:** D1–D18 (18 decisions). D18 is the newest and reshapes §2 substantially. **Q1 reframed by `JOURNEY.md`** — the "single canonical layout" question is resolved at a higher level by the progressive-reveal thesis (eight PCG-grounded journey states, not one layout).
-- **Pending decision records:** D19 (Auth & Seats — resolves residual Q9).
+- **Resolved / locked:** D1–D19 (19 decisions). D18 reshaped the portal into a pure observation window; D19 locks the first mockup milestone and app isolation contract. **Q1 reframed by `JOURNEY.md`** — the "single canonical layout" question is resolved at a higher level by the progressive-reveal thesis (eight PCG-grounded journey states, not one layout).
+- **Pending decision records:** D20 (Auth & Seats — resolves residual Q9).
 - **Journey-state mockup-dependent (resolve via visual exploration across sessions 1–4):** B3 (agent personification — first signal at J0 PM chip), B5 (density — reframed: each state has its own density), Q2 (pipeline state visibility — starts at J2 and matures by J4/J6), Q5 (autonomous mode — gate/execution states), Q6 (cockpit todo progress — J6).
 - **Cockpit-scoped residuals (mockup-dependent, surface at J3/J5/J6/J7):** Q3, Q4, Q7.
 - **Operational residuals:** Q10 (multi-project nav — deferred until operator has >1 project), Q13 (TUI↔web coordination), Q12 residuals (handover inheritance), Q8 residual sub-questions — all tractable post-mockup or inline with mockups.
 
-**Mockup production is no longer gated on further interviews.** D17 + D18 + `JOURNEY.md` together specify enough of the product-shape to scaffold the Next.js app and start building J0 Virgin across three families on a live dev server. See `ROADMAP.md` for the boot sequence and session plan.
+**Mockup production is no longer gated on further interviews.** D17 + D18 + D19 + `JOURNEY.md` together specify enough of the product-shape to scaffold the Stripe Next.js app and build through J3 Gate 1 on a live dev server. See `ROADMAP.md` for the boot sequence and session plan.
 
 ## §4 — Resolution Process
 

@@ -1,11 +1,13 @@
 # Mockup Brief — Family B: Bloomberg / Palantir / Datadog
 
 **Family archetype:** Dense authoritative instrument
-**Primary hypothesis tested:** *An instrument-grade cockpit can be the product's primary identity, with the Client Portal serving as a "softened instrument" — muted chrome, alerts made more prominent, telemetry hidden — without feeling like a different product.*
-**Primary audience bias:** Operator — designed for the power user who lives in the app, measures UI by data-per-pixel, and wants cockpit leverage; the client portal inherits this gravitas but strips cockpit noise.
-**Governing docs:** `POSITIONING.md`, `JOURNEY.md` (progressive-reveal journey states), `DECISIONS.md` D1–D18 (**note D18: Pure Broadcast Portal — the client portal has no chat and no action buttons; stakeholder side is observation-only**), `AD-WebApp.md` §1, `ROADMAP.md`
 
-> **Status note (2026-04-17, updated):** This brief describes the **hypothesis and approach** for the Bloomberg family. §4 "Exploration Starting Points" offers concrete visual ideas for rich-state (J6/J7) to ground exploration, but these are **not prescriptive specifications**. The actual visual form emerges through open-ended mockup sessions across the full journey (J0-J7). Earlier states (J0 virgin through J5 Gate 2 pending) are explored first and reveal progressively toward rich-state. Voice exemplars in §5 and candidate names in §3 remain fully valid.
+
+**Primary hypothesis tested:** **TBD**
+**Primary audience bias:** Operator — designed for the power user who lives in the app, measures UI by data-per-pixel, and wants cockpit leverage; the stakeholder portal inherits this gravitas but strips cockpit noise.
+**Governing docs:** `POSITIONING.md`, `JOURNEY.md` (progressive-reveal journey states), `DECISIONS.md` D1–D19 (**note D18: Pure Broadcast Portal — the stakeholder portal has no chat and no action buttons; D19: first milestone is J0-J3 with both product sides by Gate 1**), `AD-WebApp.md` §1, `ROADMAP.md`
+
+> **Status note (2026-04-17, updated):** This brief describes the **hypothesis and approach** for the Bloomberg family. §4 "Exploration Starting Points" offers concrete visual ideas for rich-state (J6/J7) to ground exploration, but these are **not prescriptive specifications**. The actual visual form emerges through open-ended mockup sessions across the full journey (J0-J7). The first required family milestone is J0-J3 Gate 1, including both Developer Cockpit and Stakeholder Portal at J3. Voice exemplars in §5 and candidate names in §3 remain fully valid.
 
 ---
 
@@ -70,7 +72,7 @@ Think: *Bloomberg Terminal (the 2020s reimagining, not the DOS nostalgia), Palan
 | **Forge** | Industrial, muscular, "where things get made." Short, strong, instantly memorable. Aligns with "build LLM applications" core activity. | Common name; .com domain likely taken, branding may need qualifier ("Forge Labs," "Forge Studio"). |
 | **Foundry** | Heavy-industry connotation, "casting molds at scale." Palantir already has a product called Foundry — **strong collision risk, probably eliminates this**. Listed for completeness. | Direct Palantir collision. |
 | **Keel** | Shipbuilding — the structural spine of a vessel. Novel in software. Implies "the backbone your project is built on." Suits the cockpit aesthetic. | Lesser-known word; may require explanation on first hearing. |
-| **Anvil** | Iron-on-iron, precision shaping. Evocative but slightly macho. | Anvil CI/CD exists; collision possible. Might feel aggressive for the Client Portal. |
+| **Anvil** | Iron-on-iron, precision shaping. Evocative but slightly macho. | Anvil CI/CD exists; collision possible. Might feel aggressive for the Stakeholder Portal. |
 
 **Family leader: Keel.** Unique, evocative, pronounceable, aligns with the "spine of a project" metaphor and feels equally right in the Cockpit (operator's structural backbone) and the Portal (the project's stable core).
 
@@ -112,13 +114,13 @@ These are **concrete visual ideas** for rich-state (Planning & Development J6, A
 
 ## §5 — Voice Exemplars
 
-### Client Portal (warm-knowledgeable-peer register, in Bloomberg chrome, **monologue only** per D18)
+### Stakeholder Portal (warm-knowledgeable-peer register, in Bloomberg chrome, **monologue only** per D18)
 
 **Gate 2 informational hero (D18 framing):**
 > *"The Architect has returned the design package for **Tavern Assistant**. I've reviewed it — it's solid. Two tradeoffs are flagged for attention; both are reasonable. My recommendation to your operator: approve. You can read the full package below — share any reactions directly with your operator, who will carry them back to me."*
 > [ Read the Design Package ]
 
-*(Notice: even in Bloomberg chrome, the Client Portal's copy is warm. The dense visual language does the heavy lifting of signaling "instrument quality"; the warmth is carried by words. No chat affordance, no approval buttons — per D18, portal is observation-only.)*
+*(Notice: even in Bloomberg chrome, the Stakeholder Portal's copy is warm. The dense visual language does the heavy lifting of signaling "instrument quality"; the warmth is carried by words. No chat affordance, no approval buttons — per D18, portal is observation-only.)*
 
 ### Developer Cockpit (precise-technical-operator register, in Bloomberg chrome)
 
@@ -162,7 +164,7 @@ When reviewing this family alongside the other two, judge on:
 
 ## §7 — What This Family Is Weakest At (honest failure modes)
 
-- **Non-technical stakeholder onboarding.** If the Client Portal feels intimidating on first sight, we've lost the founder before they've clicked anything. This is the single biggest risk of the family.
+- **Non-technical stakeholder onboarding.** If the Stakeholder Portal feels intimidating on first sight, we've lost the founder before they've clicked anything. This is the single biggest risk of the family.
 - **Voice flexibility in Portal.** Dense monospace chrome and warm copy fight each other. We may find the Portal *has* to be less monospace than the Cockpit to land warmth.
 - **Mobile / tablet experience.** Cockpits don't shrink well. If stakeholders want portal-on-phone, this family struggles.
 - **"AI-company taste" signal.** Bloomberg aesthetic reads "finance/infra," not "AI studio." AI-literate buyers may expect warmer, more "lab-native" visuals. This family risks seeming *off-category*.

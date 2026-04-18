@@ -1,11 +1,11 @@
 # Mockup Brief — Family A: Linear / Vercel / Arc
 
 **Family archetype:** Sleek contemporary premium
-**Primary hypothesis tested:** *A single tasteful design language can flex across both surfaces (Client Portal and Developer Cockpit) without needing two different brand expressions. The surfaces differ in density and chrome, but share palette, type, and motion.*
-**Primary audience bias:** Unified — designed for the AI-literate operator who appreciates that their tools look as good as the product they're shipping; the client portal inherits the same taste and feels like a peer product.
-**Governing docs:** `POSITIONING.md`, `JOURNEY.md` (progressive-reveal journey states), `DECISIONS.md` D1–D18 (**note D18: Pure Broadcast Portal — the client portal has no chat and no action buttons; stakeholder side is observation-only**), `AD-WebApp.md` §1, `ROADMAP.md`
+**Primary hypothesis tested:** *A single tasteful design language can flex across both surfaces (Stakeholder Portal and Developer Cockpit) without needing two different brand expressions. The surfaces differ in density and chrome, but share palette, type, and motion.*
+**Primary audience bias:** Unified — designed for the AI-literate operator who appreciates that their tools look as good as the product they're shipping; the stakeholder portal inherits the same taste and feels like a peer product.
+**Governing docs:** `POSITIONING.md`, `JOURNEY.md` (progressive-reveal journey states), `DECISIONS.md` D1–D19 (**note D18: Pure Broadcast Portal — the stakeholder portal has no chat and no action buttons; D19: first milestone is J0-J3 with both product sides by Gate 1**), `AD-WebApp.md` §1, `ROADMAP.md`
 
-> **Status note (2026-04-17, updated):** This brief describes the **hypothesis and approach** for the Linear family. §4 "Exploration Starting Points" offers concrete visual ideas for rich-state (J6/J7) to ground exploration, but these are **not prescriptive specifications**. The actual visual form emerges through open-ended mockup sessions across the full journey (J0-J7). Earlier states (J0 virgin through J5 Gate 2 pending) are explored first and reveal progressively toward rich-state. Voice exemplars in §5 and candidate names in §3 remain fully valid.
+> **Status note (2026-04-17, updated):** This brief describes the **hypothesis and approach** for the Linear family. §4 "Exploration Starting Points" offers concrete visual ideas for rich-state (J6/J7) to ground exploration, but these are **not prescriptive specifications**. The actual visual form emerges through open-ended mockup sessions across the full journey (J0-J7). The first required family milestone is J0-J3 Gate 1, including both Developer Cockpit and Stakeholder Portal at J3. Voice exemplars in §5 and candidate names in §3 remain fully valid.
 
 ---
 
@@ -57,7 +57,7 @@ Think: *Linear's Inbox, Vercel's deployment dashboard, Arc's command bar, Raycas
 
 ### Density baseline
 
-- Default density: **medium-high.** Clear hierarchy but not cockpit-dense. The Cockpit surface increases density; the Client Portal reduces it — but both surfaces share baseline spacing tokens.
+- Default density: **medium-high.** Clear hierarchy but not cockpit-dense. The Cockpit surface increases density; the Stakeholder Portal reduces it — but both surfaces share baseline spacing tokens.
 - Generous line-height (1.5–1.6 for body copy) even at compact sizes.
 - Minimum touch target 32px — this is a power-user tool primarily, not a mobile-first experience.
 
@@ -116,7 +116,7 @@ These are **concrete visual ideas** for rich-state (Planning & Development J6, A
 
 The family's visual register must support both voice modes from D15. Sample microcopy rendered in this family's aesthetic:
 
-### Client Portal (warm-knowledgeable-peer register, **monologue only** per D18)
+### Stakeholder Portal (warm-knowledgeable-peer register, **monologue only** per D18)
 
 **Gate 2 informational hero (D18 framing):**
 > *"The Architect has returned the design package for **Tavern Assistant**. I've reviewed it — it's solid. Two tradeoffs are flagged in the document; both are sensible for v1. My recommendation to your operator: approve as-written. You can read the full package below; share any reactions directly with your operator, who will carry them back to me."*
@@ -149,10 +149,10 @@ The family's visual register must support both voice modes from D15. Sample micr
 
 When reviewing the Linear-family mockups alongside the other two families, judge on:
 
-1. **Cross-surface coherence** — does the Client Portal feel like the same product as the Cockpit, or like two products that share a logo? (Linear's hypothesis is that they *should* feel like the same product.)
+1. **Cross-surface coherence** — does the Stakeholder Portal feel like the same product as the Cockpit, or like two products that share a logo? (Linear's hypothesis is that they *should* feel like the same product.)
 2. **Premium signal** — does the UI project "premium orchestration layer" (D9) without pretension? Is it obviously better-crafted than LangSmith without copying LangSmith?
 3. **Voice fit** — does the typography and spacing support both warm and precise copy registers? Or does it force the voice toward one or the other?
-4. **Stakeholder readability** — can a non-technical founder navigate the Client Portal on first sight, or does it feel hostile to non-developers?
+4. **Stakeholder readability** — can a non-technical founder navigate the Stakeholder Portal on first sight, or does it feel hostile to non-developers?
 5. **Name resonance** — do the candidate names (Atlas, Meridian, Lattice) sound right *in* the visuals, or do they clash?
 
 ---
@@ -160,5 +160,5 @@ When reviewing the Linear-family mockups alongside the other two families, judge
 ## §7 — What This Family Is Weakest At (honest failure modes)
 
 - **Cockpit density** — Linear's aesthetic prefers breathing room. The Cockpit surface will need to *push* the family toward its density ceiling. If we find we can't get enough data per pixel, this family loses to Bloomberg.
-- **Stakeholder warmth** — Linear's default is cool and precise. The Client Portal must find warmth through copy and spacing alone, not through illustration or color-warmth. If it feels sterile to clients, this family loses to Stripe.
+- **Stakeholder warmth** — Linear's default is cool and precise. The Stakeholder Portal must find warmth through copy and spacing alone, not through illustration or color-warmth. If it feels sterile to clients, this family loses to Stripe.
 - **Agent personification** — Linear's restraint means no illustrated agent avatars. Agent identity is expressed through color-coded badges and name labels only. If agent personification ends up critical, this family is constrained.

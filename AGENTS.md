@@ -207,6 +207,30 @@ When in doubt, check the canonical sources for recent releases, commit history, 
 | LangSmith | https://github.com/langchain-ai/langsmith-sdk | https://pypi.org/project/langsmith/ |
 | Agent Evals | https://github.com/langchain-ai/agentevals | https://pypi.org/project/agentevals/ |
 
+## Local Workflows And Commands
+
+- The active v1 package and test configuration lives in `meta_harness/pyproject.toml`.
+  There is no repo-root `pyproject.toml`; run v1 Python commands from
+  `meta_harness/`.
+- To create or refresh a dev environment, use
+  `cd meta_harness && python -m pip install -e ".[dev]"` in the intended
+  Python 3.12+ environment. A local environment currently exists at
+  `meta_harness/.venv/`.
+- Fast v1 verification: `cd meta_harness && .venv/bin/python -m pytest tests -q`.
+  As of 2026-04-18, this collects and passes the 55-test contract/scaffolding
+  suite.
+- The repo-root `Makefile` is legacy until updated: it references `meta_agent/`
+  and root `tests/`, neither of which exists in the current checkout. Do not use
+  `make test`, `make lint`, or `make evals` as v1 evidence unless those paths are
+  restored or the Makefile is corrected.
+- `langgraph dev` is the planned local inspection workflow, but no active
+  `langgraph.json` exists in the current v1 checkout. Treat it as an
+  architecture target, not a runnable command, until that config lands.
+- Static-check TODOs: `cd meta_harness && .venv/bin/python -m ruff check .`
+  currently fails on two pre-existing E501 long-line findings, and
+  `PYTHONPATH=.. .venv/bin/python -m pyright` still reports existing test typing
+  issues. Fix these before promoting Ruff or Pyright to required gates.
+
 ## Harness-First Architecture  
   
 This section is a philosophical and technical guide for maintainers and contributors  

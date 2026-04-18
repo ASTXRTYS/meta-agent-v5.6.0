@@ -1,11 +1,10 @@
 # Mockup Brief — Family C: Stripe / Notion / Retool
 
 **Family archetype:** Calm authoritative clarity
-**Primary hypothesis tested:** *A stakeholder-first aesthetic — calm, trustworthy, light-primary — can scale upward to cockpit-grade density by progressively adding panels, data, and affordances, without losing its core "grown-up software" register. The Portal is the home base; the Cockpit is the same brand with the knob turned up.*
-**Primary audience bias:** Stakeholder — designed for the founder/executive who wants the product to feel safe, legible, and credible; the Cockpit inherits this gravitas and adds operator leverage on top.
-**Governing docs:** `POSITIONING.md`, `JOURNEY.md` (progressive-reveal journey states), `DECISIONS.md` D1–D18 (**note D18: Pure Broadcast Portal — the client portal has no chat and no action buttons; stakeholder side is observation-only**), `AD-WebApp.md` §1, `ROADMAP.md`
+**Primary hypothesis tested:** *calm, trustworthy, light-primary — "grown-up software"*
+**Governing docs:** `POSITIONING.md`, 
 
-> **Status note (2026-04-17, updated):** This brief describes the **hypothesis and approach** for the Stripe family. §4 "Exploration Starting Points" offers concrete visual ideas for rich-state (J6/J7) to ground exploration, but these are **not prescriptive specifications**. The actual visual form emerges through open-ended mockup sessions across the full journey (J0-J7). Earlier states (J0 virgin through J5 Gate 2 pending) are explored first and reveal progressively toward rich-state. Voice exemplars in §5 and candidate names in §3 remain fully valid.
+> **Status note (2026-04-17, updated):**
 
 ---
 
@@ -24,15 +23,15 @@ Think: *Stripe Dashboard, Notion (especially post-2023), Retool's editor chrome,
 ### Palette
 
 **Light-mode-primary. Dark mode is excellent and supported, not an afterthought.**
-- Base: `#FAFAF8` (warm off-white — the Stripe trick, not pure white)
-- Surface: `#FFFFFF`
-- Surface elevated: `#FFFFFF` with `0 1px 2px rgba(0,0,0,0.04)` shadow (depth through shadow, not color)
-- Border: `#E7E5E4` (subtle)
-- Border emphasis: `#D6D3D1`
-- Text primary: `#1C1917` (warm near-black — not pure black; softer on eyes)
-- Text secondary: `#57534E`
-- Text tertiary: `#A8A29E`
-- **Brand accent: a single confident hue — candidates: Stripe-inspired indigo `#5469D4`, institutional deep-teal `#0E7490`, or warm-premium sunset `#CC4B2C`.** Used for CTAs, active states, brand moments.
+- Base:  (warm off-white — the Stripe trick, not pure white)
+- Surface: `designer chooses`
+- Surface elevated: shadow (depth through shadow, not color)
+- Border:  (subtle)
+- Border emphasis: `designer chooses`
+- Text primary:  (warm near-black — not pure black; softer on eyes)
+- Text secondary: `designer chooses`
+- Text tertiary: `designer chooses`
+- **Brand accent: a single confident hue — candidates: Open to designer choice**
 - Semantic: success `#15803D` (muted, not neon), warning `#B45309`, danger `#B91C1C`, info `#0369A1`
 
 **Dark mode (excellent, not afterthought)**
@@ -42,25 +41,15 @@ Think: *Stripe Dashboard, Notion (especially post-2023), Retool's editor chrome,
 - Accent unchanged, slightly brightened for dark-mode legibility
 
 ### Typography
-
-- **Display/UI:** `Inter` (variable), **or** a serif-accented sans like `Söhne` / `GT America` / `Basis Grotesque` — the "confident adult" family. Fallback: system-ui.
-- **Optional display accent for hero moments:** a soft serif like `Tiempos` or `GT Super` — used sparingly on marketing-adjacent surfaces (approval gate headers, PRD titles) to add human warmth. The Linear family avoids serifs; this family *selectively* uses them.
-- **Monospace:** `JetBrains Mono` or `Geist Mono`. Used for code, IDs, technical data — but *less prominently* than Bloomberg. Mono is a specialist tool here, not a primary voice.
-- **Scale:** 13 / 14 / 16 / 18 / 24 / 32 / 48 — spacious, legible. Body copy is 16px (larger than Linear/Bloomberg — this family trusts readability over density).
-- **Weights:** 400 regular, 500 medium, 600 semibold. Bold reserved for hero moments.
+      --- Open to designer choosing 
 
 ### Motion
 
-- **Timing:** 200–280ms — gentle, deliberate, confident. Nothing is instant; nothing is slow. State changes feel considered.
-- **Easing:** `cubic-bezier(0.4, 0, 0.2, 1)` (Material-ish ease-in-out — soft on both ends).
-- **Principle:** motion communicates *comfort* — the user is never jolted. Streaming tokens have a gentle ease-in per token, almost breathing.
-- **Signature motion:** subtle parallax on scroll, gentle scale (1.0 → 1.02) on hover for cards, confident slide-in for drill-downs.
+      --- open to designer chooosing 
 
 ### Density baseline
 
-- Default density: **medium-low.** Breathing room is *the* feature — it's how we communicate "take your time, this is important." The Cockpit surface increases density but preserves the light-mode palette and the generous type size.
-- Line-height: 1.6 for body, 1.4 for tables.
-- Minimum touch target: 40px (stakeholder-first, may be used on tablet or laptop away from primary workstation).
+      --- open to designer chooosing 
 
 ---
 
@@ -83,88 +72,4 @@ These are **concrete visual ideas** for rich-state (Planning & Development J6, A
 
 **Canonical project state for exploration:** Tavern Assistant project for Luma Tavern Group, currently in Architecture phase, Gate 2 approval pending.
 
-### Visual ideas to explore (both surfaces unless noted)
 
-1. **Project landing** — ambient mode.
-   - *Portal (primary for this family):* hero area displays the project name "Tavern Assistant" in display type (possibly a soft-serif accent), one-line status ("Architecture phase — design in progress"), a prominent "Recent activity" card with narrative entries ("The Architect submitted the design package 12 minutes ago; your operator is reviewing it with you"), a deliverables-so-far card, and the subtle "Operated by" credit per D17. **No chat card per D18.** Lots of breathing room. Light mode. Card-based layout with subtle shadows.
-   - *Cockpit:* the same page with **additional panels revealed** — left rail shows all 7 agents, center still shows narrative but with more activity items, right rail shows eval status + handoff log, chat pane (collapsed) available per D18. Density higher; chrome identical; brand tokens unchanged. "The Portal with the knob turned up, plus cockpit-exclusive interaction affordances."
-
-2. **Approval gate moment** — action-required mode in cockpit; **informational mode in portal** per D18.
-   - *Portal:* a hero card presents the packaged design package as a beautifully-typeset first-class document (think: Stripe's email receipts, Mercury's invoice view, Notion's doc view). The document *looks* like a formal deliverable the stakeholder would be proud to forward to their team. PM-voiced introduction explaining the package's context and recommendation. **Read-only; no action buttons, no chat.** Any stakeholder response flows out-of-band through the operator (per D18).
-   - *Cockpit:* the same rendered document + approve/revise/inspect buttons positioned in the center column with pipeline/logs still visible in peripheral panels. The operator can see gate context + pipeline at once. **This is where the operator decides.**
-
-3. **Eval suite detail** — drill-down mode.
-   - *Portal:* rendered as a beautifully-presented scrollable article: intro paragraph from HE ("For Luma Tavern's Tavern Assistant, we're evaluating five dimensions of quality..."), each rubric criterion as its own titled section with the per-score descriptions as nested cards, the binary tests as a clear checklist, a dataset preview section with representative examples rendered as quote-cards. This is the family's signature move: *eval science made stakeholder-readable*. No tables unless necessary.
-   - *Cockpit:* the same content available in a denser "analytical view" — tables of criteria, tables of experiments, inline dataset previews. Operator can toggle between "Article View" and "Table View."
-
-4. **Chat with PM** — **cockpit-only** (portal has no chat per D18).
-   - *Cockpit:* chat dominates at ~65% width, with pipeline state in a compact side panel. Timestamps visible by default. Agent labels technical. Input field has a "Press ⏎ to send, or Shift⏎ for new line" hint.
-
-5. **Handoff log narrative** — drill-down mode.
-   - *Portal:* renders the handoff log as a **narrative timeline** — "12:04 PM · The Harness Engineer returned the evaluation suite to the Project Manager." Plain-language, timeline-scrolled, each entry expandable into a longer narrative. No enum values ("reason: deliver"), no artifact paths — just story.
-   - *Cockpit:* the denser version — table with columns for timestamps, agents, reason enums, briefs, artifact counts. Operator view. Can toggle "Narrative" / "Table."
-
-6. **LangSmith link treatment.**
-   - Consistent affordance: a soft pill-shaped button with `↗ View in LangSmith` text and a small LangSmith-square icon. Sits inline next to experiment references. Styled to feel like a respected external reference (citation-quality), not a technical debt hatch.
-
-### Out-of-scope reminder
-
-Login screens, project picker (D8), settings, billing not required for these mockups.
-
----
-
-## §5 — Voice Exemplars
-
-### Client Portal (warm-knowledgeable-peer register, **monologue only** per D18)
-
-**Gate 2 informational hero (D18 framing):**
-> *"The Architect's design package for **Tavern Assistant** is ready.*
->
-> *I've looked it over. It's thoughtful work, and the architecture lines up with what we scoped on the call. Two tradeoffs the Architect wants opinion on are flagged in the document. My recommendation to your operator: both tradeoffs are sensible for the v1 scope — approve.*
->
-> *Read the package below; share any reactions directly with your operator, who will carry them back to me."*
->
-> [ Read the Design Package ]
-
-**Empty state (operator's first-login view of a not-yet-scoped project, seen in cockpit):**
-> *"No project scoped yet. When you're ready, share what your client needs — a brief, a call transcript, a summary — and I'll scope the PRD with you. We'll refine it together before anything else happens."*
-
-### Developer Cockpit (precise-technical-operator register, in Stripe chrome)
-
-**Gate 2 action card:**
-> ### Gate 2 — Design Package Ready
-> **From** Architect · **Received** 14:32 · **Artifacts** 3 · **Tradeoffs flagged** 2
->
-> Recommendation: **APPROVE**. Tradeoffs are sensible for v1 scope.
->
-> [ Approve ] · [ Request revision ] · [ Inspect package ]
-
-*(Note: even in cockpit register, the Stripe family doesn't go fully telegraphic like Bloomberg. Sentences are shorter, but still whole sentences. The restraint comes from typography and spacing, not from fragmentation.)*
-
-### Anti-patterns in this family
-
-- Tables where narrative would serve the stakeholder better
-- Monospace for non-technical data (just because you *can* use monospace doesn't mean you *should*)
-- Saccharine copy ("Great news! Your project is going amazing!") — confidence is calm, not peppy
-- Emoji in system copy — reserve emoji for user-generated content if allowed at all
-
----
-
-## §6 — Evaluation Criteria
-
-When reviewing this family alongside the other two, judge on:
-
-1. **Portal warmth** — does the Client Portal feel like a product a founder would be *proud* to receive as a deliverable view? Does it convey trust and craft?
-2. **Cockpit leverage at light-mode density** — can this family scale up to genuine operator density, or does the "breathing room" principle cap how much data we can surface? This is the family's biggest risk.
-3. **Cross-surface unity** — does the Portal-to-Cockpit transition feel like "same app, more knobs exposed," or like "different app in the same company's style"?
-4. **Voice fit** — the Stripe family is *naturally* voice-friendly for warm copy. Can it support the telegraphic cockpit voice without feeling dissonant?
-5. **Name resonance** — Keystone / Beacon / Clarion — do these sound right in the visual context, or do they feel like they belong with a different family?
-
----
-
-## §7 — What This Family Is Weakest At (honest failure modes)
-
-- **Cockpit density ceiling.** Light-mode palettes and generous spacing fight against cockpit data-per-pixel. We may find that the Cockpit needs to flip to dark mode to breathe — and if we do, we've split the brand across two modes, undermining the "one family, two surfaces" promise.
-- **"AI-company taste" signal.** Stripe/Notion/Retool aesthetic reads "SaaS" more than "AI-native." AI-literate buyers may expect more novelty/exploration vibes. We could mitigate by using the serif display accent for hero AI moments — but that's a tightrope.
-- **Operator-only features looking underwhelming.** Commands, log tails, multi-panel cockpits don't look their best in a breathe-easy aesthetic. Bloomberg family will look cooler on operator-dense screens than this family will.
-- **Risk of looking "too dashboard."** Stripe's aesthetic is associated with *accounting* software in many minds. We must deliberately differentiate from payroll/invoicing chrome to avoid the "is this a fintech product?" confusion.

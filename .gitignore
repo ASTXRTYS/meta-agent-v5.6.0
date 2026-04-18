@@ -50,13 +50,15 @@ phase3-implementation-prompt.md
 .langgraph_api/
 
 # Meta Harness Web — standalone nested repo (has its own .git)
-meta-harness-web/
+/meta-harness-web/
 
 # Project configuration files
-package-lock.json
-Makefile
-.mcp.json
-.gitignore
-.gitattributes
+/package-lock.json
+/Makefile
+/.mcp.json
+/.gitignore
+/.gitattributes
 !meta_harness_web/app/.gitignore
 !meta_harness_web/app/package-lock.json
+.reference/libs/langgraphjs/
+.reference
