@@ -1,24 +1,37 @@
-# Meta Harness Web — Closed Decision Records
+# Meta Harness Product, Brand & Positioning 
+        Technical Decisions @meta_harness/AD.md & meta_harness/DECISIONS.md
 
-Frozen decisions archived from `AD.md`. Reference material, not active content.
 
 ---
 
-### D1: Product Purpose 
+## D1: Product Purpose 
 
-**Decision:** The website/app for the meta harness will serve as the public face of the application and may potentially be the first in a series of different applications that will be built on top of the meta harness wich will extend the scope of what we offer as an Agents as a Service platform. The first service we are offering is a team of agents that scope business, enterprise, individual needs and ultimatley output agent harnesses that automate workflows, augment staff productivity, enrich processes and ultimately deliver measurable ROI. This is what we precieve to be the main purpose businesses, big or small, are seeking the implementaion of ai in their organizations.
+**Decision:** 
+- The website/app for the meta harness will serve as the public face of the application and may potentially be the first in a series of different applications that will be built as extention of the meta harness wich will extend the scope of what we offer as an Agents as a Service platform. The distinction and important thing to not is that we are bootstrapping an *AGENT FIRST BUSINESS THAT PUTS AI IN THE HANDS OF ENTERPRISES, SMALL-TO-MEDIUM BUSINESSES, INDIE DEVS AND AI AGENCIES; IN THE FORM OF AGENTIC AI (agents-as-a-service)*. 
+
+- The first service we are offering is a team of agents that scope business, enterprise, individual needs and ultimatley output agent harnesses that automate workflows, augment staff productivity, enrich processes and ultimately deliver measurable ROI. This is what we precieve to be the main purpose businesses, big or small, are seeking the implementaion of ai in their organizations. 
+
+- It is becoming more and more apparent that the path to driving real world value to humans via our product is to go headless. *mainly headless*
+    - This will allow our agent team to go where the user needs them to go, not just where we build them to go.
+    - This will also allow us to scale our product to multiple platforms and devices without having to build separate applications for each platform and device.
+    - This also allows for a simpler approach to our Frontend/UI/UX
+
+### Thesis: By being headless we focus on the harnesses we develop and spend most of our efforts in building the best possible sota hanress for our specific task. This means we can take a minimal approach to the UI/UX i.e(A web app that allows users, via a chat which langchain provides all the frontend primitaves for, to interact with our pm for scoping or interactively weighing in on decisions during spec phase or dataset building. The ux can be reduced to a chat with two side rails, displaying the highest level artifacts our agents produce in their own filesystem, and maybe some project management. The intuitiveness of this can be further fleshed our in the actual design phase of our front end. my vision is that wether headless or in the tui, artifacts, datasets, experiment results, and insights can all be captured easily becasue the agents output all of this anyway in thier composite filesystem backend).
+
+- The "leader" of our first agent team is the Product manager (Open to changing name to LEADER), who serves as the main poc for the operator and or users to communicate with the team. other agents have the ability to ask questions but ultimatley the PM is the direct poc
+
+***In the future we could have a team thats for GTM, sales, Product Design, etc. our ultimate premium offering could be a full offering where different divisions work together to deliver business interests effectively giving birth to a Native Agentic Ai Business***
+
+**Note:** The idea behind this product began some time ago; see: https://www.langchain.com/blog/agentic-engineering-redefining-software-engineering?utm_source=twitter&utm_medium=social which is a blog dropped by langchain where top technical officers from cisco quite literally describe a take on agents that fully adds social proof that our concept is not only valid but also aligns with industry leaders.
 
 
 
-**Rationale:** Primary use cases are (1) recording demos of the full web app and agents executing e2e, seeing how artifacts are stored in the ui, seeing eval results, experiment results and direct links to traces in langsmith, etc (2) giving clients visibility into what they're paying for. These are internal/admin workflows, not consumer onboarding flows.
-
-**Tradeoffs:** Skips landing page design effort for v1. If public SaaS becomes a goal later, landing page can be added as a separate concern without affecting core app architecture.
-
-**Source:** User requirement (2026-04-15)
+thread=project id and due to this a dev who wants to actively play a role in the dataset curation, spec design and optimization loop can interact with the agent via the TUI and then pick up where he left off in the in the web app. or for example upon agreeance with the pm or harness engineer that a data set seems satisfactory and ready to be used as the training data for the target harness i.e(it gets accepted) it becomes surfaced in the web app, as a stored artifact that is easy to see, read and shows transperancy, it will most likey make the user feel something, seeing an actual artifact be emmited and know that the artifact plays as key component in the process of creating the target agent/harness. this same logic can be applied to any artifact that gets produced. 
+Furthermore, when the agent runs experiments and is in an optimization loop, users can see a visualization of how each loop where the developer agetn optimizes the harness begins trending toward the desired behavior and capabilites desired in the target harness, these insights can be emitted in a truly delightful manner to our ui. its for these reasons that a sole purely headless approach is not appropraite for our product. 
 
 ---
 
-*(D1–D7 remain active in `AD-WebApp.md` §1. D9–D16 below added 2026-04-16 from brand/positioning interview.)*
+    *(D1–D7 remain active in `AD-WebApp.md` §1. D9–D16 below added 2026-04-16 from brand/positioning interview.)*
 
 ---
 
