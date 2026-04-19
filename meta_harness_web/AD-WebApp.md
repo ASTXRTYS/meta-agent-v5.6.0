@@ -1,24 +1,30 @@
-# Meta Harness Web — Architecture Decision Record
+# Meta Harness Web — Technical Architecture
 
-**Status:** Proposed
-**Last Updated:** 2026-04-17 (D19 mockup scope + D20 auth queue)
-**Companion:** `AGENTS.md` (normative conventions), `DECISIONS.md` (frozen decisions D1–D19), `POSITIONING.md` (brand/product source of truth), `ROADMAP.md` (current plan), `CHANGELOG.md` (audit trail)
+**Status:** Technical architecture questions for frontend implementation
+**Last Updated:** 2026-04-18 (aligned with Vision.md)
+**Companion:** `Vision.md` (product vision & strategic decisions — read this first), `AGENTS.md` (frontend SDK conventions), `CHANGELOG.md` (audit trail)
 
 ---
 
-## §1 — Closed Decisions
+> **Product vision lives in `Vision.md`.** This document contains only technical architecture questions for frontend implementation. All product decisions (headless + artifact emitter, democratizing harness engineering, etc.) are in `Vision.md`.
 
-### D1: Two-Tier Streaming Architecture
+---
 
-**Decision:** The frontend recognizes two distinct tiers of agent composition inherited from the backend. Tier 1 (PCG → 7 peer agents via `add_node`) requires custom pipeline awareness. Tier 2 (agent → internal subagents via `task` tool) is handled by the SDK's `SubagentManager`.
+## §1 — Locked Technical Decisions
 
-**Rationale:** The JS SDK's `SubagentManager` tracks subagents by detecting `task` tool calls and routing messages with `"tools:"` namespace segments. PCG-mounted child graphs produce `run_agent:<task_id>` namespaces that do NOT contain `"tools:"` — no configuration option bridges this gap. Pretending both tiers are the same produces a leaky abstraction.
+These technical decisions are locked. They derive from `AGENTS.md` SDK conventions and the backend PCG contract.
 
-**Tradeoffs:** Tier 1 requires custom code; Tier 2 is zero-cost. The cost is in the mental model, not the implementation.
+### D1: Unified Stream with Specialized Projections
+
+**Decision:** The frontend uses one LangGraph stream and builds specialized projections over it: PCG/peer-agent execution, Deep Agents task subagents, and artifact/structured output. PCG peer agents are graph-composed child graphs tracked through PCG state and graph metadata. Runtime subagents spawned through the Deep Agents `task` tool are handled by the SDK's `SubagentManager`.
+
+**Rationale:** LangGraph provides a unified stream with subgraph namespaces; the frontend split is an interpretation/projection layer, not a transport split. The JS SDK's `SubagentManager` tracks subagents by detecting `task` tool calls and routing messages with `"tools:"` namespace segments. PCG-mounted child graphs produce `run_agent:<task_id>` namespaces that do NOT contain `"tools:"` — no configuration option bridges this gap.
+
+**Tradeoffs:** Peer-agent execution requires app-owned projection components over `stream.values` and message metadata. Runtime task subagents are zero-cost through SDK helpers. Artifact/structured output requires an explicit manifest/custom-event contract plus file APIs.
 
 **Source:** `.reference/libs/langgraphjs/libs/sdk/src/ui/subagents.ts:31-43` — `isSubagentNamespace` checks for `"tools:"` segments only.
 
-**Locked by:** AGENTS.md §"Highest-Level Decision: Two-Tier Streaming Architecture"
+**Locked by:** `AGENTS.md` §"Highest-Level Decision: Unified Stream with Specialized Projections"
 
 ---
 
@@ -28,7 +34,7 @@
 
 **Rationale:** `useStream` provides reactive state for messages, custom agent state (`stream.values`), subagent tracking (`stream.subagents`), and interrupts (`stream.interrupts`). Re-implementing any of this fights the SDK.
 
-**Locked by:** AGENTS.md §"Stream-First Frontend (Core Thesis)"
+**Locked by:** `AGENTS.md` §"Stream-First Frontend (Core Thesis)"
 
 ---
 
@@ -43,7 +49,7 @@
 
 **Tradeoffs:** Locks to React ecosystem. If a different framework were needed later, the SDK supports Vue/Svelte/Angular but the component layer would need rewriting. Choosing early is high-leverage because framework determines SDK integration surface.
 
-**Locked by:** AGENTS.md §"UI/UX Exploration → Framework Selection (Locked)"
+**Locked by:** `AGENTS.md` §"UI/UX Exploration → Framework Selection (Locked)"
 
 ---
 
@@ -53,17 +59,17 @@
 
 **Rationale:** The PCG's 7 peer agents are mounted child graphs. Their events only surface when subgraph streaming is enabled. This is a non-negotiable configuration requirement.
 
-**Locked by:** AGENTS.md §"Submitting with Subgraph Streaming"
+**Locked by:** `AGENTS.md` §"Submitting with Subgraph Streaming"
 
 ---
 
-### D5: `filterSubagentMessages: true` for Tier 2
+### D5: `filterSubagentMessages: true` for Deep Agents Task Subagents
 
-**Decision:** `useStream` must be configured with `filterSubagentMessages: true`. This separates coordinator messages from Tier 2 subagent output. It does NOT affect Tier 1 messages.
+**Decision:** `useStream` must be configured with `filterSubagentMessages: true`. This separates coordinator/current-agent messages from Deep Agents task-subagent output. It does NOT affect PCG-mounted peer-agent messages.
 
-**Rationale:** Without filtering, coordinator and subagent tokens interleave into unreadable output. This is essential for Tier 2 only — Tier 1 requires custom namespace-based attribution.
+**Rationale:** Without filtering, coordinator and task-subagent tokens interleave into unreadable output. This is essential for runtime `task` subagents only. PCG peer-agent attribution comes from `stream.values.current_agent`, message metadata, and optional debug namespace adapters.
 
-**Locked by:** AGENTS.md §"`filterSubagentMessages`"
+**Locked by:** `AGENTS.md` §"`filterSubagentMessages`"
 
 ---
 
@@ -75,29 +81,29 @@
 
 **Source:** `.reference/libs/deepagents/tests/unit_tests/test_subagents.py:1119` — `agent_name = metadata.get("lc_agent_name")`
 
-**Locked by:** AGENTS.md §"Agent Identification via Namespace"
+**Locked by:** `AGENTS.md` §"Agent Identification via State and Metadata"
 
 ---
 
-### D7: Tier-Prefix Naming Convention
+### D7: Projection-Based Naming Convention
 
-**Decision:** Components and hooks consuming Tier 1 data use `Pipeline` prefix. Those consuming Tier 2 data use `Subagent` prefix. Hook names must reveal which reactive state source they bind to.
+**Decision:** Components and hooks consuming PCG/peer-agent execution data use `PCG` or `Pipeline` prefix. Components consuming Deep Agents task-subagent data use `Subagent` prefix. Components consuming artifact manifests or custom events use `Artifact` prefix. Hook names must reveal which reactive state source they bind to.
 
-**Rationale:** Makes tier boundaries legible at a glance. Prevents ambiguous components that consume both tiers without documenting the dependency.
+**Rationale:** Makes projection boundaries legible at a glance. Prevents ambiguous components that consume multiple stream state sources without documenting the dependency.
 
-**Locked by:** AGENTS.md §"Naming Rules → Tier-prefix convention"
+**Locked by:** `AGENTS.md` §"Naming Rules → Projection-prefix convention"
 
 ---
 
-## §2 — Open Questions
+## §2 — Open Technical Questions
 
 These questions require UI/UX exploration (mockups) before they can be resolved. They are ordered by dependency: earlier questions constrain later ones.
 
-> **Per §4 resolution process:** Resolved questions are *removed* from this section and live only in `DECISIONS.md`. Questions B1, B2, B4, B6, B7 were resolved on 2026-04-16 by D9–D16. Q9.3, Q9.4, Q9.6 were resolved the same day by D17 (portal first-login UX, scoped). Later that evening, **D18 (Pure Broadcast Portal)** resolved Q9.5 and Q11 and substantially rescoped Q3, Q4, Q6, Q7, Q8, Q12 to cockpit-only or narrowed them. **D19** locked the first mockup milestone (J0-J3 Gate 1), the obligation to design both product sides per family, and Stripe-first sequencing. On 2026-04-18 the execution convention changed from "one app per family" to one active app at `meta_harness_web/app/meta-harness-web/` plus retired source snapshots under `mockup_iterations/`. The residual Q9 is now Q9 (Auth & Seats), pending the forthcoming D20 decision. Decision narratives live in `DECISIONS.md`; `POSITIONING.md` is the consolidated marketing source of truth; `ROADMAP.md` tracks the current plan.
+> **Context from `Vision.md`:** The product is **headless-first (90%) + artifact emitter (10%)**. The UI surfaces PRDs, datasets, eval scorecards, and optimization trendlines—making LangSmith's data "irresistibly readable." The experience scales from solo founders to 15-person teams without changing the core. See `Vision.md` D1, D10, D12 for product vision.
 >
 > **Question series:**
 > - **B-series** — brand/feel questions (B3, B5 still open)
-> - **Q-series** — structural / product-feature questions (Q1–Q13, with Q11 resolved and several others narrowed per D18)
+> - **Q-series** — structural / technical implementation questions (Q1–Q13)
 
 ### B3: Agent Personification
 
@@ -128,38 +134,30 @@ How much information is visible at once?
 **Depends on:** None (each visual family has an explicit density baseline in its brief)
 **Blocks:** Q1 (layout must respect density philosophy)
 
-**Why this matters:** Related to Q1 but distinct — Q1 is *where* things go, this is *how much* goes there. Per `POSITIONING.md` §5 and D13, density also varies *within* a surface by context-adaptive mode (ambient vs. drill-down). The open question is whether the two surfaces (Portal and Cockpit) share a single density scale with dial-up/down semantics, or use separate scales.
+**Why this matters:** Related to Q1 but distinct — Q1 is *where* things go, this is *how much* goes there. Density varies *within* a surface by context-adaptive mode (ambient vs. drill-down per `Vision.md`). The open question is whether operator and observer modes share a single density scale with dial-up/down semantics, or use separate scales.
 
 ---
 
-### Q1: Layout Structure *(reframed by JOURNEY.md — there is no single layout)*
+### Q1: Layout Structure *(open — design exploration required)*
 
-The original framing of Q1 asked "what is *the* primary layout?" — implying a single canonical answer (chat-only vs. split-panel vs. multi-panel cockpit). That framing was **wrong**.
+**Core constraint from D1:** The UX is "a chat with two side rails" — minimal, phase-responsive, surfacing artifacts as they become available. No progressive-reveal choreography of states; the UI shows what exists.
 
-**Resolved at a higher level via `JOURNEY.md`:** the UI is a **progressive reveal** across eight PCG-grounded journey states (J0 Virgin → J7 Acceptance & Delivery). There is no single canonical layout. Each state is a genuinely different composition:
+**Open design questions for exploration:**
 
-- **J0 Virgin** — no project thread exists; operator sees identity chrome + PM-centered conversational surface.
-- **J1 Scoping: PM <-> Stakeholder** — chat-dominant; first faint working-draft affordance appears.
-- **J2 Scoping: HE Authors Eval Suite** — first multi-agent handoff; engaged-agent rail and slim handoff log materialize.
-- **J3 Gate 1 Pending** — first-class PRD + eval-suite package; cockpit approval gate; portal appears for the first time as read-only Gate 1 surface.
-- **J4 Research & Design Exploration** — specialist loops and research/design artifacts become visible.
-- **J5 Gate 2 Pending** — first-class design package; second cockpit approval gate; portal informational rendering.
-- **J6 Planning & Development** — rich cockpit density stabilizes; phase telemetry, todos, Tier 2 subagent visibility, and sandbox affordances surface.
-- **J7 Acceptance & Delivery** — acceptance stamps, final deliverable hero, and cockpit-only satisfaction check.
+1. **Blank slate composition** — What does the operator see when no project exists? Centered conversational input with PM identity, but what else? How does chrome establish trust without clutter?
 
-Q1 is therefore **resolved by the journey-state framing**, not by picking one of the options. The original sub-questions below are still useful but reframe:
+2. **Artifact organization** — How do PRDs, eval criteria, datasets, design specs, and deliverables organize in the filesystem? How does this map to the side rails? Tags? Hierarchy? Search?
 
-1. **Primary workflow bias** — *varies by state.* J0/J1 are chat-first. J4-J7 become workbench-first as PCG state accrues. The product supports both because the project supports both.
-2. **Persistent vs. on-demand information** — *varies by state.* The agent rail and handoff rail begin at J2 and get denser through J7; before J2, they do not exist.
-3. **Viewport minimums** — **still open.** Mockup work will determine.
-4. **Phase-responsive layout** — *yes, emphatically.* This is the core JOURNEY.md thesis.
-5. **Interrupt prominence** — **cockpit-only per D18, first rendered at J3/J5 and refined at J7.** J3 in the first family milestone produces the first visual answer.
-6. **Entry pattern** — **operator enters at J0** (virgin chat), not at a project picker. Multi-project picker is Q10; emerges when the operator has >1 active project.
+3. **Single vs. multi-project navigation** — When the operator has one project, the thread IS the interface. When they have many, how do we surface them without breaking the chat-first model? Slide-out project drawer? Breadcrumb with dropdown? Keyboard-driven switcher?
 
-**Status:** Q1 as originally written is resolved. Residual layout questions are operational and resolve during mockup Sessions 1–4.
+4. **Phase-responsive density** — Chat-dominant at rest, workbench-dominant when artifacts accumulate. How does the layout breathe as the PCG phase changes and artifacts multiply?
 
-**Depends on:** `JOURNEY.md` (authoritative), `mockup_briefs/family-*.md` (rich-state J6/J7 specs per family), B5 (density — also reframed, per JOURNEY.md)
-**Blocks:** Nothing structurally; individual state-layouts are session-bounded
+5. **Portal vs. cockpit differentiation** — Same data, two surfaces. How do we achieve the density contrast without two completely different component libraries? Shared primitives, divergent layouts?
+
+**Status:** Open. Resolves via design exploration targeting the blank slate → single project → multi-project progression.
+
+**Depends on:** `Vision.md` D1 (minimal UX thesis), `Vision.md` D12 (scalable experience), `mockup_briefs/family-*.md` (rich-state visual specs)
+**Blocks:** Component architecture, navigation patterns, empty-state design
 
 ---
 
@@ -178,11 +176,11 @@ How does the user see which phase is active, which agent is running, and the han
 
 ---
 
-### Q3: Approval Flow Interaction *(cockpit-only, rescoped by D18)*
+### Q3: Approval Flow Interaction *(operator-mode only, per Vision.md D12)*
 
-How does the **operator** approve or reject a handoff interrupt from within the cockpit? What does the approval UI look like?
+How does the **operator** approve or reject a handoff interrupt? What does the approval UI look like?
 
-**Rescoped by D18:** approvals are a cockpit-only action. The portal shows gate moments as informational ("The Architect has delivered the design package; your operator is reviewing it with you"), with no action buttons on the stakeholder side. Sub-questions 1 and 3 below no longer apply (stakeholder doesn't approve in-portal and doesn't receive approval-via-email links for in-system actions). Sub-questions 4 and 5 also simplify since only the operator is the approver.
+**Context from `Vision.md` D12:** Participation is human-in-the-loop at key decision points. Observation mode shows gate moments as informational; only operator mode has action buttons.
 
 **Information requirements:**
 - `stream.interrupts` — HITL interrupt state
@@ -194,18 +192,18 @@ How does the **operator** approve or reject a handoff interrupt from within the 
 2. **Timeout behavior** — if a gate approval sits unresolved, what happens in the cockpit? Escalating notifications to the operator? Silent wait?
 3. **Partial approval / revise-in-place** — can the operator edit sections of the deliverable inline and submit as "approve with revisions," or is the choice binary?
 
-**Depends on:** Q1, Q2 (approval must fit within the cockpit layout and pipeline state display); D13 (action-required mode, cockpit-only per D18)
+**Depends on:** Q1, Q2 (approval must fit within the layout and pipeline state display); `Vision.md` D12 (operator vs. observation modes)
 **Blocks:** Q5
 
 ---
 
-### Q4: Tier 2 Subagent Visibility *(cockpit-only, rescoped by D18)*
+### Q4: Deep Agents Task Subagent Visibility *(operator-mode only)*
 
-How are internal subagent activities (when an agent spawns subagents via `task` tool) displayed within an agent's turn in the **cockpit**? Portal does not expose subagent-level detail under D18.
+How are internal subagent activities (when an agent spawns subagents via `task` tool) displayed within an agent's turn? Observation mode does not expose subagent-level detail per `Vision.md`.
 
 **SDK provides:** `SubagentCard`, `SubagentProgress`, `MessageWithSubagents` patterns. But visual integration with the pipeline-aware cockpit layout is open.
 
-**Depends on:** Q1, Q2 (subagent display must fit within the cockpit layout)
+**Depends on:** Q1, Q2 (subagent display must fit within the layout)
 **Blocks:** None
 
 ---
@@ -219,29 +217,29 @@ What changes in the UI when the user toggles between autonomous and approval-req
 
 ---
 
-### Q6: Todo/Plan Progress Display *(cockpit-primary, rescoped by D18)*
+### Q6: Todo/Plan Progress Display *(operator-mode primary)*
 
-How is `stream.values.todos` displayed in the **cockpit** alongside pipeline state? Is it per-agent, global, or both? Portal, under D18, shows progress at phase-level narrative abstraction ("The Architect is finalizing the design package"), not agent-level todos.
+How is `stream.values.todos` displayed alongside pipeline state? Is it per-agent, global, or both? Observation mode shows progress at phase-level narrative abstraction per `Vision.md`, not agent-level todos.
 
 **Depends on:** Q1, Q2
 **Blocks:** None
 
 ---
 
-### Q7: Sandbox Visual Form *(cockpit-only, rescoped by D18)*
+### Q7: Sandbox Visual Form *(operator-mode only)*
 
-When agents run with sandbox backends, what does the **cockpit's** IDE experience look like? Three-panel layout? File tree + code viewer + chat? Portal does not expose the sandbox under D18 — stakeholders see narrative progress and packaged deliverables, not live agent filesystems.
+When agents run with sandbox backends, what does the IDE experience look like? Three-panel layout? File tree + code viewer + chat? Observation mode does not expose the sandbox per `Vision.md`—stakeholders see narrative progress and packaged deliverables, not live agent filesystems.
 
 **Depends on:** Q1 (sandbox layout must be consistent with or an extension of the primary cockpit layout)
 **Blocks:** None
 
 ---
 
-### Q8: Soft Handover UX Mechanics *(simplified by D18)*
+### Q8: Soft Handover UX Mechanics
 
-How does an operator transfer cockpit access to a client at project delivery, and how does the client experience that upgrade?
+How does an operator transfer full access to a client at project delivery, and how does the client experience that upgrade?
 
-**Context:** D12 establishes soft handover as a monetization feature. D18 sharpens the mechanic: handover = granting a new cockpit account for the client's organization. The capability delta is now structural (stakeholder-mode cannot transact with agents; cockpit-mode can), which makes the upgrade narrative concrete.
+**Context from `Vision.md` D12:** Soft handover converts observation mode (view-only) into operator mode (full agent-interaction capability). This is a structural capability unlock, not a permissions toggle.
 
 **Residual sub-questions:**
 
@@ -252,23 +250,24 @@ How does an operator transfer cockpit access to a client at project delivery, an
 5. **Seeding behavior** — D12 says the delivered project's UUID becomes seed context for the client's next PM-scoped work. Automatic on first new-project creation, or explicit "start new project from this context" action?
 6. **Billing/commercial integration** — handled by D20 (auth & seats) + Stripe subscription primitives. Retainer = Stripe subscription on operator org; handover = new Stripe customer relationship with client org.
 
-**Depends on:** D12, D14, D18, D20 (auth/seats); Q1 (integration points in the cockpit layout)
+**Depends on:** `Vision.md` D12 (soft handover), Q1 (integration points in layout)
 **Blocks:** Post-v1 monetization surfaces
 
-**Why this matters:** Soft handover is the product's primary stickiness mechanism. Shipping a vague handover UX forfeits the monetization advantage D18 just made structural.
+**Why this matters:** Soft handover is the product's primary stickiness mechanism per `Vision.md`. Shipping a vague handover UX forfeits the monetization advantage.
 
 ---
 
-### Q9: Auth & Seats *(pending D20, residual after D17 + D18)*
+### Q9: Auth & Seats
 
-After D17 (portal first-login UX) and D18 (pure broadcast portal), only two Q9 sub-questions remain open, both about auth architecture:
+**Context from `Vision.md` D12:** Two modes exist—operator (full interaction) and observation (view-only). This requires distinct auth capabilities.
 
-1. **Invite mechanism** — operator provisions a stakeholder organization in cockpit → sends email invite with magic link → recipient sets a password (or uses Google OAuth if shipped) → persistent session-based login thereafter. *Working model; finalized by D20.*
-2. **Authentication architecture** — specific auth provider choice (Clerk / Supabase Auth / Auth.js / roll-our-own), session model, password-reset flow, Google OAuth inclusion in v1 or deferred. Scope simplified by D18: stakeholder seats are **viewer-only** (no write actions to model); operator seats have full cockpit-write capability; Stripe subscription primitives handle operator retainer billing and handover-to-client-org billing.
+**Open sub-questions:**
 
-**Depends on:** D12 (two surfaces), D17 (first-login UX), D18 (viewer-only stakeholder seats)
-**Blocks:** Nothing on canonical mockup screens (login/settings are out-of-scope in `mockup_briefs/*.md`). Blocks implementation work once mockups begin informing code.
-**Pending record:** D20 (Auth & Seats)
+1. **Invite mechanism** — operator provisions an organization → sends email invite with magic link → recipient sets password (or uses Google OAuth) → persistent session-based login.
+2. **Authentication architecture** — specific auth provider choice (Clerk / Supabase Auth / Auth.js / roll-our-own), session model, password-reset flow, Google OAuth inclusion in v1 or deferred. Observation mode seats are viewer-only; operator seats have full write capability.
+
+**Depends on:** `Vision.md` D12 (two modes)
+**Blocks:** Implementation work once mockups begin informing code.
 
 ---
 
@@ -285,25 +284,23 @@ How does an operator (or a handed-over client with multiple projects) manage and
 5. **Archival behavior** — delivered/archived projects surface as history? Hidden by default? Searchable?
 6. **Operator project vs. client project** — when an operator has 10 active client projects and also personal/internal projects, do they mix in the same picker or live in separate workspaces?
 
-**Depends on:** D8 (internal-tool scope), D12 (two surfaces), Q1 (layout)
+**Depends on:** `Vision.md` D1 (headless + artifact emitter), `Vision.md` D12 (scalable experience), Q1 (layout)
 **Blocks:** Q1 (entry-state design depends on whether there's a picker before/after login)
 
-**Why this matters:** Consultants will have multiple simultaneous client projects from day one. No project picker = app is single-project only, which contradicts D8's "tool Jason uses for client work."
+**Why this matters:** Consultants will have multiple simultaneous client projects from day one. No project picker = app is single-project only, which contradicts the internal-tool scope in `Vision.md`.
 
 ---
 
-### Q12: Held-Out Dataset Access-Control Affordance *(largely resolved by D18; residual edge case)*
+### Q12: Held-Out Dataset Access Control
 
-**Resolved by D18 (for the primary cases):**
-- **Portal visibility:** hidden entirely — the portal shows eval results and public dataset previews only. Held-out dataset is invisible to stakeholders.
-- **Cockpit visibility for operator:** full preview access (operator is acting as both operator and harness engineer in practice; role-separation ceremony deferred unless user research demands it).
+**Context from `Vision.md` D10/D12:** Observation mode shows eval results and public dataset previews only. Held-out datasets are operator-mode only.
 
-**Residual edge cases (open):**
+**Open questions:**
 
-1. **Handover inheritance** — when a stakeholder receives cockpit via soft handover, do they inherit access to the held-out dataset? *Philosophically* the project is theirs now; *practically* this could undermine evaluation integrity if held-out data leaks into their iteration loops for subsequent work. Likely default: yes-they-inherit, because the project is theirs; flag as a known watch-item for commercial-agreement adjustment.
-2. **Held-out regeneration** — if a handed-over client starts a new project using the delivered project as seed context (per D12), should the new project get a newly-generated held-out set, inherit the old one, or opt-out of held-out entirely? Open.
+1. **Handover inheritance** — when a client receives operator-mode access via soft handover, do they inherit access to the held-out dataset? Philosophically the project is theirs; practically this could affect evaluation integrity.
+2. **Held-out regeneration** — if a handed-over client starts a new project from seed context (`Vision.md` D12), should the new project get a newly-generated held-out set, inherit the old one, or opt-out?
 
-**Depends on:** D10, D12, D18, Q8 (handover mechanics)
+**Depends on:** `Vision.md` D10, D12, Q8 (handover mechanics)
 **Blocks:** None
 
 ---
@@ -312,7 +309,7 @@ How does an operator (or a handed-over client with multiple projects) manage and
 
 How does the web app behave when the TUI (backend) is simultaneously active on the same project thread? What's the conflict model?
 
-**Context:** D14 establishes the TUI and web app as parallel windows into the same project thread. Two windows means potential simultaneous writes.
+**Context:** `Vision.md` D1 establishes continuity across TUI ↔ Web ↔ Slack. Two simultaneous windows means potential write conflicts.
 
 **Sub-questions:**
 
@@ -322,69 +319,61 @@ How does the web app behave when the TUI (backend) is simultaneously active on t
 4. **Interrupt race** — if both TUI and web app try to resume the same HITL interrupt simultaneously, what resolves first? Is there a lock acquisition step, or does the checkpointer serialize?
 5. **Read-only mode opt-in** — should the web app offer an explicit "Viewer" mode for projects actively being driven elsewhere, to prevent accidental double-writes?
 
-**Depends on:** D14; SDK checkpointer semantics (must verify before deciding)
+**Depends on:** `Vision.md` D1 (multi-modal continuity); SDK checkpointer semantics (must verify before deciding)
 **Blocks:** None (operational concern, can launch with a conservative default)
 
 **Why this matters:** A single-operator scenario (Jason only) makes race conditions rare but possible. Multi-operator scenarios (handed-over client + original operator both active) make them routine. An undefined model ships as last-write-wins by default, which may silently lose state.
 
 ---
 
-## §3 — Decision Dependency Map
+## §3 — Question Dependency Map
 
 ```
-Resolved (see DECISIONS.md D9–D19):
-  ✅ B1 Core Metaphor               → D12, D13
-  ✅ B2 Brand Personality           → D9, D15
-  ✅ B4 Color Strategy (framing)    → D11 (per-family palettes in mockup_briefs/)
-  ✅ B6 Audience Self-Image         → D12, D13
-  ✅ B7 Trust Signal                → D10
-  ✅ Q9.3/Q9.4/Q9.6 (Portal first-login UX)       → D17
-  ✅ Q9.5 (First meaningful action, no chat)       → D18
-  ✅ Q11 (Chat-with-PM gating — moot, no chat)    → D18
-  ✅ Q12 (primary cases — held-out hidden in portal, visible in cockpit) → D18
-  ✅ First mockup milestone + per-family app isolation → D19
+Resolved (see `Vision.md`):
+  ✅ Product Purpose (D1)           → headless-first + artifact emitter
+  ✅ Brand Posture (D9)             → agent team as a service
+  ✅ Product Philosophy (D10)      → irresistibly readable data
+  ✅ LangSmith Relationship (D11)   → deep links, no embeds
+  ✅ The Experience (D12)          → democratizing harness engineering
 
-Rescoped to cockpit-only / narrowed (still open but constrained):
-  Q3  (Approval Flow)        → cockpit-only per D18
-  Q4  (Tier 2 Subagent Vis)  → cockpit-only per D18
-  Q6  (Todo/Plan Display)    → cockpit-primary per D18
-  Q7  (Sandbox IDE Form)     → cockpit-only per D18
-  Q8  (Soft Handover UX)     → simplified by D18; handover = cockpit account provisioning
+Rescoped to operator-mode only / narrowed:
+  Q3  (Approval Flow)        → operator-mode only per `Vision.md` D12
+  Q4  (Task Subagent Vis)    → operator-mode only per `Vision.md`
+  Q6  (Todo/Plan Display)    → operator-mode primary per `Vision.md`
+  Q7  (Sandbox IDE Form)     → operator-mode only per `Vision.md`
+  Q8  (Soft Handover UX)     → per `Vision.md` D12 (capability unlock)
   Q12 (residual — handover inheritance, held-out regeneration)
 
-Reframed by JOURNEY.md (no longer "open" as originally framed):
-  ✅ Q1 (Layout Structure)   → resolved at higher level: eight PCG-grounded journey states, not one layout
+Open technical questions (resolve via exploration):
+  🎯 Q1 (Layout Structure)    → blank slate → single project → multi-project navigation
+  🎯 B3 (Agent Personification) → PM identity, agent presence in minimal chrome
+  🎯 B5 (Density Philosophy)   → how UI breathes as artifacts accumulate
+  🎯 Q2 (Pipeline State)       → how PCG phase surfaces in the side rails
+  🎯 Q3 (operator Approval Flow) → gate moments in chat-first model
+  🎯 Q4 (operator Subagent Vis)  → task-subagent telemetry without clutter
+  🎯 Q5 (Autonomous Mode)     → execution state affordances
+  🎯 Q6 (operator Todo Progress) → todo surfacing that respects minimalism
+  🎯 Q7 (operator Sandbox Form)  → sandbox interaction in chat-first model
 
-Still open, resolved progressively via journey-state mockup sessions:
-
-  B3 (Agent Personification) ─── first signal at J0 (PM chip), resolves across J0–J7
-  B5 (Density Philosophy)    ─── each journey state has its own density; resolves across J0–J7
-  Q2 (Pipeline State)        ─── first surfaces at J2 and becomes central by J4/J6
-  Q3 (cockpit Approval Flow) ─── surfaces at J3/J5 and is refined by J7, cockpit-only per D18
-  Q4 (cockpit Subagent Vis)  ─── surfaces at J6 depending on subagent usage
-  Q5 (Autonomous Mode)       ─── surfaces around J3/J5/J6 gate and execution flows
-  Q6 (cockpit Todo Progress) ─── surfaces at J6
-  Q7 (cockpit Sandbox Form)  ─── surfaces at J6 when sandbox backend engages
-
-Non-journey residuals:
-  Q9  (Auth & Seats)         ─── D20 (pending, post-mockup)
+Deferred / operational:
+  Q9  (Auth & Seats)         ─── pending technical decision
   Q10 (Multi-Project Nav)    ─── deferred until operator has >1 active project
   Q13 (TUI↔Web Coordination) ─── operational, can defer
 ```
 
-**Status (2026-04-17, post-J0-J7 nomenclature normalization):**
+**Status (2026-04-18, aligned with `Vision.md`):**
 
-- **Resolved / locked:** D1–D19 (19 decisions). D18 reshaped the portal into a pure observation window; D19 locks the first mockup milestone and app isolation contract. **Q1 reframed by `JOURNEY.md`** — the "single canonical layout" question is resolved at a higher level by the progressive-reveal thesis (eight PCG-grounded journey states, not one layout).
-- **Pending decision records:** D20 (Auth & Seats — resolves residual Q9).
-- **Journey-state mockup-dependent (resolve via visual exploration across sessions 1–4):** B3 (agent personification — first signal at J0 PM chip), B5 (density — reframed: each state has its own density), Q2 (pipeline state visibility — starts at J2 and matures by J4/J6), Q5 (autonomous mode — gate/execution states), Q6 (cockpit todo progress — J6).
-- **Cockpit-scoped residuals (mockup-dependent, surface at J3/J5/J6/J7):** Q3, Q4, Q7.
-- **Operational residuals:** Q10 (multi-project nav — deferred until operator has >1 project), Q13 (TUI↔web coordination), Q12 residuals (handover inheritance), Q8 residual sub-questions — all tractable post-mockup or inline with mockups.
+- **Product vision locked:** `Vision.md` D1–D12. See `Vision.md` for headless + artifact emitter positioning, democratizing harness engineering, and scalable experience (1-15 people).
+- **Technical decisions locked:** §1 D1–D7 (streaming architecture, SDK contracts, naming conventions).
+- **Open technical questions:** B3, B5, Q1–Q8, Q10, Q12, Q13 — resolve via mockup work. Q9 (Auth) pending specific provider choice.
+- **Operator-mode scoped:** Q3, Q4, Q6, Q7 — these only apply to operator mode per `Vision.md` D12.
 
-**Mockup production is no longer gated on further interviews.** D17 + D18 + D19 + `JOURNEY.md` together specify enough of the product-shape to scaffold the Stripe Next.js app and build through J3 Gate 1 on a live dev server. See `ROADMAP.md` for the boot sequence and session plan.
+**Mockup production is no longer gated on further interviews.** D17 + D18 + D19 together specify enough of the product-shape to scaffold the Next.js app and build through the first design exploration target (blank slate through Gate 1). See `ROADMAP.md` for the boot sequence and session plan.
 
 ## §4 — Resolution Process
 
-1. **Mockups resolve open questions.** Journey-state mockups (defined in AGENTS.md §"UI/UX Exploration (Journey-State Design)" and ROADMAP.md session sequence) exercise open questions across J0-J7 states.
-2. **When a question is resolved**, the decision record moves to `DECISIONS.md` and the question is removed from this section.
-3. **Locked decisions** (§1) are not re-opened without a proposal in `CHANGELOG.md` and Jason's approval.
-4. **AGENTS.md is authoritative** — if this AD and AGENTS.md conflict, AGENTS.md wins.
+1. **Mockups resolve open questions.** Design exploration (defined in `AGENTS.md` §"UI/UX Exploration" and `ROADMAP.md` session sequence) exercises open questions across blank-slate → single-project → multi-project states.
+2. **When a question is resolved**, it is removed from this section. Product decisions move to `Vision.md`; technical decisions stay in this document §1.
+3. **Locked technical decisions** (§1) are not re-opened without a proposal in `CHANGELOG.md` and Jason's approval.
+4. **`Vision.md` is authoritative for product vision** — if this document and `Vision.md` conflict on product questions, `Vision.md` wins.
+5. **`AGENTS.md` is authoritative for SDK contracts** — if this document and `AGENTS.md` conflict on technical implementation, `AGENTS.md` wins.
