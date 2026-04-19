@@ -16,7 +16,7 @@
 | Author(s) | `@Jason` |
 | Reviewers | `@Jason` |
 | Related PRs | `#NA`, `#NA` |
-| Related Docs | `[AGENTS.md](../.agents/pm/AGENTS.md)`, `[SME Transcript](./sme_input/PCG-state-schema.md)`, `[PCG Analysis](./reports/pcg-state-schema-analysis.md)` |
+
 
 **One-liner:** `Meta Harness Architecture`
 
@@ -66,11 +66,7 @@ makes handoffs observable and auditable.
 
 ### Non-Goals
 
-- [ ] Deployment at scale / multi-tenant SaaS
 - [ ] Threat modeling and security hardening (v1)
-- [ ] Full web application deployment (v1; local CLI TUI first)
-- [ ] Remotely deployed role assistants communicating via LangGraph SDK APIs (v2+)
-- [ ] Custom handoff middleware beyond phase gate hooks (v2+)
 
 ---
 
@@ -101,6 +97,85 @@ makes handoffs observable and auditable.
   threads rather than mounted role graphs under the Project Coordination Graph.
 
 </details>
+
+---
+🚨 
+## Open Questions
+
+### OQ-1: Entry Point Architecture vs Headless-First Vision
+
+**Conflict:** The AD specifies a single centralized entry point through the Project Coordination Graph (`Human/UI → LangGraph Project Coordination Graph → [agents]`), while Vision.md envisions a distributed headless architecture where agents can be invoked from multiple platforms.
+
+**Vision.md citation (lines 14-17):**
+> "It is becoming more and more apparent that the path to driving real world value to humans via our product is to go **headless-first**. This will allow our agent team to go where the user needs them to go—not just where we build them to go. Slack, Discord, email, custom integrations."
+
+**Question:** How should the backend architecture accommodate the headless-first vision? Should the Project Coordination Graph support multiple entry points beyond the single `Human/UI` entry, or should we introduce an abstraction layer that routes from Slack/Discord/email integrations to the existing PCG entry point?
+
+**Dev-Note**: What non apparent consequences or architectural complexities might arise from supporting multiple entry points versus a single abstraction layer? This open quesiton should give rise to multiple other sub questions for a general solution, langchain most likely already provides this. 
+
+---
+
+### OQ-2: Stakeholder Participation Model Expansion
+
+**Conflict:** The AD limits user participation to two explicit approval gates (scoping→research, architecture→planning) with all other transitions auto-advancing, while Vision.md promises active collaboration throughout the process including participation during the Architect phase and harness engineering.
+
+**Vision.md citation (lines 98-99):**
+> "We enable: Active PRD collaboration, decision-point participation (dataset approval, eval criteria sign-off) [During Architect Phase technical users can weigh in on the decisions being made, steer, suggest, and actively participate in the shape the architect is proposing]"
+
+**Question:** How should the architecture support increased user involvement beyond the two explicit approval gates? Should we add additional middleware hooks for optional user interrupts at key decision points (e.g., during Architect design proposals, Planner phase breakdowns, Developer phase completions), or should we rely on the existing `ask_user` middleware pattern with expanded tool coverage for more granular stakeholder input?
+
+---
+
+### OQ-3: Optimization Loop Visualization vs Information Isolation Boundary
+
+**Conflict:** Vision.md promises users will see iteration-by-iteration optimization trendlines during development, but the AD's information isolation contract makes the Developer completely blind to evaluation artifacts. The data needed for trendline visualization lives in the Harness Engineer's experiment namespace, not in the Developer's view.
+
+*note from jason*(The correct approach to this, or the correct language rather, should be that users should be able to see how, experiment after experiment, where evals are run through the iteration process or the hill climbing process, trends towards their ultimate goal, which is to pass the eval criteria threshold.The conflict put forth by the agent makes it seem like I had an unrealistic expectation. When evals are run, let's say the developer just finished the first version of the target harness. The Harness Engineer then runs evals, the full evaluation harness against the current snapshot of the target harness; a score is emitted. Those scores are relevant towards the threshold scores, basically the success criteria. This is data. As we accumulate data, depending on the amount of times that we must go through an iteration loop and optimization loop, a hill climbing process, we get more and more data and can surface more and more intuitive trends.)
+
+**Vision.md citation (D1):**
+> "When the Developer Agent runs experiments in an optimization loop, users see visualizations of each iteration trending toward, or maybe even regressing against, the desired behavior and capabilities."
+
+**AD.md citation (§4 Phase Review / Information Isolation):**
+> "Developer is completely blind to evaluation artifacts — only sees feedback packets and can inspect its own traces in LangSmith"
+> "HE: runs eval science, produces EBDR-1 feedback that gives the optimizer directional signal without exposing rubrics, judge configs, or held-out data"
+
+**Question:** How should the harness emit optimization trendline data to the frontend without violating the Developer's information isolation? The raw experiment scores, rubrics, and held-out dataset results live in the HE's namespace. Two candidate approaches:
+
+1. **HE-emitted sanitized trendlines:** The Harness Engineer emits sanitized trendline artifacts (aggregate scores over iterations, no rubric/judge/held-out detail) as custom events or PCG state keys. The frontend renders these directly. The Developer agent never sees them — only the UI does. This requires a new artifact emission contract on the HE side and a Projection C pattern on the frontend.
+2. **Frontend queries LangSmith directly:** The frontend queries LangSmith experiment data via API, scoped to the project, and renders trendlines independently of what any agent sees. This avoids any new harness-side emission but couples the frontend to LangSmith's experiment API shape.
+
+*note from jason*
+(I think an irrelevant concern is data leakage towards the optimizer. At the end of the day, any of the data or results from our evals will be isolated and kept from the optimizer. The process of emitting this to our front end as visual data does not further increase the risk of data leakage. In my perception.) 
+(I also think that the first option, where the `HE` emitted sanitized trend lines, is overcomplicating it, but it could hint towards a possible approach.I'm open to discussing the different approaches that are available. Once the evals are run, all the data sets are essentially going to exist in LangSmith, which can be accessed via the SDK. For emitting the data to the UI, it can be done in a number of ways. At the end of the day, our `HE` does need to synthesize the results of the evals that have been run.Do we have our `HE` run Python scripts to emit the raw data to the UI? Do we first need to identify how we're going to be emitting this data? Do we provide our `HE` with a tool for doing this? The tool provides args for the different ways that the data can be visualized. Does our `HE` make the decision on the spot as to how `HE` should visualize this data for end users? If so, `HE` would have to pick which way to emit certain data and then stick with that throughout the duration of the project. Many questions.) 
+(I would argue this is both a harness and a model steering concern.)
+
+
+**Agent-Dev-Note:** This is a harness concern, not a model-steering concern. The visualization data path must be programmatic — you cannot steer the Developer into producing trendlines it doesn't have data for. The answer likely involves the HE emitting a compact experiment-progress artifact (scores, iteration count, pass/fail trend) without leaking the evaluation internals that the information isolation boundary protects.
+
+---
+
+### OQ-4: HITL During Development Phases vs Developer's `AskUserMiddleware` Absence
+
+**Conflict:** Vision.md promises human-in-the-loop participation during development (optimization tuning, SME input, taste calibration), but the AD only grants `AskUserMiddleware` to PM and Architect. The Developer has no direct channel to the user — it can only reach the user indirectly via `ask_pm` (tool #22).
+
+**Vision.md citation (D12, Experience Pillar 4):**
+> "Participation: Human-in-the-loop at key decision points (SME input, taste calibration, optimization tuning during development, final approval)"
+
+**AD.md citation (§4 Per-Agent Middleware, Q8):**
+> `AskUserMiddleware`: PM ✓, Architect ✓ — all other agents: —
+
+**AD.md citation (§4 System Prompt Behavioral Contracts, Q12):**
+> Developer "Must Not Do": "Self-certify acceptance; call `submit_phase_to_evaluator` for eval-science concerns"
+> (No `ask_user` capability listed.)
+
+**Relationship to OQ-2:** OQ-2 addresses expanding user participation beyond the two explicit approval gates. OQ-4 is a specific sub-question: during development phases, the Developer's only path to the user is `ask_pm` → PM → `ask_user` → user → PM → Developer. This indirection is architecturally correct (PM is the stakeholder POC), but the question is whether it's sufficient for the real-time "optimization tuning" and "taste calibration" Vision.md describes.
+
+**Question:** Is the `Developer → ask_pm → PM → ask_user → user` relay path sufficient for development-phase HITL, or does the Developer need its own `AskUserMiddleware`? Two candidate approaches:
+
+1. **PM relay (model steering):** Keep the current middleware assignment. Steer the PM's system prompt to recognize and prioritize Developer-originated stakeholder questions during development phases, minimizing relay latency. The Developer's `ask_pm` tool description should explicitly guide it to surface optimization-tuning and taste-calibration questions. This preserves the AD's PM-as-POC invariant.
+2. **Developer `AskUserMiddleware` (harness change):** Add `AskUserMiddleware` to the Developer's middleware stack. This gives the Developer a direct user channel, reducing relay latency but breaking the PM-as-sole-POC invariant and potentially creating a confusing multi-channel user experience.
+
+**Dev-Note:** Option 1 (PM relay + prompt steering) is likely sufficient for v1. The relay adds one handoff round-trip, but development-phase HITL questions are infrequent relative to the Developer's execution loop. If user testing reveals the relay latency is unacceptable, Option 2 can be adopted as a scoped middleware addition without topology changes.
 
 ---
 
@@ -837,7 +912,7 @@ v1 ships a Textual TUI launched via `langgraph dev`. The Deep Agents CLI TUI is 
 
 **AD locks information requirements, not visual design.** The TUI must surface: active agent, current phase, handoff log, user messages, `ask_user` prompts, approval gates, autonomous mode, model selections, LangSmith trace links. How these render is spec territory.
 
-**Deployment evolution:** v1 = `langgraph dev` + TUI + Studio; v2 = LangGraph Platform + `pip install meta-harness`.
+**Deployment evolution:** v1 ships two parallel UI surfaces: (1) a Textual TUI launched via `langgraph dev` for local development and (2) a web app (Next.js + `@langchain/react`) connecting to a LangGraph Platform deployment for artifact emission and stakeholder interaction. The TUI is the builder's surface; the web app is the product's public face and artifact emitter (see Vision.md D1, D10). Both share the same PCG backend and `thread_id = project_id` contract. §11 and §12 of this AD specify the harness-side auth and deployment configuration the web app depends on. v2 = `pip install meta-harness` + expanded headless channel support.
 
 ### Source Alignment Notes
 

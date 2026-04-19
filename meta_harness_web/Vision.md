@@ -70,7 +70,7 @@ An excellent article on the basics of harness engineering where much of the insp
 
 This mirrors the pattern of executive dashboards that distill signal for decision-makers while preserving access to underlying telemetry for operators.
 
-**Source:** Q4 of 2026-04-16 brand interview; see `POSITIONING.md` §"Product Philosophy".
+
 
 ---
 
