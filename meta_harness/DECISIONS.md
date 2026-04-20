@@ -1,6 +1,6 @@
 # Closed AD Decisions
 
-> Extracted from `AD.md` §9 on 2026-04-13. These decisions are frozen — they will not be reopened. For active (open) questions, see `AD.md` §9.
+> Extracted from `AD.md` decision index. These decisions are frozen — they will not be reopened. For active (open) questions, see the Open Questions section in `AD.md`.
 
 ---
 
@@ -60,6 +60,8 @@ Three nodes (`receive_user_input`, `process_handoff`, `run_agent`), no condition
 
 Locked field set is `project_id`, `handoff_id`, `source_agent`, `target_agent`, `reason`, `brief`, `artifact_paths`, `langsmith_run_id`, `status`, `created_at`. Removed `project_thread_id` (redundant with `project_id`), `target_role_namespace` (derivable from `target_agent` in v1), and `question` (folded into `reason`). Renamed `artifact_refs` → `artifact_paths` and `run_id` → `langsmith_run_id` for clarity. Added `brief` (was in Handoff Protocol but missing from schema).
 
+**Amendment (2026-04-20, Q15):** `project_thread_id` is now canonical runtime identity for project execution and is not globally redundant with `project_id`. Local/dev may set `project_thread_id = project_id` by convention only. Handoff/project contracts may include both identities where runtime correlation requires it.
+
 ---
 
 ### Q7: Phase gate enum and approval policy
@@ -75,6 +77,8 @@ Six phases (`scoping`, `research`, `architecture`, `planning`, `development`, `a
 **Status:** Closed · **Approved by:** Jason · **Date:** 2026-04-12
 
 Sandbox support is backend/runtime configuration for mounted role agents and does not split roles into separate top-level assistants. Separate remotely deployed role assistants are out of scope for v1.
+
+**Amendment (2026-04-20, Q16):** Sandbox semantics are now anchored to a project-scoped execution environment invariant: `project_thread_id -> execution_environment_id -> provider root`. This clarifies topology stays mounted while execution environment remains a first-class project contract.
 
 ---
 
@@ -950,3 +954,160 @@ The TUI connects to the LangGraph server defined by `langgraph.json`. For v1, th
 **Precedent.** The Deep Agents CLI follows the same pattern: `langgraph.json` defines the graph, `langgraph dev` runs it, and the Textual app connects as a client. The CLI's `server_graph.py` and `server_manager.py` handle the server lifecycle; our TUI will follow the same convention.
 
 **Decisions delegated to implementation spec:** Exact pipeline awareness widget design and layout; how handoff progress is visualized (timeline, status panel, inline indicators, etc.); approval gate document rendering format (markdown preview, rendered docx, summary card); autonomous mode toggle UX; whether to fork CLI widgets or import them as a dependency; exact `langgraph.json` configuration; TUI module structure within `src/meta_harness/`; welcome banner content and branding; non-interactive / headless mode for CI and scripting.
+
+---
+
+### Q15: Headless PM session, thread identity, and source surfaces
+
+**Status:** Closed · **Approved by:** Jason · **Date:** 2026-04-20
+
+**(1) Agent Server is the headless runtime boundary:**
+
+LangGraph/LangSmith Agent Server owns assistants, threads, runs, Store, auth,
+persistence, and queueing. Meta Harness must not introduce a separate runtime for
+headless channels. Headless adapters normalize source events and submit Agent
+Server runs against the correct LangGraph thread.
+
+**(2) Two product-level thread kinds:**
+
+Meta Harness defines exactly two base `thread_kind` values:
+
+| `thread_kind` | Meaning |
+|---|---|
+| `pm_session` | Projectless or cross-project PM conversation used for intake, discovery, status questions, and pre-seed scoping |
+| `project` | Canonical project execution thread that runs the Project Coordination Graph |
+
+No base `utility` thread kind is adopted. Utility/background work is modeled as
+tools, subagent tasks, artifacts, Store records, or implementation-specific runs
+owned by a `pm_session` or `project` thread.
+
+**(3) Identifier contract:**
+
+| Identifier | Definition |
+|---|---|
+| `thread_id` | LangGraph checkpoint/conversation identity |
+| `project_id` | Durable Meta Harness project identity |
+| `project_thread_id` | Canonical LangGraph thread for one executable project |
+| `pm_session_thread_id` | LangGraph thread for non-project/cross-project PM conversation |
+
+`project_thread_id` may equal `project_id` in local/dev, but that is a
+convention, not the definition of `project_id`.
+
+**(4) PM product identity:**
+
+`pm_session` is not a second PM and not a `ProjectCoordinationState` key. It is a
+LangGraph thread whose metadata has `thread_kind = "pm_session"`, normally run
+through a PM session/intake graph contract. The user experiences one PM. The
+system internally distinguishes PM session threads from project execution
+threads.
+
+**(5) PM session to project lifecycle:**
+
+PM session threads do not mutate into project threads. Project creation from a
+PM session creates a separate project thread with `thread_kind = "project"` and
+records parent/active links such as `parent_pm_thread_id`,
+`active_project_id`, and `active_project_thread_id`. PM session can inspect,
+continue, or consult projects through tools, Store, registry records, project
+memory, artifact indexes, or project-thread runs. It must not merge checkpoint
+threads.
+
+**(6) Headless ingress vs source presence:**
+
+Headless is a UI/ingress/source-presence paradigm over the same core app, not a
+different agent application.
+
+| Layer | Responsibility |
+|---|---|
+| Headless ingress | External event -> source identity -> LangGraph thread -> Agent Server run |
+| Source presence | Tools/middleware that let PM act inside Slack/email/Discord/GitHub/Linear during a run |
+
+Core project lifecycle, project thread, execution environment, repository
+binding, contribution policy, and PR publication flow remain the same across
+web, TUI, Slack, email, Discord, GitHub, Linear, and API. Source-specific Slack
+UI/UX is explicitly deferred.
+
+**Decisions delegated to implementation spec:** exact graph IDs, exact metadata
+wire schema, deterministic vs Store-backed source conversation mapping per
+source, source-specific adapter routes, source-presence tool schemas, and
+which PM-session tools may read live project execution-environment files versus
+only project memory/artifact indexes. The live-file access boundary remains the
+single high-priority open question in `AD.md`.
+
+---
+
+### Q16: Project-scoped execution environment / agent computer
+
+**Status:** Closed · **Approved by:** Jason · **Date:** 2026-04-20
+
+**(1) Execution environment is a core product invariant:**
+
+Meta Harness must provide a project-scoped execution environment as the agent's
+computer. A project memory/artifact filesystem is not enough for autonomous
+coding. For code-producing projects, the project thread resolves a shell-capable
+workspace where agents can clone repositories, install dependencies, run
+commands, modify files, commit, push, and open pull requests.
+
+```txt
+project_thread_id -> execution_environment_id -> provider sandbox/devbox/local root
+```
+
+**(2) Execution modes:**
+
+| Mode | Decision |
+|---|---|
+| `managed_sandbox` | Default for v1 production, web app, headless/autonomous work, client repos, and untrusted code |
+| `external_devbox` | Customer/enterprise-managed provider, image, network policy, secrets policy, and lifecycle |
+| `local_workspace` | Explicit opt-in local-first mode; local shell access must be guarded because commands run on the user's machine |
+
+Daytona is the default managed sandbox/devbox provider for v1. LangSmith sandbox
+may be supported as an optional/future/beta provider, not as the default.
+
+**(3) Project thread ownership:**
+
+PM session threads do not get an execution environment by default. Project
+threads get an execution environment when the project requires implementation,
+evaluation, or publication. Developer is the primary writer. Evaluator and
+Harness Engineer can read and execute checks/evals against the candidate
+workspace during review phases. Handoff gates serialize write/evaluation moments
+so roles do not concurrently mutate the same repository workspace.
+
+**(4) Brownfield contribution path:**
+
+For existing client repositories, Meta Harness must support:
+
+```txt
+resolve repo -> resolve/create execution environment -> configure credentials
+-> clone/refresh repo -> create/check out working branch
+-> implement and run checks/evals -> commit -> push -> open/update draft PR
+-> attach PR/check evidence to project memory and PM handoff
+```
+
+GitHub credentials follow the Open SWE architecture pattern: GitHub App/OAuth
+style resolution and short-lived/auth-proxied credentials for sandbox work. Do
+not write long-lived secrets into the sandbox.
+
+**(5) Greenfield persistence path:**
+
+Greenfield projects do not require immediate GitHub repo creation. Supported
+persistence modes are:
+
+| Mode | Meaning |
+|---|---|
+| `vm_only` | Keep work inside the execution environment and expose previews/artifacts/exports |
+| `meta_harness_staging_repo` | Push to a Meta Harness-owned staging repository |
+| `client_repo` | Create or push to a client-owned repository when approved |
+| `archive_artifact` | Export a bundle without remote git publication |
+
+**(6) Native web app invariant:**
+
+From day one, the native web app must expose the same project-scoped computer
+used by Developer, Evaluator, and Harness Engineer: repo binding, branch state,
+file tree, selected file contents, diffs, staged changes, command/check/eval
+logs, previews or artifact exports, commit SHA, PR URL/status, and environment
+health/reconnect status.
+
+**Decisions delegated to implementation spec:** exact Daytona integration
+boundary, sandbox image defaults, workspace path conventions, environment
+health/reconnect protocol, PR approval gates, local shell allow-list policy,
+file browser route shape, and which PM-session tools may read live project
+execution-environment files versus only memory/artifact indexes.

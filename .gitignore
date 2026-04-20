@@ -62,3 +62,8 @@ phase3-implementation-prompt.md
 !meta_harness_web/app/package-lock.json
 .reference/libs/langgraphjs/
 .reference
+Ignore.md
+
+# Research artifacts (not to be pushed)
+research_headless_pm/
+thread_research.md

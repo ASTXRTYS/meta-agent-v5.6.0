@@ -25,13 +25,20 @@
 ## 1) Decision Snapshot
 
 ```txt
-We will model the PM, Harness Engineer, Researcher, Architect, Planner,
-Developer, and Evaluator as peer, stateful Deep Agent graphs mounted under a thin
-LangGraph Project Coordination Graph. The Project Coordination Graph owns the
-project thread, parent-mediated handoff routing, run status, and phase gates. The
-Deep Agent graphs own role-specific cognition, tools, memory, skills,
-summarization, artifact work, and private role state through child graph
-checkpoint namespaces.
+We will model PM, Harness Engineer, Researcher, Architect, Planner, Developer,
+and Evaluator as peer, stateful Deep Agent graphs mounted under a thin LangGraph
+Project Coordination Graph for project execution. LangGraph/LangSmith Agent
+Server is the runtime boundary for assistants, threads, runs, Store, auth,
+persistence, and queueing. The product uses two LangGraph thread kinds:
+`pm_session` and `project`. `thread_id` is checkpoint/conversation identity;
+`project_id` is durable project identity; `project_thread_id` is the canonical
+project execution thread (and may equal `project_id` in local/dev only by
+convention). PM session/intake handles non-project and cross-project PM
+conversation. Project creation creates a separate project thread and links it to
+the parent PM session. Project threads own a project-scoped execution environment
+(`project_thread_id -> execution_environment_id`) with managed sandbox/devbox as
+the default execution mode (Daytona default provider). Headless and first-party
+surfaces run the same lifecycle and contribution model.
 ```
 
 ### Decision Badge
@@ -61,7 +68,10 @@ makes handoffs observable and auditable.
 - The coordination layer must be thin and deterministic — no LLM calls in PCG nodes, no routing intelligence in the graph.
 - Agent-to-agent communication must go through explicit handoff tools that return `Command.PARENT` — no direct peer invocation.
 - Phase gate enforcement must be middleware hooks on handoff tools, not PCG conditional edges.
-- The system must support both local-first (user disk) and sandbox-backed (VM) execution from day one.
+- Agent Server is the runtime boundary for assistants, threads, runs, Store, auth, persistence, and queueing; Meta Harness must not fork thread/runtime identity outside that boundary.
+- Meta Harness has exactly two product-level LangGraph `thread_kind` values in base architecture: `pm_session` and `project` (no base `utility` thread kind).
+- The system must support project-scoped execution environments from day one with `managed_sandbox` default, plus `external_devbox` and guarded `local_workspace`.
+- `managed_sandbox` default provider is Daytona for v1 production/web/headless; LangSmith sandbox can be offered as optional/future/beta.
 - The system must leverage the Deep Agents SDK as the primary agent harness — do not reimplement SDK capabilities.
 
 ### Non-Goals
@@ -102,95 +112,11 @@ makes handoffs observable and auditable.
 🚨 
 ## Open Questions
 
-### OQ-1: Entry Point Architecture vs Headless-First Vision
-!*A Potential Approach has been put forth in research_headless_pm/hypothesis_pm_session_default.md*!
-**Conflict:** The AD specifies a single centralized entry point through the Project Coordination Graph (`Human/UI → LangGraph Project Coordination Graph → [agents]`), while Vision.md envisions a distributed headless architecture where agents can be invoked from multiple platforms.
+### OQ-H1 (High Priority): PM Session File Access Boundary
 
-**Vision.md citation (lines 14-17):**
-> "It is becoming more and more apparent that the path to driving real world value to humans via our product is to go **headless-first**. This will allow our agent team to go where the user needs them to go—not just where we build them to go. Slack, Discord, email, custom integrations."
+Which PM-session tools are allowed to read **live project execution-environment files** versus being restricted to **project memory and artifact indexes**?
 
-**Question:** How should the backend architecture accommodate the headless-first vision? Should the Project Coordination Graph support multiple entry points beyond the single `Human/UI` entry, or should we introduce an abstraction layer that routes from Slack/Discord/email integrations to the existing PCG entry point?
-
-**Dev-Note**: What non apparent consequences or architectural complexities might arise from supporting multiple entry points versus a single abstraction layer? This open quesiton should give rise to multiple other sub questions for a general solution, langchain most likely already provides this. 
-
----
-
-### OQ-2: Stakeholder Participation Model Expansion
-
-**Conflict:** The AD limits user participation to two explicit approval gates (scoping→research, architecture→planning) with all other transitions auto-advancing, while Vision.md promises active collaboration throughout the process including participation during the Architect phase and harness engineering.
-
-**Vision.md citation (lines 98-99):**
-> "We enable: Active PRD collaboration, decision-point participation (dataset approval, eval criteria sign-off) [During Architect Phase technical users can weigh in on the decisions being made, steer, suggest, and actively participate in the shape the architect is proposing]"
-
-**Question:** How should the architecture support increased user involvement beyond the two explicit approval gates? Should we add additional middleware hooks for optional user interrupts at key decision points (e.g., during Architect design proposals, Planner phase breakdowns, Developer phase completions), or should we rely on the existing `ask_user` middleware pattern with expanded tool coverage for more granular stakeholder input?
-
----
-
-### OQ-3: Optimization Loop Visualization vs Information Isolation Boundary
-
-**Conflict:** Vision.md promises users will see iteration-by-iteration optimization trendlines during development, but the AD's information isolation contract makes the Developer completely blind to evaluation artifacts. The data needed for trendline visualization lives in the Harness Engineer's experiment namespace, not in the Developer's view.
-
-*note from jason*
-- (The correct approach to this, or the correct language rather, should be that users should be able to see how, experiment after experiment, where evals are run through the iteration process or the hill climbing process, trends towards their ultimate goal, which is to pass the eval criteria threshold.The conflict put forth by the agent makes it seem like I had an unrealistic expectation. When evals are run, let's say the developer just finished the first version of the target harness. The Harness Engineer then runs evals, the full evaluation harness against the current snapshot of the target harness; a score is emitted. Those scores are relevant towards the threshold scores, basically the success criteria. This is data. As we accumulate data, depending on the amount of times that we must go through an iteration loop and optimization loop, a hill climbing process, we get more and more data and can surface more and more intuitive trends.)
-
-**Vision.md citation (D1):**
-> "When the Developer Agent runs experiments in an optimization loop, users see visualizations of each iteration trending toward, or maybe even regressing against, the desired behavior and capabilities."
-
-**AD.md citation (§4 Phase Review / Information Isolation):**
-> "Developer is completely blind to evaluation artifacts — only sees feedback packets and can inspect its own traces in LangSmith"
-> "HE: runs eval science, produces EBDR-1 feedback that gives the optimizer directional signal without exposing rubrics, judge configs, or held-out data"
-
-**Question:** How should the harness emit optimization trendline data to the frontend without violating the Developer's information isolation? The raw experiment scores, rubrics, and held-out dataset results live in the HE's namespace. Two candidate approaches:
-
-1. **HE-emitted sanitized trendlines:** The Harness Engineer emits sanitized trendline artifacts (aggregate scores over iterations, no rubric/judge/held-out detail) as custom events or PCG state keys. The frontend renders these directly. The Developer agent never sees them — only the UI does. This requires a new artifact emission contract on the HE side and a Projection C pattern on the frontend.
-2. **Frontend queries LangSmith directly:** The frontend queries LangSmith experiment data via API, scoped to the project, and renders trendlines independently of what any agent sees. This avoids any new harness-side emission but couples the frontend to LangSmith's experiment API shape.
-
-*note from jason*
-- (I think an irrelevant concern is data leakage towards the optimizer. At the end of the day, any of the data or results from our evals will be isolated and kept from the optimizer. The process of emitting this to our front end as visual data does not further increase the risk of data leakage. In my perception.)
-- (I also think that the first option, where the `HE` emitted sanitized trend lines, is overcomplicating it, but it could hint towards a possible approach.I'm open to discussing the different approaches that are available. Once the evals are run, all the data sets are essentially going to exist in LangSmith, which can be accessed via the SDK. For emitting the data to the UI, it can be done in a number of ways. At the end of the day, our `HE` does need to synthesize the results of the evals that have been run.Do we have our `HE` run Python scripts to emit the raw data to the UI? Do we first need to identify how we're going to be emitting this data? Do we provide our `HE` with a tool for doing this? The tool provides args for the different ways that the data can be visualized. Does our `HE` make the decision on the spot as to how `HE` should visualize this data for end users? If so, `HE` would have to pick which way to emit certain data and then stick with that throughout the duration of the project. Many questions.)
-- (I would argue this is both a harness and a model steering concern.)
-
-
-**Agent-Dev-Note:** This is a harness concern, not a model-steering concern. The visualization data path must be programmatic — you cannot steer the Developer into producing trendlines it doesn't have data for. The answer likely involves the HE emitting a compact experiment-progress artifact (scores, iteration count, pass/fail trend) without leaking the evaluation internals that the information isolation boundary protects.
-
----
-
-### OQ-4: HITL During Development Phases vs Developer's `AskUserMiddleware` Absence
-
-**Conflict:** Vision.md promises human-in-the-loop participation during development (optimization tuning, SME input, taste calibration), but the AD only grants `AskUserMiddleware` to PM and Architect. The Developer has no direct channel to the user — it can only reach the user indirectly via `ask_pm` (tool #22).
-
-**Vision.md citation (D12, Experience Pillar 4):**
-> "Participation: Human-in-the-loop at key decision points (SME input, taste calibration, optimization tuning during development, final approval)"
-
-**AD.md citation (§4 Per-Agent Middleware, Q8):**
-> `AskUserMiddleware`: PM ✓, Architect ✓ — all other agents: —
-
-**AD.md citation (§4 System Prompt Behavioral Contracts, Q12):**
-> Developer "Must Not Do": "Self-certify acceptance; call `submit_phase_to_evaluator` for eval-science concerns"
-> (No `ask_user` capability listed.)
-
-**Relationship to OQ-2:** OQ-2 addresses expanding user participation beyond the two explicit approval gates. OQ-4 is a specific sub-question: during development phases, the Developer's only path to the user is `ask_pm` → PM → `ask_user` → user → PM → Developer. This indirection is architecturally correct (PM is the stakeholder POC), but the question is whether it's sufficient for the real-time "optimization tuning" and "taste calibration" Vision.md describes.
-
-**Question:** Is the `Developer → ask_pm → PM → ask_user → user` relay path sufficient for development-phase HITL, or does the Developer need its own `AskUserMiddleware`? Two candidate approaches:
-
-1. **PM relay (model steering):** Keep the current middleware assignment. Steer the PM's system prompt to recognize and prioritize Developer-originated stakeholder questions during development phases, minimizing relay latency. The Developer's `ask_pm` tool description should explicitly guide it to surface optimization-tuning and taste-calibration questions. This preserves the AD's PM-as-POC invariant.
-2. **Developer `AskUserMiddleware` (harness change):** Add `AskUserMiddleware` to the Developer's middleware stack. This gives the Developer a direct user channel, reducing relay latency but breaking the PM-as-sole-POC invariant and potentially creating a confusing multi-channel user experience.
-
-**Dev-Note:** Option 1 (PM relay + prompt steering) is likely sufficient for v1. The relay adds one handoff round-trip, but development-phase HITL questions are infrequent relative to the Developer's execution loop. If user testing reveals the relay latency is unacceptable, Option 2 can be adopted as a scoped middleware addition without topology changes.
-
----
-
-### OQ-5: Agent-Owned Execution Environment vs Sandbox Language
-
-!*A proposed solution has been put forth in research_headless_pm/hypothesis_execution_environment.md*!
-
-**Conflict:** The AD says the system must support local-first and sandbox-backed execution from day one, but it does not fully define the user-level contribution contract: the Developer/HE/Evaluator need an actual execution environment where repos can be cloned, dependencies installed, tests/evals run, changes committed, branches pushed, and PRs opened.
-
-**Question:** Should Meta Harness standardize "sandbox" as the agent's project-scoped computer, or keep sandbox as a narrower filesystem/backend concept?
-
-**Proposed answer:** Standardize an `Execution Environment` abstraction. A project memory/artifact filesystem is not enough for autonomous coding. For code-producing projects, the project thread resolves a project-scoped computer: managed sandbox/devbox by default, local workspace by explicit opt-in, or external provider such as Daytona/Runloop/Modal/LangSmith. The same execution-environment access must work in headless channels, the web app, the TUI, and local-first mode. Publication is policy-driven: existing client repo PR, Meta Harness staging repo, VM-only prototype, or exported artifact.
-
-**Team review needed:** Confirm the default provider, project-scoped sharing across Developer/Evaluator/HE, first-push/PR approval policy, supported greenfield persistence modes, local shell safety posture, whether PR publication is a tool/middleware/both, and which PM-session tools may read live project sandbox files versus project memory/artifact indexes.
+This is intentionally the only unresolved question in this refactor thread. The boundary must be explicit before finalizing PM-session cross-project inspection tooling.
 
 ---
 
@@ -201,29 +127,88 @@ makes handoffs observable and auditable.
 The core topology is:
 
 ```txt
-Human/UI
-  -> LangGraph Project Coordination Graph
-      -> PM Deep Agent child graph
-      -> Harness Engineer Deep Agent child graph
-      -> Researcher Deep Agent child graph
-      -> Architect Deep Agent child graph
-      -> Planner Deep Agent child graph
-      -> Developer Deep Agent child graph
-      -> Evaluator Deep Agent child graph
+External source or first-party UI event
+  -> source identity resolution (adapter/UI)
+  -> LangGraph/LangSmith Agent Server thread lookup or create
+  -> run submission on selected thread
+      -> if thread_kind = "pm_session": PM session/intake graph
+      -> if thread_kind = "project": Project Coordination Graph
+          -> PM Deep Agent child graph
+          -> Harness Engineer Deep Agent child graph
+          -> Researcher Deep Agent child graph
+          -> Architect Deep Agent child graph
+          -> Planner Deep Agent child graph
+          -> Developer Deep Agent child graph
+          -> Evaluator Deep Agent child graph
 ```
 
-The Project Coordination Graph is the LangGraph application entrypoint. The PM is
-still the default user-facing agent and scope owner, but it is not the container
-for all specialist cognition. The PM and specialists are peer Deep Agent child
-graphs. Each role must be assembled by its own `create_deep_agent()` factory with
-`name=` set for trace metadata, its own tool ownership, its own prompt, its own
-memory sources, and its own child graph state.
+Agent Server is the runtime boundary for assistants, threads, runs, Store, auth,
+persistence, and queueing. Meta Harness does not create a second thread runtime.
 
-For local mounted-graph execution, use one stable root thread per project:
+The product still feels like one PM. The PM is one product identity with two
+thread contexts: `pm_session` and `project`.
+
+The Project Coordination Graph remains the canonical project execution boundary.
+PM session/intake is the PM outside a selected project and should be deployed as
+a separate graph ID/state contract when deployed to Agent Server.
+
+### Thread Identity Model
+
+Meta Harness base architecture has exactly two product-level thread kinds:
+
+- `pm_session`
+- `project`
+
+No base `utility` thread kind is defined. Utility/background work is modeled as
+tools, subagent tasks, artifacts, or implementation-specific runs owned by a
+`pm_session` or `project` thread.
+
+| Identity | Meaning |
+|---|---|
+| `thread_id` | LangGraph checkpoint/conversation identity |
+| `project_id` | Durable Meta Harness project identity |
+| `project_thread_id` | Canonical LangGraph thread for one executable project |
+| `pm_session_thread_id` | LangGraph thread for non-project/cross-project PM conversation |
+
+`project_thread_id` may equal `project_id` in local/dev, but that is a
+convention, not the definition of `project_id`.
+
+`pm_session` is not a second PM identity and not a `ProjectCoordinationState`
+key. It is a LangGraph thread with metadata `thread_kind = "pm_session"`,
+normally run through PM session/intake graph contract.
+
+### PM Session And Project Entry Model
+
+Default routing rule:
 
 ```txt
-thread_id = "{project_id}"
+if request is explicitly bound to a project_thread_id:
+    run Project Coordination Graph on that project thread
+else:
+    run PM session/intake graph on a pm_session thread
 ```
+
+PM session threads do not mutate into project threads. Project creation creates a
+separate project thread and records parent/active links (`parent_pm_thread_id`,
+`active_project_id`, `active_project_thread_id`). PM session continues project
+work via tools and project memory/registry, not by merging checkpoint threads.
+
+### Headless Ingress vs Source Presence
+
+Headless is a UI/ingress/source-presence paradigm over the same core app, not a
+different agent application.
+
+Separate two layers:
+
+| Layer | Responsibility |
+|---|---|
+| Ingress | External event -> source identity -> LangGraph thread -> Agent Server run |
+| Source presence | Tools/middleware that let PM act inside a source during a run |
+
+Core project lifecycle, project thread, execution environment, repository
+binding, contribution policy, and PR publication flow stay the same across web,
+TUI, Slack, email, Discord, GitHub, Linear, and API. Source-specific channel UX
+policy is deferred; this AD keeps source-neutral architecture language.
 
 Role isolation is provided by child graph state schemas and stable checkpoint
 namespaces under that project thread:
@@ -289,7 +274,8 @@ The `ProjectCoordinationState` carries only deterministic coordination data — 
 | Field | Type | Purpose | Set by |
 |---|---|---|---|
 | `messages` | `Annotated[list[AnyMessage], add_messages]` | **User-facing I/O channel.** Accumulates stakeholder input and PM's final product response only — lifecycle bookends. Never written to during pipeline execution. Also the only key shared with `_InputAgentState`, so it is the conduit by which `run_agent` passes input to child graphs. | `process_handoff` (stakeholder input), PM normal exit (final response) |
-| `project_id` | `str` | Root thread identifier; doubles as project namespace for all child checkpoint namespaces | `process_handoff` (from initial invocation) |
+| `project_id` | `str` | Durable Meta Harness project identity | `process_handoff` (from initial invocation) |
+| `project_thread_id` | `str` | Canonical LangGraph project execution thread identity for this PCG run | `process_handoff` (from routing context) |
 | `current_phase` | `Literal["scoping", "research", "architecture", "planning", "development", "acceptance"]` | Current project phase; middleware reads this for gate dispatch | `process_handoff` (advanced on phase-transition handoffs) |
 | `current_agent` | `Literal["project_manager", "harness_engineer", "researcher", "architect", "planner", "developer", "evaluator"]` | Which role graph is currently active; `run_agent` reads this to select the correct mounted child | `process_handoff` |
 | `handoff_log` | `Annotated[list[HandoffRecord], add_messages]` | Append-only coordination audit trail — who handed what to whom, when, why, with which artifacts. Also serves as acceptance record for gated tools (e.g. `return_product_to_pm`). Capped at N records; cap mitigation delegated to implementation spec. | `process_handoff` |
@@ -341,6 +327,7 @@ PCG records the handoff and invokes the target mounted role graph.
 A handoff should carry:
 
 - `project_id`
+- `project_thread_id`
 - `source_agent`
 - `target_agent`
 - `reason` (enum: `deliver | return | submit | consult | announce | coordinate | question`)
@@ -374,6 +361,7 @@ Command(
     update={
         "handoff_log": [HandoffRecord(
             project_id=...,
+            project_thread_id=...,
             source_agent=...,
             target_agent=...,
             reason=...,
@@ -394,7 +382,8 @@ PM's final product response.
 
 **PCG-filled fields** (`handoff_id`, `langsmith_run_id`, `status`, `created_at`) are
 added by `process_handoff`, not by the calling agent. The calling agent populates:
-`project_id`, `source_agent`, `target_agent`, `reason`, `brief`, `artifact_paths`.
+`project_id`, `project_thread_id`, `source_agent`, `target_agent`, `reason`, `brief`,
+`artifact_paths`.
 
 **Exception: PM-assembled handoff packages.** For downstream pipeline delivery
 tools where the receiving agent needs the full accumulated artifact set, the PM
@@ -649,7 +638,7 @@ Specialist loops (non-blocking):
   Any specialist → PM      (ask_pm)
 ```
 
-### Mounted Graph Execution and Sandbox Semantics
+### Project-Scoped Execution Environment
 
 Meta Harness v1 uses a single Project Coordination Graph with peer role Deep
 Agents mounted as child subgraphs. This is the only v1 project-role topology.
@@ -660,16 +649,29 @@ runtime environment for file and shell/tool execution, not a separate top-level
 agent application. A sandbox-backed role agent is still a mounted child graph; it
 just receives a sandbox-capable backend.
 
-Pending OQ-5 resolution, tighten terminology as follows:
-**project memory/artifact filesystem** means Deep Agents file/memory storage for
-one project's artifacts and context; **global memory** is limited to procedural
-skills, org-level preferences, and minimal project registry entries; **execution
-environment** means the agent's actual computer for code work. For any project
-that requires implementation, evaluation, or publication, Meta Harness should
-resolve a project-scoped execution environment from the project thread. That
-environment may be a managed sandbox/devbox provider, a local workspace, or an
-enterprise/BYO provider such as Daytona, Runloop, Modal, LangSmith, or internal
-infrastructure.
+Terminology is locked as follows: **project memory/artifact filesystem** means
+Deep Agents file/memory storage for one project's artifacts and context;
+**global memory** is limited to procedural skills, org-level preferences, and
+minimal project registry entries; **execution environment** means the agent's
+actual computer for code work. For any project that requires implementation,
+evaluation, or publication, Meta Harness resolves a project-scoped execution
+environment from the project thread.
+
+Project-scoped environment binding model:
+
+```txt
+project_thread_id -> execution_environment_id -> provider sandbox/devbox/local root
+```
+
+The default v1 production/web/headless execution mode is `managed_sandbox` with
+Daytona as the default provider. LangSmith sandbox may remain available as an
+optional/future/beta provider. Enterprise deployments may use `external_devbox`
+through a customer-managed provider such as Runloop, Modal, LangSmith, Daytona,
+or internal infrastructure. `local_workspace` remains explicit opt-in and must be
+guarded because shell access runs on the user's machine.
+
+PM session threads do not receive execution environments by default. Environment
+resolution happens for project threads.
 
 The execution environment must support the full contribution path:
 
@@ -684,10 +686,41 @@ resolve environment
   -> attach artifact/repo/PR/check evidence to project memory and PM handoff
 ```
 
+Brownfield contribution flow must support clone existing repo, create/select
+working branch, run checks/evals, commit, push, and open draft PR.
+
+Greenfield projects may start in VM/devbox and publish later to a Meta Harness
+staging repo, client repo, or archive artifact. Immediate remote GitHub repo
+creation is not required.
+
 This workflow is not headless-only. Headless channels, the web app, the TUI, and
 local-first mode all route to the same project thread and execution environment
 contract. The interaction surface changes; the repo contribution mechanism does
 not.
+
+#### Native Web App Execution Environment Invariant
+
+From day one, the web app must expose the project-scoped computer and its state:
+
+- repo binding and branch
+- files and diffs
+- command/check/eval logs
+- previews/artifacts
+- PR URL/status and commit SHA
+- environment health/reconnect state
+
+The web app is not a separate runtime model; it is a first-party surface over
+the same project thread and execution environment contract.
+
+#### GitHub Credentials For Sandbox Work
+
+At architecture level, follow Open SWE's credential pattern:
+
+- GitHub App/OAuth-style access resolution
+- short-lived or auth-proxied credentials for sandbox/devbox operations
+- never persist long-lived GitHub secrets in sandbox filesystems
+
+Exact broker/token wiring remains implementation-spec territory.
 
 LangGraph thread state does not live inside the sandbox. In local mode it lives
 in the local checkpointer; in LangGraph Platform cloud it lives in managed
@@ -965,7 +998,7 @@ v1 ships a Textual TUI launched via `langgraph dev`. The Deep Agents CLI TUI is 
 
 **AD locks information requirements, not visual design.** The TUI must surface: active agent, current phase, handoff log, user messages, `ask_user` prompts, approval gates, autonomous mode, model selections, LangSmith trace links. How these render is spec territory.
 
-**Deployment evolution:** v1 ships two parallel UI surfaces: (1) a Textual TUI launched via `langgraph dev` for local development and (2) a web app (Next.js + `@langchain/react`) connecting to a LangGraph Platform deployment for artifact emission and stakeholder interaction. The TUI is the builder's surface; the web app is the product's public face and artifact emitter (see Vision.md D1, D10). Both share the same PCG backend and `thread_id = project_id` contract. §11 and §12 of this AD specify the harness-side auth and deployment configuration the web app depends on. v2 = `pip install meta-harness` + expanded headless channel support.
+**Deployment evolution:** v1 ships two parallel first-party surfaces: (1) a Textual TUI launched via `langgraph dev` for local development and (2) a web app (Next.js + `@langchain/react`) connecting to a LangGraph Platform deployment for artifact emission and stakeholder interaction. The TUI is the builder's surface; the web app is the product's public face and artifact emitter (see Vision.md D1, D10). Both use the same PM session/project-thread model. Project execution surfaces run the same PCG backend on `project_thread_id`; local/dev may set `project_thread_id = project_id` by convention, but `project_id` remains the durable domain identity. §11 and §12 of this AD specify the harness-side auth and deployment configuration the web app depends on. Later distribution can add `pip install meta-harness` and expanded public headless ingress without changing the project execution model.
 
 ### Source Alignment Notes
 
@@ -1309,6 +1342,7 @@ implementation spec. The field set and enum values below are locked as an AD dec
 ```json
 {
   "project_id": "string",
+  "project_thread_id": "string",
   "handoff_id": "string",
   "source_agent": "project-manager|harness-engineer|researcher|architect|planner|developer|evaluator",
   "target_agent": "project-manager|harness-engineer|researcher|architect|planner|developer|evaluator",
@@ -1323,7 +1357,8 @@ implementation spec. The field set and enum values below are locked as an AD dec
 
 Field notes:
 
-- `project_id` doubles as the root `thread_id`; no separate `project_thread_id` field needed.
+- `project_id` is the durable Meta Harness project identity.
+- `project_thread_id` is the canonical LangGraph thread for project execution. In local/dev it may equal `project_id` by convention.
 - `target_agent` maps 1:1 to the checkpoint namespace in v1; no separate `target_role_namespace` field needed.
 - `reason` encodes the *type of transition* (not the pipeline phase). Middleware dispatches on the `(source_agent, target_agent, reason)` triple to determine which gate logic to apply. The `question` reason covers specialist-to-PM stakeholder questions — no separate `question` field needed.
 - `brief` is the concise summary the receiving agent reads; was listed in the Handoff Protocol but previously missing from this schema.
@@ -1463,20 +1498,23 @@ Web application deployment, multi-tenant access control, and compliance hardenin
  
 ## 9) Decision Index
 
-All architectural questions are closed. This index maps each question to its primary location in this document and its detailed rationale in [DECISIONS.md](./DECISIONS.md). **Changelog** is archived in [CHANGELOG.md](./CHANGELOG.md).
+This index maps closed architecture questions to their primary location in this
+document and detailed rationale in [DECISIONS.md](./DECISIONS.md). The only
+remaining open question is `OQ-H1` in §Open Questions. **Changelog** is archived
+in [CHANGELOG.md](./CHANGELOG.md).
 
 **Topology and protocol round (Q1–Q8, 2026-04-11/12):**
 
 | Q# | Topic | AD section | Detail |
 |---|---|---|---|
 | Q1 | Repo structure naming | §4 Repo Structure | [DECISIONS.md](./DECISIONS.md) |
-| Q2 | Checkpointer and store backend | §4 Sandbox, §4 Factory Contract | [DECISIONS.md](./DECISIONS.md) |
+| Q2 | Checkpointer and store backend | §4 Project-Scoped Execution Environment, §4 Factory Contract | [DECISIONS.md](./DECISIONS.md) |
 | Q3 | Handoff wrapper implementation | §4 Handoff Protocol | [DECISIONS.md](./DECISIONS.md) |
 | Q4 | PCG node set | §4 PCG | [DECISIONS.md](./DECISIONS.md) |
 | Q5 | Handoff tool use-case matrix | §4 Tool Use-Case Matrix | [DECISIONS.md](./DECISIONS.md) |
 | Q6 | Handoff record schema | §4 Data Contracts | [DECISIONS.md](./DECISIONS.md) |
 | Q7 | Phase gate enum and approval | §4 Phase Gates | [DECISIONS.md](./DECISIONS.md) |
-| Q8 | Sandbox topology impact | §4 Sandbox | [DECISIONS.md](./DECISIONS.md) |
+| Q8 | Sandbox topology impact | §4 Project-Scoped Execution Environment | [DECISIONS.md](./DECISIONS.md) |
 
 **Agent primitives round (Q8–Q13, 2026-04-13):**
 
@@ -1494,6 +1532,13 @@ All architectural questions are closed. This index maps each question to its pri
 | Q# | Topic | AD section | Detail |
 |---|---|---|---|
 | Q14 | User interface surface | §4 User Interface Surface (Q14) | [DECISIONS.md](./DECISIONS.md) |
+
+**Headless and execution environment round (Q15-Q16, 2026-04-20):**
+
+| Q# | Topic | AD section | Detail |
+|---|---|---|---|
+| Q15 | Headless PM session and thread identity | §4 Runtime Topology, §4 Thread Identity Model, §4 PM Session And Project Entry Model, §4 Headless Ingress vs Source Presence | [DECISIONS.md](./DECISIONS.md) |
+| Q16 | Project-scoped execution environment / agent computer | §4 Project-Scoped Execution Environment, §4 User Interface Surface, §11 Web App Auth Contract | [DECISIONS.md](./DECISIONS.md) |
 
 ---
 
