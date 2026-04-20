@@ -22,7 +22,7 @@ Even in a headless world where users primarily interact via Slack, Discord, or c
 
 By being headless-first, we focus our engineering on the harnesses and agent orchestration. The UI becomes minimal by design: a chat interface (via LangChain primitives) where users can scope projects and weigh in on decisions, flanked by side rails that provide via 1 or 2 clicks away a display of the highest-signal artifacts—PRDs, datasets, eval scorecards, optimization trendlines. Whether users engage headlessly through Slack with 5 business decision-makers, or pull up the web chat for direct scoping, or mix modalities (chat while instructing the agent to gather context from Slack), the artifacts surface the same way. The agents output everything to their composite backend filesystem; the UI simply makes it legible and emotionally resonant.
 
-- The "leader" of our first agent team is the Product manager who serves as the main poc for the operator and or users to communicate with the team. other agents have the ability to ask questions but ultimatley the PM is the direct poc
+- The "leader" of our first agent team is the Product manager who serves as the main poc for users to communicate with the team. other agents have the ability to ask questions but ultimatley the PM is the direct poc
 
 ***In the future we could have a team thats for GTM, sales, Product Design, etc. our ultimate premium offering could be a full offering where different divisions work together to deliver business interests effectively giving birth to a Native Agentic Ai Business***
 
@@ -57,18 +57,18 @@ An excellent article on the basics of harness engineering where much of the insp
 
 ### D10: Product Philosophy — Artifact-First Visibility, Not Trace Archaeology
 
-**Decision:** The Meta Harness web app transforms LangSmith's rigorous-but-nested data into **human-friendly, emotionally resonant artifacts**. Every dataset, evaluation result, and experiment we surface in our UI has a one-to-one copy in LangSmith—and we provide direct links to it. We don't hide LangSmith; we embrace it and use our UI as an on-ramp to its power. Our goal: make the experience so addictive that users prefer our curated view for day-to-day work, while encouraging technical stakeholders to explore raw trajectories and execution details in LangSmith when they need forensic depth.
+**Decision:** The Meta Harness web app transforms LangSmith's rigorous-but-nested data into **human-friendly, emotionally resonant artifacts**. Every dataset, evaluation result, and experiment we surface in our UI has a one-to-one copy in LangSmith—and we provide direct links to it. We don't hide LangSmith; we embrace it and use our UI as an on-ramp to its power. Our goal: make the experience so addictive that users prefer our curated view for day-to-day work, while providing direct links to LangSmith for users who need forensic depth.
 
 **Catchphrase:** *"We make the same data irresistibly readable. When you're ready to go deeper, LangSmith is one click away."*  
 
-**Rationale:** LangSmith captures everything—but presents it for engineers. We take the same underlying datasets, evaluations, and traces and transform them into progress narratives that executives and operators actually want to consume. The magic is not different data; it's *better* data design. Users feel momentum when they can read a dataset at a glance, track an experiment's trajectory without drilling through nested menus, or watch optimization curves trend toward targets. This human-centric curation is our UX moat: we make agent work legible to the people paying for it, while LangSmith serves the people building it.
+**Rationale:** LangSmith captures everything—but presents it for engineers. We take the same underlying datasets, evaluations, and traces and transform them into progress narratives that users actually want to consume. The magic is not different data; it's *better* data design. Users feel momentum when they can read a dataset at a glance, track an experiment's trajectory without drilling through nested menus, or watch optimization curves trend toward targets. This human-centric curation is our UX moat: we make agent work legible to the people paying for it, while LangSmith serves the people building it.
 
 **Scope clarification:** 
 - **We do not reimplement:** LangSmith's trace viewer, thread inspectors, or trajectory-level debugging UI.
 - **We do surface:** eval scorecards, artifact browsers (PRDs, datasets, Specs & rubrics), and optimization loop visualizations.
 - **We connect:** Deep links to LangSmith for users who need to drop from business narrative to technical forensics.
 
-This mirrors the pattern of executive dashboards that distill signal for decision-makers while preserving access to underlying telemetry for operators.
+This mirrors the pattern of dashboards that distill signal while preserving access to underlying telemetry for users who need it.
 
 
 
@@ -80,7 +80,7 @@ This mirrors the pattern of executive dashboards that distill signal for decisio
 
 **Rationale:** Direct consequence of D10. If we're the executive summary and LangSmith is the audit trail, the correct UI treatment is a hand-off link, not an embed. This also maximizes our visual independence — because LangSmith never appears inside our chrome, we have zero obligation to share visual vocabulary with it. The three visual families under exploration (Linear / Bloomberg / Stripe) can go fully their own direction.
 
-**Tradeoffs:** Users context-switch (new tab) when drilling into a trace. Accepted — the context switch is a *feature* here: it signals "you are now in the raw-detail tool." Tab-switch fatigue is mitigated by the fact that stakeholders rarely need trace detail (summary is enough for them), and builders are fluent at tab-switching.
+**Tradeoffs:** Users context-switch (new tab) when drilling into a trace. Accepted — the context switch is a *feature* here: it signals "you are now in the raw-detail tool."
 
 **Source:** Q4 of 2026-04-16 brand interview; derived from D10.
 
@@ -100,7 +100,7 @@ This mirrors the pattern of executive dashboards that distill signal for decisio
 - **We scale:** From solo founders to enterprise teams without changing the core experience
 
 **Experience pillars:**
-1. **Co-creation:** Business stakeholders shape requirements and success criteria, not just receive outputs
+1. **Co-creation:** Users shape requirements and success criteria, not just receive outputs
 2. **Transparency:** Every artifact, decision, and iteration is surfaced and readable
 3. **Velocity:** Optimization loops that previously took weeks now can grind around the clock untill success is reached
 4. **Participation:** Human-in-the-loop at key decision points (SME input, taste calibration, optimization tuning during development, final approval)

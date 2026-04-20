@@ -103,7 +103,7 @@ makes handoffs observable and auditable.
 ## Open Questions
 
 ### OQ-1: Entry Point Architecture vs Headless-First Vision
-
+!*A Potential Approach has been put forth in research_headless_pm/hypothesis_pm_session_default.md*!
 **Conflict:** The AD specifies a single centralized entry point through the Project Coordination Graph (`Human/UI → LangGraph Project Coordination Graph → [agents]`), while Vision.md envisions a distributed headless architecture where agents can be invoked from multiple platforms.
 
 **Vision.md citation (lines 14-17):**
@@ -130,7 +130,8 @@ makes handoffs observable and auditable.
 
 **Conflict:** Vision.md promises users will see iteration-by-iteration optimization trendlines during development, but the AD's information isolation contract makes the Developer completely blind to evaluation artifacts. The data needed for trendline visualization lives in the Harness Engineer's experiment namespace, not in the Developer's view.
 
-*note from jason*(The correct approach to this, or the correct language rather, should be that users should be able to see how, experiment after experiment, where evals are run through the iteration process or the hill climbing process, trends towards their ultimate goal, which is to pass the eval criteria threshold.The conflict put forth by the agent makes it seem like I had an unrealistic expectation. When evals are run, let's say the developer just finished the first version of the target harness. The Harness Engineer then runs evals, the full evaluation harness against the current snapshot of the target harness; a score is emitted. Those scores are relevant towards the threshold scores, basically the success criteria. This is data. As we accumulate data, depending on the amount of times that we must go through an iteration loop and optimization loop, a hill climbing process, we get more and more data and can surface more and more intuitive trends.)
+*note from jason*
+- (The correct approach to this, or the correct language rather, should be that users should be able to see how, experiment after experiment, where evals are run through the iteration process or the hill climbing process, trends towards their ultimate goal, which is to pass the eval criteria threshold.The conflict put forth by the agent makes it seem like I had an unrealistic expectation. When evals are run, let's say the developer just finished the first version of the target harness. The Harness Engineer then runs evals, the full evaluation harness against the current snapshot of the target harness; a score is emitted. Those scores are relevant towards the threshold scores, basically the success criteria. This is data. As we accumulate data, depending on the amount of times that we must go through an iteration loop and optimization loop, a hill climbing process, we get more and more data and can surface more and more intuitive trends.)
 
 **Vision.md citation (D1):**
 > "When the Developer Agent runs experiments in an optimization loop, users see visualizations of each iteration trending toward, or maybe even regressing against, the desired behavior and capabilities."
@@ -145,9 +146,9 @@ makes handoffs observable and auditable.
 2. **Frontend queries LangSmith directly:** The frontend queries LangSmith experiment data via API, scoped to the project, and renders trendlines independently of what any agent sees. This avoids any new harness-side emission but couples the frontend to LangSmith's experiment API shape.
 
 *note from jason*
-(I think an irrelevant concern is data leakage towards the optimizer. At the end of the day, any of the data or results from our evals will be isolated and kept from the optimizer. The process of emitting this to our front end as visual data does not further increase the risk of data leakage. In my perception.) 
-(I also think that the first option, where the `HE` emitted sanitized trend lines, is overcomplicating it, but it could hint towards a possible approach.I'm open to discussing the different approaches that are available. Once the evals are run, all the data sets are essentially going to exist in LangSmith, which can be accessed via the SDK. For emitting the data to the UI, it can be done in a number of ways. At the end of the day, our `HE` does need to synthesize the results of the evals that have been run.Do we have our `HE` run Python scripts to emit the raw data to the UI? Do we first need to identify how we're going to be emitting this data? Do we provide our `HE` with a tool for doing this? The tool provides args for the different ways that the data can be visualized. Does our `HE` make the decision on the spot as to how `HE` should visualize this data for end users? If so, `HE` would have to pick which way to emit certain data and then stick with that throughout the duration of the project. Many questions.) 
-(I would argue this is both a harness and a model steering concern.)
+- (I think an irrelevant concern is data leakage towards the optimizer. At the end of the day, any of the data or results from our evals will be isolated and kept from the optimizer. The process of emitting this to our front end as visual data does not further increase the risk of data leakage. In my perception.)
+- (I also think that the first option, where the `HE` emitted sanitized trend lines, is overcomplicating it, but it could hint towards a possible approach.I'm open to discussing the different approaches that are available. Once the evals are run, all the data sets are essentially going to exist in LangSmith, which can be accessed via the SDK. For emitting the data to the UI, it can be done in a number of ways. At the end of the day, our `HE` does need to synthesize the results of the evals that have been run.Do we have our `HE` run Python scripts to emit the raw data to the UI? Do we first need to identify how we're going to be emitting this data? Do we provide our `HE` with a tool for doing this? The tool provides args for the different ways that the data can be visualized. Does our `HE` make the decision on the spot as to how `HE` should visualize this data for end users? If so, `HE` would have to pick which way to emit certain data and then stick with that throughout the duration of the project. Many questions.)
+- (I would argue this is both a harness and a model steering concern.)
 
 
 **Agent-Dev-Note:** This is a harness concern, not a model-steering concern. The visualization data path must be programmatic — you cannot steer the Developer into producing trendlines it doesn't have data for. The answer likely involves the HE emitting a compact experiment-progress artifact (scores, iteration count, pass/fail trend) without leaking the evaluation internals that the information isolation boundary protects.
@@ -176,6 +177,20 @@ makes handoffs observable and auditable.
 2. **Developer `AskUserMiddleware` (harness change):** Add `AskUserMiddleware` to the Developer's middleware stack. This gives the Developer a direct user channel, reducing relay latency but breaking the PM-as-sole-POC invariant and potentially creating a confusing multi-channel user experience.
 
 **Dev-Note:** Option 1 (PM relay + prompt steering) is likely sufficient for v1. The relay adds one handoff round-trip, but development-phase HITL questions are infrequent relative to the Developer's execution loop. If user testing reveals the relay latency is unacceptable, Option 2 can be adopted as a scoped middleware addition without topology changes.
+
+---
+
+### OQ-5: Agent-Owned Execution Environment vs Sandbox Language
+
+!*A proposed solution has been put forth in research_headless_pm/hypothesis_execution_environment.md*!
+
+**Conflict:** The AD says the system must support local-first and sandbox-backed execution from day one, but it does not fully define the user-level contribution contract: the Developer/HE/Evaluator need an actual execution environment where repos can be cloned, dependencies installed, tests/evals run, changes committed, branches pushed, and PRs opened.
+
+**Question:** Should Meta Harness standardize "sandbox" as the agent's project-scoped computer, or keep sandbox as a narrower filesystem/backend concept?
+
+**Proposed answer:** Standardize an `Execution Environment` abstraction. A project memory/artifact filesystem is not enough for autonomous coding. For code-producing projects, the project thread resolves a project-scoped computer: managed sandbox/devbox by default, local workspace by explicit opt-in, or external provider such as Daytona/Runloop/Modal/LangSmith. The same execution-environment access must work in headless channels, the web app, the TUI, and local-first mode. Publication is policy-driven: existing client repo PR, Meta Harness staging repo, VM-only prototype, or exported artifact.
+
+**Team review needed:** Confirm the default provider, project-scoped sharing across Developer/Evaluator/HE, first-push/PR approval policy, supported greenfield persistence modes, local shell safety posture, whether PR publication is a tool/middleware/both, and which PM-session tools may read live project sandbox files versus project memory/artifact indexes.
 
 ---
 
@@ -644,6 +659,44 @@ Sandbox support does not change the graph topology. A sandbox is a backend and
 runtime environment for file and shell/tool execution, not a separate top-level
 agent application. A sandbox-backed role agent is still a mounted child graph; it
 just receives a sandbox-capable backend.
+
+Pending OQ-5 resolution, tighten terminology as follows:
+**project memory/artifact filesystem** means Deep Agents file/memory storage for
+one project's artifacts and context; **global memory** is limited to procedural
+skills, org-level preferences, and minimal project registry entries; **execution
+environment** means the agent's actual computer for code work. For any project
+that requires implementation, evaluation, or publication, Meta Harness should
+resolve a project-scoped execution environment from the project thread. That
+environment may be a managed sandbox/devbox provider, a local workspace, or an
+enterprise/BYO provider such as Daytona, Runloop, Modal, LangSmith, or internal
+infrastructure.
+
+The execution environment must support the full contribution path:
+
+```txt
+resolve environment
+  -> resolve existing repo or create greenfield workspace
+  -> clone/refresh repo when a remote repo exists
+  -> create or checkout working branch when git publication is selected
+  -> implement and run checks/evals
+  -> publish according to policy: VM-only, artifact export, staging repo,
+     client repo, or draft PR
+  -> attach artifact/repo/PR/check evidence to project memory and PM handoff
+```
+
+This workflow is not headless-only. Headless channels, the web app, the TUI, and
+local-first mode all route to the same project thread and execution environment
+contract. The interaction surface changes; the repo contribution mechanism does
+not.
+
+LangGraph thread state does not live inside the sandbox. In local mode it lives
+in the local checkpointer; in LangGraph Platform cloud it lives in managed
+LangGraph/LangSmith infrastructure; in hybrid/self-hosted deployments it lives
+in the customer's configured infrastructure. The sandbox/devbox is separate
+runtime infrastructure referenced by project thread metadata. PM session threads
+must access project information through permissioned project memory, artifact
+indexes, project-thread runs, or authenticated sandbox file APIs, not by
+unrestricted cross-thread VM access.
 
 Separate remotely deployed role assistants are out of scope for v1. That topology
 would communicate through LangGraph SDK thread/run APIs rather than native
@@ -1612,14 +1665,6 @@ For production, consider using `allow_origin_regex` for Vercel preview deploys:
 }
 ```
 
-### Operational notes
-
-| Concern | Detail |
-|---|---|
-| **Checkpoint TTL** | Consider configuring `checkpointer.ttl` for long-running projects. Default: no TTL (checkpoints persist indefinitely). For projects spanning weeks/months, set a reasonable TTL to avoid unbounded storage growth. |
-| **Store semantic search** | The `store.index` config enables embedding-based search in the BaseStore. Not required for v1, but useful for PM cross-project memory in the future. |
-| **Deployment type** | Start with `langgraph deploy --deployment-type dev` (free on Plus plan). Upgrade to `--deployment-type prod` when traffic warrants. |
-| **`N_JOBS_PER_WORKER`** | Default: 10 concurrent runs per worker. Sufficient for launch (Jason + 2 clients). Monitor and scale if needed. |
 
 ### Reference
 
