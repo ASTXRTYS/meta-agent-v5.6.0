@@ -67,3 +67,6 @@ Ignore.md
 # Research artifacts (not to be pushed)
 research_headless_pm/
 thread_research.md
+
+# Web app artifacts (not to be pushed)
+meta_harness_webb/
