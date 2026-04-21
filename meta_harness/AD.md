@@ -112,11 +112,17 @@ makes handoffs observable and auditable.
 🚨 
 ## Open Questions
 
-### OQ-H1 (High Priority): PM Session File Access Boundary
+### OQ-H1 (High Priority): PM visibility into executing projects
 
-Which PM-session tools are allowed to read **live project execution-environment files** versus being restricted to **project memory and artifact indexes**?
+What does the PM need to see inside executing projects so it can be helpful and insightful while in a `pm_session` thread?
 
-This is intentionally the only unresolved question in this refactor thread. The boundary must be explicit before finalizing PM-session cross-project inspection tooling.
+### OQ-3 (High Priority): Developer optimization visibility vs. information isolation
+
+Vision.md promises iteration-by-iteration trendlines during development. AD §4 declares the Developer is blind to evaluation artifacts. The Harness Engineer must emit a public evaluation dashboard artifact — a sanitized trend/benchmark trail showing how the target harness is trending toward desired benchmarks — written to project memory for PM/web app visibility, while the Developer continues to receive only EBDR-1 feedback packets.
+
+### OQ-4 (Medium Priority): HITL during development phases
+
+Vision.md promises optimization tuning and taste calibration during development, but the Developer lacks `AskUserMiddleware` (only PM and Architect have it per Q8). Who owns HITL during dev phases? Options: PM relay via `ask_pm`, or add restricted-scope `AskUserMiddleware` to Developer.
 
 ---
 
@@ -131,9 +137,9 @@ External source or first-party UI event
   -> source identity resolution (adapter/UI)
   -> LangGraph/LangSmith Agent Server thread lookup or create
   -> run submission on selected thread
-      -> if thread_kind = "pm_session": PM session/intake graph
+      -> if thread_kind = "pm_session": PM Deep Agent (session tools active)
       -> if thread_kind = "project": Project Coordination Graph
-          -> PM Deep Agent child graph
+          -> PM Deep Agent child graph (project tools active)
           -> Harness Engineer Deep Agent child graph
           -> Researcher Deep Agent child graph
           -> Architect Deep Agent child graph
@@ -145,12 +151,19 @@ External source or first-party UI event
 Agent Server is the runtime boundary for assistants, threads, runs, Store, auth,
 persistence, and queueing. Meta Harness does not create a second thread runtime.
 
-The product still feels like one PM. The PM is one product identity with two
-thread contexts: `pm_session` and `project`.
+The PM is one Deep Agent — one `create_deep_agent()` call, one identity, one
+memory source. It operates across two thread contexts distinguished by
+`thread_kind` metadata: `pm_session` and `project`. The PM's tool set adapts at
+runtime via middleware that reads `thread_kind` from thread metadata and
+conditionally includes session tools (project status, portfolio queries) or
+project tools (handoff tools, phase delivery). This is the same mechanism
+`FilesystemMiddleware` uses to conditionally expose `execute` based on backend
+capabilities — no separate graph compilation required.
 
 The Project Coordination Graph remains the canonical project execution boundary.
-PM session/intake is the PM outside a selected project and should be deployed as
-a separate graph ID/state contract when deployed to Agent Server.
+When a `project` thread is active, the PM runs as a mounted child graph inside
+the PCG. When a `pm_session` thread is active, the PM runs standalone with
+session-scoped tools. Same agent, different thread context, different tool surface.
 
 ### Thread Identity Model
 
@@ -174,8 +187,8 @@ tools, subagent tasks, artifacts, or implementation-specific runs owned by a
 convention, not the definition of `project_id`.
 
 `pm_session` is not a second PM identity and not a `ProjectCoordinationState`
-key. It is a LangGraph thread with metadata `thread_kind = "pm_session"`,
-normally run through PM session/intake graph contract.
+key. It is a LangGraph thread with metadata `thread_kind = "pm_session"`. The
+PM Deep Agent runs standalone on these threads with session tools active.
 
 ### PM Session And Project Entry Model
 
@@ -185,7 +198,7 @@ Default routing rule:
 if request is explicitly bound to a project_thread_id:
     run Project Coordination Graph on that project thread
 else:
-    run PM session/intake graph on a pm_session thread
+    run PM Deep Agent on a pm_session thread (session tools active)
 ```
 
 PM session threads do not mutate into project threads. Project creation creates a
@@ -862,129 +875,16 @@ the distinction so Developer feedback loops do not collapse into one vague
 
 ### Agent Primitive Decisions
 
-The following per-agent configuration decisions extend the base architecture. They were resolved as Q8–Q13 in the agent primitives round (2026-04-13). Full rationale and design detail are in [DECISIONS.md](./DECISIONS.md); the tables below capture the locked constraints that the spec must satisfy.
+The following per-agent configuration decisions extend the base architecture. They were resolved as Q8–Q13 in the agent primitives round (2026-04-13). Full rationale, design detail, and parameter tables are in [DECISIONS.md](./DECISIONS.md).
 
-#### Per-Agent Middleware (Q8)
+**Locked constraints (summary):**
 
-All 7 agents share the same `create_deep_agent()` call shape. Per-agent variation is in values, not presence.
-
-**Custom middleware in the `middleware=` slot:**
-
-| Middleware | PM | HE | Researcher | Architect | Planner | Developer | Evaluator |
-|---|---|---|---|---|---|---|---|
-| CollapseMiddleware | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
-| ContextEditingMiddleware | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
-| SummarizationToolMiddleware | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
-| ModelCallLimitMiddleware | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
-| StagnationGuardMiddleware | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
-| Phase gate middleware | ✓ | — | — | ✓ | — | ✓ | — |
-| AskUserMiddleware | ✓ | — | — | ✓ | — | — | — |
-| ShellAllowListMiddleware | sandbox | sandbox | sandbox | sandbox | sandbox | sandbox | sandbox |
-
-**Per-agent parameter values:**
-
-| Agent | `thread_limit` | `check_interval` |
-|---|---|---|
-| PM | 150 | 20 |
-| Developer | 500 | 50 |
-| Architect | 250 | 35 |
-| HE | 300 | 40 |
-| Researcher | 300 | 40 |
-| Planner | 200 | 30 |
-| Evaluator | 200 | 30 |
-
-**Phase gate middleware — per-agent gate logic:**
-
-| Agent | Gated tools | Gate type | What middleware checks |
-|---|---|---|---|
-| PM | `deliver_prd_to_harness_engineer` (D1) | Prerequisite | `artifact_paths` non-empty with PRD |
-| PM | `deliver_prd_to_researcher` (D2) | Prerequisite + User Approval | `(HE, PM, return)` in `handoff_log` AND `(PM, PM, submit, accepted=true)` |
-| PM | `deliver_design_package_to_architect` (D3) | Prerequisite | `(Researcher, PM, return)` in `handoff_log` |
-| PM | `deliver_planning_package_to_planner` (D4) | Prerequisite + User Approval | `(Architect, PM, return)` in `handoff_log` AND `(PM, PM, submit, accepted=true)` |
-| PM | `deliver_development_package_to_developer` (D5) | Prerequisite | `(Planner, PM, return)` in `handoff_log` |
-| Developer | `return_product_to_pm` (R5) | Acceptance stamps | `(Evaluator, PM, submit, accepted=true)`; if HE participated → also `(HE, PM, submit, accepted=true)` |
-| Developer | `submit_phase_to_evaluator` (P3) | Prerequisite | `(Developer, Evaluator, announce)` with matching `phase`; `artifact_paths` non-empty |
-| Architect | `submit_spec_to_harness_engineer` (S1) | Prerequisite | `artifact_paths` non-empty with spec artifacts |
-
-4 agents (HE, Researcher, Planner, Evaluator) own no gated tools and receive no phase gate middleware.
-
-#### Middleware Dispatch Table (Q9)
-
-29 distinct `(source, target, reason)` triples from 23 tools:
-
-| Gate Type | Count | Triples |
-|---|---|---|
-| Ungated (pass-through) | 19 | R1–R4, S2, P1–P2, P4, C1–C13 |
-| Prerequisite only | 6 | D1, D3, D5, R5, S1, P3 |
-| Prerequisite + User Approval | 2 | D2, D4 |
-| Stamp only (no gate on emission) | 2 | A1, A2 |
-
-`current_phase` is NOT a gate authority — `handoff_log` is the append-only ground truth. Implementation may use `current_phase` as a fast-fail optimization, but the AD does not mandate it as a gate condition. User approval is recorded as `(PM, PM, submit, accepted=true/false)` — PM is both source and target.
-
-#### Tool Schema Contracts (Q10)
-
-**Common parameter shape — 2 LLM-facing parameters across all 23 tools:**
-
-| Parameter | Type | Required | Default |
-|---|---|---|---|
-| `brief` | `str` | Yes | — |
-| `artifact_paths` | `list[str]` | No | `[]` |
-
-`source_agent`, `target_agent`, `reason`, and `project_id` are derived at call time — not LLM parameters.
-
-**6 of 23 tools require one extra parameter:**
-- Acceptance tools (2): add `accepted: bool`
-- Phase Review tools (4): add `phase: str` (free-form plan phase identifier, not the 6-value PCG phase enum)
-
-**Acceptance stamp contract:** `HandoffRecord` extended with `accepted: bool | None` (default `None`). Normal records: `accepted=None`. Acceptance stamps: `accepted=true` or `accepted=false`.
-
-#### Model Selection Per Agent (Q11)
-
-Model-agnostic architecture — no provider lock-in. Per-agent model selection, thread-scoped (immutable for project lifespan). Provider-specific tools injected based on selected model.
-
-**v1 experimental defaults:**
-
-| Agent | Default model | Notes |
-|---|---|---|
-| PM | Opus 4.6 | — |
-| Researcher | Opus 4.6 | — |
-| Architect | TBD | Experiment: Opus 4.6 vs GPT 5.4 extra-high thinking vs GPT 5.4 Pro |
-| Planner | Opus 4.6 | — |
-| HE | TBD | Likely GPT 5.4 Pro |
-| Evaluator | Opus 4.6 | — |
-| Developer | TBD | Experiment: Opus 4.6 (server-side tools) vs GPT 5.4 + Codex vs GPT 5.4 Pro |
-
-#### System Prompt Behavioral Contracts (Q12)
-
-System prompts live in external `.md` files next to each agent factory (not hardcoded in Python). The AD locks behavioral invariants; prompt text is spec territory.
-
-**Per-agent behavioral invariants:**
-
-| Agent | Must Recognize | Must Not Do | Self-Awareness Trigger |
-|---|---|---|---|
-| PM | PRD finalization → invoke HE delivery; HE return → invoke next delivery; user approval for scoping→research and architecture→planning | Research, design, or code directly | "I have the full PRD. Time to bring in the expert." |
-| HE | PRD delivery → begin eval design; Architect spec → evaluate new tools; Developer phase → advisory review | Make business decisions or override PM scope | "I've received the PRD. My job is the science of evaluation." |
-| Researcher | PM delivery → begin research; Architect consultation → targeted research | Design solutions or make architectural decisions | "I've found what the Architect needs. Time to return the bundle." |
-| Architect | Research bundle + PRD → begin design; knowledge gap → request research | Research (Researcher's domain) or plan implementation (Planner's domain) | "I have a knowledge gap on X. I need targeted research." |
-| Planner | Design spec + eval criteria → begin planning | Design (Architect) or implement (Developer) | "I have the full design. My job is to decompose it." |
-| Developer | Plan + eval criteria → begin implementation; phase completion → announce to QA | Self-certify acceptance; call `submit_phase_to_evaluator` for eval-science concerns | "Phase N complete. Time to submit for evaluation." |
-| Evaluator | Developer phase submission → evaluate against spec/plan; final product → acceptance stamp | Modify code or design; gate on eval-science concerns (HE's domain) | "I've verified against the spec. Here's my assessment." |
-
-Autonomous mode: PM auto-approves the two user-approval gates by creating `(PM, PM, submit, accepted=true)` records. All other invariants unchanged. `MEMORY_SYSTEM_PROMPT` per-role tuning: act on handoff brief first, then check memory directory.
-
-#### Anthropic Provider-Specific Middleware (Q13)
-
-**Adopted** (via Anthropic provider profile `extra_middleware`):
-- `ClaudeBashToolMiddleware` — native `bash` tool for Anthropic models (additive, no overlap with `FilesystemMiddleware`)
-- `FilesystemClaudeMemoryMiddleware` — `/memories/` tool for short-horizon working memory (two-layer memory: AGENTS.md = long-term, `/memories/` = short-term)
-
-**Rejected** (overlap with `FilesystemMiddleware`):
-- Text editor middleware — `FilesystemMiddleware` already provides `edit_file`
-- File search middleware — `FilesystemMiddleware` already provides `glob` + `grep`
-
-**Deferred to v2:** Anthropic server-side tools (`web_search`, `web_fetch`, `code_execution`, `tool_search`)
-
-**Injection mechanism:** Provider profile registered via `_register_harness_profile()` in a provider profile module (e.g., `agents/profiles/_anthropic.py`). Profile is resolved automatically by `create_deep_agent()` when model provider is `"anthropic"`. Agent factory files remain clean — they only call `create_deep_agent(model=<string>)`.
+- **Universal middleware baseline (all 7 agents):** `CollapseMiddleware`, `ContextEditingMiddleware`, `SummarizationToolMiddleware`, `ModelCallLimitMiddleware`, `StagnationGuardMiddleware`. Per-agent variation: PM and Architect additionally receive `AskUserMiddleware`; PM, Developer, and Architect receive phase gate middleware. Per-agent call limits and stagnation thresholds are configured at agent factory time — see `agents/catalog.py` for values.
+- **29 distinct `(source, target, reason)` triples** from 23 tools. Gate types: 19 ungated, 6 prerequisite-only, 2 prerequisite+user-approval, 2 stamp-only. `handoff_log` is the append-only ground truth for gate dispatch; `current_phase` is a fast-fail optimization only.
+- **Tool schema:** 2 common LLM-facing parameters (`brief: str`, `artifact_paths: list[str]`). 6 tools add one extra parameter: acceptance tools add `accepted: bool`; phase review tools add `phase: str`. `HandoffRecord` extended with `accepted: bool | None`.
+- **Model selection:** Model-agnostic, per-agent, thread-scoped (immutable for project lifespan). v1 experimental defaults: PM/Researcher/Planner/Evaluator → Opus 4.6; Architect/HE/Developer → TBD (experimentation required).
+- **System prompts:** External `.md` files next to each agent factory. AD locks behavioral invariants (must-recognize, must-not-do, self-awareness trigger) per agent; prompt text is spec territory. Autonomous mode: PM auto-approves the two user-approval gates by creating `(PM, PM, submit, accepted=true)` records.
+- **Anthropic provider profile:** Adopts `ClaudeBashToolMiddleware` and `FilesystemClaudeMemoryMiddleware`. Rejects text-editor and file-search middleware (overlap with `FilesystemMiddleware`). Requires v1 server-side tools (`web_search`, `web_fetch`, `code_execution`, `tool_search`) injected via `AnthropicServerSideToolsMiddleware`. Per-agent tool assignments: Researcher/Architect primary for `web_search`/`web_fetch`; Developer/HE/Evaluator for `code_execution`; Developer for `tool_search`. See DECISIONS.md Q13 for full rationale.
 
 ### User Interface Surface (Q14)
 
@@ -998,30 +898,20 @@ v1 ships a Textual TUI launched via `langgraph dev`. The Deep Agents CLI TUI is 
 
 **AD locks information requirements, not visual design.** The TUI must surface: active agent, current phase, handoff log, user messages, `ask_user` prompts, approval gates, autonomous mode, model selections, LangSmith trace links. How these render is spec territory.
 
-**Deployment evolution:** v1 ships two parallel first-party surfaces: (1) a Textual TUI launched via `langgraph dev` for local development and (2) a web app (Next.js + `@langchain/react`) connecting to a LangGraph Platform deployment for artifact emission and stakeholder interaction. The TUI is the builder's surface; the web app is the product's public face and artifact emitter (see Vision.md D1, D10). Both use the same PM session/project-thread model. Project execution surfaces run the same PCG backend on `project_thread_id`; local/dev may set `project_thread_id = project_id` by convention, but `project_id` remains the durable domain identity. §11 and §12 of this AD specify the harness-side auth and deployment configuration the web app depends on. Later distribution can add `pip install meta-harness` and expanded public headless ingress without changing the project execution model.
+**Deployment evolution:** v1 ships two parallel first-party surfaces: (1) a Textual TUI launched via `langgraph dev` for local development and (2) a web app (Next.js + `@langchain/react`) connecting to a LangGraph Platform deployment for artifact emission and stakeholder interaction. The TUI is the builder's surface; the web app is the product's public face and artifact emitter (see Vision.md D1, D10). Both use the same PM session/project-thread model. Project execution surfaces run the same PCG backend on `project_thread_id`; local/dev may set `project_thread_id = project_id` by convention, but `project_id` remains the durable domain identity. Web-app auth and deployment configuration are specified in [`docs/specs/harness-webapp-contract.md`](./docs/specs/harness-webapp-contract.md); the AD retains the architectural decision (*that* we use LangGraph Platform custom auth with Supabase JWTs). Later distribution can add `pip install meta-harness` and expanded public headless ingress without changing the project execution model.
 
 ### Source Alignment Notes
 
-- `create_deep_agent()` accepts `checkpointer`, `store`, `backend`, `memory`, `skills`, `subagents`, and `name`, and passes `checkpointer`, `store`, and `name` through to the compiled agent (`.reference/libs/deepagents/deepagents/graph.py:217-236`, `602-623`).
-- Declarative `task` subagents are documented as ephemeral and stateless, and the `task` implementation invokes the subagent with synthesized state but no runtime config (`.reference/libs/deepagents/deepagents/middleware/subagents.py:152-162`, `355-376`).
-- `CompiledSubAgent` runnables are used as-is, but the same `task` call path still does not provide a stable project `thread_id` config (`.reference/libs/deepagents/deepagents/middleware/subagents.py:488-493`).
-- Stock `AsyncSubAgent` launches a remote thread with `client.threads.create()` and uses that generated ID as `task_id`; follow-up updates reuse that task thread (`.reference/libs/deepagents/deepagents/middleware/async_subagents.py:280-318`, `500-548`).
-- LangGraph checkpoint memory is keyed by `thread_id`; reusing the same thread accumulates state across invocations (`.venv/lib/python3.11/site-packages/langgraph/graph/state.py:1038-1074`).
-- LangGraph `Command.PARENT` targets the closest parent graph, and parent-command bubbling is handled by LangGraph runtime internals (`.venv/lib/python3.11/site-packages/langgraph/types.py:652-702`, `.venv/lib/python3.11/site-packages/langgraph/graph/state.py:1540-1550`).
-- `ToolNode` supports tool-returned `Command` values, and LangChain `create_agent()` wires tools through `ToolNode`, which keeps this path compatible with Deep Agents because `create_deep_agent()` delegates to `create_agent()` (`.venv/lib/python3.11/site-packages/langgraph/prebuilt/tool_node.py:857-899`, `.venv/lib/python3.11/site-packages/langchain/agents/factory.py:920-939`, `.reference/libs/deepagents/deepagents/graph.py:602-623`).
-- Mounted subgraph persistence can use the parent project `thread_id` with stable child checkpoint namespaces when the child graph is compiled for subgraph checkpointing; root graphs cannot use `checkpointer=True` (`.venv/lib/python3.11/site-packages/langgraph/pregel/main.py:2416`, `2613-2615`, `.venv/lib/python3.11/site-packages/langgraph/_internal/_config.py:34-45`).
-- The lower-level LangGraph SDK supports explicit thread creation and explicit run submission against a chosen thread; this matters for any future split-assistant deployment, but it is not the v1 mounted-graph default (`.venv/lib/python3.11/site-packages/langgraph_sdk/_async/threads.py:98-143`, `.venv/lib/python3.11/site-packages/langgraph_sdk/_async/runs.py:435-462`, `552-585`).
-- The Deep Agents CLI scaffolds `langgraph.json` for `langgraph dev` with a graph entry point and optional checkpointer path (`.reference/libs/cli/deepagents_cli/server.py:85-119`, `.reference/libs/cli/deepagents_cli/server_manager.py:92-115`).
-- The Deep Agents CLI server graph is a module-level graph entrypoint: `server_graph.py` builds the graph from environment-backed server config and exports `graph = make_graph()` for the generated `langgraph.json` reference (`.reference/libs/cli/deepagents_cli/server_graph.py:1-10`, `93-196`).
-- The Deep Agents CLI server path creates sandbox backends through `deepagents_cli.integrations.sandbox_factory.create_sandbox(...)`, keeps the sandbox context manager open for the server process lifetime, and passes the resulting backend into `create_cli_agent(...)` (`.reference/libs/cli/deepagents_cli/server_graph.py:117-170`, `.reference/libs/cli/deepagents_cli/integrations/sandbox_factory.py:1-134`).
-- The Deep Agents CLI names its sandbox integration package `integrations/` and keeps the provider boundary in `sandbox_provider.py`; Meta Harness should follow that package convention instead of inventing a `runtime/sandbox.py` shape (`.reference/libs/cli/deepagents_cli/integrations/__init__.py`, `.reference/libs/cli/deepagents_cli/integrations/sandbox_provider.py:1-49`).
-- `create_cli_agent(...)` chooses SDK backends directly: local mode uses `LocalShellBackend` or `FilesystemBackend`, sandbox mode uses the supplied sandbox backend, and any `CompositeBackend` use is an SDK import for routing generated/temporary file areas rather than an app-owned backend module (`.reference/libs/cli/deepagents_cli/agent.py:1104-1218`, `.reference/libs/deepagents/deepagents/backends/composite.py:119-158`).
-- The Deep Agents deploy template also uses a graph factory entrypoint: generated `langgraph.json` points to `./deploy_graph.py:make_graph`, and the generated module exposes `graph = make_graph` for runtime factory loading (`.reference/libs/cli/deepagents_cli/deploy/bundler.py:192-201`, `.reference/libs/cli/deepagents_cli/deploy/templates.py:430-469`).
-- The deploy template is where the CLI builds a generated backend factory with an SDK `CompositeBackend`, a sandbox default, and store-backed `/memories/` and `/skills/` routes; that pattern should be imported or adapted from the SDK/CLI after focused implementation validation, not mirrored as a first-pass `runtime/` package or app-owned `checkpointers.py`, `stores.py`, or `model_policy.py` modules (`.reference/libs/cli/deepagents_cli/deploy/templates.py:199-207`, `405-424`).
-- LangGraph API treats callable graph exports as factories, compiles exported `StateGraph` builders automatically, and accepts already-compiled Pregel graphs (`.venv/lib/python3.11/site-packages/langgraph_api/graph.py:330-379`, `730-765`).
-- LangGraph SDK assistants use graph IDs that are normally set in `langgraph.json` (`.venv/lib/python3.11/site-packages/langgraph_sdk/_async/assistants.py:320-350`).
-- LangGraph local development docs show `langgraph.json` using `"dependencies": ["."]` and graph refs shaped like `"my_agent": "./my_agent/agent.py:graph"`, so a root `./graph.py:graph` or `./graph.py:make_graph` entrypoint is a valid project layout when the root is the app boundary ([LangGraph local development docs](https://docs.langchain.com/langsmith/local-dev-testing)).
-- Deep Agents CLI resolves LangSmith thread URLs only when tracing is configured, and its `/trace` flow tells users to set `LANGSMITH_API_KEY` and `LANGSMITH_TRACING=true` when unavailable (`.reference/libs/cli/deepagents_cli/config.py:1600-1745`, `.reference/libs/cli/deepagents_cli/app.py:2545-2579`).
+SDK design rationale and canonical source paths are documented in [AGENTS.md](./AGENTS.md). The architecture decisions above are grounded in the following SDK invariants; droids should consult `.reference/` and `.venv/` paths before reimplementing:
+
+- `create_deep_agent()` accepts `checkpointer`, `store`, `backend`, `memory`, `skills`, `subagents`, and `name`, and passes `checkpointer`, `store`, and `name` through to the compiled agent.
+- Declarative `task` subagents are ephemeral and stateless — no stable `thread_id` config.
+- `AsyncSubAgent` creates a new remote task thread per invocation — not the v1 mounted-graph model.
+- LangGraph `Command.PARENT` bubbles to the closest parent graph automatically.
+- `ToolNode` supports tool-returned `Command` values — compatible with Deep Agents because `create_deep_agent()` delegates to `create_agent()`.
+- Mounted subgraph persistence uses the parent `thread_id` with stable child `checkpoint_ns`.
+- Deep Agents CLI uses `integrations/` for sandbox wiring, `graph = make_graph` factory exports, and `CompositeBackend` for routing.
+- Meta Harness must import/adapt SDK patterns, not mirror them as first-pass app-owned modules (`runtime/`, `checkpointers.py`, `stores.py`, `model_policy.py`).
 
 ## Full Repo Structure Naming Decision
 
@@ -1371,66 +1261,13 @@ Field notes:
 
 ## 5) Spec Handoff
 
-Three spec documents under `docs/spec/`:
+Three spec documents under `docs/specs/`:
 
 1. **Requirements Document** — EARS-format functional and non-functional requirements derived from this AD.
 2. **Design Document** — Technical design derived from the requirements: TypedDict/Pydantic wire formats, middleware dispatch tables, system prompt behavioral contracts, tool schemas, and integration patterns.
 3. **Task Document** — Phased task list derived from the design document: ordered implementation work items with acceptance criteria.
 
-### Spec Dependency Map
-
-Design work must proceed in this order — each layer depends on the one above it:
-
-```
-Layer 1: Foundation (no dependencies)
-  ├─ PCG state schema → TypedDict/Pydantic wire formats
-  ├─ Handoff record → TypedDict/Pydantic wire formats
-  └─ Repo structure → module layout, __init__.py contracts
-
-Layer 2: Agent primitives (depends on Layer 1)
-  ├─ Middleware stack → per-agent create_deep_agent() call shapes (Q12, Q8)
-  ├─ Tool schemas → 23 handoff tool InputSchema definitions (Q10)
-  ├─ Model routing → per-agent model resolution from project config (Q11)
-  └─ Anthropic profile → provider profile registration (Q13)
-
-Layer 3: Behavioral contracts (depends on Layer 2)
-  ├─ System prompt .md files → per-agent prompt authoring (Q12 behavioral)
-  └─ MEMORY_SYSTEM_PROMPT overrides → per-role memory tuning (Q13)
-
-Layer 4: Integration (depends on Layers 1–3)
-  ├─ Phase gate middleware → gate logic implementation (Q9 dispatch table)
-  ├─ StagnationGuardMiddleware → full implementation (Q12 design vision)
-  ├─ Sandbox integration → sandbox_factory + provider (Q8)
-  └─ Observability wiring → LangSmith metadata, Studio config
-
-Layer 5: Validation (depends on Layer 4)
-  └─ Validation plan scenarios → §6 validation plan
-```
-
-**Parallelism.** Within each layer, items can be designed in parallel. Between layers, the dependency is real — you cannot design tool schemas without the handoff record wire format, and you cannot author system prompts without knowing which tools and middleware each agent receives.
-
-### Consolidated Spec-Owns List
-
-Everything the AD delegates to the implementation spec, in one place:
-
-| Topic | AD locks | Spec owns | Source |
-|---|---|---|---|
-| Handoff record wire format | Field set, enum values (Q6, Q10) | Exact Pydantic/TypedDict types, `HandoffRecord.id` protocol for `add_messages` | §4 Data Contracts |
-| PCG state wire format | 5 keys + types + invariants (Q11) | Exact `ProjectCoordinationState` TypedDict, `input_schema` wiring | §4 PCG State Schema |
-| Handoff log cap | Cap required, N is runtime constant (Q10) | Cap mechanism (summarize, migrate to Store, discard) | §4 PCG State Growth |
-| Tool descriptions | 23 tool names, common + extra params (Q10) | Exact description text, `phase` identifier format, `artifact_paths` conventions | §4 Tool Use-Case Matrix |
-| Acceptance rejection flow | `accepted=false` is audit record (Q10) | Rejection feedback flow — does agent retry? return to Developer? | §4 Acceptance |
-| User approval tool | PM owns approval tool, prompt-driven (Q7) | Tool schema, document rendering format (docx/pdf/pptx) | §4 Phase Gates |
-| System prompt text | Behavioral invariants per agent (Q12) | Exact prompt text in `.md` files | §4 + Q12 |
-| Prompt loading mechanism | External `.md` files next to factory (Q12) | Path resolution, `Path.read_text()` vs backend, caching, template vars | Q12 |
-| Model routing | Model-agnostic, per-agent, thread-scoped (Q11) | Runtime model resolution, provider adapter patterns | Q11 |
-| Anthropic profile registration | Adopt BashTool + Memory middleware (Q13) | `workspace_root`, `root_path` values per deployment mode | Q13 |
-| `MEMORY_SYSTEM_PROMPT` per-role tuning | Override belongs in prompt files (Q12, Q13) | Exact override text per role | Q12 + Q13 |
-| StagnationGuardMiddleware | Two-tier nudge→stop, pluggable signals, graceful absence (Q12) | Full implementation, signal provider bodies, nudge templates, testing | Q12 |
-| Phase gate middleware | Gate logic per triple (Q9), per-agent ownership (Q8) | Middleware implementation, `handoff_log` query patterns | Q8 + Q9 |
-| Sandbox integration | Follows CLI `integrations/` convention (Q1, Q8) | `sandbox_factory.py`, `sandbox_provider.py` implementation | §4 Repo Structure |
-| TUI pipeline awareness widgets | Information requirements locked (Q14) | Widget layout, animations, handoff progress visualization, approval gate rendering | §4 User Interface Surface (Q14) |
-| TUI adoption from CLI | Adopt CLI TUI base layer (Q14) | Fork vs. import decision, TUI module structure, welcome banner, non-interactive mode | §4 User Interface Surface (Q14) |
+Full dependency map (Layer 1–5), parallelism rules, consolidated spec-owns list, and open-question blockers are in [`docs/specs/kickoff.md`](./docs/specs/kickoff.md). The AD locks *what* and *why*; kickoff.md tracks *how* and *in what order*.
 
 ---
 
@@ -1490,17 +1327,17 @@ v1 is a local-first CLI TUI application running on the user's machine. Security 
 - Access model: Single-user local execution. No multi-tenant access control in v1.
 - Retention policy: User-managed. The local SqliteSaver checkpoint database and filesystem artifacts persist until the user deletes them. No automatic retention policy in v1.
 
-Web application deployment, multi-tenant access control, and compliance hardening are v2+ concerns.
+Web application deployment and compliance hardening are in fact intended for v1. Multi-tenant access control is specified as a v1 harness deliverable.
 
-> **Update 2026-04-14:** Multi-tenant access control for the web app is now specified. See §11 (Web App Auth Contract) for the harness-side auth handlers that must be implemented to support the web app's multi-tenant model. This is a harness deliverable, not a v2+ concern.
+> **Update 2026-04-14:** Multi-tenant access control for the web app is now specified in [`docs/specs/harness-webapp-contract.md`](./docs/specs/harness-webapp-contract.md). This is a harness deliverable, not a v2+ concern.
 
 ---
  
 ## 9) Decision Index
 
 This index maps closed architecture questions to their primary location in this
-document and detailed rationale in [DECISIONS.md](./DECISIONS.md). The only
-remaining open question is `OQ-H1` in §Open Questions. **Changelog** is archived
+document and detailed rationale in [DECISIONS.md](./DECISIONS.md). Open questions
+(`OQ-H1`, `OQ-3`, `OQ-4`) are tracked in §Open Questions. **Changelog** is archived
 in [CHANGELOG.md](./CHANGELOG.md).
 
 **Topology and protocol round (Q1–Q8, 2026-04-11/12):**
@@ -1538,187 +1375,13 @@ in [CHANGELOG.md](./CHANGELOG.md).
 | Q# | Topic | AD section | Detail |
 |---|---|---|---|
 | Q15 | Headless PM session and thread identity | §4 Runtime Topology, §4 Thread Identity Model, §4 PM Session And Project Entry Model, §4 Headless Ingress vs Source Presence | [DECISIONS.md](./DECISIONS.md) |
-| Q16 | Project-scoped execution environment / agent computer | §4 Project-Scoped Execution Environment, §4 User Interface Surface, §11 Web App Auth Contract | [DECISIONS.md](./DECISIONS.md) |
+| Q16 | Project-scoped execution environment / agent computer | §4 Project-Scoped Execution Environment, §4 User Interface Surface, `docs/specs/harness-webapp-contract.md` | [DECISIONS.md](./DECISIONS.md) |
 
 ---
 
-## 10) Changelog
+## 10) Web App & Deployment Contract
 
-> Archived in [CHANGELOG.md](./CHANGELOG.md). New entries must be appended there, not here.
-
----
-
-## 11) Web App Auth Contract — Harness-Side Requirements
-
-> **⚠️ DROIDS: READ THIS.** This section was added on 2026-04-14 during web app frontend development. It documents a harness-side deliverable that the web app depends on. This is NOT an open question — the approach is decided. It needs to be slipped into the harness implementation plan. The web app cannot enforce multi-tenant thread isolation or permission-level gating without these handlers deployed.
-
-### Context
-
-During web app spec development, we researched the LangGraph Platform's custom authentication system ([docs](https://docs.langchain.com/langgraph-platform/auth)). The platform provides an `Auth` object (`from langgraph_sdk import Auth`) with two decorator patterns:
-
-1. `@auth.authenticate` — middleware that runs on every request, validates credentials, returns user identity
-2. `@auth.on` — resource-level authorization handlers that stamp metadata on resources and return filters to restrict access
-
-This is the mechanism that enables multi-tenant thread isolation at the LangGraph Platform layer. The web app sends Supabase JWTs in the `Authorization` header; the harness validates them and filters threads by `org_id`.
-
-### What the Harness Must Implement
-
-**File:** `src/security/auth.py` (new file in the harness repo)
-
-**Registration:** Add to `langgraph.json`:
-```json
-{
-  "auth": {
-    "path": "src/security/auth.py:auth"
-  }
-}
-```
-
-**Required handlers:**
-
-| Handler | Decorator | Responsibility |
-|---|---|---|
-| `get_current_user` | `@auth.authenticate` | Validate Supabase JWT (HS256, `audience="authenticated"`). Extract `sub`, `org_id`, `role` from claims. For agency users (`agency_owner`, `agency_member`), look up managed client org IDs from Supabase `agency_clients` table. Return `MinimalUserDict` with `identity`, `org_id`, `role`, `permissions`, `managed_org_ids`. |
-| `on_thread_create` | `@auth.on.threads.create` | Stamp `metadata["org_id"] = ctx.user.org_id` on new threads. Return `{"org_id": ctx.user.org_id}` filter. |
-| `on_thread_read` | `@auth.on.threads.read` | For client users: return `{"org_id": ctx.user.org_id}`. For agency users: return `{"org_id": {"$contains": [own_org_id, ...managed_client_org_ids]}}` using the `$contains` filter operator. |
-| `on_run_create` | `@auth.on.threads.create_run` | Stamp `metadata["org_id"]` on runs. Inherit thread's org filter. |
-
-**Key SDK details:**
-- `Auth` is imported from `langgraph_sdk`, not `langgraph`
-- `@auth.authenticate` can accept `authorization: str | None` as a named parameter — the platform extracts the `Authorization` header value automatically
-- `@auth.on` handlers receive `ctx: Auth.types.AuthContext` (contains `ctx.user` with all fields from `MinimalUserDict`) and `value: dict` (the resource payload)
-- Handlers return a filter dict that LangGraph Platform applies to all subsequent operations on that resource type
-- Filter operators: `$eq` (exact match, default), `$contains` (list membership)
-- The authenticated user's info is automatically available to the graph at `config["configuration"]["langgraph_auth_user"]` — no custom plumbing needed
-
-**Agent-accessible user context:** After `@auth.authenticate` runs, the PCG can access the user's identity, role, and org_id via `config["configuration"]["langgraph_auth_user"]`. This enables the PM agent to adapt behavior based on the caller's role (e.g., restrict scope modifications for `qa_only` clients) without any custom middleware or state injection.
-
-### Dependencies
-
-- **Supabase project JWT secret** — needed to validate JWTs. Must be available as an environment variable (`SUPABASE_JWT_SECRET`).
-- **Supabase client** — needed to look up `agency_clients` relationships for agency users. The auth handler needs read access to the `agency_clients` table.
-- **`langgraph_sdk`** — the `Auth` object and types are in this package. Ensure it's in `pyproject.toml` dependencies.
-
-### Why This Matters
-
-Without these handlers:
-- Any authenticated user can stream any thread on the platform (no tenant isolation)
-- The web app's multi-tenant model (agency → client org hierarchy) has no enforcement at the agent streaming layer
-- Client permission levels (`observe_only`, `qa_only`, `full`) are UI-only — a client with a valid JWT could bypass the frontend and create runs directly
-
-With these handlers:
-- Thread isolation is enforced at the LangGraph Platform layer before the PCG even sees the request
-- Agency users get cross-org visibility via `$contains` metadata filters
-- The PM agent can read the caller's role from `config["configuration"]["langgraph_auth_user"]` and adjust behavior accordingly
-
-### Reference
-
-- [LangGraph Platform Auth Conceptual Guide](https://docs.langchain.com/langgraph-platform/auth)
-- [Tutorial Part 1: Set up custom authentication](https://docs.langchain.com/langsmith/set-up-custom-auth)
-- [Tutorial Part 2: Make conversations private](https://docs.langchain.com/langsmith/resource-auth)
-- [Auth API Reference](https://reference.langchain.com/python/langgraph-sdk/auth/Auth)
-- [AD-WEBAPP.md §4 Architecture — LangGraph Platform Auth Coordination](./AD-WEBAPP.md)
-
-### Local SDK References
-**⚠️ DROIDS: READ THIS.** 
-The `Auth` class and all handler types live in the local venv. Droids should consult these for exact type signatures:
-
-| What | Local Path |
-|---|---|
-| `Auth` class (decorators, handler registration, `on` property) | `.venv/lib/python3.11/site-packages/langgraph_sdk/auth/__init__.py` |
-| `MinimalUserDict` (return type for `@auth.authenticate`) | `.venv/lib/python3.11/site-packages/langgraph_sdk/auth/types.py:164` |
-| `AuthContext` (first param of `@auth.on` handlers, contains `ctx.user`) | `.venv/lib/python3.11/site-packages/langgraph_sdk/auth/types.py:390` |
-| `ThreadsCreate` value type (`@auth.on.threads.create`) | `.venv/lib/python3.11/site-packages/langgraph_sdk/auth/types.py:443` |
-| `ThreadsRead` value type (`@auth.on.threads.read`) | `.venv/lib/python3.11/site-packages/langgraph_sdk/auth/types.py:470` |
-| `RunsCreate` value type (`@auth.on.threads.create_run`) | `.venv/lib/python3.11/site-packages/langgraph_sdk/auth/types.py:543` |
-| `HTTPException` (for rejecting requests) | `.venv/lib/python3.11/site-packages/langgraph_sdk/auth/exceptions.py` |
-
-Key detail from the source: `MinimalUserDict` is a `TypedDict(total=False)` with only `identity: Required[str]`. The `permissions`, `display_name`, and `is_authenticated` fields are optional. Any additional fields you return (like `org_id`, `role`, `managed_org_ids`) are stored on the user object and accessible via `ctx.user["org_id"]` or `ctx.user.org_id` in `@auth.on` handlers.
-
----
-
-## 12) Web App Deployment Configuration — Harness-Side Requirements
-
-> **⚠️ DROIDS: READ THIS.** This section was added on 2026-04-14 during web app deployment research. It documents `langgraph.json` configuration that the harness must include for the web app to function correctly. These are deployment-time settings, not code — but they must be in the harness repo's `langgraph.json`.
-
-### Context
-
-The web app's `useStream` hook connects directly from the browser to the LangGraph Platform API. This means the browser makes cross-origin requests to the LangGraph Platform endpoint. Without proper CORS configuration, browsers will block these requests. Additionally, the sandbox file browsing feature (Developer IDE Tier 2 view) relies on custom FastAPI routes served via `http.app`, and these routes need auth protection.
-
-### What the Harness Must Configure in `langgraph.json`
-
-The following keys must be added to the harness repo's `langgraph.json`:
-
-```json
-{
-  "dependencies": ["."],
-  "graphs": {
-    "pcg": "./graph.py:graph"
-  },
-  "env": ".env",
-  "auth": {
-    "path": "src/security/auth.py:auth"
-  },
-  "http": {
-    "cors": {
-      "allow_origins": [
-        "http://localhost:3000",
-        "https://meta-harness.vercel.app"
-      ],
-      "allow_methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-      "allow_headers": ["Authorization", "Content-Type"],
-      "allow_credentials": true
-    },
-    "app": "src/api/routes.py:app",
-    "enable_custom_route_auth": true,
-    "configurable_headers": {
-      "includes": ["x-organization-id", "x-permission-level"],
-      "excludes": ["authorization"]
-    },
-    "middleware_order": "auth_first"
-  }
-}
-```
-
-### Configuration breakdown
-
-| Key | Purpose | Why It Matters |
-|---|---|---|
-| `auth.path` | Registers the `@auth.authenticate` and `@auth.on` handlers from §11 | Without this, no JWT validation or thread isolation |
-| `http.cors.allow_origins` | Allows the web app (Vercel domain + localhost dev) to make cross-origin requests to the LangGraph Platform API | Without this, `useStream` connections from the browser are blocked by CORS. The web app connects directly — not through a proxy. |
-| `http.cors.allow_credentials` | Allows the `Authorization` header to be sent cross-origin | Required for JWT-based auth from the browser |
-| `http.app` | Mounts custom FastAPI routes alongside the Agent Server API | Used for sandbox file browsing in the Developer IDE Tier 2 view |
-| `http.enable_custom_route_auth` | Extends `@auth.authenticate` to the custom routes mounted via `http.app` | Without this, the sandbox file browser is unauthenticated — anyone with the URL can browse project files |
-| `http.configurable_headers` | Passes `x-organization-id` and `x-permission-level` headers into `config["configurable"]` | Gives graph nodes direct access to org context via `config["configurable"].get("x-organization-id")`. Supplements `langgraph_auth_user`. Excludes `authorization` to avoid leaking the JWT into graph config. |
-| `http.middleware_order` | `"auth_first"` — run JWT validation before any custom middleware | Ensures all requests are authenticated before hitting custom logic |
-
-### CORS origins management
-
-The `allow_origins` list must be updated when:
-- The Vercel deployment URL changes (e.g., custom domain)
-- Additional frontend environments are added (staging, preview deploys)
-- Local development port changes (default: `http://localhost:3000`)
-
-For production, consider using `allow_origin_regex` for Vercel preview deploys:
-```json
-{
-  "http": {
-    "cors": {
-      "allow_origin_regex": "^https://meta-harness.*\\.vercel\\.app$"
-    }
-  }
-}
-```
-
-
-### Reference
-
-- [Application Structure Guide](https://docs.langchain.com/langsmith/application-structure) — file layout, `langgraph.json` format, graph registration
-- [Configuration File Reference](https://docs.langchain.com/langsmith/cli#configuration-file) — all supported `langgraph.json` keys including `http`, `auth`, `store`, `checkpointer`
-- [Configurable Headers](https://docs.langchain.com/langsmith/configurable-headers) — `http.configurable_headers` usage, accessing headers in graph nodes
-- [Agent Server Architecture](https://docs.langchain.com/langsmith/agent-server) — runtime model, persistence, task queue, deployment modes
-- [Core Capabilities](https://docs.langchain.com/langsmith/core-capabilities) — durable execution, interrupt/resume, background runs, cron, retry
-- [Platform Setup Comparison](https://docs.langchain.com/langsmith/platform-setup) — Cloud vs Hybrid vs Self-hosted feature matrix
+Web app auth, deployment configuration, and SDK reference paths have been extracted to [`docs/specs/harness-webapp-contract.md`](./docs/specs/harness-webapp-contract.md). The AD retains the architectural decision (*that* we use LangGraph Platform custom auth with Supabase JWTs); the spec doc contains the implementation contract (*how* — handler schemas, `langgraph.json` requirements, CORS config).
 
 ---
 
