@@ -72,7 +72,6 @@ With these handlers:
 - [Tutorial Part 1: Set up custom authentication](https://docs.langchain.com/langsmith/set-up-custom-auth)
 - [Tutorial Part 2: Make conversations private](https://docs.langchain.com/langsmith/resource-auth)
 - [Auth API Reference](https://reference.langchain.com/python/langgraph-sdk/auth/Auth)
-- [AD-WEBAPP.md §4 Architecture — LangGraph Platform Auth Coordination](../AD-WEBAPP.md)
 
 ### Local SDK References
 

@@ -1,28 +1,3 @@
-
-**You have full agency.** 
-- Every step you take should be deliberate — choose the single next action that maximizes understanding of the specific problem at hand. Targeted searches beat breadth. Pause between each tool call to synthesize what you learned and determine if you truly need more context or if you're ready to proceed.
-- ability. to delegate to sub-agents who serve as your workers. Use them as you see fit. You have full agency on your strategy.
-
-
-Before writing code or specs: **Parse intent, then consult AGENTS.md`**.
-
-That file contains:
-- **Naming Rules** — function/class naming conventions
-- **Canonical SDK References** — local source paths for Deep Agents, LangGraph, LangSmith, agentevals
-- **Harness-First Architecture** — middleware vs tools, backend patterns, sub-agent taxonomy
-- **External Reference Links** — GitHub repos and PyPI packages for release history
-
-**Hard rules:**
-1. If <95% confident on any SDK behavior (imports, middleware, harness init), consult the canonical source in `.reference/` or `.venv/` before proceeding.
-2. Do not hand-roll logic the SDK already handles.
-3. Targeted skill reading beats breadth — only load skills relevant to this specific request.
-
-**Research tasks:** When the user asks you to research, you **must** consult AGENTS.md` first. Use:
-- **External Reference Links** — GitHub repos and PyPI packages for release history, commits, recent changes
-- **Canonical SDK References** — local paths in `.reference/` and `.venv/` for authoritative implementation details
-- **Skills** — `.agents/skills/` for structured guidance (Claude API, LangGraph, LangSmith, Deep Agents, agentevals) *Reference these skills for baseline and abstract knowledge, the signal in your skills is high and can amplify the preciseness of your next step and decisions in research scenarios*
-
-
 # Meta Harness Agent Conventions
 
 This directory  /Users/Jason/2026/v4/meta-agent-v5.6.0/meta_harness is the v1 workspace for Meta Harness. Treat the existing
@@ -190,7 +165,34 @@ Before implementing, planning, or writing specs for anything touching these SDKs
 | LangSmith (tracing, datasets, run management, experiments) | `.venv/lib/python3.11/site-packages/langsmith/` |
 | Agent evals (`EvaluatorResult`, LLM-as-judge, trajectory scoring, `GraphTrajectory`) | `.venv/lib/python3.11/site-packages/agentevals/` — `trajectory/llm.py` for LLM-as-judge; `trajectory/match.py` for tool-call matching; `graph_trajectory/` for LangGraph thread trajectory evals; `types.py` for `GraphTrajectory` and `EvaluatorResult` |
 | LangChain Anthropic integration (`ChatAnthropic`, Claude-specific patterns) | `.venv/lib/python3.11/site-packages/langchain_anthropic/` |
+| Anthropic server-side tool descriptor types (`web_search`, `web_fetch`, `code_execution`, `tool_search_*`) | `.venv/lib/python3.11/site-packages/anthropic/types/tool_union_param.py` |
 | Core LangChain patterns | `.venv/lib/python3.11/site-packages/langchain/` |
+
+### Specific SDK Reference Paths
+
+For architecture-level verification, consult these exact line ranges:
+
+| Topic | Local Path |
+|---|---|
+| `create_deep_agent()` parameter passing (`checkpointer`, `store`, `name`) | `.reference/libs/deepagents/deepagents/graph.py:217-236`, `602-623` |
+| Declarative `task` subagent implementation (ephemeral, stateless) | `.reference/libs/deepagents/deepagents/middleware/subagents.py:152-162`, `355-376` |
+| `CompiledSubAgent` runnable (no stable `thread_id` config) | `.reference/libs/deepagents/deepagents/middleware/subagents.py:488-493` |
+| `AsyncSubAgent` remote thread creation | `.reference/libs/deepagents/deepagents/middleware/async_subagents.py:280-318`, `500-548` |
+| LangGraph checkpoint memory keyed by `thread_id` | `.venv/lib/python3.11/site-packages/langgraph/graph/state.py:1038-1074` |
+| LangGraph `Command.PARENT` parent bubbling | `.venv/lib/python3.11/site-packages/langgraph/types.py:652-702`, `.venv/lib/python3.11/site-packages/langgraph/graph/state.py:1540-1550` |
+| `ToolNode` tool-returned `Command` + `create_agent()` wiring | `.venv/lib/python3.11/site-packages/langgraph/prebuilt/tool_node.py:857-899`, `.venv/lib/python3.11/site-packages/langchain/agents/factory.py:920-939`, `.reference/libs/deepagents/deepagents/graph.py:602-623` |
+| Mounted subgraph persistence (child `checkpoint_ns`) | `.venv/lib/python3.11/site-packages/langgraph/pregel/main.py:2416`, `2613-2615`, `.venv/lib/python3.11/site-packages/langgraph/_internal/_config.py:34-45` |
+| LangGraph SDK explicit thread/run submission | `.venv/lib/python3.11/site-packages/langgraph_sdk/_async/threads.py:98-143`, `.venv/lib/python3.11/site-packages/langgraph_sdk/_async/runs.py:435-462`, `552-585` |
+| Deep Agents CLI `langgraph.json` scaffolding | `.reference/libs/cli/deepagents_cli/server.py:85-119`, `.reference/libs/cli/deepagents_cli/server_manager.py:92-115` |
+| Deep Agents CLI server graph factory (`graph = make_graph`) | `.reference/libs/cli/deepagents_cli/server_graph.py:1-10`, `93-196` |
+| Deep Agents CLI sandbox backend creation | `.reference/libs/cli/deepagents_cli/server_graph.py:117-170`, `.reference/libs/cli/deepagents_cli/integrations/sandbox_factory.py:1-134` |
+| Deep Agents CLI sandbox integration package layout | `.reference/libs/cli/deepagents_cli/integrations/__init__.py`, `.reference/libs/cli/deepagents_cli/integrations/sandbox_provider.py:1-49` |
+| Deep Agents CLI `create_cli_agent()` backend selection | `.reference/libs/cli/deepagents_cli/agent.py:1104-1218`, `.reference/libs/deepagents/deepagents/backends/composite.py:119-158` |
+| Deep Agents deploy template graph factory | `.reference/libs/cli/deepagents_cli/deploy/bundler.py:192-201`, `.reference/libs/cli/deepagents_cli/deploy/templates.py:430-469` |
+| Deep Agents deploy template backend/CompositeBackend pattern | `.reference/libs/cli/deepagents_cli/deploy/templates.py:199-207`, `405-424` |
+| LangGraph API callable graph exports | `.venv/lib/python3.11/site-packages/langgraph_api/graph.py:330-379`, `730-765` |
+| LangGraph SDK assistants / graph IDs | `.venv/lib/python3.11/site-packages/langgraph_sdk/_async/assistants.py:320-350` |
+| Deep Agents CLI LangSmith thread URL resolution | `.reference/libs/cli/deepagents_cli/config.py:1600-1745`, `.reference/libs/cli/deepagents_cli/app.py:2545-2579` |
 
 ### External Reference Links
 
@@ -226,6 +228,10 @@ When in doubt, check the canonical sources for recent releases, commit history, 
 - `langgraph dev` is the planned local inspection workflow, but no active
   `langgraph.json` exists in the current v1 checkout. Treat it as an
   architecture target, not a runnable command, until that config lands.
+- LangSmith local tracing and eval runs should use
+  `LANGSMITH_TRACING=true`, `LANGSMITH_PROJECT=meta-harness`, and
+  `LANGCHAIN_CALLBACKS_BACKGROUND=false`. The last setting is required for eval
+  and experiment processes so traces flush before process exit.
 - Static-check TODOs: `cd meta_harness && .venv/bin/python -m ruff check .`
   currently fails on two pre-existing E501 long-line findings, and
   `PYTHONPATH=.. .venv/bin/python -m pyright` still reports existing test typing
@@ -530,6 +536,10 @@ Skills progressive disclosure via `SkillsMiddleware`: [17](#8-16) (`.reference/l
 ## Agent Identity
 
 - Agent identity belongs in one catalog.
+- The PM is one Deep Agent identity across `pm_session` and `project` threads.
+  Do not compile a separate PM session graph just to change tool access; use
+  `thread_kind`-aware middleware to expose session tools or project tools at
+  runtime.
 - The catalog should answer:
   - What is the agent called?
   - What work is it responsible for?
@@ -551,8 +561,10 @@ Skills progressive disclosure via `SkillsMiddleware`: [17](#8-16) (`.reference/l
   API settings, and provider-specific request parameters.
 - Model policy must not own project scaffolding, middleware construction, prompt
   selection, or agent lifecycle.
-- If an agent declares Anthropic server-side tools, the runtime factory must pass
-  those provider tool definitions into the effective tool set for that agent.
+- Anthropic server-side tools belong in provider-profile middleware, not in
+  per-agent `tools=[]` lists or app graph plumbing. Add descriptors through an
+  Anthropic profile `extra_middleware` factory so agent factories can keep
+  calling `create_deep_agent(model=<string>)`.
 - A model policy that resolves data but is not consumed by the runtime is a bug.
 
 ## Memory And Workspace Policy
@@ -624,8 +636,13 @@ The `AD.md` is supported by two companion documents that keep the main AD lean:
 | `AD.md` | Architecture decision baseline — active decisions, open questions, rationale | `meta_harness/AD.md` |
 | `DECISIONS.md` | Closed (frozen) decision records — reference material, not active content | `meta_harness/DECISIONS.md` |
 | `CHANGELOG.md` | Historical change audit trail — who changed what, when | `meta_harness/CHANGELOG.md` |
+| Spec docs (`docs/specs/`) | Implementation contracts — *how* and *in what order* | `meta_harness/docs/specs/` |
 
 When a question in `AD.md` §9 is resolved, the decision record moves to `DECISIONS.md` and the question is removed from `AD.md`. Open questions remain in `AD.md` §9 inline — they are active decision-making context.
+
+**Spec document lifecycle:** `AD.md` locks *what* and *why*; spec docs (`docs/specs/`) own *how* and *in what order*. When implementation detail density in `AD.md` exceeds a single subsection, extract to a spec doc and replace with a pointer. When reference tables grow large, archive full versions in `DECISIONS.md` and keep summaries in `AD.md`.
+
+**Deferral verification convention:** Previously misaligned agents have incorrectly scoped docs by silently deferring or delegating features. When encountering any text that defers, delegates, or scopes a feature to "v2+", "spec", "future", or "later", **always surface it to the user for confirmation** — never assume deferral is correct. Ask: "Hey, I found that [X] is being deferred/delegated to [Y]. Is this true? Is this what you actually want?"
 
 ### AD Governance (`AD.md`)
 
@@ -651,6 +668,14 @@ When a question in `AD.md` §9 is resolved, the decision record moves to `DECISI
 - If `AD.md` and `AGENTS.md` conflict, treat `AGENTS.md` as authoritative for
   active implementation and update `AD.md` to match.
 
+### Spec Doc Governance (`docs/specs/`)
+
+- **Creation:** Any new spec doc must be registered in `docs/specs/kickoff.md` under the "New Spec Docs Created" table with date and purpose. This is the canonical inventory — if it's not in that table, it doesn't exist.
+- **Scope changes:** If a spec doc's scope expands, contracts, or shifts (e.g., "this was auth-only, now it's full deployment"), update both the spec doc's introduction **and** `kickoff.md` delegated-items table. Scope drift between docs is a reject-worthy offense.
+- **Content drift checks:** Spec docs must reference their parent AD decision (e.g., "Migrated from `AD.md` §X on YYYY-MM-DD"). When AD.md changes, spec docs referencing it must be checked for stale content within the same PR.
+- **No silent extraction:** If you extract content from AD.md into a spec doc, you must delete it from AD.md and replace with a pointer — never leave duplicate sources of truth.
+- **Deprecation:** When a spec doc is superseded, mark it deprecated in `kickoff.md` with a "Superseded by" column and migration pointer; do not delete files (breaks historical links).
+
 ## Review Standard
 
 - New code should be rejected if it adds a second source of truth without a clear
@@ -662,3 +687,5 @@ When a question in `AD.md` §9 is resolved, the decision record moves to `DECISI
   worse.
 - Refactors should be small enough that v0.5 behavior can be compared against v1
   behavior during migration.
+- New or modified spec docs must update `docs/specs/kickoff.md` inventory and check
+  for drift against parent AD decisions.
