@@ -22,6 +22,7 @@
 | Q14: User interface surface | Product Surface & Runtime | Ship a Textual TUI that surfaces pipeline state, approvals, and model selection without turning the UI into the primary runtime. | `[Q14](#q14-user-interface-surface)` |
 | Q15: Headless PM session, thread identity, and source surfaces | Product Surface & Runtime | Separate PM-session threads from project threads so headless ingress, source presence, and execution identity stay distinct. | `[Q15](#q15-headless-pm-session-thread-identity-and-source-surfaces)` |
 | Q16: Project-scoped execution environment / agent computer | Product Surface & Runtime | Bind each project thread to a real execution environment so coding, evaluation, and publication happen inside the project computer. | `[Q16](#q16-project-scoped-execution-environment--agent-computer)` |
+| Q17: PM-owned Document-Renderer SubAgent | Agent Roles & Communication | Delegate `.docx`/`.pdf`/`.pptx` rendering from the PM's own skill list to a single role-owned ephemeral SDK `SubAgent` dict spec invoked via the built-in `task` tool so the PM's always-active surface stays narrow and rendering context is isolated. | `[Q17](#q17-pm-owned-document-renderer-subagent)` |
 
 ---
 
@@ -1372,3 +1373,35 @@ Autonomous mode: PM auto-approves the two user-approval gates by creating `(PM, 
 | `tool_search_tool_regex` | `tool_search_tool_regex_20251119` | **Developer** |
 
 **Injection mechanism:** Provider profile registered via `_register_harness_profile()` in a provider profile module (e.g., `agents/profiles/_anthropic.py`). Profile is resolved automatically by `create_deep_agent()` when model provider is `"anthropic"`. Agent factory files remain clean — they only call `create_deep_agent(model=<string>)`.
+
+---
+
+<a id="q17-pm-owned-document-renderer-subagent"></a>
+### Q17: PM-owned Document-Renderer SubAgent
+
+**Status:** Closed · **Approved by:** Jason · **Date:** 2026-04-22c
+
+Binary-format document rendering (`.docx`, `.pdf`, `.pptx`) is **not** a PM-native skill. The PM delegates rendering to a single role-owned ephemeral Deep Agents SDK `SubAgent` dict spec named `document-renderer`, invoked through the built-in `task` tool. The `docx`, `pdf`, and `pptx` skills are scoped to this subagent's `skills=[...]` list and removed from the PM's own `skills=[...]` list. The PM retains `doc-coauthoring`, `internal-comms`, and `prompt-architect` for authoring, coauthoring, and stakeholder communication.
+
+**SDK grounding.** The primitive is the `SubAgent` TypedDict at `.reference/libs/deepagents/deepagents/middleware/subagents.py:22-88` (required `name`/`description`/`system_prompt`; optional `skills: list[str]` at line 77). `create_deep_agent()` wires `SkillsMiddleware(backend=backend, sources=subagent_skills)` per-subagent at `.reference/libs/deepagents/deepagents/graph.py:497-499`. Invocation semantics are fixed by the `task` tool description at `.reference/libs/deepagents/deepagents/middleware/subagents.py:152-162` — "Launch an ephemeral subagent to handle complex, multi-step independent tasks with isolated context windows … Each agent invocation is stateless." State passed to the subagent excludes `messages`, `todos`, `structured_response`, `skills_metadata`, and `memory_contents` (`middleware/subagents.py:137`); output returns as a single `ToolMessage` carrying the last child `AIMessage.text` (`middleware/subagents.py:347-352`).
+
+**Why a SubAgent dict and not PM-native skills.** Keeping `docx`/`pdf`/`pptx` as PM skills bloats the PM's always-active tool surface (every PM model call carries skill metadata for a capability used only at approval-gate boundaries). Delegating to a scoped subagent pushes the rendering skills into an isolated context window loaded only when rendering is actually needed, and matches the SDK's documented use case for `SubAgent` dicts.
+
+**Why not a peer Deep Agent.** Peer Deep Agents exist to preserve durable per-role state across a project lifecycle (Q1, §3 Option D rationale). Rendering has no durable state, no loop partners, and no stakeholder scope authority. A full `create_deep_agent()` graph with checkpoint namespace and handoff-tool matrix for a terminal rendering step would violate the "one factory per agent" and "no second source of truth" principles in `AGENTS.md`.
+
+**Why not `CompiledSubAgent` or `AsyncSubAgent`.** `CompiledSubAgent` is the escape hatch for pre-compiled custom graphs and offers no stable `thread_id` config (`middleware/subagents.py:488-493`) — over-engineered for a stateless rendering helper. `AsyncSubAgent` creates a new remote task thread per invocation (`middleware/async_subagents.py:280-318`); remote/background execution is not needed and rendering fits on the PM's own thread.
+
+**Invariants locked by this decision.**
+
+- The subagent is **PCG-invisible**: no mount under the PCG, no checkpoint namespace, no `Command.PARENT`, no handoff tools, no acceptance stamps.
+- Rendering is **prompt-driven**: the PM's system prompt directs the PM to invoke `task(subagent_type="document-renderer", description=...)` when a document package is needed. The AD-level approval mechanism (prompt-driven PM tool for stakeholder review) is unchanged (`AD.md §4 Phase Gates`).
+- Scope is **binary-format rendering only**: content authoring, coauthoring, research, and stakeholder dialogue remain PM responsibilities.
+- Module location: `src/meta_harness/agents/project_manager/task_agents/document_renderer.py` — first concrete instance of the `task_agents/` bucket reserved under Q1.
+
+**Implementation detail:** [`docs/specs/pm-document-renderer-subagent.md`](./docs/specs/pm-document-renderer-subagent.md).
+
+**Consequences.**
+
+- `ALLOCATED-SKILLS.MD` no longer lists `docx`/`pdf`/`pptx` on the PM row; a new `PM → document-renderer SubAgent` row owns them.
+- `AD.md §4 Phase Gates → Approval mechanism` clarified that the PM delegates rendering rather than loading the rendering skills itself.
+- `AD.md §4 Repo and Workspace Layout` updated: `task_agents/` is no longer a reservation-only bucket.

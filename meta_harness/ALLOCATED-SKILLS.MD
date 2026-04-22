@@ -7,11 +7,11 @@
 | Agent | Skill | Source | Purpose |
 |---|---|---|---|
 | **PM** | `doc-coauthoring` | `.agents/skills/anthropic/skills/doc-coauthoring` | Structured document co-authoring workflow (PRDs, eval criteria, stakeholder comms) |
-| **PM** | `docx` | `.agents/skills/anthropic/skills/docx` | Render document packages for stakeholder review (Word docs) |
 | **PM** | `internal-comms` | `.agents/skills/anthropic/skills/internal-comms` | Standardized communication with team and stakeholder (status reports, leadership updates, FAQs, incident reports) |
-| **PM** | `pdf` | `.agents/skills/anthropic/skills/pdf` | PDF generation for document packages |
-| **PM** | `pptx` | `.agents/skills/anthropic/skills/pptx` | Presentation generation for stakeholder deliverables |
 | **PM** | `prompt-architect` | **Custom — to be created** | Prompt engineering and system prompt design for downstream agents |
+| **PM → `document-renderer` SubAgent** | `docx` | `.agents/skills/anthropic/skills/docx` | Render document packages for stakeholder review (Word docs). Delegated via SDK `task` tool — not a PM-native skill. See [`docs/specs/pm-document-renderer-subagent.md`](./docs/specs/pm-document-renderer-subagent.md). |
+| **PM → `document-renderer` SubAgent** | `pdf` | `.agents/skills/anthropic/skills/pdf` | PDF generation for document packages. Delegated via SDK `task` tool. |
+| **PM → `document-renderer` SubAgent** | `pptx` | `.agents/skills/anthropic/skills/pptx` | Presentation generation for stakeholder deliverables. Delegated via SDK `task` tool. |
 | **Architect** | `langchain` | `.agents/skills/langchain` | LangChain/LangGraph/Deep Agents SDK reference for design decisions |
 | **Architect** | `langsmith` | `.agents/skills/langsmith` | LangSmith tracing and observability patterns for design |
 | **Architect** | `web-artifacts-builder` | `.agents/skills/anthropic/skills/web-artifacts-builder` | Multi-component web artifact design patterns |
@@ -37,7 +37,13 @@
 
 ### Project Manager (PM)
 
-The PM is the document hub. It assembles PRDs, evaluation criteria, stakeholder packages, and approval documents. The rendering skills (`docx`, `pdf`, `pptx`) enable it to produce the document packages that approval gates require. `internal-comms` establishes a standard for how the PM communicates with both the stakeholder and the team — status reports, decision memos, kickoffs, incident reports. `doc-coauthoring` provides the structured co-authoring workflow for all of the above. `prompt-architect` is a custom skill (to be created) that gives the PM prompt engineering capabilities — the PM needs to be able to craft and refine system prompts for downstream agents as part of the scoping phase.
+The PM is the document hub. It assembles PRDs, evaluation criteria, stakeholder packages, and approval documents. `internal-comms` establishes a standard for how the PM communicates with both the stakeholder and the team — status reports, decision memos, kickoffs, incident reports. `doc-coauthoring` provides the structured co-authoring workflow for all of the above. `prompt-architect` is a custom skill (to be created) that gives the PM prompt engineering capabilities — the PM needs to be able to craft and refine system prompts for downstream agents as part of the scoping phase.
+
+**Binary-format rendering (`.docx`/`.pdf`/`.pptx`) is delegated, not PM-native.** The PM does not carry the `docx`, `pdf`, or `pptx` skills directly. Rendering is owned by a single role-owned ephemeral Deep Agents SDK `SubAgent` dict spec named `document-renderer`, invoked through the built-in `task` tool (auto-installed by `SubAgentMiddleware`; see `.reference/libs/deepagents/deepagents/middleware/subagents.py:478`). The PM authors, coauthors, and curates the package content; only the terminal render-to-binary step is delegated. Rationale, SDK grounding, and wiring live in [`docs/specs/pm-document-renderer-subagent.md`](./docs/specs/pm-document-renderer-subagent.md). AD decision: `AD.md §4 Agent Primitive Decisions → PM-owned Document-Renderer SubAgent` (Q17).
+
+### PM → `document-renderer` SubAgent
+
+A stateless, ephemeral SDK `SubAgent` dict spec (the TypedDict at `.reference/libs/deepagents/deepagents/middleware/subagents.py:22-88`) owned by the PM. Not a peer Deep Agent, not mounted by the PCG, no checkpoint namespace, no handoff tools. It carries `docx`, `pdf`, and `pptx` as its `skills=[...]` list; `create_deep_agent()` wires `SkillsMiddleware` on it at `.reference/libs/deepagents/deepagents/graph.py:497-499`. Each invocation is stateless: the PM calls `task(subagent_type="document-renderer", description=<full source + requested formats>)`, receives back artifact paths plus a one-line summary in a single `ToolMessage`.
 
 ### Architect
 

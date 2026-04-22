@@ -5,14 +5,14 @@ derived_from:
   - AD §4 LangGraph Project Coordination Graph Factory Contract
   - AD §4 Project Workspace and Memory Structure Proposal
 status: active
-last_synced: 2026-04-22
+last_synced: 2026-04-22c
 owners: ["@Jason"]
 ---
 
 # Repository and Workspace Layout Specification
 
 > **Provenance:** Derived from `AD.md §4 Full Repo Structure Naming Decision`, `§4 LangGraph Project Coordination Graph Factory Contract`, and `§4 Project Workspace and Memory Structure Proposal`.  
-> **Status:** Active · **Last synced with AD:** 2026-04-22 (updated for `OQ-HO` resolution: 1 dispatcher + 7 mounted role subgraph nodes; `ROLE_GRAPHS` registry consumed at graph-construction time).  
+> **Status:** Active · **Last synced with AD:** 2026-04-22c (updated 2026-04-22 for `OQ-HO`; 2026-04-22c for Q17 — first concrete `task_agents/` instance: PM's `document-renderer` SubAgent).  
 > **Consumers:** Developer (scaffolding, file creation), Evaluator (structural conformance).
 
 ## 1. Purpose
@@ -46,8 +46,12 @@ meta-harness/
 │       │   ├── catalog.py                  # one source of truth for role identity
 │       │   ├── project_manager/
 │       │   │   ├── __init__.py
-│       │   │   ├── agent.py                # create_deep_agent(name="project-manager", ...)
-│       │   │   └── system_prompt.md
+│       │   │   ├── agent.py                # create_deep_agent(name="project-manager", subagents=[DOCUMENT_RENDERER_SUBAGENT, ...])
+│       │   │   ├── system_prompt.md
+│       │   │   └── task_agents/            # role-owned ephemeral SDK SubAgent dict specs (Q17)
+│       │   │       ├── __init__.py
+│       │   │       ├── document_renderer.py         # exports DOCUMENT_RENDERER_SUBAGENT (docx/pdf/pptx)
+│       │   │       └── document_renderer.system_prompt.md
 │       │   ├── harness_engineer/
 │       │   │   ├── __init__.py
 │       │   │   ├── agent.py
@@ -108,6 +112,15 @@ meta-harness/
   behind app-owned convention files.
 - Keep `tools/` for now, but do not name nested tool modules until
   concrete tool contracts exist.
+- `task_agents/` activates with the PM's `document-renderer` SubAgent as the
+  first concrete instance (Q17). It lives **inside** the owning role's
+  module, not at the `agents/` top level — SubAgent dicts are role-owned,
+  not a peer-level bucket. Each `<name>.py` exports a module-level
+  `SubAgent` TypedDict constant (e.g. `DOCUMENT_RENDERER_SUBAGENT`) imported
+  by the owning role's `agent.py` into its `subagents=[...]` list. System
+  prompts follow the agent convention (`<name>.system_prompt.md` sibling
+  file). Implementation contract:
+  [`docs/specs/pm-document-renderer-subagent.md`](./pm-document-renderer-subagent.md).
 
 ## 3. PCG Factory Contract
 
