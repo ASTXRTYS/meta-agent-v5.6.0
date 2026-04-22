@@ -1059,7 +1059,7 @@ v1 is a local-first CLI TUI application running on the user's machine. Security 
 
 Web application deployment and compliance hardening are in fact intended for v1. Multi-tenant access control is specified as a v1 harness deliverable.
 
-> **Update 2026-04-14:** Multi-tenant access control for the web app is now specified in [`docs/specs/harness-webapp-contract.md`](./docs/specs/harness-webapp-contract.md). This is a harness deliverable, not a v2+ concern.
+> **Update 2026-04-14:** Multi-tenant access control for the web app is a v1 harness deliverable, not a v2+ concern. Implementation details (auth handlers, `langgraph.json`, CORS) will be specified when web app development begins.
 
 ---
  
@@ -1105,13 +1105,25 @@ in [CHANGELOG.md](./CHANGELOG.md).
 | Q# | Topic | AD section | Detail |
 |---|---|---|---|
 | Q15 | Headless PM session and thread identity | §4 Runtime Topology, §4 Thread Identity Model, §4 PM Session And Project Entry Model, §4 Headless Ingress vs Source Presence | [DECISIONS.md](./DECISIONS.md) |
-| Q16 | Project-scoped execution environment / agent computer | §4 Project-Scoped Execution Environment, §4 User Interface Surface, `docs/specs/harness-webapp-contract.md` | [DECISIONS.md](./DECISIONS.md) |
+| Q16 | Project-scoped execution environment / agent computer | §4 Project-Scoped Execution Environment, §4 User Interface Surface | [DECISIONS.md](./DECISIONS.md) |
+
+### Derived Specs
+
+Implementation contracts extracted from AD decisions under `docs/specs/`. See
+§5 Spec Derivation Model for the governance model; full rules are in
+[`AGENTS.md`](./AGENTS.md) → **Documentation Hierarchy**.
+
+| Spec | Derives From | Status | Last Synced |
+|---|---|---|---|
+| [`docs/specs/handoff-tools.md`](./docs/specs/handoff-tools.md) | §4 Handoff Protocol, §4 Handoff Tool Use-Case Matrix, §4 Pipeline Flow Diagram | Active | 2026-04-22 |
+| [`docs/specs/pcg-data-contracts.md`](./docs/specs/pcg-data-contracts.md) | §4 LangGraph Project Coordination Graph (State Schema), §4 Handoff Protocol (Command.PARENT Update Contract), §4 Data Contracts | Active | 2026-04-22 |
+| [`docs/specs/repo-and-workspace-layout.md`](./docs/specs/repo-and-workspace-layout.md) | §4 Repo and Workspace Layout, §4 LangGraph Project Coordination Graph Factory Contract, §4 Project Workspace and Memory Structure | Active | 2026-04-22 |
 
 ---
 
 ## 10) Web App & Deployment Contract
 
-Web app auth, deployment configuration, and SDK reference paths have been extracted to [`docs/specs/harness-webapp-contract.md`](./docs/specs/harness-webapp-contract.md). The AD retains the architectural decision (*that* we use LangGraph Platform custom auth with Supabase JWTs); the spec doc contains the implementation contract (*how* — handler schemas, `langgraph.json` requirements, CORS config).
+Architectural decision: the web app uses LangGraph Platform custom auth with Supabase JWTs. Implementation details (handler schemas, `langgraph.json` requirements, CORS config) will be specified when web app development begins.
 
 ---
 
