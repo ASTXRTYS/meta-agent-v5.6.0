@@ -1,9 +1,100 @@
 # Meta Harness Agent Conventions
 
-This directory  /Users/Jason/2026/v4/meta-agent-v5.6.0/meta_harness is the v1 workspace for Meta Harness. Treat the existing
-`meta_agent/` application as the v0.5 reference implementation: keep the parts
-that are valuable, but do not inherit its naming, registry, or plumbing shape by
-default.
+## Peer Developer Operating Memory
+
+- Jason wants the agent working in this repo to behave as a more experienced peer
+  developer: start from the highest abstraction, source-check claims, challenge
+  weak architecture, and surface excellent design decisions for sign-off.
+- Meta Harness is a harness-engineering agents-as-a-service product, not merely
+  a coding agent. The product makes agent work legible through artifacts,
+  evaluation evidence, optimization trendlines, and LangSmith links while keeping
+  LangSmith as the forensic layer.
+- Treat `AGENTS.md` as the normative implementation contract, `AD.md` as the
+  active architecture baseline, `DECISIONS.md` as frozen rationale, and
+  `docs/specs/kickoff.md` as the spec inventory. If they conflict, prefer this
+  file and repair the other document.
+- Assume docs may contain stale or over-delegated assertions from prior agents.
+  When a correction is transient or task-specific, surface it to Jason and either
+  address it immediately or promote it to a high-priority item here; do not turn
+  transient findings into generic best-practice memory.
+- Use Auggie MCP as the first-pass semantic retrieval layer for LangChain
+  ecosystem research. Treat it as fast discovery, not final authority: verify
+  exact SDK behavior against local `.reference/` or `.venv/` source before
+  writing specs or code.
+
+
+- Use Auggie MCP as a semantic discovery amplifier for agent engineering. When working on LangChain, LangGraph, Deep Agents, LangSmith, evals, sandboxes, coding agents, or production agent architecture, query Jason’s indexed reference repos early to find how the ecosystem itself solves similar problems.
+
+- Treat Auggie as fast pattern discovery, not final authority. The right workflow is: retrieve relevant docs/examples by concept, compare across layers, then verify exact SDK behavior against official docs, local source, or installed package source before designing specs or writing code.
+
+Develop taste by triangulating:
+- Docs for intended public abstractions and conceptual framing
+- SDK source for actual behavior, imports, contracts, and edge cases
+- Production reference apps for how good teams compose those primitives under real constraints
+
+For evaluation design, bias toward studying `openevals` and `langsmith-sdk` before inventing evaluator contracts, feedback schemas, dataset flows, or experiment loops. For coding-agent, sandbox, local-first, or TUI design, study Deep Agents CLI and Open SWE before inventing local patterns.
+
+The goal is not to copy references mechanically. The goal is to absorb the ecosystem’s best abstractions, notice where they generalize, and let that compound into better judgment over time.
+
+
+## Auggie Reference Retrieval Workflow
+
+Use Auggie MCP with conceptual queries when working on LangChain, LangGraph,
+Deep Agents, LangSmith, evaluation, sandbox, TUI, or production-agent
+architecture. Prefer semantic retrieval across multiple reference repos before
+inventing a new abstraction.
+
+Reference repos and primary signal:
+
+- `ASTXRTYS/docs`: official LangChain, LangGraph, Deep Agents, and LangSmith
+  docs. Use for conceptual guides, deployment/auth docs, production guidance,
+  and public API intent.
+- `ASTXRTYS/deepagents`, `libs/deepagents`: Deep Agents SDK implementation.
+  Use for `create_deep_agent()`, middleware stack order, filesystem backends,
+  skills, memory, subagents, permissions, profiles, and deploy templates.
+- `ASTXRTYS/deepagents`, `libs/cli/deepagents_cli`: LangChain's open-source
+  Deep Agents CLI coding agent. This is a high-signal production reference for
+  coding-agent assembly, `create_cli_agent()`, `langgraph dev` server wiring,
+  sandbox backend routing, MCP/tool loading, Textual TUI widgets, approval/ask
+  user UX, status rendering, and local-first agent ergonomics.
+- `ASTXRTYS/langgraph`: LangGraph runtime internals. Use for `StateGraph`,
+  subgraphs, checkpoint namespaces, `Command.PARENT`, persistence, streaming,
+  interrupts, and Agent Server behavior.
+- `ASTXRTYS/langchain`: LangChain agent foundation. Use for `create_agent()`,
+  `AgentMiddleware`, built-in middleware, tool handling, model abstraction,
+  structured output, and provider-neutral agent contracts.
+- `ASTXRTYS/open-swe`: production coding-agent application patterns. Use for
+  sandbox lifecycle, thread metadata, GitHub credential flow, PR publication,
+  Slack/Linear/GitHub ingress, middleware safety nets, and source-context
+  assembly.
+- `ASTXRTYS/langsmith-sdk`: LangSmith client and evaluation infrastructure. Use
+  for datasets, examples, experiment runners, `evaluate()` / `aevaluate()`,
+  tracing helpers, feedback creation/update, presigned feedback tokens, and
+  programmatic LangSmith workflows.
+- `ASTXRTYS/openevals`: evaluator building blocks. Use for LLM-as-judge,
+  structured-output/JSON match evaluators, trajectory LLM judges, strict /
+  unordered / subset / superset trajectory matching, sync/async evaluator
+  constructors, and `EvaluatorResult` shape.
+- `ASTXRTYS/meta-agent-v5.6.0`: local Meta Harness architecture, decisions,
+  constraints, historical context, and project-specific docs.
+
+Workflow:
+
+1. Start from `meta_harness/AGENTS.md` when inside Meta Harness.
+2. Query Auggie by concept, not just by symbol name.
+3. For architecture questions, triangulate: docs for intent, SDK repos for
+   implementation, production apps for usage patterns.
+4. For evaluation or experiment design, inspect both `openevals` and
+   `langsmith-sdk` before inventing evaluator contracts or feedback schemas.
+5. For coding-agent, sandbox, local-first, or TUI design, inspect
+   `deepagents/libs/cli/deepagents_cli` and `open-swe` before inventing local
+   patterns.
+6. Verify exact imports, call signatures, middleware behavior, and runtime
+   semantics in local `.reference/` or `.venv/` source before changing specs or
+   code.
+7. Persist reusable patterns and anti-patterns as memory or skills. Surface
+   transient repo/doc corrections to Jason instead of storing them as generic
+   memory.
 
 ## Highest-Level Decisions
 
