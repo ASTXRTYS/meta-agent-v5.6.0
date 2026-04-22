@@ -1,0 +1,214 @@
+---
+doc_type: spec
+derived_from:
+  - AD §4 Handoff Protocol
+  - AD §4 Handoff Tool Use-Case Matrix
+  - AD §4 Pipeline Flow Diagram
+status: active
+last_synced: 2026-04-22
+owners: ["@Jason"]
+---
+
+# Handoff Tools Specification
+
+> **Provenance:** Derived from `AD.md §4 Handoff Protocol`, `§4 Handoff Tool Use-Case Matrix`, and `§4 Pipeline Flow Diagram`.  
+> **Status:** Active · **Last synced with AD:** 2026-04-22  
+> **Consumers:** Developer (implementation), Evaluator (conformance checking).
+
+## 1. Purpose
+
+This spec is the interface contract for agent-to-agent handoff tools in Meta
+Harness. It enumerates the 23 concrete tools that implement the decisions
+locked in `AD.md §4`: the `reason` enum, verb semantics, PM-as-hub pipeline,
+and middleware gate policy.
+
+The parent AD defines *what* handoffs are and *why* they route the way they
+do. This spec defines *which concrete tools exist, who owns them, what
+artifacts they carry, and which middleware gate applies*.
+
+## 2. Naming Convention
+
+Tool names read as sentences: `<verb>_<artifact|phase>_to_<role>`.
+
+- Single-artifact deliveries use the artifact name (e.g.
+  `deliver_prd_to_harness_engineer`).
+- Composite package deliveries use the phase name plus `package` (e.g.
+  `deliver_design_package_to_architect`) to signal that the PM is handing off
+  a consolidated bundle of accumulated artifacts.
+
+## 3. Verb Semantics
+
+Defined as AD decisions; restated here for reference. Verb choice encodes
+blocking behavior:
+
+- **`deliver`** — caller hands off ownership of a pipeline stage (blocking).
+- **`return`** — specialist returns completed work to PM or calling specialist (blocking).
+- **`submit`** — caller submits work for review or evaluation (blocking).
+- **`consult`** — caller requests expert input without transferring ownership (non-blocking).
+- **`announce`** — caller pushes intent or a heads-up without expecting a deliverable back (non-blocking).
+- **`ask`** — caller asks a question (non-blocking).
+- **`coordinate`** — QA agents align with each other (non-blocking).
+
+## 4. Tool Matrix
+
+Tools are organized into six categories by transition type.
+
+### 4.1 Pipeline Delivery — PM delivers artifact to start a pipeline stage
+
+| # | Tool | `reason` | Caller | Target | Artifact Flow | Middleware Gate |
+|---|---|---|---|---|---|---|
+| 1 | `deliver_prd_to_harness_engineer` | `deliver` | PM | HE | PRD + proposed eval criteria + business-logic datasets → refined eval criteria, rubrics, public/held-out datasets, calibrated judges | Stage 1: PRD finalized |
+| 2 | `deliver_prd_to_researcher` | `deliver` | PM | Researcher | PRD + refined eval criteria + public datasets → research bundle | HE Stage 1 complete |
+| 3 | `deliver_design_package_to_architect` | `deliver` | PM | Architect | PRD + eval suite + research bundle → design spec | Research complete |
+| 4 | `deliver_planning_package_to_planner` | `deliver` | PM | Planner | Design spec + public eval criteria + public datasets → implementation plan | HE Stage 2 complete |
+| 5 | `deliver_development_package_to_developer` | `deliver` | PM | Developer | Plan + spec + public eval + PRD → phase deliverables | Plan accepted |
+
+### 4.2 Pipeline Return — Specialist returns completed work to PM
+
+| # | Tool | `reason` | Caller | Target | Artifact Flow | Middleware Gate |
+|---|---|---|---|---|---|---|
+| 6 | `return_eval_suite_to_pm` | `return` | HE | PM | Refined eval criteria + rubrics + public datasets (HE retains held-out datasets + copies in its own filesystem) | None |
+| 7 | `return_research_bundle_to_pm` | `return` | Researcher | PM | Research bundle with findings and refs | None |
+| 8 | `return_design_package_to_pm` | `return` | Architect | PM | Design spec + tool schemas + system prompts | None |
+| 9 | `return_plan_to_pm` | `return` | Planner | PM | Phased implementation plan with eval break points | None |
+| 10 | `return_product_to_pm` | `return` | Developer | PM | Finished product + final artifacts → PM presents to user | Evaluator acceptance required; HE acceptance required if HE participated in project |
+
+### 4.3 Acceptance — QA agents submit acceptance stamps (non-blocking)
+
+The Developer's `return_product_to_pm` gate reads these stamps.
+
+| # | Tool | `reason` | Caller | Target | Artifact Flow | Middleware Gate |
+|---|---|---|---|---|---|---|
+| 11 | `submit_harness_acceptance` | `submit` | HE | PM | Acceptance stamp: target harness quality verified | None (stamp only) |
+| 12 | `submit_application_acceptance` | `submit` | Evaluator | PM | Acceptance stamp: target application quality verified | None (stamp only) |
+
+**Acceptance gate logic for `return_product_to_pm`.** The middleware gate on
+this tool checks `handoff_log` for acceptance stamps before allowing the
+handoff through. Evaluator acceptance is always required. Harness Engineer
+acceptance is required only if the HE was ever invoked in the project thread
+— the gate derives HE relevance by scanning `handoff_log` for any record
+with `source_agent == "harness_engineer"` or
+`target_agent == "harness_engineer"`. If no HE participation is found, the HE
+acceptance check is skipped. This avoids adding a `has_target_harness` state
+key.
+
+### 4.4 Stage Review — Specialist submits work to HE for eval coverage
+
+| # | Tool | `reason` | Caller | Target | Artifact Flow | Middleware Gate |
+|---|---|---|---|---|---|---|
+| 13 | `submit_spec_to_harness_engineer` | `submit` | Architect | HE | Design spec → evalability review + dev-phase eval harness (Stage 2 intervention) | Spec accepted |
+| 14 | `return_eval_coverage_to_architect` | `return` | HE | Architect | Eval coverage for new components + dev-phase eval criteria | None |
+
+### 4.5 Phase Review — Developer submits phase deliverables for QA
+
+| # | Tool | `reason` | Caller | Target | Artifact Flow | Middleware Gate |
+|---|---|---|---|---|---|---|
+| 15 | `announce_phase_to_evaluator` | `announce` | Developer | Evaluator | Phase intent + eval criteria acknowledgment → "agreed, awaiting submission" | None |
+| 16 | `announce_phase_to_harness_engineer` | `announce` | Developer | HE | Phase intent + eval criteria acknowledgment → "agreed, awaiting submission" | None |
+| 17 | `submit_phase_to_evaluator` | `submit` | Developer | Evaluator | Phase deliverables → pass/fail findings, spec/plan compliance report | Deliverables match plan |
+| 18 | `submit_phase_to_harness_engineer` | `submit` | Developer | HE | Phase deliverables → EBDR-1 feedback packet (eval science findings, no scoring logic leaked) | None |
+
+### 4.6 Specialist Consultation — Non-ownership-transfer expert input
+
+| # | Tool | `reason` | Caller | Target | Artifact Flow | Middleware Gate |
+|---|---|---|---|---|---|---|
+| 19 | `consult_harness_engineer_on_gates` | `consult` | Planner | HE | Plan draft → eval gate placement recommendations (Stage 3 intervention) | None |
+| 20 | `consult_evaluator_on_gates` | `consult` | Planner | Evaluator | Plan draft → acceptance gate placement recommendations | None |
+| 21 | `request_research_from_researcher` | `consult` | Architect, HE, PM | Researcher | Research question → targeted findings | None |
+| 22 | `ask_pm` | `question` | Any specialist | PM | Stakeholder question → answer/clarification | None |
+| 23 | `coordinate_qa` | `coordinate` | HE ↔ Evaluator | Evaluator ↔ HE | QA findings → aligned review strategy | None |
+
+## 5. Agent-Scoped Tool Ownership
+
+Each agent only receives the tools relevant to its role. An agent cannot call
+a tool it does not own.
+
+| Agent | Pipeline Delivery | Pipeline Return | Acceptance | Stage Review | Phase Review | Consultation |
+|---|---|---|---|---|---|---|
+| PM | `deliver_prd_to_harness_engineer`, `deliver_prd_to_researcher`, `deliver_design_package_to_architect`, `deliver_planning_package_to_planner`, `deliver_development_package_to_developer` | — | `submit_harness_acceptance` (receives), `submit_application_acceptance` (receives) | — | — | `request_research_from_researcher` |
+| Harness Engineer | — | `return_eval_suite_to_pm`, `return_eval_coverage_to_architect` | `submit_harness_acceptance` | `submit_spec_to_harness_engineer` (receives) | `announce_phase_to_harness_engineer` (receives), `submit_phase_to_harness_engineer` (receives) | `consult_harness_engineer_on_gates` (receives), `request_research_from_researcher`, `coordinate_qa` |
+| Researcher | — | `return_research_bundle_to_pm` | — | — | — | `request_research_from_researcher` (receives) |
+| Architect | — | `return_design_package_to_pm` | — | `submit_spec_to_harness_engineer` | — | `request_research_from_researcher` |
+| Planner | — | `return_plan_to_pm` | — | — | — | `consult_harness_engineer_on_gates`, `consult_evaluator_on_gates` |
+| Developer | — | `return_product_to_pm` | — | — | `announce_phase_to_evaluator`, `announce_phase_to_harness_engineer`, `submit_phase_to_evaluator`, `submit_phase_to_harness_engineer` | `ask_pm` |
+| Evaluator | — | — | `submit_application_acceptance` | — | `announce_phase_to_evaluator` (receives), `submit_phase_to_evaluator` (receives) | `consult_evaluator_on_gates` (receives), `coordinate_qa` |
+
+## 6. Pipeline Flow Diagram
+
+The pipeline progression flows through the PM as hub. Specialists return
+completed work to the PM, who then delivers to the next specialist. Direct
+specialist-to-specialist interactions exist for stage reviews and
+consultations.
+
+```txt
+Stakeholder → PM
+              │
+              ├─ deliver_prd_to_harness_engineer ──→ HE (Stage 1)
+              │     ← return_eval_suite_to_pm
+              │
+              ├─ deliver_prd_to_researcher ──→ Researcher
+              │     ← return_research_bundle_to_pm
+              │
+              ├─ deliver_design_package_to_architect ──→ Architect
+              │     │
+              │     ├─ submit_spec_to_harness_engineer ──→ HE (Stage 2)
+              │     │     ← return_eval_coverage_to_architect
+              │     │
+              │     ← return_design_package_to_pm
+              │
+              ├─ deliver_planning_package_to_planner ──→ Planner
+              │     │
+              │     ├─ consult_harness_engineer_on_gates (non-blocking)
+              │     ├─ consult_evaluator_on_gates (non-blocking)
+              │     │
+              │     ← return_plan_to_pm
+              │
+              ├─ deliver_development_package_to_developer ──→ Developer
+                    │
+                    ├─ announce_phase_to_evaluator (non-blocking)
+                    ├─ announce_phase_to_harness_engineer (non-blocking)
+                    │
+                    │  ... developer executes phase ...
+                    │
+                    ├─ submit_phase_to_evaluator ──→ Evaluator
+                    ├─ submit_phase_to_harness_engineer ──→ HE
+                    ├─ ask_pm (non-blocking)
+                    │
+                    ← phase deliverables
+                    │
+                    │  ... final phase complete ...
+                    │
+                    ├─ submit_application_acceptance ←── Evaluator (non-blocking stamp)
+                    ├─ submit_harness_acceptance ←── HE (non-blocking stamp, conditional)
+                    │
+                    ├─ return_product_to_pm (gated by acceptance stamps)
+                    │
+              ← PM presents finished product to user
+              PM uses ask_user → user satisfied → PM finishes → END
+
+Phase communication arc:
+  1. Developer announces phase intent to each QA agent (non-blocking)
+     "I'm starting phase N end-to-end, will meet these eval criteria"
+     QA agents respond: "Agreed, awaiting your submission"
+  2. Developer executes the phase
+  3. Developer submits phase deliverables to each QA agent (blocking)
+     Cannot proceed to next phase without feedback
+
+Core evaluation loops (blocking — developer cannot proceed without feedback):
+  Developer ──submit_phase_to_evaluator──→ Evaluator
+       ← pass/fail findings, spec/plan compliance report
+  Developer ──submit_phase_to_harness_engineer──→ HE
+       ← EBDR-1 feedback packet (directional signal, no scoring logic leaked)
+
+  Both loops enforce information isolation:
+  - Evaluator: validates code against spec/plan, hard fails/passes phases
+  - HE: runs eval science, produces EBDR-1 feedback that gives the optimizer
+    directional signal without exposing rubrics, judge configs, or held-out data
+  - Developer is completely blind to evaluation artifacts — only sees feedback
+    packets and can inspect its own traces in LangSmith
+
+Specialist loops (non-blocking):
+  Architect ↔ Researcher  (request_research_from_researcher)
+  HE ↔ Evaluator          (coordinate_qa)
+  Any specialist → PM      (ask_pm)
+```
