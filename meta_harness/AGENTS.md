@@ -11,14 +11,14 @@
   LangSmith as the forensic layer.
 - Treat `AGENTS.md` as the normative implementation contract, `AD.md` as the
   active architecture baseline, `DECISIONS.md` as frozen rationale, and
-  `docs/specs/kickoff.md` as the spec inventory. If they conflict, prefer this
-  file and repair the other document.
+  `local-docs/` as the local coding-agent reference library. If they conflict, prefer this file and repair
+  the other document.
 - Assume docs may contain stale or over-delegated assertions from prior agents.
   When a correction is transient or task-specific, surface it to Jason and either
   address it immediately or promote it to a high-priority item here; do not turn
   transient findings into generic best-practice memory.
 - Use Auggie MCP as the first-pass semantic retrieval layer for LangChain
-  ecosystem research. Treat it as fast discovery, not final authority: verify
+  ecosystem research. Treat it as fast discovery*Extremely valuable for gathering source information, best practices, abstractions, and patterns; ASTxRTYS/docs is the real docs for the full stack of LangChain*, always assert against final authority: verify
   exact SDK behavior against local `.reference/` or `.venv/` source before
   writing specs or code.
 
@@ -243,529 +243,124 @@ The PM should be able to send a "burst of information" to all relevant agents (r
 
 ## Canonical SDK References
 
-Before implementing, planning, or writing specs for anything touching these SDKs, read the local source first. Do not rely on training data or general knowledge.
-
-| Topic | Local canonical source |
-|---|---|
-| Deep Agents SDK (`create_deep_agent()`, middleware, backends, harness architecture) | `.reference/libs/deepagents/deepagents/` |
-| Production Deep Agent patterns (CLI reference implementation) | `.reference/libs/cli/deepagents_cli/` |
-| `AgentMiddleware` base class (`wrap_model_call`, `before_agent`, state schema) | `.venv/lib/python3.11/site-packages/langchain/agents/middleware/types.py` |
-| LangGraph (StateGraph, nodes, edges, Command, Send, persistence, streaming) | `.venv/lib/python3.11/site-packages/langgraph/` |
-| LangGraph API server internals | `.venv/lib/python3.11/site-packages/langgraph_api/` |
-| LangGraph SDK client patterns | `.venv/lib/python3.11/site-packages/langgraph_sdk/` |
-| LangSmith (tracing, datasets, run management, experiments) | `.venv/lib/python3.11/site-packages/langsmith/` |
-| Agent evals (`EvaluatorResult`, LLM-as-judge, trajectory scoring, `GraphTrajectory`) | `.venv/lib/python3.11/site-packages/agentevals/` — `trajectory/llm.py` for LLM-as-judge; `trajectory/match.py` for tool-call matching; `graph_trajectory/` for LangGraph thread trajectory evals; `types.py` for `GraphTrajectory` and `EvaluatorResult` |
-| LangChain Anthropic integration (`ChatAnthropic`, Claude-specific patterns) | `.venv/lib/python3.11/site-packages/langchain_anthropic/` |
-| Anthropic server-side tool descriptor types (`web_search`, `web_fetch`, `code_execution`, `tool_search_*`) | `.venv/lib/python3.11/site-packages/anthropic/types/tool_union_param.py` |
-| Core LangChain patterns | `.venv/lib/python3.11/site-packages/langchain/` |
-
-### Specific SDK Reference Paths
-
-For architecture-level verification, consult these exact line ranges:
-
-| Topic | Local Path |
-|---|---|
-| `create_deep_agent()` parameter passing (`checkpointer`, `store`, `name`) | `.reference/libs/deepagents/deepagents/graph.py:217-236`, `602-623` |
-| Declarative `task` subagent implementation (ephemeral, stateless) | `.reference/libs/deepagents/deepagents/middleware/subagents.py:152-162`, `355-376` |
-| `CompiledSubAgent` runnable (no stable `thread_id` config) | `.reference/libs/deepagents/deepagents/middleware/subagents.py:488-493` |
-| `AsyncSubAgent` remote thread creation | `.reference/libs/deepagents/deepagents/middleware/async_subagents.py:280-318`, `500-548` |
-| LangGraph checkpoint memory keyed by `thread_id` | `.venv/lib/python3.11/site-packages/langgraph/graph/state.py:1038-1074` |
-| LangGraph `Command.PARENT` parent bubbling | `.venv/lib/python3.11/site-packages/langgraph/types.py:652-702`, `.venv/lib/python3.11/site-packages/langgraph/graph/state.py:1540-1550` |
-| `ToolNode` tool-returned `Command` + `create_agent()` wiring | `.venv/lib/python3.11/site-packages/langgraph/prebuilt/tool_node.py:857-899`, `.venv/lib/python3.11/site-packages/langchain/agents/factory.py:920-939`, `.reference/libs/deepagents/deepagents/graph.py:602-623` |
-| Mounted subgraph persistence (child `checkpoint_ns`) | `.venv/lib/python3.11/site-packages/langgraph/pregel/main.py:2416`, `2613-2615`, `.venv/lib/python3.11/site-packages/langgraph/_internal/_config.py:34-45` |
-| LangGraph SDK explicit thread/run submission | `.venv/lib/python3.11/site-packages/langgraph_sdk/_async/threads.py:98-143`, `.venv/lib/python3.11/site-packages/langgraph_sdk/_async/runs.py:435-462`, `552-585` |
-| Deep Agents CLI `langgraph.json` scaffolding | `.reference/libs/cli/deepagents_cli/server.py:85-119`, `.reference/libs/cli/deepagents_cli/server_manager.py:92-115` |
-| Deep Agents CLI server graph factory (`graph = make_graph`) | `.reference/libs/cli/deepagents_cli/server_graph.py:1-10`, `93-196` |
-| Deep Agents CLI sandbox backend creation | `.reference/libs/cli/deepagents_cli/server_graph.py:117-170`, `.reference/libs/cli/deepagents_cli/integrations/sandbox_factory.py:1-134` |
-| Deep Agents CLI sandbox integration package layout | `.reference/libs/cli/deepagents_cli/integrations/__init__.py`, `.reference/libs/cli/deepagents_cli/integrations/sandbox_provider.py:1-49` |
-| Deep Agents CLI `create_cli_agent()` backend selection | `.reference/libs/cli/deepagents_cli/agent.py:1104-1218`, `.reference/libs/deepagents/deepagents/backends/composite.py:119-158` |
-| Deep Agents deploy template graph factory | `.reference/libs/cli/deepagents_cli/deploy/bundler.py:192-201`, `.reference/libs/cli/deepagents_cli/deploy/templates.py:430-469` |
-| Deep Agents deploy template backend/CompositeBackend pattern | `.reference/libs/cli/deepagents_cli/deploy/templates.py:199-207`, `405-424` |
-| LangGraph API callable graph exports | `.venv/lib/python3.11/site-packages/langgraph_api/graph.py:330-379`, `730-765` |
-| LangGraph SDK assistants / graph IDs | `.venv/lib/python3.11/site-packages/langgraph_sdk/_async/assistants.py:320-350` |
-| Deep Agents CLI LangSmith thread URL resolution | `.reference/libs/cli/deepagents_cli/config.py:1600-1745`, `.reference/libs/cli/deepagents_cli/app.py:2545-2579` |
-
-### External Reference Links
-
-When in doubt, check the canonical sources for recent releases, commit history, and package versions:
-
-| Package | GitHub Repo | PyPI Package |
-|---|---|---|
-| Deep Agents | https://github.com/langchain-ai/deepagents | https://pypi.org/project/deepagents/ |
-| LangChain | https://github.com/langchain-ai/langchain | https://pypi.org/project/langchain/ |
-| LangChain Core | https://github.com/langchain-ai/langchain (libs/core) | https://pypi.org/project/langchain-core/ |
-| LangGraph | https://github.com/langchain-ai/langgraph | https://pypi.org/project/langgraph/ |
-| LangGraph SDK | https://github.com/langchain-ai/langgraph (libs/sdk-py) | https://pypi.org/project/langgraph-sdk/ |
-| LangGraph CLI | https://github.com/langchain-ai/langgraph (libs/cli) | https://pypi.org/project/langgraph-cli/ |
-| LangSmith | https://github.com/langchain-ai/langsmith-sdk | https://pypi.org/project/langsmith/ |
-| Agent Evals | https://github.com/langchain-ai/agentevals | https://pypi.org/project/agentevals/ |
+Before implementing anything touching these SDKs, read local source first. Do
+not rely on training data or general knowledge. See `local-docs/SDK_REFERENCE.md`
+for the full path index and specific line-range references.
 
 ## Local Workflows And Commands
 
-- The active v1 package and test configuration lives in `meta_harness/pyproject.toml`.
-  There is no repo-root `pyproject.toml`; run v1 Python commands from
-  `meta_harness/`.
-- To create or refresh a dev environment, use
-  `cd meta_harness && python -m pip install -e ".[dev]"` in the intended
-  Python 3.12+ environment. A local environment currently exists at
-  `meta_harness/.venv/`.
-- Fast v1 verification: `cd meta_harness && .venv/bin/python -m pytest tests -q`.
-  As of 2026-04-18, this collects and passes the 55-test contract/scaffolding
-  suite.
-- The repo-root `Makefile` is legacy until updated: it references `meta_agent/`
-  and root `tests/`, neither of which exists in the current checkout. Do not use
-  `make test`, `make lint`, or `make evals` as v1 evidence unless those paths are
-  restored or the Makefile is corrected.
-- `langgraph dev` is the planned local inspection workflow, but no active
-  `langgraph.json` exists in the current v1 checkout. Treat it as an
-  architecture target, not a runnable command, until that config lands.
-- LangSmith local tracing and eval runs should use
-  `LANGSMITH_TRACING=true`, `LANGSMITH_PROJECT=meta-harness`, and
-  `LANGCHAIN_CALLBACKS_BACKGROUND=false`. The last setting is required for eval
-  and experiment processes so traces flush before process exit.
-- Static-check TODOs: `cd meta_harness && .venv/bin/python -m ruff check .`
-  currently fails on two pre-existing E501 long-line findings, and
-  `PYTHONPATH=.. .venv/bin/python -m pyright` still reports existing test typing
-  issues. Fix these before promoting Ruff or Pyright to required gates.
-
-## Harness-First Architecture  
-  
-This section is a philosophical and technical guide for maintainers and contributors  
-to this codebase. It describes the design principles that govern how this application  
-is built using the DeepAgents SDK, and why those principles produce more maintainable,  
-composable, and correct LLM applications than the alternatives.  
-  
----  
-  
-### The Core Thesis  
-  
-The central insight of the DeepAgents SDK is that an LLM application is not a  
-collection of prompts and API calls — it is a **harness**: a structured runtime  
-that intercepts, transforms, and routes every interaction between the model and  
-the world. The harness is the architecture.  
-  
-`create_deep_agent()` is not a convenience wrapper. It is the graph. It assembles  
-a `CompiledStateGraph` whose middleware stack defines the agent's entire behavioral  
-surface: what tools it sees, what context is injected into every LLM call, how  
-state is managed across turns, and how sub-agents are spawned and isolated. You do  
-not build *around* `create_deep_agent()` — you build *into* it by configuring its  
-parameters and extending its middleware stack.  
-  
-The practical consequence of this thesis is that **the shape of your Python code  
-should mirror the shape of your agent's cognitive architecture**, not the shape of  
-your API calls. A researcher agent and a coder agent are not two instances of the  
-same class with different prompts. They are two distinct harnesses with different  
-backends, different memory sources, different skills, and different tools — each  
-assembled by its own factory function, each living in its own file.  
-  
----  
-  
-### The Middleware Intercept Model  
-  
-The most important architectural distinction in the DeepAgents SDK is between  
-**middleware** and **plain tools**.  
-  
-A plain tool is invoked *by* the LLM. It is reactive. The LLM decides to call it,  
-it runs, and it returns a result. It cannot modify the system prompt, cannot filter  
-the tool list, cannot track state across turns, and cannot intercept the model  
-request before it is sent.  
-  
-Middleware is invoked *before* the LLM. It is proactive. It wraps every model call  
-via `wrap_model_call()`, giving it the ability to:  
-  
-- **Inject system-prompt context** on every call (e.g., `MemoryMiddleware` injects  
-  loaded memory files; `SkillsMiddleware` injects available skill metadata)  
-- **Filter tools dynamically** at call-time based on runtime conditions (e.g.,  
-  `FilesystemMiddleware` removes the `execute` tool when the resolved backend does  
-  not implement `SandboxBackendProtocol`)  
-- **Transform messages** before they reach the model (e.g., `SummarizationMiddleware`  
-  truncates old tool arguments and replaces history with summaries when the context  
-  window fills)  
-- **Maintain cross-turn state** via a typed `state_schema` TypedDict that persists  
-  across agent turns  
-  
-The rule of thumb: **use middleware when the behavior must happen before the LLM  
-call; use a plain tool when the behavior is triggered by the LLM's decision.**  
-  
-The `create_deep_agent()` function assembles a fixed base middleware stack  
-automatically — `TodoListMiddleware`, `FilesystemMiddleware`, `SubAgentMiddleware`,  
-`SummarizationMiddleware`, `PatchToolCallsMiddleware`, and  
-`AnthropicPromptCachingMiddleware` are always present. `SkillsMiddleware` is added  
-when `skills=` is passed; `MemoryMiddleware` is added when `memory=` is passed.  
-Your custom middleware, passed via `middleware=[]`, is inserted after the base stack  
-but before `AnthropicPromptCachingMiddleware` and `MemoryMiddleware`. This ordering  
-is intentional: memory and caching are always last so that memory updates do not  
-invalidate the Anthropic prompt cache prefix.  
-  
-The implication for this codebase: **do not add custom middleware to a sub-agent  
-unless you need pre-LLM-call interception.** If you only need a specialized tool,  
-put it in `tools=[]`. Custom middleware is for cross-cutting concerns that must  
-apply to every model call the agent makes.  
-  
----  
-  
-### The Backend Abstraction  
-  
-The `BackendProtocol` is the agent's interface to the world. It defines a uniform  
-API for file operations (`read`, `write`, `edit`, `ls`, `glob`, `grep`,  
-`upload_files`, `download_files`) and optionally shell execution (`execute` via  
-`SandboxBackendProtocol`). The agent never knows what is behind the backend — it  
-could be the local filesystem, LangGraph state, a persistent store, or a remote  
-sandbox.  
-  
-The four backend implementations represent four distinct persistence semantics:  
-  
-| Backend | Persistence | Scope | Disk |  
-|---|---|---|---|  
-| `StateBackend` | Thread-scoped | In-process LangGraph state | No |  
-| `StoreBackend` | Cross-thread | LangGraph `BaseStore` (namespaced) | Optional |  
-| `FilesystemBackend` | Durable | OS filesystem | Yes |  
-| `DaytonaSandbox` | Session-scoped | Remote sandbox + execution | Remote |  
-  
-The `CompositeBackend` is the routing layer. It matches file paths against prefixes  
-(longest-first) and delegates to the corresponding backend. This is the mechanism  
-that gives each agent a **virtual filesystem** with different persistence semantics  
-at different paths:
-/ → FilesystemBackend(root_dir=/Agents/architect/) [working files]
-/memories/ → FilesystemBackend(root_dir=/Agents/architect/memories/) [on-demand memory]
-/skills/ → FilesystemBackend(root_dir=/Agents/architect/skills/) [skills]
-/shared/ → FilesystemBackend(root_dir=/Agents/) [shared team context]
-
-  
-The key design principle: **path semantics encode persistence semantics.** A file  
-at `/memories/` is persistent and agent-scoped. A file at `/shared/` is persistent  
-and team-scoped. A file at `/tmp/` is ephemeral. The agent does not need to know  
-this — it just reads and writes paths. The `CompositeBackend` handles the routing.  
-  
-For virtual (no-disk) mode, replace `FilesystemBackend` with `StoreBackend` backed  
-by `InMemoryStore` for persistent paths, and `StateBackend` for ephemeral working  
-files. The agent code is identical — only the backend factory changes.  
-  
----  
-  
-### Memory as Filesystem, Not State  
-  
-The DeepAgents memory model is file-based, not state-based. This is a deliberate  
-design choice with significant implications.  
-  
-`MemoryMiddleware` loads configured source files (e.g., `/AGENT.md`,  
-`/shared/AGENTS.md`) at the start of each thread, stores their contents in a  
-private state field (`memory_contents`), and injects them into the system prompt  
-on every LLM call. The load happens once per thread — subsequent calls within the  
-same thread skip the load because `memory_contents` is already in state.  
-  
-The agent writes back to memory files using the standard `edit_file` tool. The  
-`MEMORY_SYSTEM_PROMPT` injected by `MemoryMiddleware` explicitly instructs the  
-agent to update its memory files when it learns something new, before responding  
-to the user. This creates a **memory loop**: load → act → write → load (next  
-thread).  
-  
-The practical consequence: **cross-task learning for `CompiledSubAgent` instances  
-happens through files, not through LangGraph checkpointers.** A `CompiledSubAgent`  
-is invoked via the `task` tool without a `thread_id` in the config, so its  
-LangGraph state does not persist across invocations. But its memory files do. The  
-architect sub-agent that writes an Architecture Decision Record to `/memories/`  
-will find that ADR in its system prompt the next time it is invoked, because  
-`MemoryMiddleware` loads it from disk.  
-  
-This means the filesystem IS the long-term memory. Design your agent's memory  
-structure as carefully as you design its code structure. The `/AGENT.md` file is  
-the agent's core identity and working context — always loaded, always injected.  
-The `/memories/` directory is the agent's episodic memory — loaded on demand via  
-`read_file`. The `/skills/` directory is the agent's procedural memory — loaded  
-as metadata by `SkillsMiddleware` and expanded on demand.  
-  
----  
-  
-### Skills as Progressive Disclosure  
-  
-Skills are on-demand workflows, not always-loaded context. `SkillsMiddleware`  
-scans the configured skill directories for subdirectories containing `SKILL.md`  
-files, parses their YAML frontmatter, and injects only the skill *metadata* (name  
-and description) into the system prompt. The full skill instructions are loaded  
-only when the agent decides to use a skill.  
-  
-The skill directory structure is:  
-  
-/skills/
-└── web-research/
-├── SKILL.md ← Required: YAML frontmatter + instructions
-└── helper.py ← Optional: supporting scripts
-
-  
-This progressive disclosure pattern keeps the system prompt lean. An agent with  
-twenty skills does not have twenty full skill documents injected on every call —  
-it has twenty one-line descriptions, and loads the full instructions only when  
-relevant. This is the correct pattern for capability-rich agents that must operate  
-within context window constraints.  
-  
----  
-  
-### System Prompts as External Artifacts  
-  
-System prompts are configuration, not code. They belong in `.md` files, not in  
-Python strings. This is not merely a style preference — it has concrete  
-maintainability consequences:  
-  
-1. **Diff clarity**: Changes to agent behavior are visible as markdown diffs, not  
-   Python string diffs. Reviewers can evaluate prompt changes without reading code.  
-2. **Separation of concerns**: The agent factory (`agent.py`) describes *how* the  
-   agent is assembled. The system prompt (`system_prompt.md`) describes *what* the  
-   agent does. These are different concerns and should live in different files.  
-3. **Tooling**: Markdown files can be linted, spell-checked, and reviewed with  
-   documentation tooling. Python strings cannot.  
-4. **Composability**: A system prompt loaded from a file can be templated,  
-   versioned, and swapped without touching the factory code.  
-  
-The pattern is:  
-  
-```python  
-SYSTEM_PROMPT = (Path(__file__).parent / "system_prompt.md").read_text()  
-The create_deep_agent() function accepts system_prompt as a plain string and
-concatenates it with BASE_AGENT_PROMPT — the base behavioral contract that every
-DeepAgent inherits. Your system prompt is prepended; the base prompt follows. You
-are specializing the agent, not replacing its foundation.
-
-The Sub-Agent Taxonomy
-There are three sub-agent patterns in the DeepAgents SDK, and choosing the wrong
-one is the most common architectural mistake. The choice is determined by two
-questions: does the sub-agent need cross-task persistence? and does it need
-to run asynchronously (non-blocking)?
-
-SubAgent (declarative dict spec): Ephemeral, synchronous, in-process. The
-base middleware stack (TodoListMiddleware, FilesystemMiddleware,
-SummarizationMiddleware, PatchToolCallsMiddleware) is automatically prepended
-by create_deep_agent(). Use for simple, fast, stateless delegation tasks. The
-sub-agent shares the parent's backend unless you override it via middleware=.
-
-CompiledSubAgent (pre-built Runnable): Ephemeral, synchronous or async
-(via ainvoke), in-process. The runnable is used as-is — no base middleware is
-prepended. The runnable field accepts any Runnable, including the result of
-create_deep_agent(). This is the pattern for sub-agents that need their own
-full DeepAgent harness: their own backend, their own memory sources, their own
-skills, their own tools. Cross-task persistence is achieved through the filesystem
-(memory files), not through a LangGraph checkpointer, because the task tool
-invokes the runnable without a thread_id.
-
-AsyncSubAgent (remote deployment spec): Stateful per-task, non-blocking,
-out-of-process. Each start_async_task call creates a new thread on the remote
-server and stores the thread_id in the parent's async_tasks state.
-update_async_task sends a follow-up message to the same thread, giving the
-sub-agent full conversation history for that task. This is the only pattern that
-gives you both async execution and cross-turn sub-agent state. The trade-off is
-that each sub-agent must be deployed as a separate service.
-
-The decision tree:
-
-Does the sub-agent need to run for a long time (minutes+)?  
-  → Yes: AsyncSubAgent (deploy as remote service)  
-  → No: Does it need its own full DeepAgent harness (own backend, memory, skills)?  
-      → Yes: CompiledSubAgent (create_deep_agent() as runnable)  
-      → No: SubAgent (declarative dict spec)  
-The Orchestrator/Worker Pattern
-The project manager agent is an orchestrator. Sub-agents are workers. This
-distinction is not just semantic — it has concrete implications for how each is
-configured.
 
 
-What "Taste" Looks Like
+## What "Taste" Looks Like
+
 Good DeepAgents code has the following properties:
 
-One factory per agent. Each agent is assembled in exactly one place. There
-is no agent configuration spread across multiple files or assembled conditionally
-at runtime.
-System prompts in .md files. No multi-line Python strings for prompts.
-Backends in factory functions. The backend is constructed in the factory,
-not passed in from outside. The factory knows what storage semantics the agent
-needs.
-Middleware only when necessary. Custom middleware is added only when the
-behavior requires pre-LLM-call interception. Specialized tools go in tools=[].
-Memory through files, not state. Cross-task learning is encoded in
-/AGENT.md and /memories/. The agent writes to these files; MemoryMiddleware
-loads them on the next invocation.
-Path semantics encode persistence semantics. /memories/ is persistent.
-/tmp/ is ephemeral. /shared/ is team-scoped. The CompositeBackend routes
-accordingly.
-The orchestrator synthesizes; workers execute. The PM agent does not do
-deep work. It delegates, monitors, and synthesizes. Sub-agents do the deep work
-and return structured results.
-No graph.py unless you need deterministic routing. create_deep_agent()
-is the graph. A custom StateGraph is only warranted when you need conditional
-edges, fan-out/fan-in, or non-LLM-driven state transitions that cannot be
-expressed through the middleware stack and tool-calling loop.
-  
----  
-  
-**Source citations for the claims above:**  
-  
-The middleware intercept model and the distinction between middleware and plain tools: [1](#8-0) (`.reference/libs/deepagents/deepagents/middleware/__init__.py:1–48`; `.venv/lib/python3.11/site-packages/langchain/agents/middleware/types.py:380–490`)   
-  
-The base middleware stack assembled by `create_deep_agent()` and its ordering: [2](#8-1) (`.reference/libs/deepagents/deepagents/graph.py:291–322`)   
-  
-The `BASE_AGENT_PROMPT` that every agent inherits and how `system_prompt` is prepended to it: [3](#8-2) [4](#8-3) (`.reference/libs/deepagents/deepagents/graph.py:38–67` for the prompt definition; `.reference/libs/deepagents/deepagents/graph.py:324–331` for the prepend logic)   
-  
-The CLI's pattern of loading system prompts from `.md` files: [5](#8-4) (`.reference/libs/cli/deepagents_cli/agent.py:507` loads `system_prompt.md` via `Path(__file__).parent / "system_prompt.md").read_text()`; `.reference/libs/cli/deepagents_cli/agent.py:1122–1129` shows it as the default)   
-  
-`MemoryMiddleware` loading once per thread and the memory loop: [6](#8-5) [7](#8-6) (`.reference/libs/deepagents/deepagents/middleware/memory.py:238–270` — `before_agent` skips load if `"memory_contents" in state`; `.reference/libs/deepagents/deepagents/middleware/memory.py:322–337` — `wrap_model_call` injects on every LLM call)   
-  
-`CompiledSubAgent` used as-is with no base middleware prepended: [8](#8-7) (`.reference/libs/deepagents/deepagents/middleware/subagents.py:478–481` — `if "runnable" in spec` branch takes the compiled runnable directly, skipping `create_agent()`)   
-  
-The `task` tool invocation contract (no `thread_id`, no config): [9](#8-8) (`.reference/libs/deepagents/deepagents/middleware/subagents.py:352–365` — `subagent.invoke(subagent_state)` with no config arg)   
-  
-State isolation via `_EXCLUDED_STATE_KEYS`: [10](#8-9) (`.reference/libs/deepagents/deepagents/middleware/subagents.py:123–126` — definition; `.reference/libs/deepagents/deepagents/middleware/subagents.py:348` — applied when building subagent state)   
-  
-`CompositeBackend` path-prefix routing: [11](#8-10) [12](#8-11) (`.reference/libs/deepagents/deepagents/backends/composite.py:119–158` — class docstring and longest-first sort; `.reference/libs/deepagents/deepagents/backends/composite.py:87–116` — `_route_for_path` prefix-matching logic)   
-  
-`StateBackend` (ephemeral, thread-scoped) and `StoreBackend` (persistent, cross-thread): [13](#8-12) [14](#8-13) (`.reference/libs/deepagents/deepagents/backends/state.py:38–48`; `.reference/libs/deepagents/deepagents/backends/store.py:102–109`)   
-  
-`FilesystemBackend` with `virtual_mode=True` for path-anchored on-disk storage: [15](#8-14) (`.reference/libs/deepagents/deepagents/backends/filesystem.py:39–138` — class docstring and `virtual_mode` param docs)   
-  
-`DaytonaSandbox` as the remote sandbox backend: [16](#8-15) (`.reference/libs/deepagents/deepagents/middleware/summarization.py:1154–1163` — canonical usage example importing `from langchain_daytona import DaytonaSandbox`)   
-  
-Skills progressive disclosure via `SkillsMiddleware`: [17](#8-16) (`.reference/libs/deepagents/deepagents/middleware/skills.py:602–630` — class docstring; `.reference/libs/deepagents/deepagents/middleware/skills.py:763–797` — `abefore_agent` loads metadata once; `.reference/libs/deepagents/deepagents/middleware/skills.py:799–831` — `wrap_model_call` injects on every call) 
+- **One factory per agent.** Each agent is assembled in exactly one place. No
+  configuration spread across multiple files or assembled conditionally at runtime.
+- **System prompts in `.md` files.** No multi-line Python strings for prompts.
+- **Memory through files, not state.** Cross-task learning is encoded in
+  `/AGENT.md` and `/memories/`. The agent writes to these files;
+  `MemoryMiddleware` loads them on the next invocation.
 
-## Agent Identity
 
-- Agent identity belongs in one catalog.
-- The PM is one Deep Agent identity across `pm_session` and `project` threads.
-  Do not compile a separate PM session graph just to change tool access; use
-  `thread_kind`-aware middleware to expose session tools or project tools at
-  runtime.
-- The catalog should answer:
-  - What is the agent called?
-  - What work is it responsible for?
-  - Which prompt or instruction source does it use?
-  - Which model policy does it use?
-  - Which tools does it own?
-  - Which middleware profile does it use?
-  - Which child subagents can it call?
-  - Does it need project-local memory?
-- Do not scatter agent identity across project scaffolding, model policy,
-  middleware policy, tool policy, and subagent construction files.
-- **Project policy: set `name=` on every agent and sub-agent.** In the SDK, `name` is optional, but when set it propagates to `lc_agent_name` metadata used in traces and streamed chunk metadata. Omitting names degrades multi-agent debugging. (`.reference/libs/deepagents/deepagents/graph.py:100`; `.reference/libs/deepagents/deepagents/graph.py:344–354`)
+## Documentation Hierarchy
 
-## Model And Provider Policy
+### Normative sources
 
-- Model policy owns model/provider request configuration only.
-- Valid model policy concerns include model spec, provider, effort, max tokens,
-  thinking, streaming, beta headers, Anthropic server-side tools, OpenAI response
-  API settings, and provider-specific request parameters.
-- Model policy must not own project scaffolding, middleware construction, prompt
-  selection, or agent lifecycle.
-- Anthropic server-side tools belong in provider-profile middleware, not in
-  per-agent `tools=[]` lists or app graph plumbing. Add descriptors through an
-  Anthropic profile `extra_middleware` factory so agent factories can keep
-  calling `create_deep_agent(model=<string>)`.
-- A model policy that resolves data but is not consumed by the runtime is a bug.
+- `AGENTS.md` — the normative convention contract (this file).
+- `AD.md` — architecture decision baseline. Active decisions, open questions,
+  and rationale. Closed decisions move to `DECISIONS.md`; open questions stay
+  inline.
+- `DECISIONS.md` — frozen rationale, reference material, not active content.
+- `CHANGELOG.md` — historical change audit trail.
 
-## Memory And Workspace Policy
+### Documentation tree
 
-- Project scaffolding only creates project workspace files and directories.
-- Runtime memory loading belongs to the harness assembly layer or middleware
-  profile layer.
-- Repo-root memory and project-local memory must be named separately.
-- Do not imply that a scaffolded `AGENTS.md` file is active runtime memory unless
-  the runtime actually loads it.
-- `AGENTS.md` files contain active maintainer and agent instructions. Historical
-  reasoning belongs in future decision docs.
-- **Ensure every `StoreBackend` has a store source.** Satisfy this either by passing `store=` to `create_deep_agent()` (runtime-managed store) or by constructing `StoreBackend(store=...)`. If neither is provided, `StoreBackend` raises at runtime when resolving store access. (`.reference/libs/deepagents/deepagents/graph.py:188–190`; `.reference/libs/deepagents/deepagents/backends/store.py:125–127`; `.reference/libs/deepagents/deepagents/backends/store.py:170–176`)
-- **Use POSIX-style virtual paths for backend-facing config.** `skills=` sources are explicitly documented as POSIX; keep `memory=` sources and `CompositeBackend` route prefixes in the same forward-slash form (for example, `/memories/`, `/skills/`) for cross-platform consistency. Avoid backslashes. (`.reference/libs/deepagents/deepagents/graph.py:173–179`; `.reference/libs/deepagents/deepagents/middleware/skills.py:67–70`; `.reference/libs/deepagents/deepagents/backends/composite.py:148–149`)
-- **`BackendFactory` enables runtime-scoped backends.** `BackendFactory = Callable[[ToolRuntime], BackendProtocol]` — a callable that receives `ToolRuntime` at call-time and returns a backend. Use this when you need per-user or per-session namespace routing (e.g. deriving a namespace from config). Static backend instances are not sufficient for that pattern. (`.reference/libs/deepagents/deepagents/backends/protocol.py:810–811`)
+- `docs/` is the product documentation tree. **Subfolders are created only
+  when concrete content exists. Empty scaffolds are not permitted.**
+  - `docs/specs/` — implementation contracts derived from `AD.md` decisions
+    (*how* and *what fields/values*). `AD.md` locks *what* and *why*.
+  - `docs/archive/` — superseded source documents kept for historical
+    context only. Not normative; do not cite as authority. Cite the
+    AD/DECISIONS/AGENTS.md entry that superseded them.
+- Reserved `docs/` subfolders, created only on first real need:
+  - `docs/operations/` — operational runbooks (deploy, debug, eval runs).
+  - `docs/integrations/` — third-party surface contracts (sandbox providers,
+    LangSmith, Supabase, GitHub).
+  - `docs/reference/` — standalone reference material (glossary, enum
+    tables, shared diagrams).
+- `local-docs/` owns local coding-agent reference material (SDK paths, dev
+  setup, harness philosophy). Not part of the shipped product docs.
 
-## Tools And Middleware
+New top-level subfolders under `docs/` require Jason's approval before
+creation, same gate as renaming a module.
 
-- App-owned tools belong in a tool catalog with explicit per-agent ownership.
-- SDK-provided tools should be documented as SDK-provided, not re-registered as
-  if the application owns them.
-- Middleware profiles should be named for the runtime behavior they create.
-- Middleware order is a contract. If order matters, document why at the profile
-  declaration site.
-- Human approval gates must be declared close to the tools they protect or in a
-  clearly named HITL policy module.
-- **`GENERAL_PURPOSE_SUBAGENT` is always auto-inserted.** `create_deep_agent()` inserts a `general-purpose` subagent at position 0 of the inline subagent list unless you supply a `SubAgent` with `name="general-purpose"` yourself — that named override is the only way to customize it. Do not be surprised by the extra entry in the task tool description. (`.reference/libs/deepagents/deepagents/graph.py:285–289`)
-- **`interrupt_on` inheritance rules.** The top-level `interrupt_on` passed to `create_deep_agent()` always applies to the main agent. For subagents: declarative `SubAgent` specs inherit it by default; a per-spec `interrupt_on` overrides the inherited config. `CompiledSubAgent` runnables do **not** inherit — configure HITL inside the compiled runnable. `AsyncSubAgent` specs do **not** inherit — configure approval on the remote deployment. (`.reference/libs/deepagents/deepagents/graph.py:194–211`)
-- **For ACP-served agents, never use raw LangGraph `interrupt()` for HITL.** ACP rejects free-form `interrupt()` payloads with a protocol error. Use `interrupt_on=` on `create_deep_agent()` or `HumanInTheLoopMiddleware` so interrupts follow ACP-compatible `action_requests/review_configs` shape. (`.reference/libs/acp/deepagents_acp/server.py:662–679`)
-- **`execute` requires `SandboxBackendProtocol`.** The `execute` tool is always registered but only works when the backend implements `SandboxBackendProtocol`. `StateBackend`, `FilesystemBackend`, and `StoreBackend` do not — calling `execute` returns an error. Only `LocalShellBackend`, `DaytonaSandbox`, and equivalent sandbox backends enable it. (`.reference/libs/deepagents/deepagents/graph.py:113–115`)
-- **Always declare `tools=[]` explicitly on specialized sub-agents.** If `tools` is omitted from a `SubAgent` spec, the sub-agent inherits the parent's full tool list. This is intentional for the `general-purpose` subagent but will give specialized sub-agents unintended capabilities. (`.reference/libs/deepagents/deepagents/middleware/subagents.py:64–65`)
+### Doc types
 
-## Observability Contract
+Every doc under `docs/` declares a `doc_type` in its YAML frontmatter. v1
+values:
 
-- Preserve decision rationale as a first-class behavior.
-- Preserve enough trajectory data to debug why an agent chose a path, which tools
-  it used, what assumptions it made, and where it handed work to another agent.
-- Decision rationale must be structured enough for tests, traces, or artifacts to
-  inspect it. Do not bury it only in prose logs.
-- Agent runs should make it possible to answer:
-  - What did the agent believe the task was?
-  - What plan or todo trajectory did it create?
-  - What decision points changed the trajectory?
-  - What tool calls or subagent calls mattered?
-  - What artifacts were read or written?
-  - What assumptions or unresolved risks remain?
-- **Canonical streaming contract.** Any code consuming the agent stream must use this pattern:
-  ```python
-  async for chunk in agent.astream(
-      input,
-      stream_mode=["messages", "updates"],
-      subgraphs=True,
-      config=config,
-      durability="exit",
-  ):
-      namespace, stream_mode, data = chunk  # 3-tuple always
-      is_main_agent = not namespace         # subagents have non-empty namespace
-  ```
-  Each chunk is a 3-tuple `(namespace, stream_mode, data)`. Main agent chunks have an empty namespace; subagent chunks have a non-empty namespace. (`.reference/libs/cli/deepagents_cli/non_interactive.py:591–598`; `.reference/libs/cli/deepagents_cli/textual_adapter.py:516–536`)
+- `spec` — lives in `docs/specs/`; interface contract derived from AD.
+- `runbook` — lives in `docs/operations/`; operational procedure.
+- `integration` — lives in `docs/integrations/`; third-party surface spec.
+- `reference` — lives in `docs/reference/`; standalone reference material.
+- `archive` — lives in `docs/archive/`; superseded source, not normative.
 
-## Documentation Policy
+### `docs/specs/` governance
 
-### AD Document Suite
+Every doc under `docs/specs/` must satisfy all of the following. Failure on
+any point is a rejection condition under the Review Standard.
 
-The `AD.md` is supported by two companion documents that keep the main AD lean:
+1. **Provenance header.** YAML frontmatter with `doc_type: spec`,
+   `derived_from: [<AD sections>]`, `status: draft|active|deprecated`,
+   `last_synced: YYYY-MM-DD`, `owners: ["@handle", ...]`. A visible
+   provenance block (`> **Provenance:** Derived from ...`) repeats this for
+   human readers at the top of the document.
+2. **AD §9 registration.** The spec is registered in `AD.md §9 Decision
+   Index → Derived Specs` with file path, parent AD sections, status, and
+   last-synced date.
+3. **Parent AD pointer.** The parent AD section(s) include a one-line
+   pointer: `> Implementation detail: see [`docs/specs/<file>.md`](...)`.
 
-| Document | Purpose | Location |
-|---|---|---|
-| `AD.md` | Architecture decision baseline — active decisions, open questions, rationale | `meta_harness/AD.md` |
-| `DECISIONS.md` | Closed (frozen) decision records — reference material, not active content | `meta_harness/DECISIONS.md` |
-| `CHANGELOG.md` | Historical change audit trail — who changed what, when | `meta_harness/CHANGELOG.md` |
-| Spec docs (`docs/specs/`) | Implementation contracts — *how* and *in what order* | `meta_harness/docs/specs/` |
+### Direction of flow
 
-When a question in `AD.md` §9 is resolved, the decision record moves to `DECISIONS.md` and the question is removed from `AD.md`. Open questions remain in `AD.md` §9 inline — they are active decision-making context.
+Decisions originate in `AD.md` and flow *into* specs. **Specs never
+introduce architectural decisions.** If spec writing surfaces a decision,
+raise it against AD first, land the AD change, then update the spec and
+bump `last_synced`. Specs are free to detail *how* and *what
+fields/values*, but cannot contradict AD. If a spec and AD conflict, AD
+wins and the spec is repaired.
 
-**Spec document lifecycle:** `AD.md` locks *what* and *why*; spec docs (`docs/specs/`) own *how* and *in what order*. When implementation detail density in `AD.md` exceeds a single subsection, extract to a spec doc and replace with a pointer. When reference tables grow large, archive full versions in `DECISIONS.md` and keep summaries in `AD.md`.
+### Co-modification rule
 
-**Deferral verification convention:** Previously misaligned agents have incorrectly scoped docs by silently deferring or delegating features. When encountering any text that defers, delegates, or scopes a feature to "v2+", "spec", "future", or "later", **always surface it to the user for confirmation** — never assume deferral is correct. Ask: "Hey, I found that [X] is being deferred/delegated to [Y]. Is this true? Is this what you actually want?"
+- A PR that modifies an AD section with a downstream spec must update that
+  spec in the same PR and bump `last_synced`.
+- A PR that renames or moves a spec file must update the AD pointer and
+  the `§9 Decision Index` entry in the same PR.
+- Silent renames, orphaned specs, and stale `last_synced` dates are
+  rejection conditions.
 
-### AD Governance (`AD.md`)
+### Deprecation
 
-- `AGENTS.md` is the normative convention contract; `AD.md` is the architecture
-  decision baseline and rationale record.
-- `AD.md` must capture context, options considered, selected decision, tradeoffs,
-  risks, and rollout intent for major architecture changes.
-- Implementation-level execution detail belongs in dedicated spec docs; `AD.md`
-  should summarize and link, not duplicate full implementation plans.
-- Any PR that changes architecture, runtime policy, or agent behavior must update
-  at least one of: `AGENTS.md`, `AD.md`, or the relevant spec doc.
-- `AD.md` status changes (`Proposed`, `Accepted`, `Superseded`, `Deprecated`)
-  must be reflected in the header and `CHANGELOG.md` in the same edit.
-- Any contributor who touches `AD.md` must append a row to `CHANGELOG.md`
-  with their author ID, date, and a one-line summary of what changed. A PR or
-  commit reference is sufficient — no large prose blocks required.
-- Closed decisions must be archived in `DECISIONS.md` and removed from `AD.md` §9.
-  `AD.md` §9 retains only open (active) questions.
-- `Accepted` decisions should not retain unresolved placeholders (for example:
-  `TBD`, `<...>`) without an explicit owner and target date.
-- High-signal technical assertions in `AD.md` should include local source
-  citations (repo path + lines) when feasible.
-- If `AD.md` and `AGENTS.md` conflict, treat `AGENTS.md` as authoritative for
-  active implementation and update `AD.md` to match.
+- A spec is deprecated, not deleted. Set `status: deprecated`, move content
+  to a superseding doc or `docs/archive/`, and leave a short pointer stub
+  in the original file describing what replaced it.
+- Deprecated specs remain registered in `§9 Decision Index` with their
+  final `last_synced` date and a note pointing to the successor.
 
-### Spec Doc Governance (`docs/specs/`)
+### Cross-cutting invariants
 
-- **Creation:** Any new spec doc must be registered in `docs/specs/kickoff.md` under the "New Spec Docs Created" table with date and purpose. This is the canonical inventory — if it's not in that table, it doesn't exist.
-- **Scope changes:** If a spec doc's scope expands, contracts, or shifts (e.g., "this was auth-only, now it's full deployment"), update both the spec doc's introduction **and** `kickoff.md` delegated-items table. Scope drift between docs is a reject-worthy offense.
-- **Content drift checks:** Spec docs must reference their parent AD decision (e.g., "Migrated from `AD.md` §X on YYYY-MM-DD"). When AD.md changes, spec docs referencing it must be checked for stale content within the same PR.
-- **No silent extraction:** If you extract content from AD.md into a spec doc, you must delete it from AD.md and replace with a pointer — never leave duplicate sources of truth.
-- **Deprecation:** When a spec doc is superseded, mark it deprecated in `kickoff.md` with a "Superseded by" column and migration pointer; do not delete files (breaks historical links).
+- If `AD.md` and `AGENTS.md` conflict, treat `AGENTS.md` as authoritative
+  for active implementation and update `AD.md` to match.
+- Any PR that changes architecture, runtime policy, or agent behavior must
+  update at least one of: `AGENTS.md`, `AD.md`, or the relevant spec doc.
+- **Deferral verification:** When encountering any text that defers,
+  delegates, or scopes a feature to "v2+", "spec", "future", or "later",
+  **always surface it to Jason for confirmation** — never assume deferral
+  is correct.
+
+AD governance details (status changes, changelog requirements, citation
+conventions) are documented inline in `AD.md`.
 
 ## Review Standard
 
@@ -776,7 +371,17 @@ When a question in `AD.md` §9 is resolved, the decision record moves to `DECISI
   explaining why.
 - New observability behavior should be rejected if it makes trajectory debugging
   worse.
-- Refactors should be small enough that v0.5 behavior can be compared against v1
-  behavior during migration.
-- New or modified spec docs must update `docs/specs/kickoff.md` inventory and check
-  for drift against parent AD decisions.
+- Specs under `docs/specs/` without a provenance header, without `AD.md §9`
+  registration, or without a parent AD pointer must be rejected.
+- Specs that introduce new architectural decisions must be rejected; the
+  decision is raised against `AD.md` first, then the spec updates.
+- PRs that modify an AD section with a downstream spec must update the spec
+  in the same PR. Unsynced specs (stale `last_synced`) are a rejection
+  condition.
+- Silent renames or moves of spec files without updating the AD pointer and
+  `§9` registration must be rejected.
+- New subfolders under `docs/` without prior approval must be rejected.
+- New or modified `local-docs/` files must be referenced from `AGENTS.md`
+  with a one-line pointer explaining what the file owns and when to read
+  it. Orphan local-docs files with no `AGENTS.md` reference are stale by
+  definition.

@@ -1224,50 +1224,53 @@ sequenceDiagram
     PCG->>LS: Emit correlation metadata
 ```
 
-### Data Contracts
+### Data Contracts (decisions)
 
-The exact Pydantic or `TypedDict` wire format should be defined in the
-implementation spec. The field set and enum values below are locked as an AD decision.
+The `HandoffRecord` field set and enum values are locked as AD decisions:
 
-```json
-{
-  "project_id": "string",
-  "project_thread_id": "string",
-  "handoff_id": "string",
-  "source_agent": "project-manager|harness-engineer|researcher|architect|planner|developer|evaluator",
-  "target_agent": "project-manager|harness-engineer|researcher|architect|planner|developer|evaluator",
-  "reason": "deliver|return|submit|consult|announce|coordinate|question",
-  "brief": "string",
-  "artifact_paths": ["string"],
-  "langsmith_run_id": "string|null",
-  "status": "queued|running|completed|failed",
-  "created_at": "RFC3339 timestamp"
-}
-```
+- **Fields:** `project_id`, `project_thread_id`, `handoff_id`, `source_agent`,
+  `target_agent`, `reason`, `brief`, `artifact_paths`, `langsmith_run_id`,
+  `status`, `created_at`.
+- **`source_agent` / `target_agent` enum:**
+  `project-manager | harness-engineer | researcher | architect | planner | developer | evaluator`.
+- **`reason` enum:** `deliver | return | submit | consult | announce | coordinate | question`.
+- **`status` enum:** `queued | running | completed | failed`.
+- **`created_at`:** RFC3339 timestamp set by the PCG when the handoff is
+  recorded.
+- **`target_agent` maps 1:1 to the checkpoint namespace** in v1; no separate
+  `target_role_namespace` field needed.
+- **`reason` encodes the *type of transition*, not the pipeline phase.**
+  Middleware dispatches on the `(source_agent, target_agent, reason)` triple.
+  The `question` reason covers specialist-to-PM stakeholder questions — no
+  separate `question` field needed.
 
-Field notes:
+Exact Pydantic/TypedDict wire format and JSON rendering are spec territory.
 
-- `project_id` is the durable Meta Harness project identity.
-- `project_thread_id` is the canonical LangGraph thread for project execution. In local/dev it may equal `project_id` by convention.
-- `target_agent` maps 1:1 to the checkpoint namespace in v1; no separate `target_role_namespace` field needed.
-- `reason` encodes the *type of transition* (not the pipeline phase). Middleware dispatches on the `(source_agent, target_agent, reason)` triple to determine which gate logic to apply. The `question` reason covers specialist-to-PM stakeholder questions — no separate `question` field needed.
-- `brief` is the concise summary the receiving agent reads; was listed in the Handoff Protocol but previously missing from this schema.
-- `artifact_paths` are filesystem paths to artifacts the calling agent produced, so the receiver knows what to load.
-- `langsmith_run_id` is the LangSmith run ID for the mounted role graph invocation, for trace correlation.
-- `status` tracks the handoff lifecycle (queued → running → completed/failed), not the agent's task status.
-- `created_at` is an RFC3339 timestamp set by the PCG when the handoff is recorded.
+> Implementation detail (full JSON schema, field-level notes): see
+> [`docs/specs/pcg-data-contracts.md`](./docs/specs/pcg-data-contracts.md).
 
 ---
 
-## 5) Spec Handoff
+## 5) Spec Derivation Model
 
-Three spec documents under `docs/specs/`:
+Implementation contracts derived from this AD live in `docs/specs/`. Each
+spec:
 
-1. **Requirements Document** — EARS-format functional and non-functional requirements derived from this AD.
-2. **Design Document** — Technical design derived from the requirements: TypedDict/Pydantic wire formats, middleware dispatch tables, system prompt behavioral contracts, tool schemas, and integration patterns.
-3. **Task Document** — Phased task list derived from the design document: ordered implementation work items with acceptance criteria.
+- Derives from one or more AD sections via a provenance header.
+- Is registered in `§9 Decision Index → Derived Specs`.
+- Is referenced from its parent AD section by a one-line pointer.
 
-Full dependency map (Layer 1–5), parallelism rules, consolidated spec-owns list, and open-question blockers are in [`docs/specs/kickoff.md`](./docs/specs/kickoff.md). The AD locks *what* and *why*; kickoff.md tracks *how* and *in what order*.
+Specs never introduce new architectural decisions. If spec writing surfaces
+a decision, it is escalated to AD first, the AD change lands, then the spec
+updates and bumps `last_synced`.
+
+Governance for `docs/` (creation rules, provenance requirements,
+co-modification, deprecation, folder growth) is defined in
+[`AGENTS.md`](./AGENTS.md) → **Documentation Hierarchy**.
+
+This model replaces the prior Requirements/Design/Task three-document spec
+handoff. Specs emerge from AD decision clusters as they reach critical mass;
+there is no predetermined spec-document count or order.
 
 ---
 
