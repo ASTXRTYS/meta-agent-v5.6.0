@@ -758,6 +758,30 @@ The following per-agent configuration decisions extend the base architecture. Th
 - **Model selection:** Model-agnostic, per-agent, thread-scoped (immutable for project lifespan). v1 experimental defaults: PM/Researcher/Planner/Evaluator → Opus 4.6; Architect/HE/Developer → TBD (experimentation required).
 - **System prompts:** External `.md` files next to each agent factory. AD locks behavioral invariants (must-recognize, must-not-do, self-awareness trigger) per agent; prompt text is spec territory. Autonomous mode: PM auto-approves the two user-approval gates by creating `(PM, PM, submit, accepted=true)` records.
 - **Anthropic provider profile:** Adopts `ClaudeBashToolMiddleware` and `FilesystemClaudeMemoryMiddleware`. Rejects text-editor and file-search middleware (overlap with `FilesystemMiddleware`). Requires v1 server-side tools (`web_search`, `web_fetch`, `code_execution`, `tool_search`) injected via `AnthropicServerSideToolsMiddleware`. Per-agent tool assignments: Researcher/Architect primary for `web_search`/`web_fetch`; Developer/HE/Evaluator for `code_execution`; Developer for `tool_search`. See DECISIONS.md Q13 for full rationale.
+- **Per-agent skill allocation (Q17):** Each agent's `skills=[]` list on `create_deep_agent()` is fixed at factory time. PM: `doc-coauthoring`, `internal-comms`, `prompt-architect` (to-be-created). Architect: `langchain`, `langsmith`, `web-artifacts-builder`, `theme-factory`, `frontend-design`, `doc-coauthoring`, `claude-api`, `openai-docs`. Planner: `doc-coauthoring`. Developer: `langchain`, `langsmith`, `remember`. Evaluator: `langsmith-evaluator-feedback`, `remember`, `playwright`, `webapp-testing`. Harness Engineer: `langsmith-evaluator-feedback`, `langsmith`, `remember`. Researcher: none allocated (web research delivered via tools, not skills; open question tracked in §5). **Document rendering for PM stakeholder deliverables (`pdf`, `pptx`, `docx`) is explicitly not a PM skill** — those capabilities are delegated to a narrowly-scoped rendering subagent owned outside the seven peer roles, and must not be re-added to the PM skill list. See DECISIONS.md Q17 for per-agent rationale and the prompt-vs-skill boundary.
+
+### Per-Agent Skill Allocation (Q17)
+
+v1 skill allocation per agent. Paths are relative to the project root.
+
+| Agent | Skills | Purpose |
+|---|---|---|
+| PM | `doc-coauthoring`, `internal-comms`, `prompt-architect` | Structured PRD/eval/stakeholder co-authoring; standardized stakeholder and team communication; prompt engineering for downstream agents. |
+| Architect | `langchain`, `langsmith`, `web-artifacts-builder`, `theme-factory`, `frontend-design`, `doc-coauthoring`, `claude-api`, `openai-docs` | LangChain/LangGraph/Deep Agents reference; observability patterns; TUI and artifact design; spec authoring; model-family reference. |
+| Planner | `doc-coauthoring` | Structured task-document authoring. |
+| Developer | `langchain`, `langsmith`, `remember` | SDK implementation reference; tracing integration; persistent dev-session memory. |
+| Evaluator | `langsmith-evaluator-feedback`, `remember`, `playwright`, `webapp-testing` | Evaluator feedback standard; cross-session evaluation memory; UI/UX verification via browser automation and local webapp interaction. |
+| Harness Engineer | `langsmith-evaluator-feedback`, `langsmith`, `remember` | Evaluator feedback standard; full LangSmith knowledge (datasets, experiments, tracing, evaluation pipelines); cross-session experiment memory. |
+| Researcher | *(none at v1)* | Research capabilities are delivered through tools (`web_search`, `web_fetch`) rather than skills. Open question on adding `web-research` and/or `remember` is tracked in §5. |
+
+**Prompt-vs-skill boundary.** Two knowledge domains are explicitly *not* skills and must be encoded as system-prompt behavioral invariants under Q12:
+
+- **Architect model-behavior awareness.** The Architect's system prompt must encode awareness that its primary model knowledge covers Opus 4.6, ChatGPT 5.4, and GPT 5.4 Pro. For any model outside that set, the Architect must request the Researcher to investigate behavior and provider documentation before designing for it.
+- **Harness Engineer `agentevals` SDK knowledge.** The HE's system prompt must encode full working knowledge of the `agentevals` SDK — `EvaluatorResult`, LLM-as-judge, trajectory scoring, `GraphTrajectory`, tool-call matching. This is always-active domain expertise, not progressively disclosed via skill.
+
+**Rendering subagent delegation.** PM document rendering for stakeholder deliverables (Word/PDF/PowerPoint) is delegated to a narrowly-scoped rendering subagent, not embedded as PM skills. The corresponding Anthropic rendering skills (`docx`, `pdf`, `pptx`) are therefore absent from the PM `skills=[]` list by design. The rendering subagent's contract is out of scope for Q17 and is picked up separately.
+
+Full rationale, path table, and the skill-vs-prompt decision record are in [DECISIONS.md](./DECISIONS.md) Q17.
 
 ### User Interface Surface (Q14)
 
@@ -1106,6 +1130,12 @@ in [CHANGELOG.md](./CHANGELOG.md).
 |---|---|---|---|
 | Q15 | Headless PM session and thread identity | §4 Runtime Topology, §4 Thread Identity Model, §4 PM Session And Project Entry Model, §4 Headless Ingress vs Source Presence | [DECISIONS.md](./DECISIONS.md) |
 | Q16 | Project-scoped execution environment / agent computer | §4 Project-Scoped Execution Environment, §4 User Interface Surface | [DECISIONS.md](./DECISIONS.md) |
+
+**Skill allocation round (Q17, 2026-04-22):**
+
+| Q# | Topic | AD section | Detail |
+|---|---|---|---|
+| Q17 | Per-agent skill allocation | §4 Agent Primitive Decisions, §4 Per-Agent Skill Allocation (Q17) | [DECISIONS.md](./DECISIONS.md) |
 
 ### Derived Specs
 

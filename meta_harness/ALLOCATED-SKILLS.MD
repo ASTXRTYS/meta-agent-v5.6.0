@@ -1,16 +1,20 @@
 # Agent Skills Allocation
 
-> Companion to `AD.md` §4 Agent Primitives. This document specifies which skills each agent receives via `skills=[]` on `create_deep_agent()`. The design team must validate whether these allocations are sufficient or if additional skills are needed.
+> **Status:** Merged into canonical docs on 2026-04-22 as Q17.  
+> **Canonical decision:** [`AD.md` §4 → Per-Agent Skill Allocation (Q17)](./AD.md) and [`DECISIONS.md` → Q17](./DECISIONS.md#q17-per-agent-skill-allocation).  
+> This file is retained as companion design-team commentary only. The per-agent allocation table, skill path table, prompt-vs-skill boundary, and rendering-subagent delegation are authoritative in AD/DECISIONS, not here. Do not edit allocations here without updating AD and DECISIONS in the same change.
+>
+> Companion to `AD.md` §4 Agent Primitives. This document originally specified which skills each agent receives via `skills=[]` on `create_deep_agent()`. The design-team open questions at the bottom remain active and are not closed by Q17.
 
 ## Allocation Table
 
 | Agent | Skill | Source | Purpose |
 |---|---|---|---|
 | **PM** | `doc-coauthoring` | `.agents/skills/anthropic/skills/doc-coauthoring` | Structured document co-authoring workflow (PRDs, eval criteria, stakeholder comms) |
-| **PM** | `docx` | `.agents/skills/anthropic/skills/docx` | Render document packages for stakeholder review (Word docs) |
+| ~~**PM**~~ | ~~`docx`~~ | ~~`.agents/skills/anthropic/skills/docx`~~ | **Delegated to rendering subagent (not a PM skill)** — per Q17, PM stakeholder-deliverable rendering is owned by a narrowly-scoped rendering subagent outside the seven peer roles. Do not add to PM `skills=[]`. |
 | **PM** | `internal-comms` | `.agents/skills/anthropic/skills/internal-comms` | Standardized communication with team and stakeholder (status reports, leadership updates, FAQs, incident reports) |
-| **PM** | `pdf` | `.agents/skills/anthropic/skills/pdf` | PDF generation for document packages |
-| **PM** | `pptx` | `.agents/skills/anthropic/skills/pptx` | Presentation generation for stakeholder deliverables |
+| ~~**PM**~~ | ~~`pdf`~~ | ~~`.agents/skills/anthropic/skills/pdf`~~ | **Delegated to rendering subagent (not a PM skill)** — per Q17, PM stakeholder-deliverable rendering is owned by a narrowly-scoped rendering subagent outside the seven peer roles. Do not add to PM `skills=[]`. |
+| ~~**PM**~~ | ~~`pptx`~~ | ~~`.agents/skills/anthropic/skills/pptx`~~ | **Delegated to rendering subagent (not a PM skill)** — per Q17, PM stakeholder-deliverable rendering is owned by a narrowly-scoped rendering subagent outside the seven peer roles. Do not add to PM `skills=[]`. |
 | **PM** | `prompt-architect` | **Custom — to be created** | Prompt engineering and system prompt design for downstream agents |
 | **Architect** | `langchain` | `.agents/skills/langchain` | LangChain/LangGraph/Deep Agents SDK reference for design decisions |
 | **Architect** | `langsmith` | `.agents/skills/langsmith` | LangSmith tracing and observability patterns for design |

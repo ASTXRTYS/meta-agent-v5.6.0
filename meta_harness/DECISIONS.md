@@ -22,6 +22,7 @@
 | Q14: User interface surface | Product Surface & Runtime | Ship a Textual TUI that surfaces pipeline state, approvals, and model selection without turning the UI into the primary runtime. | `[Q14](#q14-user-interface-surface)` |
 | Q15: Headless PM session, thread identity, and source surfaces | Product Surface & Runtime | Separate PM-session threads from project threads so headless ingress, source presence, and execution identity stay distinct. | `[Q15](#q15-headless-pm-session-thread-identity-and-source-surfaces)` |
 | Q16: Project-scoped execution environment / agent computer | Product Surface & Runtime | Bind each project thread to a real execution environment so coding, evaluation, and publication happen inside the project computer. | `[Q16](#q16-project-scoped-execution-environment--agent-computer)` |
+| Q17: Per-agent skill allocation | Middleware Systems | Lock each agent's `skills=[]` list at factory time so capabilities are explicit per role, with rendering skills explicitly delegated to a narrowly-scoped rendering subagent rather than embedded in the PM. | `[Q17](#q17-per-agent-skill-allocation)` |
 
 ---
 
@@ -1185,6 +1186,69 @@ boundary, sandbox image defaults, workspace path conventions, environment
 health/reconnect protocol, PR approval gates, local shell allow-list policy,
 file browser route shape, and which PM-session tools may read live project
 execution-environment files versus only memory/artifact indexes.
+
+---
+
+### Q17: Per-agent skill allocation
+
+**Status:** Closed · **Approved by:** Jason · **Date:** 2026-04-22
+
+> **Decision Summary:** Each agent's `skills=[]` list on `create_deep_agent()` is fixed at factory time so role capabilities stay explicit. Rendering skills for PM stakeholder deliverables are delegated to a narrowly-scoped rendering subagent instead of being embedded in the PM.
+
+Closes the decision previously tracked in `meta_harness/ALLOCATED-SKILLS.MD`. The v1 table below is the canonical allocation — that document is retained only as a companion commentary and its header has been updated to point here.
+
+**(1) Per-agent `skills=[]` at factory time:**
+
+| Agent | Skills | Count | Purpose |
+|---|---|---|---|
+| PM | `doc-coauthoring`, `internal-comms`, `prompt-architect` | 3 | PRD / eval / stakeholder co-authoring; standardized team and stakeholder communication (status reports, leadership updates, FAQs, incident reports); prompt engineering and system-prompt design for downstream agents. |
+| Architect | `langchain`, `langsmith`, `web-artifacts-builder`, `theme-factory`, `frontend-design`, `doc-coauthoring`, `claude-api`, `openai-docs` | 8 | LangChain / LangGraph / Deep Agents SDK reference; LangSmith observability patterns; multi-component TUI and artifact design; spec document authoring; Anthropic and OpenAI model-family reference for informed model-specific design. |
+| Planner | `doc-coauthoring` | 1 | Structured task-document authoring — the planner output is structured documentation, not code or evaluation. |
+| Developer | `langchain`, `langsmith`, `remember` | 3 | SDK implementation reference; tracing integration during development; persistent dev-session notes across cross-session SDK learning. |
+| Evaluator | `langsmith-evaluator-feedback`, `remember`, `playwright`, `webapp-testing` | 4 | Evaluator feedback standard for returning results to the optimizer; persistent evaluation memory; browser automation and local webapp interaction for TUI / UI acceptance testing. |
+| Harness Engineer | `langsmith-evaluator-feedback`, `langsmith`, `remember` | 3 | Evaluator feedback standard for harness iteration; full LangSmith knowledge (datasets, experiments, tracing, evaluation pipelines, run management); persistent experiment and calibration memory. |
+| Researcher | *(none at v1)* | 0 | Research capability is delivered through Anthropic server-side tools (`web_search`, `web_fetch`, per Q13) rather than through skills. Adding `web-research` and/or `remember` remains an open design-team question; see open questions below. |
+
+**(2) Skill path reference (relative to project root):**
+
+| Skill | Path |
+|---|---|
+| `doc-coauthoring` | `.agents/skills/anthropic/skills/doc-coauthoring/` |
+| `internal-comms` | `.agents/skills/anthropic/skills/internal-comms/` |
+| `prompt-architect` | **To be created** — proposed location: `.agents/skills/anthropic/skills/prompt-architect/` |
+| `langchain` | `.agents/skills/langchain/` |
+| `langsmith` | `.agents/skills/langsmith/` |
+| `claude-api` | `.agents/skills/anthropic/skills/claude-api/` |
+| `openai-docs` | `skills/openai-docs/` |
+| `web-artifacts-builder` | `.agents/skills/anthropic/skills/web-artifacts-builder/` |
+| `theme-factory` | `.agents/skills/anthropic/skills/theme-factory/` |
+| `frontend-design` | `.agents/skills/anthropic/skills/frontend-design/` |
+| `remember` | `.agents/skills/remember/` |
+| `langsmith-evaluator-feedback` | `skills/langsmith/config/skills/langsmith-evaluator-feedback/` |
+| `playwright` | `skills/playwright/` |
+| `webapp-testing` | `skills/webapp-testing/` |
+
+**(3) Prompt-vs-skill boundary (knowledge that is deliberately NOT a skill):**
+
+The general principle: knowledge that must be *always active* belongs in the system prompt as a behavioral invariant under Q12; knowledge that is *on-demand* belongs as a skill. Two domains are explicitly bound to the system-prompt side of this boundary:
+
+- **Architect model-behavior awareness.** The Architect's system prompt must encode that its primary model knowledge covers Opus 4.6, ChatGPT 5.4, and GPT 5.4 Pro. If a build targets a model outside this set, the Architect must request the Researcher to investigate that model's behavior, prompting guidance, and provider documentation before designing for it. This is a behavioral invariant, not a skill — the Architect needs this awareness on every call, not progressively disclosed.
+- **Harness Engineer `agentevals` SDK knowledge.** The HE's system prompt must encode full working knowledge of the `agentevals` SDK — `EvaluatorResult`, LLM-as-judge, trajectory scoring, `GraphTrajectory`, tool-call matching. This is deep always-active domain expertise; encoding it as a progressively-disclosed skill would mean the HE could invoke the harness without it loaded, which is unacceptable for the agent that owns evaluation science. Whether a secondary on-demand `agentevals` reference skill is later created for deep API coverage is a separate, derivative question (see open questions below).
+
+**(4) Rendering subagent delegation (explicit exclusion from PM skills):**
+
+Document rendering for PM stakeholder deliverables — Word (`docx`), PDF (`pdf`), and PowerPoint (`pptx`) — is **explicitly not** a PM skill. These capabilities are delegated to a narrowly-scoped rendering subagent that sits outside the seven peer agent roles. The corresponding Anthropic skills (`docx`, `pdf`, `pptx` at `.agents/skills/anthropic/skills/`) therefore do not appear in the PM `skills=[]` list and must not be re-added to it. The rendering subagent's contract (tool surface, invocation pattern, artifact handoff) is out of scope for Q17 and is picked up separately; until it lands, PM stakeholder deliverables are produced via `doc-coauthoring` and `internal-comms` alone.
+
+**(5) Open design-team questions (carried forward for a future decision round, not re-opening Q17):**
+
+- Should the Researcher get `web-research` and/or `remember`? Current v1 answer: no — research is tool-driven, not skill-driven. Revisit after first real project runs.
+- Should the Developer get `frontend-design` or `web-artifacts-builder` for TUI implementation, or `doc-coauthoring` for code documentation? Current v1 answer: no — the Developer's output is code, not UI design or prose.
+- Should the Planner get `langchain`? Current v1 answer: no — the Planner composes plans; SDK-pattern accuracy lives with the Architect and Developer.
+- Should the Harness Engineer get `langchain`? Current v1 answer: no — HE owns evaluation science, not application SDK composition.
+- Should `prompt-architect` (to-be-created) remain a PM skill, or be promoted to a PM system-prompt invariant because the PM is always crafting prompts during scoping? Current v1 answer: skill — but re-evaluate once the skill exists and usage patterns are observed.
+- Should a narrow on-demand `agentevals` reference skill be created in addition to the HE system-prompt invariant?
+
+These are v1-revisit items, not blockers on the current allocation. They do not reopen Q17; any change is captured as a follow-up decision.
 
 ---
 
