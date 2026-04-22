@@ -3,10 +3,11 @@
 > **Owner:** Cascade · **Status:** Working analysis · **Date:** 2026-04-22  
 > **Purpose:** Record of reasoning for the clean-slate rewrite of `docs/specs/pcg-data-contracts.md` per `AD.md` Open Question `OQ-HO`. This is a `local-docs/` coding-agent reference, not a shipped spec. Intended to be archived (or deleted) once the Phase 2 AD + spec pass lands.  
 > **Consumers:** Jason (review), future Cascade sessions (audit of trajectory).
+> **Historical note:** Sections §1–§10 preserve the initial pre-review reasoning, including the explicit-invocation hypothesis that was later corrected. Section §11 records the same-day correction that replaced that hypothesis with the mounted-subgraph `Command.PARENT` architecture now reflected in `AD.md` and the Phase 2 specs. Treat §11 and the canonical docs as authoritative for current design.
 
 ## 0. Executive Summary
 
-The current `pcg-data-contracts.md` spec has a structurally broken invariant (`add_messages` does not admit `HandoffRecord` objects), inherits a two-node topology whose coordination key (`pending_handoff`) doesn't pay its rent, and expresses none of the Vision-era headless / artifact / optimization requirements. The chosen direction is a **thin dispatcher, Store-first, typed-channel** PCG: one coordination node, no mount-as-subgraph pattern, typed append-only reducers, first-class acceptance-stamp channel, and durable artifact/trendline/project-registry state in `Store` rather than checkpoint state. This resolves `OQ-HO` / `OQ-H2` / `OQ-H4` as a single coherent redesign, folds in `OQ-H1` and `OQ-H3` because the headless-ready-infra policy makes their data channels structurally required, and supersedes closed decisions `Q4`, `Q10`, `Q11` in `DECISIONS.md`. `Q6` keeps its schema.
+The current `pcg-data-contracts.md` spec has a structurally broken invariant (`add_messages` does not admit `HandoffRecord` objects), inherits a two-node topology whose coordination key (`pending_handoff`) doesn't pay its rent, and expresses none of the Vision-era headless / artifact / optimization requirements. The **initial** chosen direction in this working analysis was a thin dispatcher, Store-first, typed-channel PCG with explicit child invocation. Same-day review later invalidated the explicit-invocation part; §11 records the correction to a 1-node dispatcher plus 7 mounted role subgraphs, while preserving the reducer/channel/Store conclusions that still stand. `Q6` keeps its schema.
 
 ## 1. SDK Pre-Work Findings (source-verified)
 
@@ -54,15 +55,15 @@ class _InputAgentState(TypedDict):
 
 Deep Agents imports it at `.reference/libs/deepagents/deepagents/graph.py:14` and uses it as the input schema of every `create_deep_agent()`-returned compiled graph.
 
-**Consequence.** If Meta Harness mounts role graphs via `add_node("pm", pm_compiled)`, the `input_schema=_InputAgentState` incantation is the only thing preventing parent state leaking into children. This is a runtime filter, not a structural guarantee.
+**Initial consequence (later corrected in §11.2).** At this point in the analysis, I treated mounted-subgraph input filtering as a convention risk. The same-day correction later established that the Deep Agent's declared `_InputAgentState` / `_OutputAgentState` schemas make mounted subgraphs structurally isolating for this use case.
 
-### 1.4 Deep Agents' canonical pattern is dispatcher-invokes-child, NOT mount-as-node
+### 1.4 `SubAgentMiddleware` is an explicit-invocation pattern, not a peer-handoff topology
 
 `SubAgentMiddleware` (`.reference/libs/deepagents/deepagents/middleware/subagents.py:335-391`) does not add subagents as `StateGraph` nodes. It builds a `task` tool whose handler calls `subagent.invoke(subagent_state)` (line 375) or `await subagent.ainvoke(subagent_state)` (line 390) with an explicitly-constructed input dict, then packages the last message into a `ToolMessage` inside a `Command(update=...)` for the parent.
 
-This is the **production-reference pattern in the SDK itself**: parent invokes child explicitly, parent state never structurally flows, child I/O is controlled at the invocation site.
+This is the **production-reference explicit-invocation pattern in the SDK itself**: parent invokes child explicitly, parent state never structurally flows, child I/O is controlled at the invocation site.
 
-**Consequence.** Mount-as-node is available but not canonical. Dispatcher-invokes-child is the pattern that powers the SDK's own multi-agent feature.
+**Initial consequence (later corrected in §11.1–§11.2).** I treated this as evidence against mount-as-subgraph. The corrected conclusion is narrower: `SubAgentMiddleware` is the right reference for ephemeral stateless subagent-as-tool dispatch, but not for persistent peer handoff between mounted role graphs that rely on `Command.PARENT`.
 
 ### 1.5 Open SWE is a single Deep Agent — no multi-agent PCG exists as a production mirror
 
@@ -114,6 +115,8 @@ The rewrite keeps all of these. The pieces that need replacement are the mechani
 ## 5. Internal Hill-Climb — Candidate Topologies Considered
 
 For completeness, the alternatives weighed internally before committing.
+
+**Historical note.** Candidate B and §6 preserve the initial pre-review design and are retained as trajectory record only. They are superseded by §11 Phase 2 Correction; do not implement from §5–§6 without reading §11.
 
 **Candidate A — 2-node topology (`process_handoff` + `run_agent`), tightened.** Fixes reducer abuse (§3 row 1) and child-isolation convention (§3 row 3) but keeps `pending_handoff` alive as an inter-node signaling channel. Lowest migration cost; highest ceiling of "this is still clearly ceremonial." Rejected: `pending_handoff` is an artifact of the topology, not a requirement of the problem. The topology itself is the problem.
 
@@ -406,7 +409,7 @@ This is the only remaining leakage path after mounting. The fix is a small exten
 
 Specialists already satisfy this trivially — their final tool call is a handoff tool which emits `Command.PARENT`. The PM needs one new tool for the terminal case:
 
-- **`finish_to_user(final_response: str)`** (Category 6 in `docs/specs/handoff-tools.md`, new). PM-only. Returns `Command(graph=Command.PARENT, goto=END, update={"messages": [AIMessage(final_response)]})`. Does not append to `handoff_log` — lifecycle bookend, not a handoff record.
+- **`finish_to_user(final_response: str)`** (Category 7 in `docs/specs/handoff-tools.md`, new). PM-only. Returns `Command(graph=Command.PARENT, goto=END, update={"messages": [AIMessage(final_response)]})`. Does not append to `handoff_log` — lifecycle bookend, not a handoff record.
 
 With this rule, the child's in-progress `messages` state remains in the child's checkpoint namespace; only the explicit `Command.PARENT.update` fields reach the PCG. The `messages` append that lands on PCG state is specifically the PM's final AIMessage, delivered intentionally through `finish_to_user`.
 
@@ -526,6 +529,6 @@ The discipline: treat this architecture as "best-we-have-at-this-moment." When a
 2. [x] Updated `docs/specs/pcg-data-contracts.md` — §1 Purpose, §2 Topology Recap, §4 Invariants (esp. #2 rewritten with Deep Agent SDK-layer structural isolation + terminal-exit requirement), §5 Command.PARENT contract (split handoff-tool shape from `finish_to_user`), §3 `messages` writer updated, §7.3 projects_registry writer updated, §8 dispatcher reference (pure routing), §10 Conformance Tests updated.
 3. [x] Updated `docs/specs/handoff-tools.md` — frontmatter note, §1.1 uniform shape note for 23 handoff tools with pointer to §4.7, new §1.3 "Every Turn Terminates with Command.PARENT" rule including final-turn-guard middleware, new §4.7 Category 7 Terminal Emission with `finish_to_user`, §5 agent-scoped ownership PM row updated, §6 pipeline flow terminal line updated.
 4. [x] Updated `docs/specs/repo-and-workspace-layout.md` §3 — factory code now shows dispatcher + `for role_name, role_graph in ROLE_GRAPHS.items(): builder.add_node(role_name, role_graph)`, §3.1 node responsibilities now lists all 8 nodes (dispatcher + 7 roles) with exit contract per role.
-5. [x] `DECISIONS.md` — no new supersessions required; Q4 / Q10 / Q11 supersession notes point to AD which is now re-corrected in place. The supersession notes' wording is high-level enough that it holds for the corrected architecture.
+5. [x] `DECISIONS.md` — Q4 / Q10 / Q11 supersession notes updated in place so the frozen rationale now points at the corrected mounted-subgraph architecture instead of the discarded explicit-invocation pattern.
 6. [x] Appended `CHANGELOG.md` correction entry.
 7. [x] `last_synced: 2026-04-22` on all three specs already at today's date; provenance-line notes updated on pcg-data-contracts.md and handoff-tools.md and repo-and-workspace-layout.md to reference the correction.

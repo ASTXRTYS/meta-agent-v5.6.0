@@ -114,7 +114,7 @@ makes handoffs observable and auditable.
 
 ### OQ-HO (Closed 2026-04-22): PCG state schema clean-slate rewrite
 
-**Resolution.** Clean-slate rewrite landed 2026-04-22. Chosen direction: 1-node dispatcher (`dispatch_handoff`), typed `operator.add` reducer on `handoff_log`, first-class `acceptance_stamps` channel, structural child isolation via explicit invocation (no mount-as-subgraph), `pending_handoff` removed, Store-backed `artifact_manifest` / `optimization_trendline` / `projects_registry` namespaces. Rationale in `local-docs/pcg-state-schema-rewrite-working.md` (temporary working analysis). New decisions absorbed into `AD.md §4 LangGraph Project Coordination Graph` (current). Supersedes `DECISIONS.md` Q4 / Q10 / Q11 (PCG state). Folded in `OQ-H1` (projects_registry namespace) and `OQ-H3` (optimization_trendline namespace).
+**Resolution.** Clean-slate rewrite landed 2026-04-22. Chosen direction: 1-node dispatcher (`dispatch_handoff`) plus 7 mounted role Deep Agent subgraph nodes, typed `operator.add` reducer on `handoff_log`, first-class `acceptance_stamps` channel, structural child isolation via the Deep Agent SDK's declared input/output schemas plus mounted-subgraph `Command.PARENT` routing, `pending_handoff` removed, and Store-backed `artifact_manifest` / `optimization_trendline` / `projects_registry` namespaces. Rationale in `local-docs/pcg-state-schema-rewrite-working.md` (temporary working analysis). New decisions absorbed into `AD.md §4 LangGraph Project Coordination Graph` (current). Supersedes `DECISIONS.md` Q4 / Q10 / Q11 (PCG state). Folded in `OQ-H1` (projects_registry namespace) and `OQ-H3` (optimization_trendline namespace).
 
 ### OQ-H1 (Closed 2026-04-22): PM visibility into executing projects
 
@@ -514,7 +514,7 @@ Its non-responsibilities are equally important:
 The `ProjectCoordinationState` carries only deterministic coordination data —
 no agent cognition, no artifact content, no specialist messages. State
 tracks: a user-facing `messages` I/O channel (LangGraph convention, written
-only when the PM finishes naturally), project identity (`project_id`,
+only by the PM's `finish_to_user` terminal tool), project identity (`project_id`,
 `project_thread_id`), pipeline position (`current_phase`, `current_agent`),
 an append-only `handoff_log` audit trail, and a first-class
 `acceptance_stamps` channel keyed by stamp type. Durable cross-thread project
@@ -524,8 +524,9 @@ in LangGraph `Store`, not in PCG state.
 **Decision-level invariants:**
 
 - `messages` is the user-facing I/O channel (LangGraph convention). PCG
-  writes to it once per lifecycle cycle when the PM finishes naturally
-  (PM's final `AIMessage` response). Handoff tools do NOT write to it.
+  writes to it only when the PM calls `finish_to_user`, which emits
+  `Command(graph=Command.PARENT, goto=END, update={"messages":
+  [AIMessage(...)]})`. Handoff tools do NOT write to it.
   Specialist agents never read it.
 - **Child isolation is structural at the Deep Agent SDK layer.** Every role is a `create_deep_agent()` compiled graph, which declares `input_schema=_InputAgentState` (messages only) and `output_schema=_OutputAgentState` (messages + optional `structured_response`) at its own compile time (`@/Users/Jason/2026/v4/meta-agent-v5.6.0/.reference/libs/deepagents/deepagents/graph.py:236`, `@/Users/Jason/2026/v4/meta-agent-v5.6.0/.venv/lib/python3.11/site-packages/langchain/agents/middleware/types.py:358-368`). `todos`, `files`, `jump_to`, and middleware-private state (`StagnationGuardState._model_call_count`, skills/memory internals, etc.) carry `PrivateStateAttr` / `OmitFromOutput` annotations (`types.py:346-347`) and are dropped structurally at compile time. When mounted via `add_node(role_name, role_compiled_graph)`, LangGraph reads the subgraph's own declared `input_schema` (`graph/state.py:1306-1314`) and only passes the shared `messages` channel from parent to child — we do not need to pass `input_schema=` on `add_node` ourselves.
 - `dispatch_handoff` reads `handoff_log[-1]` to identify the active handoff.
@@ -750,8 +751,9 @@ role whose last AIMessage lacks a handoff tool call, making the invariant
 observable and enforceable rather than a silent convention.
 
 **`messages` growth is naturally bounded.** PCG writes to `messages` only
-when `dispatch_handoff` captures a PM's final `AIMessage` on natural
-completion. Headless ingress may produce multiple lifecycle cycles across
+when the PM calls `finish_to_user`, which intentionally emits the final
+user-facing `AIMessage` via `Command.PARENT`. Headless ingress may produce
+multiple lifecycle cycles across
 the project thread lifetime, so the `add_messages` reducer is retained on
 the `messages` channel as the idiomatic LangGraph conduit. No invariant
 restricts it to "exactly 2 entries per cycle" — the headless-ready-infra
