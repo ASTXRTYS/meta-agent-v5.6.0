@@ -1,0 +1,6 @@
+#!/Users/Jason/2026/v4/meta-agent-v5.6.0/.venv/bin/python
+import sys
+from grpc_tools.protoc import entrypoint
+if __name__ == '__main__':
+    sys.argv[0] = sys.argv[0].removesuffix('.exe')
+    sys.exit(entrypoint())

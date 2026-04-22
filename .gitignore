@@ -12,7 +12,6 @@ thread_state.json
 .hypothesis
 .kiro 
 .intent
-.reference
 .codex
 R1.md
 R2.md
@@ -43,8 +42,6 @@ phase3-implementation-prompt.md
 .DS_Store
 
 # SDK reference repos (read-only, not part of project)
-.reference/
-.venv/
 .agents/pm/projects/*/results/
 .agents/pm/projects/*/evals/reports/
 .langgraph_api/
@@ -60,8 +57,6 @@ phase3-implementation-prompt.md
 /.gitattributes
 !meta_harness_web/app/.gitignore
 !meta_harness_web/app/package-lock.json
-.reference/libs/langgraphjs/
-.reference
 Ignore.md
 
 # Research artifacts (not to be pushed)
