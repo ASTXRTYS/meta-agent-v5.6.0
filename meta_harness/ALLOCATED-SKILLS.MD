@@ -7,11 +7,11 @@
 | Agent | Skill | Source | Purpose |
 |---|---|---|---|
 | **PM** | `doc-coauthoring` | `.agents/skills/anthropic/skills/doc-coauthoring` | Structured document co-authoring workflow (PRDs, eval criteria, stakeholder comms) |
-| **PM** | `docx` | `.agents/skills/anthropic/skills/docx` | Render document packages for stakeholder review (Word docs) |
 | **PM** | `internal-comms` | `.agents/skills/anthropic/skills/internal-comms` | Standardized communication with team and stakeholder (status reports, leadership updates, FAQs, incident reports) |
-| **PM** | `pdf` | `.agents/skills/anthropic/skills/pdf` | PDF generation for document packages |
-| **PM** | `pptx` | `.agents/skills/anthropic/skills/pptx` | Presentation generation for stakeholder deliverables |
 | **PM** | `prompt-architect` | **Custom — to be created** | Prompt engineering and system prompt design for downstream agents |
+| **Document Rendering Subagent** *(PM-owned DICT subagent; not a peer agent)* | `docx` | `.agents/skills/anthropic/skills/docx` | Render document packages for stakeholder review (Word docs) |
+| **Document Rendering Subagent** *(PM-owned DICT subagent; not a peer agent)* | `pdf` | `.agents/skills/anthropic/skills/pdf` | PDF generation for document packages |
+| **Document Rendering Subagent** *(PM-owned DICT subagent; not a peer agent)* | `pptx` | `.agents/skills/anthropic/skills/pptx` | Presentation generation for stakeholder deliverables |
 | **Architect** | `langchain` | `.agents/skills/langchain` | LangChain/LangGraph/Deep Agents SDK reference for design decisions |
 | **Architect** | `langsmith` | `.agents/skills/langsmith` | LangSmith tracing and observability patterns for design |
 | **Architect** | `web-artifacts-builder` | `.agents/skills/anthropic/skills/web-artifacts-builder` | Multi-component web artifact design patterns |
@@ -37,7 +37,15 @@
 
 ### Project Manager (PM)
 
-The PM is the document hub. It assembles PRDs, evaluation criteria, stakeholder packages, and approval documents. The rendering skills (`docx`, `pdf`, `pptx`) enable it to produce the document packages that approval gates require. `internal-comms` establishes a standard for how the PM communicates with both the stakeholder and the team — status reports, decision memos, kickoffs, incident reports. `doc-coauthoring` provides the structured co-authoring workflow for all of the above. `prompt-architect` is a custom skill (to be created) that gives the PM prompt engineering capabilities — the PM needs to be able to craft and refine system prompts for downstream agents as part of the scoping phase.
+The PM is the document hub. It assembles PRDs, evaluation criteria, stakeholder packages, and approval documents. `internal-comms` establishes a standard for how the PM communicates with both the stakeholder and the team — status reports, decision memos, kickoffs, incident reports. `doc-coauthoring` provides the structured co-authoring workflow for all of the above. `prompt-architect` is a custom skill (to be created) that gives the PM prompt engineering capabilities — the PM needs to be able to craft and refine system prompts for downstream agents as part of the scoping phase.
+
+**Rendering is delegated, not owned.** The three Anthropic rendering skills (`docx`, `pdf`, `pptx`) are **not** on the PM. They are allocated to the PM-owned **Document Rendering Subagent** (see below) — an ephemeral declarative SDK `SubAgent` (DICT shape) invoked via the built-in `task` tool. This keeps the PM's context window focused on scoping, requirements, and stakeholder communication rather than document-format reference material, and it matches the SDK's intended use of declarative `SubAgent` dicts for stateless, isolated tasks. See `AD.md §4 Document Rendering Subagent (DICT)` and [`docs/specs/document-rendering-subagent.md`](./docs/specs/document-rendering-subagent.md) for the full decision and contract.
+
+### Document Rendering Subagent (PM-owned DICT subagent)
+
+Not a peer Deep Agent. Not mounted under the PCG. No project-scoped checkpoint namespace. It is a declarative SDK `SubAgent` registered on the PM factory's `subagents=[...]` and invoked through the built-in `task` tool whenever the PM needs to produce a stakeholder-ready document package for one of the two approval gates (`scoping` → `research`, `architecture` → `planning`).
+
+Skills (`docx`, `pdf`, `pptx`) are scoped to this subagent so that the large format-reference surfaces are only loaded when rendering is actually happening. The subagent does not author content — it renders source artifacts the PM has already assembled and returns the rendered file paths to the PM. Full invocation contract, return payload, filesystem boundary, middleware inheritance, and system-prompt behavioral invariants are in [`docs/specs/document-rendering-subagent.md`](./docs/specs/document-rendering-subagent.md).
 
 ### Architect
 

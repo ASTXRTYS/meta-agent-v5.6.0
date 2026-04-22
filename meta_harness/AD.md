@@ -464,11 +464,35 @@ Two transitions require **explicit user approval**; all others auto-advance:
 | `scoping` → `research` | PRD + eval suite + business-logic datasets, rendered as stakeholder-friendly document package | PM receives completed eval suite from HE, packages it, presents to user |
 | `architecture` → `planning` | Full design spec + tool schemas + system prompts, rendered as stakeholder-friendly document package | PM receives completed design from Architect, packages it, presents to user |
 
-**Approval mechanism:** The PM owns a dedicated tool that presents the document package (docx/pdf/pptx) to the user for review. The user can accept, request revisions, or provide feedback. The PM resumes on user response. This is prompt-driven — the PM decides when to invoke the tool based on its system prompt — not a PCG-level interrupt. Exact tool schema and document rendering format are delegated to the implementation spec.
+**Approval mechanism:** The PM owns a dedicated tool that presents the document package to the user for review. **Document rendering (`.docx`, `.pdf`, `.pptx`) is NOT performed by the PM directly** — it is delegated to a PM-owned **Document Rendering Subagent**, an ephemeral declarative SDK `SubAgent` (DICT shape) invoked via the built-in `task` tool (see [§4 Document Rendering Subagent](#document-rendering-subagent-dict)). The PM assembles the source artifacts, invokes the subagent to produce the rendered package, and presents the returned file paths to the user. The user can accept, request revisions, or provide feedback; the PM resumes on user response. This is prompt-driven — the PM decides when to invoke the rendering subagent and the presentation tool based on its system prompt — not a PCG-level interrupt.
 
-**Autonomous mode:** A runtime toggle that, when enabled, auto-advances all gates including the two approval gates. In autonomous mode the PM still packages the documents but does not pause for user review.
+> Implementation detail (subagent declaration, invocation contract, skill allocation, filesystem boundary): see [`docs/specs/document-rendering-subagent.md`](./docs/specs/document-rendering-subagent.md).
+
+**Autonomous mode:** A runtime toggle that, when enabled, auto-advances all gates including the two approval gates. In autonomous mode the PM still invokes the rendering subagent to emit the package (artifacts are first-class regardless of user review) but does not pause for user review.
 
 **All other transitions** (research → architecture, planning → development, development → acceptance, and any specialist-to-specialist handoffs) auto-advance via handoff tools. Middleware gates on handoff tools enforce prerequisite checks (e.g., PRD finalized before `(PM, HE, deliver)`) but do not require user approval.
+
+#### Document Rendering Subagent (DICT)
+
+Stakeholder-facing document rendering (`.docx`, `.pdf`, `.pptx`) is **not a core project role**. It is delegated to a PM-owned **Document Rendering Subagent** implemented as a declarative SDK `SubAgent` dict ("DICT" shape) invoked via the built-in `task` tool. This preserves the AD §3 selection (Option D — mounted peer graphs for durable roles) while using AD §3 Option A's `task`-subagent pattern for the narrow, ephemeral job it is designed for.
+
+**Locked decisions:**
+
+- The PM does NOT receive the `docx`, `pdf`, or `pptx` skills directly. Those three skills are allocated to the Document Rendering Subagent (see `ALLOCATED-SKILLS.MD`).
+- The subagent is ephemeral and stateless. It has no project-scoped `checkpoint_ns`, writes no `HandoffRecord`, and does not traverse the PCG. Each invocation is independent.
+- The subagent is PM-owned. It lives inside the PM agent module under the `task_agents/` slot reserved in §Repo and Workspace Layout for role-owned ephemeral SDK `SubAgent` helpers, not at the top level and not under `agents/`.
+- The subagent MUST NOT author, paraphrase, or edit content. It renders source artifacts into bound formats, returns the rendered file paths to the PM, and exits. Content authoring remains a PM responsibility backed by `doc-coauthoring`.
+- The subagent writes rendered files into a caller-provided subpath of the PM's namespace filesystem. Cross-namespace writes are prohibited.
+- The two approval gates (`scoping` → `research`, `architecture` → `planning`) consume the subagent's output via the PM's dedicated presentation tool; autonomous mode still invokes the subagent (artifacts are first-class) but skips the user-review pause.
+
+**Rationale:**
+
+- Stateless, ephemeral, context-heavy, bounded-output work maps cleanly onto the SDK's declarative `SubAgent` / `task` pattern. Promoting rendering into a peer Deep Agent would create unnecessary checkpoint state and PCG coordination overhead for a job with no durable trajectory.
+- Allocating the three Anthropic rendering skills to a subagent keeps the PM's context window focused on scoping, requirements, and stakeholder communication rather than document-format reference material.
+
+Canonical subagent name and module path are spec territory (flagged for approval in the derived spec). Skills, invocation schema, return payload, filesystem scoping, middleware inheritance, and system-prompt behavioral invariants are captured in the spec below.
+
+> Implementation detail (subagent declaration, invocation contract, return payload, filesystem boundary, middleware inheritance, system-prompt invariants): see [`docs/specs/document-rendering-subagent.md`](./docs/specs/document-rendering-subagent.md).
 
 #### PCG State Growth and Parent-to-Child Context Propagation
 
@@ -1118,6 +1142,7 @@ Implementation contracts extracted from AD decisions under `docs/specs/`. See
 | [`docs/specs/handoff-tools.md`](./docs/specs/handoff-tools.md) | §4 Handoff Protocol, §4 Handoff Tool Use-Case Matrix, §4 Pipeline Flow Diagram | Active | 2026-04-22 |
 | [`docs/specs/pcg-data-contracts.md`](./docs/specs/pcg-data-contracts.md) | §4 LangGraph Project Coordination Graph (State Schema), §4 Handoff Protocol (Command.PARENT Update Contract), §4 Data Contracts | Active | 2026-04-22 |
 | [`docs/specs/repo-and-workspace-layout.md`](./docs/specs/repo-and-workspace-layout.md) | §4 Repo and Workspace Layout, §4 LangGraph Project Coordination Graph Factory Contract, §4 Project Workspace and Memory Structure | Active | 2026-04-22 |
+| [`docs/specs/document-rendering-subagent.md`](./docs/specs/document-rendering-subagent.md) | §4 Phase Gates, §4 Document Rendering Subagent (DICT), §4 Agent Primitive Decisions | Draft | 2026-04-22 |
 
 ---
 
