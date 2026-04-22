@@ -9,14 +9,14 @@
 | Q1: Repo structure naming | Architecture Foundations | Standardize the repo layout around the PCG entrypoint, peer-role modules, and the sandbox integration shape so the codebase matches the runtime contract. | `[Q1](#q1-repo-structure-naming)` |
 | Q2: Production checkpointer and store backend | Architecture Foundations | Use different persistence paths for local dev, shipped CLI, and platform-managed deployment so runtime state lands in the right backend without branching the graph factory. | `[Q2](#q2-production-checkpointer-and-store-backend)` |
 | Q3: Handoff wrapper implementation | Architecture Foundations | Make handoffs explicit tools that bubble to the parent graph with `Command.PARENT`, keeping orchestration in the graph rather than in middleware. | `[Q3](#q3-handoff-wrapper-implementation)` |
-| Q4: PCG node set (first version) | Architecture Foundations | Keep the coordination graph linear and small so routing stays easy to reason about while handoff tools and middleware own the real branching behavior. | `[Q4](#q4-pcg-node-set-first-version)` |
+| Q4: PCG node set (first version) | Architecture Foundations | **[Superseded 2026-04-22 by `OQ-HO`]** Originally: keep the coordination graph linear and small so routing stays easy to reason about while handoff tools and middleware own the real branching behavior. Current: 1-node dispatcher (`dispatch_handoff`). | `[Q4](#q4-pcg-node-set-first-version)` |
 | Q5: Handoff tool use-case matrix | Agent Roles & Communication | Define a verb-driven handoff matrix so every role knows when to deliver, return, consult, or question without inventing new routing semantics. | `[Q5](#q5-handoff-tool-use-case-matrix)` |
 | Q6: Handoff record schema | Agent Roles & Communication | Lock the handoff record to a compact field set and reserve `accepted` for later acceptance stamps so audit data stays stable. | `[Q6](#q6-handoff-record-schema)` |
 | Q7: Phase gate enum and approval policy | Agent Roles & Communication | Use six lifecycle phases with only two explicit approval gates, and keep approval as a PM-owned document review rather than a graph interrupt. | `[Q7](#q7-phase-gate-enum-and-approval-policy)` |
 | Q8: Sandbox topology impact | Middleware Systems | Treat sandboxing as an execution-mode concern for mounted role agents, not as a separate assistant topology. | `[Q8](#q8-sandbox-topology-impact)` |
 | Q9: HE vs Evaluator gate-owner boundary | Middleware Systems | Split harness-science authority from application-quality authority so HE and Evaluator gate different dimensions of the workflow. | `[Q9](#q9-he-vs-evaluator-gate-owner-boundary)` |
-| Q10: PCG state growth and parent-to-child context propagation | Tool & Contract Specifications | Bound what parent state reaches child graphs and cap handoff history so persistence stays manageable without flooding child context. | `[Q10](#q10-pcg-state-growth-and-parent-to-child-context-propagation)` |
-| Q11: PCG state schema and initialization topology (refined) | Tool & Contract Specifications | Make the PCG state channel user-facing and keep child-input construction deterministic so graph initialization stays predictable. | `[Q11](#q11-pcg-state-schema-and-initialization-topology-refined)` |
+| Q10: PCG state growth and parent-to-child context propagation | Tool & Contract Specifications | **[Superseded 2026-04-22 by `OQ-HO`]** Originally: bound what parent state reaches child graphs and cap handoff history so persistence stays manageable without flooding child context. Current: child isolation is structural via the dispatcher; gate dispatch reads `acceptance_stamps` channel, not `handoff_log`. | `[Q10](#q10-pcg-state-growth-and-parent-to-child-context-propagation)` |
+| Q11: PCG state schema and initialization topology (refined) | Tool & Contract Specifications | **[Superseded 2026-04-22 by `OQ-HO`]** Originally: narrow user-facing PCG state surface + deterministic child input construction. Current: 1-node dispatcher, typed `operator.add` reducer on `handoff_log`, first-class `acceptance_stamps` channel, `pending_handoff` removed, Store-backed `artifact_manifest` / `optimization_trendline` / `projects_registry`. | `[Q11](#q11-pcg-state-schema-and-initialization-topology-refined)` |
 | Q12: Universal agent middleware baseline | Middleware Systems | Give every agent the same baseline stack and vary only parameter values so the harness stays consistent across roles. | `[Q12](#q12-universal-agent-middleware-baseline)` |
 | Q13: Anthropic provider-specific middleware integration | Provider Integrations | Add Anthropic-native bash, memory, and server-side tools through provider profiles so Anthropic gets native affordances without polluting shared factories. | `[Q13](#q13-anthropic-provider-specific-middleware-integration)` |
 | Q14: User interface surface | Product Surface & Runtime | Ship a Textual TUI that surfaces pipeline state, approvals, and model selection without turning the UI into the primary runtime. | `[Q14](#q14-user-interface-surface)` |
@@ -67,11 +67,13 @@ v1 handoffs are explicit Deep Agent tools that return `Command(graph=Command.PAR
 <a id="q4-pcg-node-set-first-version"></a>
 ### Q4: PCG node set (first version)
 
-**Status:** Closed · **Approved by:** Jason · **Date:** 2026-04-12
+**Status:** Superseded 2026-04-22 by `OQ-HO` resolution · **Originally approved by:** Jason · **Date:** 2026-04-12
 
-> **Decision Summary:** Keep the coordination graph intentionally small and let handoff tools plus middleware own the real orchestration. This preserves a clean runtime boundary and keeps routing behavior easy to audit.
+> **Supersession note.** Node count collapsed from 3 (`receive_user_input`, `process_handoff`, `run_agent`) → 2 (`process_handoff`, `run_agent` via Q11) → 1 (`dispatch_handoff`). The 1-node dispatcher pattern mirrors Deep Agents' own `SubAgentMiddleware` (`.reference/libs/deepagents/deepagents/middleware/subagents.py:335-391`), which is the canonical SDK production pattern for parent-invokes-child multi-agent coordination. The `pending_handoff` cursor is eliminated; `handoff_log[-1]` is authoritative. See `AD.md §4 LangGraph Project Coordination Graph` (current) and `docs/specs/pcg-data-contracts.md` (current).
 
-Three nodes (`receive_user_input`, `process_handoff`, `run_agent`), no conditional edges, linear topology. Phase gates moved to middleware hooks on handoff tools. Routing intelligence owned by calling agents via tool selection. Removed `record_handoff` and `ensure_role_state` as separate nodes (merged into `process_handoff`). Removed `route_after_agent`, `gate_phase`, and `surface_question` (routing is agent-driven, gates are middleware, HITL is SDK `ask_user`).
+> **Original decision (preserved for historical context):** Keep the coordination graph intentionally small and let handoff tools plus middleware own the real orchestration. This preserves a clean runtime boundary and keeps routing behavior easy to audit.
+
+> Three nodes (`receive_user_input`, `process_handoff`, `run_agent`), no conditional edges, linear topology. Phase gates moved to middleware hooks on handoff tools. Routing intelligence owned by calling agents via tool selection. Removed `record_handoff` and `ensure_role_state` as separate nodes (merged into `process_handoff`). Removed `route_after_agent`, `gate_phase`, and `surface_question` (routing is agent-driven, gates are middleware, HITL is SDK `ask_user`).
 
 ---
 
@@ -139,22 +141,33 @@ AD owns the boundary definition (which dimension each role gates), Developer sys
 <a id="q10-pcg-state-growth-and-parent-to-child-context-propagation"></a>
 ### Q10: PCG state growth and parent-to-child context propagation
 
-**Status:** Closed · **Approved by:** Jason · **Date:** 2026-04-12
+**Status:** Superseded 2026-04-22 by `OQ-HO` resolution · **Originally approved by:** Jason · **Date:** 2026-04-12
 
-> **Decision Summary:** Parent state does not flow wholesale into children. Keep child inputs narrow, keep handoff history bounded, and treat growth as a persistence problem rather than a context-flooding problem.
+> **Supersession note.** The `input_schema=_InputAgentState` trick is a convention-enforced runtime filter, not a structural guarantee (verified against `.venv/lib/python3.11/site-packages/langgraph/graph/state.py:246, 701-780`). Child isolation is now **structural** via the 1-node dispatcher (`dispatch_handoff`), which invokes role graphs with an explicitly-constructed input dict — parent state physically cannot reach the child. Gate dispatch no longer scans `handoff_log`; acceptance stamps live on a first-class `acceptance_stamps` channel. Handoff-log cap is deferred to implementation (v1: bounded via `operator.add` with implementation cap; v2: migrate to `Store`). See `AD.md §4 LangGraph Project Coordination Graph` (current).
 
-Child agents do not see PCG state — LangGraph maps parent-to-child by shared key names only, and the Deep Agent input schema (`_InputAgentState`) only shares `messages` with the PCG. The `run_agent` node controls what enters the child's `messages`. Unbounded growth is a persistence concern (checkpoint bloat), not a context-flooding concern. v1 mandates a cap on the handoff log (last N records, older summarized into `handoff_summary`). v2 option: move full history to LangGraph `Store`. Child agent message compaction is handled by `SummarizationMiddleware` (already in every agent stack).
+> **Original decision (preserved for historical context):** Parent state does not flow wholesale into children. Keep child inputs narrow, keep handoff history bounded, and treat growth as a persistence problem rather than a context-flooding problem.
+
+> Child agents do not see PCG state — LangGraph maps parent-to-child by shared key names only, and the Deep Agent input schema (`_InputAgentState`) only shares `messages` with the PCG. The `run_agent` node controls what enters the child's `messages`. Unbounded growth is a persistence concern (checkpoint bloat), not a context-flooding concern. v1 mandates a cap on the handoff log (last N records, older summarized into `handoff_summary`). v2 option: move full history to LangGraph `Store`. Child agent message compaction is handled by `SummarizationMiddleware` (already in every agent stack).
 
 ---
 
 <a id="q11-pcg-state-schema-and-initialization-topology-refined"></a>
 ### Q11: PCG state schema and initialization topology (refined)
 
-**Status:** Closed · **Approved by:** Jason · **Date:** 2026-04-12
+**Status:** Superseded 2026-04-22 by `OQ-HO` resolution · **Originally approved by:** Jason · **Date:** 2026-04-12
 
-> **Decision Summary:** The PCG owns a narrow, user-facing state surface and the child graph only receives a single constructed `HumanMessage`. This keeps routing deterministic and prevents accidental state leakage.
+> **Supersession note.** Four substantive problems with the original decision, verified against local SDK source:
+>
+> 1. **`add_messages` reducer on `handoff_log` is structurally broken.** `add_messages` coerces both inputs through `convert_to_messages` (`.venv/lib/python3.11/site-packages/langgraph/graph/message.py:194-201`), which raises `NotImplementedError` for non-message types (`.venv/lib/python3.11/site-packages/langchain_core/messages/utils.py:727-730`). A `HandoffRecord` dataclass / `TypedDict` / Pydantic model with an `id` field does not satisfy `MessageLikeRepresentation`. `handoff_log` now uses a typed `operator.add` append reducer.
+> 2. **`pending_handoff` cursor does not pay rent.** With the 1-node dispatcher topology (superseding Q4), `handoff_log[-1]` is the authoritative active handoff. The cursor was an artifact of the two-node split.
+> 3. **`messages` lifecycle-bookend invariant is too restrictive for headless ingress.** The `messages` channel now documents as the user-facing I/O conduit (LangGraph convention), written to when the PM finishes naturally. Child agents still never see it (now enforced structurally via the dispatcher, not via `input_schema` filter).
+> 4. **Acceptance-stamp gate scans `handoff_log`.** Couples gate logic to audit log structure. Acceptance stamps now live on a first-class `acceptance_stamps` channel keyed by stamp type (`application` / `harness`). Gates read the channel.
+>
+> Folded in during the rewrite: `OQ-H1` (PM-session project visibility) via a `projects_registry` `Store` namespace; `OQ-H3` (Developer-blind optimization trendline) via an HE-owned `optimization_trendline` `Store` namespace. See `AD.md §4 LangGraph Project Coordination Graph` (current), `docs/specs/pcg-data-contracts.md` (current), and `local-docs/pcg-state-schema-rewrite-working.md` (working analysis, temporary).
 
-(1) **Topology reduced from 3 to 2 nodes** — merged `receive_user_input` into `process_handoff`; `process_handoff` handles both first invocation (no pending handoff → create synthetic handoff for PM) and subsequent invocations. (2) **`messages` redefined as user-facing I/O channel** — accumulates only lifecycle bookends (stakeholder input in, PM's final product response out); never written to during pipeline execution. (3) **`handoff_summary` removed** — cap mitigation is implementation spec territory, not a state key. (4) **`run_agent` constructs child input** — always builds a single `HumanMessage` from `pending_handoff.brief`; child never sees raw PCG `messages` list. (5) **`Command.PARENT` update contract locked** — handoff tools write to `handoff_log`, `current_agent`, `current_phase` (conditional), `pending_handoff`; never write to `messages`. (6) **Acceptance gate pattern** — `return_product_to_pm` gated by `submit_application_acceptance` (Evaluator, always required) and `submit_harness_acceptance` (HE, conditional on HE participation derived from `handoff_log`). (7) **Graph lifecycle is PM-controlled** — PM uses `ask_user` to confirm satisfaction; finishes normally → END. Three new tools added: `return_product_to_pm`, `submit_harness_acceptance`, `submit_application_acceptance`. Total tools: 23 across 6 categories.
+> **Original decision (preserved for historical context):** The PCG owns a narrow, user-facing state surface and the child graph only receives a single constructed `HumanMessage`. This keeps routing deterministic and prevents accidental state leakage.
+
+> (1) **Topology reduced from 3 to 2 nodes** — merged `receive_user_input` into `process_handoff`; `process_handoff` handles both first invocation (no pending handoff → create synthetic handoff for PM) and subsequent invocations. (2) **`messages` redefined as user-facing I/O channel** — accumulates only lifecycle bookends (stakeholder input in, PM's final product response out); never written to during pipeline execution. (3) **`handoff_summary` removed** — cap mitigation is implementation spec territory, not a state key. (4) **`run_agent` constructs child input** — always builds a single `HumanMessage` from `pending_handoff.brief`; child never sees raw PCG `messages` list. (5) **`Command.PARENT` update contract locked** — handoff tools write to `handoff_log`, `current_agent`, `current_phase` (conditional), `pending_handoff`; never write to `messages`. (6) **Acceptance gate pattern** — `return_product_to_pm` gated by `submit_application_acceptance` (Evaluator, always required) and `submit_harness_acceptance` (HE, conditional on HE participation derived from `handoff_log`). (7) **Graph lifecycle is PM-controlled** — PM uses `ask_user` to confirm satisfaction; finishes normally → END. Three new tools added: `return_product_to_pm`, `submit_harness_acceptance`, `submit_application_acceptance`. Total tools: 23 across 6 categories.
 
 ---
 
@@ -1073,6 +1086,20 @@ thread metadata and conditionally includes session tools or project tools. No
 separate graph compilation or graph ID is required for this distinction.
 
 **(5) PM session to project lifecycle:**
+
+> **Supersession note (2026-04-22):** The field names `parent_pm_thread_id`,
+> `active_project_id`, and `active_project_thread_id` in this subsection were
+> drifted from Jason's original intent during documentation migration. The
+> canonical naming is locked in `AD.md §4 PM Session And Project Entry Model →
+> Identity Linkage and Cardinality`: primary identifiers are `pm_session_thread_id`
+> and `project_thread_id` with **no** `parent_*`, `active_*`, `source_*`, or
+> `origin_*` prefix; the link from a project back to its originating pm_session
+> lives as a nullable `pm_session_thread_id` field on the project's
+> `projects_registry` Store entry; there is no active-project pointer in
+> `pm_session` checkpoint state (the `projects_registry` Store is the source of
+> truth for spawn lineage, and a single pm_session may spawn many projects over
+> its lifetime). AD is canonical; this Q15(5) subtext is retained for historical
+> record only.
 
 PM session threads do not mutate into project threads. Project creation from a
 PM session creates a separate project thread with `thread_kind = "project"` and

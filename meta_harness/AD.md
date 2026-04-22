@@ -112,44 +112,167 @@ makes handoffs observable and auditable.
 🚨 
 ## Open Questions
 
-### OQ-HO 🚨 🔔 : Highest urgency
-- *jason* im not sold on the current approach of our pcg state schema meta_harness/docs/specs/pcg-data-contracts.md i want an our best agent to pick this up. i dont think this was designed intelligently, or maybe it was, sell it to me. The vision.md did not exist when this contract was made, maybe we can do better this time? im being demanding of us becasue i want this project to be written elgantley. 
+### OQ-HO (Closed 2026-04-22): PCG state schema clean-slate rewrite
 
-*note*: this may open up the need for re designing the approach of meta_harness/docs/specs/handoff-tools.md as well, plan accordingly.
+**Resolution.** Clean-slate rewrite landed 2026-04-22. Chosen direction: 1-node dispatcher (`dispatch_handoff`), typed `operator.add` reducer on `handoff_log`, first-class `acceptance_stamps` channel, structural child isolation via explicit invocation (no mount-as-subgraph), `pending_handoff` removed, Store-backed `artifact_manifest` / `optimization_trendline` / `projects_registry` namespaces. Rationale in `local-docs/pcg-state-schema-rewrite-working.md` (temporary working analysis). New decisions absorbed into `AD.md §4 LangGraph Project Coordination Graph` (current). Supersedes `DECISIONS.md` Q4 / Q10 / Q11 (PCG state). Folded in `OQ-H1` (projects_registry namespace) and `OQ-H3` (optimization_trendline namespace).
 
-### OQ-H1 (High Priority): PM visibility into executing projects
+### OQ-H1 (Closed 2026-04-22): PM visibility into executing projects
 
-What does the PM need to see inside executing projects so it can be helpful and insightful while in a `pm_session` thread?
+**Resolution.** Folded into `OQ-HO` resolution. A `projects_registry` `Store` namespace holds a compact record per project (`project_id`, `project_thread_id`, `current_phase`, `current_agent`, `last_handoff_at`, `artifact_count`) written by `dispatch_handoff` on each handoff. PM session threads query this namespace to render status of all active projects without joining each project thread. See `AD.md §4 LangGraph Project Coordination Graph → PCG State Schema (decisions)` (Store table).
 
-### OQ-H2 (High Priority): PCG Schema 🚨 
-*Jason*: I dont see the practicality in  `pending_handoff` see: meta_harness/docs/specs/pcg-data-contracts.md ; Need someone to sell me on the value of this and how it earns its place.
+> **Note (2026-04-22b):** The functional requirement (PM session visibility into executing projects) remains resolved. The chosen **mechanism** (LangGraph `Store` namespace) is flagged for reconsideration under `OQ-H5` — substrate choice, write-path enforcement, and read-path interface are not yet justified from upstream principles.
 
-### OQ-H3 (High Priority): Developer optimization visibility vs. information isolation 
+### OQ-H2 (Closed 2026-04-22): `pending_handoff` cursor
 
-Vision.md promises iteration-by-iteration trendlines during development. AD §4 declares the Developer is blind to evaluation artifacts. The Harness Engineer must emit a public evaluation dashboard artifact — a sanitized trend/benchmark trail showing how the target harness is trending toward desired benchmarks — written to project memory for PM/web app visibility, while the Developer continues to receive only EBDR-1 feedback packets.
+**Resolution.** Removed. With the 1-node dispatcher topology, `handoff_log[-1]` is the authoritative active handoff; no separate cursor needed. The cursor was an artifact of the previous two-node split. See `AD.md §4 LangGraph Project Coordination Graph → PCG State Schema (decisions)` and `DECISIONS.md` Q11 supersession.
 
-  Why This Is High Value:
-Core Value Proposition: Directly enables making invisible work visible (Vision.md thesis: Headless 90% + Artifact Emitter 10%)
-Scientific Integrity: Maintains critical information isolation (Developer blind to evaluation artifacts) while showing progress
-User Experience: Delivers on promises from README.md: "Evaluation scores trending upward" and "Each iteration of the optimization loop with clear before/after signals"
-Artifact-First Philosophy: Embodies D10: "We make the same data irresistibly readable. When you're ready to go deeper, LangSmith is one click away."
-Headless-First Balance: Provides the essential progress tracking needed even when users interact primarily via Slack/Discord
-Decision Scope:
-What metrics to surface (sanitized trend/benchmark trail showing progress toward desired behavior)
-Visualization format appropriate for the product's design language (Linear/Bloomberg/Stripe exploration mentioned in D11)
-Generation mechanism by Harness Engineer that emits public artifacts without leaking scoring logic/rubrics to Developer
-Consumption method via project memory for PM/web app accessibility
-Information boundary defining exactly what is included in public artifact vs. what remains in EBDR-1 feedback packets
-This decision is foundational to delivering Meta Harness' core promise: democratizing harness engineering by making the optimization loop visible, participatory, and provable to stakeholders while preserving the scientific rigor that makes the process work. Without solving this, you cannot deliver the key user experience of watching "an optimization curve bend toward the target" as proof that the process is working.
+### OQ-H3 (Closed 2026-04-22): Developer optimization visibility vs. information isolation
 
+**Resolution.** Folded into `OQ-HO` resolution. An `optimization_trendline` `Store` namespace (scoped to `projects/{project_id}/`) is written exclusively by the Harness Engineer with sanitized per-iteration trend data. The Developer's filesystem permissions exclude this namespace, preserving info isolation. TUI / web app / any headless ingress adapter reads this namespace to render Vision D10/D12 optimization-loop visibility. See `AD.md §4 LangGraph Project Coordination Graph → PCG State Schema (decisions)` (Store table).
+
+> **Note (2026-04-22b):** The functional requirement (Developer-blind optimization visibility) remains resolved. The chosen **mechanism** (LangGraph `Store` namespace with conventional sanitization and filesystem-permission-based Developer exclusion) is flagged for reconsideration under `OQ-H5` — permission-layer ownership, sanitization enforcement (convention vs structure), and substrate choice are not yet justified from upstream principles.
+
+### OQ-H4 (Closed 2026-04-22): Parent-to-child state leakage
+
+**Resolution.** Child isolation is structural at the Deep Agent SDK layer. Every role is a `create_deep_agent()` compiled graph with its own declared `input_schema=_InputAgentState` (messages only) and `output_schema=_OutputAgentState` (messages + optional `structured_response`, all other keys dropped via `PrivateStateAttr` / `OmitFromOutput`). When mounted via `add_node(role, role_graph)` in the PCG, LangGraph reads the subgraph's own declared input schema and only passes the shared `messages` channel from parent to child — no `input_schema=` convention on `add_node` has to be remembered, no runtime filter has to be enforced. Output isolation is enforced by the handoff protocol: every role turn terminates by emitting `Command(graph=PARENT, ...)`, so the child's in-progress conversation never merges into PCG `messages` via subgraph-natural-completion semantics. A thin final-turn-guard middleware catches any role that tries to natural-complete. See `AD.md §4 LangGraph Project Coordination Graph → PCG State Growth and Parent-to-Child Context Propagation` and `DECISIONS.md` Q10 supersession.
 
 ### OQ-1 (Medium Priority): HITL during development phases
 
 Vision.md promises optimization tuning and taste calibration during development, but the Developer lacks `AskUserMiddleware` (only PM and Architect have it per Q8). Who owns HITL during dev phases? Options: PM relay via `ask_pm`, or add restricted-scope `AskUserMiddleware` to Developer.
 
-### OQ-H4 (High Priority): PCG schema 🚨 
+### OQ-H5 (High Priority): Durable cross-thread data substrate, source-of-truth model, and uniform read/write contract
 
-Really good oppurtunity to potentially learn/enhance understanding wich will lead to refining the approach for assertions in @pcg-data-contracts.md#L42-53 *jason* -- > we really should dig into this, its glazed over like the potential state leakage is solved; im not convinced.
+**Problem.** `docs/specs/pcg-data-contracts.md §7 Durable Cross-Thread Data (Store Namespaces)` defines three LangGraph `Store` namespaces (`artifact_manifest`, `optimization_trendline`, `projects_registry`) as the durable surface for project data readable across threads and surfaces. These namespaces were introduced as Phase 2 resolutions of `OQ-H1` (PM session visibility into executing projects) and `OQ-H3` (Developer-blind optimization visibility), and serve as the read surface named by `pm_session` observability claims (see `OQ-PM2`). But the current design was assembled from local decisions with several **unresolved upstream questions** about substrate choice, source-of-truth model, write-path enforcement, read-path interface, multi-tenant composition, and schema governance. The approach needs to either be **justified robustly** from first principles or **redesigned/rehauled/re-articulated** before any implementation depends on it. `OQ-H1` and `OQ-H3` remain functionally resolved (the product needs PM session visibility and Developer-blind trendlines), but their chosen **mechanism** is flagged here for reconsideration.
+
+**What the current design asserts (for reference).**
+
+- Three `Store` namespaces with specific key/value shapes: `("projects", project_id, "artifact_manifest")`, `("projects", project_id, "optimization_trendline")`, `("projects_registry",)`.
+- `artifact_manifest` is metadata-only; `path: str` points into the role-scoped filesystem where content actually lives.
+- Write-path for `artifact_manifest`: "any agent producing an artifact. Recommended: a thin middleware hook on artifact-producing tools writes the manifest entry automatically." — **convention, not structure**.
+- Write-path for `optimization_trendline`: "Harness Engineer exclusively" with sanitization-by-convention (`notes` must contain "only directional signals").
+- Developer exclusion from trendline is "filesystem permissions" — but Store namespaces aren't the Deep Agent filesystem; Store lacks native per-agent ACLs.
+- Read surface is named ("TUI, web app, headless ingress, PM session threads") but the read mechanism is unspecified (overlaps with `OQ-PM2`).
+
+**Upstream questions that must be answered first.**
+
+1. **Substrate choice.** LangGraph `Store` vs dedicated product database (Postgres / Supabase) vs both with Store as cache. Implications for multi-tenant scaling, operational observability, backup/retention, query patterns, and parity across local-dev (`InMemoryStore + SqliteSaver`), Platform-managed, and self-hosted deployments.
+2. **Source-of-truth model per data type.**
+   - **Artifacts.** Is the filesystem (role-scoped backend) the source of truth with `artifact_manifest` as a derived index? Or is the manifest the source of truth with the filesystem as backing content storage? Implications for dangling-pointer failure modes (thread deletion, sandbox teardown), recovery semantics, and rebuild-from-filesystem cost.
+   - **Trendline.** Is Store the source of truth, or does the HE maintain a primary filesystem record indexed to Store? Implications for auditability and reconstruction.
+   - **Registry.** Is Store the source of truth, or is it derived from scanning LangGraph thread metadata on demand? Implications for eventual-consistency risks and multi-writer races on `dispatch_handoff`.
+3. **Write-path enforcement.** Structural vs conventional:
+   - **(a) Convention.** "Recommended: middleware hook on artifact-producing tools." Degrades across contributors; silent drift when new tools are added without paired manifest writes.
+   - **(b) Structural.** Artifact-producing tools inherit from a base class that writes the manifest in the same transaction as the filesystem write. Makes drift impossible but couples tool signatures to manifest schema.
+   - **(c) Permission-layer.** Filesystem backend rejects writes from agent namespaces that don't produce a paired manifest entry. Strongest enforcement; highest implementation cost; tightest coupling between filesystem and data plane.
+4. **Read-path interface (uniform contract across consumer classes).**
+   - pm_session PM (`OQ-PM2`): tool / middleware-injected / registry-as-file / hybrid.
+   - Web app / TUI: direct Store API reads, dedicated product API, or read through the PM?
+   - Headless ingress adapters (Slack / email / Discord / GitHub / Linear): same as web/TUI, or via PM?
+   - LangGraph Studio: out of scope, or must also surface this data?
+   A coherent choice must cover all four consumer classes without four divergent mechanisms.
+5. **Multi-tenant namespace composition.** How Store namespaces compose under the Supabase auth model (`AD.md §11` / §12):
+   - Does `projects_registry` get per-organization prefixing (e.g., `("orgs", org_id, "projects_registry")`), or is isolation enforced only at the `@auth.on` filter layer?
+   - Is cross-org contamination **structurally impossible**, or is it an auth-layer convention?
+   - Do org-scoped trendlines enable cross-project benchmarking (implied by Vision D10/D12 but not in scope of current §7)?
+6. **Permission model for Developer exclusion from trendline.** Current spec says "Developer's filesystem permissions explicitly exclude this namespace," but:
+   - Store namespaces aren't the Deep Agent filesystem — they're LangGraph Store.
+   - Enforcement is presumably at the tool-availability layer (no `read_trendline` tool in Developer's tool set), which is convention.
+   - Or at the `CompositeBackend` routing layer if trendline were surfaced as a virtual file (then backend permissions apply, but trendline isn't a file today).
+   - Or at the Store layer if Store gains per-namespace ACLs (it doesn't natively).
+   Which layer owns the exclusion, and is the enforcement **structural** (per our `OQ-H4` precedent favouring structural enforcement over convention)?
+7. **Sanitization of trendline `notes`.** Current spec: "HE populates `notes` with only directional signals" — pure convention. Anti-pattern by our architectural-tests discipline. Options:
+   - Constrain `notes` to an enum of pre-approved signal types.
+   - Sanitization middleware that scrubs rubric/judge-prompt/held-out-data patterns before writing to Store.
+   - Replace free-form `notes` with structured schema (e.g., `{signal_type, signal_value, direction}`) that cannot hold leak-candidate text.
+8. **Retention, archival, and schema evolution.**
+   - When is a project archived? When is trendline history pruned? When is a `completed` registry entry garbage-collected? Multi-tenant storage costs are unbounded under current design.
+   - Schema evolution: new artifact `type` values, new trendline `metric` values, new registry fields (like today's `pm_session_thread_id` addition) — migration strategy and versioning policy are unspecified.
+
+**Closure candidates (non-endorsed sketches for the contributor picking this up).**
+
+- **(α) Keep Store as substrate, close gaps locally.** Accept LangGraph `Store`; upgrade write-path to 3(b) or 3(c); pick a uniform read-path interface (question 4); add multi-tenant prefixing (question 5); replace trendline `notes` with structured schema (question 7); defer retention/schema governance to later spec passes.
+- **(β) Relocate durable data to a dedicated product database.** Postgres/Supabase becomes source of truth for artifacts, trendline, and registry. Agent-side reads go through typed data-access tools. Write-paths get DB-transaction semantics. Higher operational burden; strongest multi-tenant story; most natural fit for web app + headless ingress at scale.
+- **(γ) Hybrid — Store as hot cache, Postgres as source of truth.** Store holds agent-turn-latency reads; Postgres holds authoritative records. Cache-invalidation complexity; requires clear write-through vs write-back semantics.
+- **(δ) Rebuild §7 around a named "Project Data Plane" abstraction.** Define the product layer first (what it owns, what it guarantees, how it's observed), then pick substrates. Forces upstream decision before substrate lock-in; most principled but highest design cost.
+
+**Constraints.**
+
+- Must cover **all four** consumer surfaces (pm_session PM, web/TUI, headless ingress adapters, future LangGraph Studio integration).
+- Must compose with the Supabase auth model for multi-tenant safety.
+- Must survive thread deletion and sandbox teardown without producing dangling references.
+- Must be observable in LangSmith — every cross-thread read must be traceable to the turn that triggered it.
+- Must preserve the `OQ-H3` Developer-blind trendline invariant with **structural**, not conventional, enforcement.
+- Must be resolved **before** or **concurrently with** `OQ-PM1` / `OQ-PM2` / `OQ-PM3` — those three questions assume a read mechanism exists against this substrate, so the substrate choice dominates. Resolving them first risks re-design churn.
+
+**Pickup hint.**
+
+- Study `@/Users/Jason/2026/v4/meta-agent-v5.6.0/.reference/apps/open-swe` for how a production coding agent separates agent-side data from product-side data plane. Open SWE uses first-class product tables (Postgres) for project/issue/PR records distinct from LangGraph threads — strong precedent for option β/γ.
+- Study `@/Users/Jason/2026/v4/meta-agent-v5.6.0/.venv/lib/python3.11/site-packages/langgraph/store/base.py` and the Postgres store implementation for Store capabilities (namespace conventions, indexing, vector search, TTL if any) and limits (no per-namespace ACLs, no cross-namespace joins).
+- Study LangSmith's dataset/artifact model and LangGraph Platform's managed-Store semantics for comparable upstream precedents inside the same ecosystem.
+- Cross-reference `AD.md §11` (Web App Auth Contract) and `§12` (Web App Deployment Configuration) — any substrate choice must live within that boundary.
+- **This decision likely dominates or blocks** `OQ-PM1` (project-scoped memory injection), `OQ-PM2` (pm_session observability mechanism), and `OQ-PM3` (live-file access boundary). Consider sequencing: resolve `OQ-H5` first, or resolve all four as a coherent data-plane + PM-session pass.
+
+### OQ-PM1 (High Priority): Project-scoped memory injection into pm_session context
+
+**Problem.** The PM Deep Agent shares the same root memory across `pm_session` and `project` modes (AD §4 PM Session And Project Entry Model). Root memory covers user prefs and cross-project knowledge. But each project also owns **project-scoped memory** (`/project_memory/`, PRD, research notes, phase deliverables) that lives in the project thread's filesystem and in Store-indexed artifacts. When a user on a `pm_session` thread asks the PM about a specific project (e.g. *"what's the status of project X?"*, *"summarise the latest Developer iteration on Y"*, *"what did the Architect decide about caching in project Z?"*), the PM needs access to that project's scoped memory — but the PM is running on a different LangGraph thread with a different checkpoint namespace and filesystem view.
+
+**Decision space.**
+
+- **(a) Direct file-read tool.** PM calls `read_project_memory(project_id, path)` explicitly. Token-visible, LLM-controlled, no hidden injection. Tradeoffs: adds latency per read; PM must know which files exist (requires a companion `list_project_memory` tool); doubles the cognitive load for simple status questions.
+- **(b) State-injection middleware.** A `before_model` hook detects project references in the user turn, loads relevant project memory snippets, and injects them as a system message. Fast and low-friction. Tradeoffs: risks context bloat; duplicate-injection across consecutive turns about the same project; hard for the PM to know *which* memory it's reading vs its own.
+- **(c) Registry-as-file pattern.** The `projects_registry` Store namespace plus each project's scoped memory tree is surfaced as a virtual filesystem subtree (e.g. `/projects/{project_id}/memory/...`) in the PM's filesystem on `pm_session` threads. PM reads via standard filesystem tools; loads only what it needs; the boundary between "my memory" (`/AGENT.md`, `/memories/`) and "project memory I'm reading on behalf of the user" (`/projects/.../`) is structural.
+- **(d) Hybrid.** Registry-as-file for shallow status (always surfaced), tool-call for deep memory reads (on demand).
+
+**Constraints.**
+
+- Must compose with Deep Agents' `MemoryMiddleware` (AGENT.md + `/memories/` load-on-invocation pattern) without confusing identity.
+- Must not leak project-scoped memory between projects (cross-project contamination).
+- Must respect `CompositeBackend` routing — project memory lives in the project's filesystem namespace, not the PM's.
+- Must be observable in LangSmith so PM behaviour is debuggable.
+
+**Pickup hint.** Study `@/Users/Jason/2026/v4/meta-agent-v5.6.0/.reference/libs/deepagents/deepagents/middleware/filesystem.py` for `FilesystemMiddleware` virtual-path routing patterns and `CompositeBackend` namespace composition. `MemoryMiddleware`'s load-on-invocation mechanism defines the constraint surface this decision must fit within.
+
+### OQ-PM2 (High Priority): pm_session observability mechanism for Store-backed cross-thread data
+
+**Problem.** `docs/specs/pcg-data-contracts.md` §7 names `pm_session` threads as first-class readers of `artifact_manifest`, `optimization_trendline`, and `projects_registry` Store namespaces, but does not specify **how** the PM on a `pm_session` thread actually reads them. Being a "helpful product manager" depends on being able to answer *"which projects are active?"*, *"what phase is project X in?"*, *"what artifacts has the Harness Engineer produced for project Y?"*, *"how has the optimization trendline moved on project Z this week?"* — all without the PM having to context-switch to a project thread.
+
+**Decision space.**
+
+- **(a) Pure tool-based.** Dedicated session tools: `list_projects()`, `get_project_status(project_id)`, `list_artifacts(project_id, type=None)`, `get_trendline(project_id, metric=None)`. Explicit, bounded, token-visible. Tradeoffs: PM must remember to call them; requires system prompt conditioning to prime "always check registry when user mentions a project."
+- **(b) Middleware-injected context.** A `before_model` hook queries `projects_registry` each turn and injects a compact summary (active projects, current phases, last-handoff timestamps) as a system message. Tradeoffs: context bloat; stale if not refreshed; no on-demand deep query for specific artifacts.
+- **(c) Registry-as-file pattern.** Surface `projects_registry` (and optionally scoped slices of `artifact_manifest` and `optimization_trendline`) as live-refreshing virtual files in the PM's filesystem on `pm_session` threads. PM reads on demand via standard tools.
+- **(d) Hybrid.** Always-injected compact registry summary (top N active projects, current phase, last activity) + on-demand tools for deep queries (artifact listing, trendline details).
+
+**Constraints.**
+
+- Must not create cognitive load that degrades the PM into a tool-calling bureaucrat. The PM should feel aware without being a constant query-issuer.
+- Must bound injected context so long-running `pm_session` threads don't accumulate context bloat.
+- Must compose cleanly with `OQ-PM1` (project-scoped memory injection) — likely the same mechanism.
+- Must be observable in LangSmith so the PM's "how did you know that?" chain is traceable.
+
+**Pickup hint.** Study `@/Users/Jason/2026/v4/meta-agent-v5.6.0/.reference/apps/open-swe` for how a production coding agent surfaces cross-thread context. Study `@/Users/Jason/2026/v4/meta-agent-v5.6.0/.reference/libs/deepagents/deepagents/middleware/memory.py` for load-on-invocation injection patterns. Decision likely co-resolves with `OQ-PM1`.
+
+### OQ-PM3 (High Priority): pm_session live-file access boundary for active project execution environments
+
+**Problem.** (Restatement of the "live-file access boundary" open question flagged in `DECISIONS.md` Q15(6) as "the single high-priority open question in `AD.md`", now articulated with explicit decision space.) When a user on a `pm_session` thread asks about the **current live state** of an actively-running project — e.g. *"what's in `src/handlers.py` in project X right now?"*, *"what did the Developer just write?"*, *"did the tests pass in the sandbox?"* — can PM-on-pm_session read the live execution-environment filesystem of the project, or is it limited to committed artifacts and project memory indexed at the last handoff?
+
+The tension: pm_session is architecturally **not** a participant in the project's PCG run; reading the live sandbox from outside the run introduces cross-thread cross-namespace reads against a potentially-mutating filesystem. But limiting pm_session to Store/memory reads significantly undercuts its usefulness in autonomous/long-running/headless scenarios where the user is monitoring a live project from Slack or the web app.
+
+**Decision space.**
+
+- **(a) No live access.** `pm_session` can only read Store artifacts (`artifact_manifest`, `optimization_trendline`, `projects_registry`) and project-scoped memory indexed at the last checkpoint. Strictest information isolation. PM replies *"I can see committed artifacts and checkpointed memory; check the project thread UI for live sandbox state."* Simplest to implement; preserves clean thread-boundary invariants.
+- **(b) Read-only live access via permission-guarded tool.** `pm_session` gets a `read_project_sandbox(project_id, path)` session tool that queries the project's sandbox filesystem through the backend. Permissions gated on execution mode: allowed for `managed_sandbox` + `external_devbox` (which are isolated and externally inspectable by design), blocked for `local_workspace` without explicit opt-in (local-file reads from outside the project's run cross a trust boundary). Adds a new permission axis; requires backend to expose read-only filesystem probes.
+- **(c) Snapshot-at-query-time.** An on-demand snapshot tool captures the current project sandbox state into a Store `live_snapshots` namespace. `pm_session` reads the snapshot — never the live filesystem directly. Adds latency and storage cost; preserves a clean isolation model; snapshots become historical evidence.
+- **(d) Hybrid.** (a) as the default for project-memory questions; (b) gated to explicitly-named "live status" tools (e.g. `show_live_file` with strong rate-limits and audit trail); (c) as an optional capability for long-running autonomous scenarios where snapshot history is valuable evidence.
+
+**Constraints.**
+
+- Must not violate the project's execution-environment isolation model (AD §4 Project-Scoped Execution Environment, Q16 DECISIONS.md).
+- Must respect the execution mode's trust boundary: `local_workspace` is user-owned and cross-thread reads are higher-risk; `managed_sandbox` is externally inspectable by design.
+- Must be observable in LangSmith — every live read must be traceable back to the `pm_session` user turn that triggered it.
+- Must not create write paths from `pm_session` to a live project sandbox. Read-only boundary is non-negotiable at the base level (write paths require `project` thread context).
+
+**Pickup hint.** Study `@/Users/Jason/2026/v4/meta-agent-v5.6.0/.reference/apps/open-swe` for how a production coding agent handles cross-thread sandbox access — specifically how ingress-triggered runs inspect running sandboxes without cross-contaminating. Study `@/Users/Jason/2026/v4/meta-agent-v5.6.0/.reference/libs/deepagents/deepagents/backends/` for backend filesystem probe patterns. This decision blocks headless PM's ability to be a useful project monitor from Slack/email/web surfaces.
 
 
 ---
@@ -190,9 +313,12 @@ project tools (handoff tools, phase delivery). This is the same mechanism
 capabilities — no separate graph compilation required.
 
 The Project Coordination Graph remains the canonical project execution boundary.
-When a `project` thread is active, the PM runs as a mounted child graph inside
-the PCG. When a `pm_session` thread is active, the PM runs standalone with
-session-scoped tools. Same agent, different thread context, different tool surface.
+When a `project` thread is active, the PM runs as a mounted Deep Agent
+subgraph node inside the PCG; the PCG's `dispatch_handoff` coordination node
+routes into it via `Command(goto="project_manager")` (see `AD.md §4 LangGraph
+Project Coordination Graph`). When a `pm_session` thread is active, the PM
+runs standalone with session-scoped tools. Same agent, different thread
+context, different tool surface.
 
 ### Thread Identity Model
 
@@ -221,7 +347,22 @@ PM Deep Agent runs standalone on these threads with session tools active.
 
 ### PM Session And Project Entry Model
 
-Default routing rule:
+`pm_session` is the **default landing state** for every first-party and future
+headless surface (TUI, web app, and downstream Slack/email/Discord/GitHub/Linear
+adapters). Any entry event that is not explicitly bound to an existing
+`project_thread_id` runs the PM Deep Agent on a `pm_session` thread with
+session-scoped tools active.
+
+The PM Deep Agent on a `pm_session` thread and the PM Deep Agent mounted inside
+a PCG project thread **share the same root memory** — user preferences,
+cross-project knowledge, and session continuity are not fragmented across modes.
+The only runtime difference between the two modes is the **tool and skill
+surface** made available by the `thread_kind`-reading middleware: session tools
+(e.g. project status, portfolio queries, project creation) on `pm_session`;
+project tools (handoff tools, phase delivery) inside the PCG. System prompt
+conditioning is spec-level detail, but the memory invariant is architectural.
+
+#### Entry Routing
 
 ```txt
 if request is explicitly bound to a project_thread_id:
@@ -230,10 +371,62 @@ else:
     run PM Deep Agent on a pm_session thread (session tools active)
 ```
 
-PM session threads do not mutate into project threads. Project creation creates a
-separate project thread and records parent/active links (`parent_pm_thread_id`,
-`active_project_id`, `active_project_thread_id`). PM session continues project
-work via tools and project memory/registry, not by merging checkpoint threads.
+#### Project Creation Transition
+
+Project creation never mutates a `pm_session` thread into a `project` thread.
+It always spawns a new LangGraph thread with `thread_kind = "project"` and
+continues the `pm_session` thread in parallel. Two creation paths are
+supported:
+
+- **UI-onboarding path.** A surface (v1: the web app) offers an explicit
+  onboarding flow that collects enough intent to pre-seed a project. The
+  surface's backend calls the LangGraph Agent Server thread-create API
+  directly to materialise a `project` thread with `thread_kind = "project"`
+  metadata, pre-seeded initial state (e.g. a bootstrap stakeholder input or
+  initial handoff brief), and a link back to the originating `pm_session`
+  thread if one existed. The user lands in the project thread immediately.
+
+- **Chat-driven path.** The user chats with the PM on a `pm_session` thread.
+  When the PM perceives readiness, it calls a session-scoped
+  `spawn_project`-class tool. The tool body calls the Agent Server
+  thread-create API from inside its execution context, returning
+  `{project_id, project_thread_id, status}` to the PM and (via tool output)
+  to the surface. The surface then navigates the user's active thread
+  pointer to the new `project_thread_id`, which preserves the scoping
+  context via the pre-seeded initial state.
+
+Both paths converge on the same primitive: the Agent Server
+`threads.create(...)` API with `thread_kind = "project"` metadata and a
+pre-seeded initial state. Exact SDK call, pre-seed payload shape, and
+idempotency guards are spec territory (see `docs/specs/pcg-data-contracts.md`
+and spec derivations).
+
+#### Identity Linkage and Cardinality
+
+Canonical identifiers:
+
+- `pm_session_thread_id` — LangGraph thread with `thread_kind = "pm_session"`.
+- `project_thread_id` — LangGraph thread with `thread_kind = "project"`.
+
+No `parent_*`, `source_*`, `origin_*`, or `active_*` prefix is used for
+thread identifiers. The link from a project back to its originating
+`pm_session` (if any) lives in the `projects_registry` Store namespace as a
+nullable `pm_session_thread_id` field on the project's registry entry. A
+`null` value denotes a project created via the UI-onboarding path (no
+originating session).
+
+A single `pm_session` thread **may spawn multiple `project` threads over its
+lifetime**. The relationship is one-to-many: append, never overwrite.
+Reverse lookup ("what projects did this pm_session spawn?") is a filtered
+query on `projects_registry` keyed by `pm_session_thread_id`. No active-project
+pointer is kept in `pm_session` checkpoint state — the Store is the source of
+truth for cross-project spawn lineage.
+
+The PM session continues to exist after project spawn. Cross-thread
+continuity is achieved through the Store, project memory, artifact indexes,
+and (future) project-thread run submissions — never by merging checkpoints.
+PM session threads and project threads are fully independent LangGraph
+threads; they do not share a Pregel namespace hierarchy.
 
 ### Headless Ingress vs Source Presence
 
@@ -288,7 +481,7 @@ Its responsibilities are:
 
 - Accept the handoff command from a Deep Agent tool via `Command.PARENT`.
 - Record the handoff in Project Coordination Graph state.
-- Invoke the target mounted Deep Agent child graph under its stable role namespace.
+- Route to the target role Deep Agent by emitting `Command(goto=<target_agent_name>)`. Role Deep Agents are mounted as LangGraph subgraph nodes; routing is by name, not by direct invocation.
 - Preserve enough Project Coordination Graph state to reconstruct which agent handed work
   to whom, why, and with which artifact references.
 
@@ -303,80 +496,137 @@ Its non-responsibilities are equally important:
 - Do not reimplement Deep Agents middleware for planning, memory, skills, filesystem access, summarization, or tool calling.
 - Do not implement phase gate logic in PCG nodes or conditional edges — phase gates are middleware hooks on handoff tools.
 - Do not implement routing intelligence — the calling agent chooses its target via the handoff tool; the PCG is plumbing, not a router.
+- Do not attempt to invoke role Deep Agents via a dispatcher-calls-`.ainvoke()` pattern. That approach breaks `Command.PARENT` bubbling: a child `.ainvoke()`'d from inside a plain Python node runs in its own top-level Pregel context and `map_command` raises `InvalidUpdateError("There is no parent graph")` when the child emits `Command.PARENT` (verified at `.venv/lib/python3.11/site-packages/langgraph/pregel/_io.py:56-59`). The canonical mechanism for peer handoffs with persistent per-role checkpoint state is subgraph mounting. Role Deep Agents are therefore mounted as subgraph nodes in the PCG, and the `Command.PARENT` emitted by their handoff tools bubbles back through Pregel's namespace hierarchy (`.venv/lib/python3.11/site-packages/langgraph/pregel/_retry.py:136-138`).
 
 | Node | Purpose |
 |---|---|
-| `process_handoff` | On first invocation (no pending handoff): accept stakeholder input, set `current_agent` to PM, create a synthetic handoff record from the user's message. On subsequent invocations: record the handoff, ensure the target role's checkpoint namespace and workspace paths are initialized, and prepare the invocation payload. |
-| `run_agent` | Construct a single `HumanMessage` from `pending_handoff.brief` and invoke the target mounted Deep Agent child graph under its stable role namespace. Clear `pending_handoff` on completion. |
+| `dispatch_handoff` | The sole coordination node. On first invocation (empty `handoff_log`): synthesize an initial handoff record from stakeholder input on `messages`, upsert `projects_registry`, return `Command(goto=<initial_target_agent>, update={handoff_log, current_agent, current_phase})`. On re-entry triggered by a child's `Command(graph=PARENT, goto="dispatch_handoff", update={...})`: read the newly-appended `handoff_log[-1]`, upsert `projects_registry`, return `Command(goto=<target_agent>)`. Never invokes role graphs directly — LangGraph handles routing through the Pregel loop once the `Command(goto=...)` is emitted. |
+| `project_manager` | Mounted PM Deep Agent subgraph (`create_deep_agent()` result). Entered via `Command(goto="project_manager")`. Exits via a handoff tool (`Command(graph=PARENT, goto="dispatch_handoff", update={...})`) or the terminal `finish_to_user` tool (`Command(graph=PARENT, goto=END, update={"messages": [AIMessage(...)]})`). |
+| `harness_engineer` | Mounted HE Deep Agent subgraph. Entered via `Command(goto="harness_engineer")`. Exits via a handoff tool. |
+| `researcher` | Mounted Researcher Deep Agent subgraph. Entered via `Command(goto="researcher")`. Exits via a handoff tool. |
+| `architect` | Mounted Architect Deep Agent subgraph. Entered via `Command(goto="architect")`. Exits via a handoff tool. |
+| `planner` | Mounted Planner Deep Agent subgraph. Entered via `Command(goto="planner")`. Exits via a handoff tool. |
+| `developer` | Mounted Developer Deep Agent subgraph. Entered via `Command(goto="developer")`. Exits via a handoff tool. |
+| `evaluator` | Mounted Evaluator Deep Agent subgraph. Entered via `Command(goto="evaluator")`. Exits via a handoff tool. |
 
 #### PCG State Schema (decisions)
 
 The `ProjectCoordinationState` carries only deterministic coordination data —
-no agent cognition, no artifact content, no specialist messages. State tracks:
-a user-facing `messages` I/O channel (lifecycle bookends only), project
-identity (`project_id`, `project_thread_id`), pipeline position
-(`current_phase`, `current_agent`), an append-only `handoff_log` audit
-trail, and a `pending_handoff` execution cursor consumed by `run_agent`.
+no agent cognition, no artifact content, no specialist messages. State
+tracks: a user-facing `messages` I/O channel (LangGraph convention, written
+only when the PM finishes naturally), project identity (`project_id`,
+`project_thread_id`), pipeline position (`current_phase`, `current_agent`),
+an append-only `handoff_log` audit trail, and a first-class
+`acceptance_stamps` channel keyed by stamp type. Durable cross-thread project
+data (artifact manifest, optimization trendline, projects registry) lives
+in LangGraph `Store`, not in PCG state.
 
 **Decision-level invariants:**
 
-- `messages` is the user-facing I/O channel. Only stakeholder input and PM's
-  final product response flow through it. Handoff tools do NOT write to it.
-  Child agent intermediate output does NOT flow back into it.
-- Child agents never see PCG state beyond `messages`. Per-child input schema
-  isolation is mandatory on mounted child `add_node` calls.
-- `run_agent` constructs the child's input (a single `HumanMessage` from
-  `pending_handoff.brief`); the PCG never exposes raw state to children.
-- Each mounted Deep Agent owns its own conversation history in its checkpoint
-  namespace. PCG `messages` is not a conversation history. Child message
-  compaction is handled by the SDK's `SummarizationMiddleware` within each
-  agent, not by the PCG.
-- `handoff_log` is append-only and acts as the acceptance record for gated
-  tools (e.g. `return_product_to_pm`). v1 caps to last N records; N is a
-  runtime constant, and cap mitigation is spec territory.
-- `pending_handoff` is an execution cursor, not a data store — required by
-  the two-node topology to flow data between `process_handoff` and
-  `run_agent`.
+- `messages` is the user-facing I/O channel (LangGraph convention). PCG
+  writes to it once per lifecycle cycle when the PM finishes naturally
+  (PM's final `AIMessage` response). Handoff tools do NOT write to it.
+  Specialist agents never read it.
+- **Child isolation is structural at the Deep Agent SDK layer.** Every role is a `create_deep_agent()` compiled graph, which declares `input_schema=_InputAgentState` (messages only) and `output_schema=_OutputAgentState` (messages + optional `structured_response`) at its own compile time (`@/Users/Jason/2026/v4/meta-agent-v5.6.0/.reference/libs/deepagents/deepagents/graph.py:236`, `@/Users/Jason/2026/v4/meta-agent-v5.6.0/.venv/lib/python3.11/site-packages/langchain/agents/middleware/types.py:358-368`). `todos`, `files`, `jump_to`, and middleware-private state (`StagnationGuardState._model_call_count`, skills/memory internals, etc.) carry `PrivateStateAttr` / `OmitFromOutput` annotations (`types.py:346-347`) and are dropped structurally at compile time. When mounted via `add_node(role_name, role_compiled_graph)`, LangGraph reads the subgraph's own declared `input_schema` (`graph/state.py:1306-1314`) and only passes the shared `messages` channel from parent to child — we do not need to pass `input_schema=` on `add_node` ourselves.
+- `dispatch_handoff` reads `handoff_log[-1]` to identify the active handoff.
+  No separate cursor key. The previous `pending_handoff` field is removed.
+- `handoff_log` uses an `operator.add` append reducer over
+  `list[HandoffRecord]`. The previous use of `add_messages` on non-message
+  types is retired as structurally broken (`add_messages` coerces through
+  `convert_to_messages` which rejects non-`MessageLikeRepresentation`
+  values; verified at `.venv/lib/python3.11/site-packages/langchain_core/messages/utils.py:727-730`).
+- `acceptance_stamps` is a first-class channel keyed by `"application"` /
+  `"harness"`, updated only by the two `submit_*_acceptance` tools. Gate
+  dispatch reads this channel instead of scanning `handoff_log`.
+- `current_phase` is a denormalization of the last phase-transitioning
+  handoff in `handoff_log`. It is a fast-path for middleware gate dispatch,
+  not an independent source of truth. `HandoffRecord.phase` (new, optional)
+  carries the phase on transitioning records to support this denormalization
+  safely.
+- Each role Deep Agent owns its own conversation history in its checkpoint
+  namespace (role name). PCG `messages` is not a conversation history.
+  Child message compaction is handled by the SDK's `SummarizationMiddleware`
+  within each agent.
+- `handoff_log` cap strategy: v1 retains the in-state log with an
+  implementation-determined cap; v2 option is to migrate the audit trail to
+  LangGraph `Store` for unbounded durable audit without state bloat. Since
+  gates now read `acceptance_stamps`, not `handoff_log`, the v2 migration
+  is a pure persistence concern with no correctness risk.
 - Graph lifecycle is PM-controlled. The PCG is transparent to interrupts —
-  `ask_user` pauses the PM's child graph, which pauses the PCG node, which
-  pauses the graph. Resume flows through automatically.
+  `ask_user` pauses the PM's child graph during `dispatch_handoff`'s
+  invocation, which pauses the PCG node, which pauses the graph. Resume
+  flows through automatically.
+
+**Durable cross-thread data lives in `Store`, not in PCG state:**
+
+| `Store` namespace | Owner (writer) | Consumers | Purpose |
+|---|---|---|---|
+| `projects/{project_id}/artifact_manifest` | Artifact-producing agents (typically via middleware) | TUI, web app, any headless ingress adapter, PM session threads | Single queryable index of artifacts (type, owner, path, created_at, public/private). Supplants walking role filesystems + `handoff_log.artifact_paths`. |
+| `projects/{project_id}/optimization_trendline` | Harness Engineer (exclusive) | TUI, web app, headless ingress, PM session. **Not the Developer** — Developer's filesystem permissions exclude this namespace, preserving info isolation. | Sanitized per-iteration trend data enabling Vision D10/D12 visibility without leaking rubrics, judges, or held-out datasets. Resolves `OQ-H3`. |
+| `projects_registry` | `dispatch_handoff` (on each handoff) | PM session threads, web app project list, all ingress adapters | Compact record per project: `project_id`, `project_thread_id`, `current_phase`, `current_agent`, `last_handoff_at`, `artifact_count`. Resolves `OQ-H1` (PM session visibility into executing projects). |
 
 Field-level schema, reducer choices, cap mitigation mechanisms, and exact
 Pydantic/TypedDict wire formats are spec territory.
 
-> Implementation detail (full field table, reducer semantics, all seven
-> invariants with rationale): see [`docs/specs/pcg-data-contracts.md`](./docs/specs/pcg-data-contracts.md).
+> Implementation detail (full field table, reducer semantics, all
+> invariants with rationale, `Store` namespace schemas): see
+> [`docs/specs/pcg-data-contracts.md`](./docs/specs/pcg-data-contracts.md).
 
-The topology is linear with two nodes:
+The topology is 1 coordination node + 7 mounted role subgraph nodes. All
+routing is driven by `Command(goto=...)` emissions; there are zero static
+edges between dispatcher and roles and zero conditional edges:
 
 ```txt
-START → process_handoff → run_agent(PM)
-                                │
-                          PM calls handoff tool
-                          middleware hook fires (phase gate)
-                                │
-                          gate passes → Command.PARENT emitted
-                          gate fails → tool returns revision prompt to agent
-                                │
-                          process_handoff → run_agent(target)
-                                │
-                          target calls handoff or returns
-                                │
-                          process_handoff → run_agent(next target)  (loop)
+START → dispatch_handoff
+          │
+          │  First invocation: synthesize initial handoff from user input on
+          │  messages. Return Command(goto="project_manager", update={
+          │      handoff_log: [initial_record],
+          │      current_agent: "project_manager",
+          │      current_phase: "scoping",
+          │  }).
+          │
+          │  Re-entry: Command(goto=handoff_log[-1].target_agent).
+          │
+          ▼
+     (role subgraph node, e.g. project_manager)
+          │
+          │  Role's handoff tool fires.
+          │  Middleware hook fires (phase gate / acceptance gate).
+          │
+          │  Gate passes  → Command(graph=PARENT, goto="dispatch_handoff",
+          │                         update={handoff_log: [record], …}) emitted.
+          │  Gate fails   → tool returns revision prompt to calling agent;
+          │                 agent remains in its subgraph.
+          │
+          │  PARENT command bubbles up through Pregel namespaces; PCG
+          │  absorbs the update; re-enters dispatch_handoff; routes to
+          │  the next role indicated by handoff_log[-1].
+          │
+          │  Terminal case (PM only): PM calls finish_to_user →
+          │  Command(graph=PARENT, goto=END,
+          │          update={messages: [AIMessage(final_response)]})
+          │  → PCG absorbs messages; graph terminates.
+          │
+          ▼
+         END
 ```
 
-There are no conditional edges. The only branching happens *before* the
-`Command.PARENT` reaches the PCG: the middleware hook on the handoff tool
-decides whether to allow the handoff through or return a revision prompt to
-the calling agent. If the command reaches the PCG, it always flows through
-`process_handoff` → `run_agent`.
+Every role turn terminates by emitting `Command(graph=PARENT, ...)`. Natural
+completion (the role's last node returns without emitting a command) is an
+error condition that a thin final-turn-guard middleware catches by
+re-prompting the agent. This invariant prevents the child's full
+conversation history from merging into PCG `messages` through LangGraph's
+default subgraph-output→parent-state mapping.
 
 ### Handoff Protocol
 
 All agent-to-agent communication goes through explicit handoff tools. A handoff
-tool returns `Command(graph=Command.PARENT, goto="process_handoff",
+tool returns `Command(graph=Command.PARENT, goto="dispatch_handoff",
 update=<handoff_payload>)` rather than directly invoking arbitrary peers. The
-PCG records the handoff and invokes the target mounted role graph.
+PARENT command bubbles up through the Pregel namespace hierarchy; the PCG
+absorbs the update; `dispatch_handoff` re-enters and returns
+`Command(goto=<target_agent>)` to route into the next mounted role subgraph.
 
 A handoff should carry:
 
@@ -404,17 +654,21 @@ filesystem namespace and tags its artifacts with the `project_id`.
 
 #### `Command.PARENT` Update Contract (decisions)
 
-Handoff tools return `Command(graph=Command.PARENT, goto="process_handoff",
-update=...)`. The update dict writes only to PCG coordination keys
-(`handoff_log`, `current_agent`, `current_phase`, `pending_handoff`) — it
-does NOT include `messages`. Handoff briefs and artifact paths flow through
-`handoff_log`, preserving the lifecycle-bookend invariant on `messages`.
+Handoff tools return `Command(graph=Command.PARENT, goto="dispatch_handoff",
+update=...)`. The update dict writes only to PCG coordination channels
+(`handoff_log`, `current_agent`, `current_phase` conditional on phase
+transition, and `acceptance_stamps` for the two `submit_*_acceptance`
+tools) — it does NOT include `messages`. Handoff briefs and artifact paths
+flow through the appended `HandoffRecord` in `handoff_log`, keeping
+`messages` reserved for the user-facing PM response.
 
 **Caller-vs-PCG field ownership** is locked:
 - The calling agent populates `project_id`, `project_thread_id`,
-  `source_agent`, `target_agent`, `reason`, `brief`, and `artifact_paths`.
+  `source_agent`, `target_agent`, `reason`, `brief`, `artifact_paths`, and
+  — on phase-transitioning records only — `phase`. Acceptance tools
+  additionally populate `accepted`.
 - The PCG fills `handoff_id`, `langsmith_run_id`, `status`, and `created_at`
-  in `process_handoff`.
+  inside `dispatch_handoff` (pre-invocation).
 
 **Exception — PM-assembled handoff packages.** For downstream pipeline
 delivery tools where the receiving agent needs the full accumulated artifact
@@ -472,16 +726,47 @@ Two transitions require **explicit user approval**; all others auto-advance:
 
 #### PCG State Growth and Parent-to-Child Context Propagation
 
-**Child agents do not see PCG state.** LangGraph maps parent state to child graph input by shared key names only. The Deep Agent input schema (`_InputAgentState`) defines a single key: `messages`. The implementation MUST set `input_schema=_InputAgentState` on each `add_node` call for mounted child graphs — without this, LangGraph defaults to passing the full parent state schema, which would leak PCG-private keys into child agents. The `run_agent` node controls exactly what enters the child's `messages` input (a single `HumanMessage` constructed from `pending_handoff.brief`).
+**Child isolation is structural at the Deep Agent SDK layer.** Every role is
+a `create_deep_agent()` compiled graph that declares its own
+`input_schema=_InputAgentState` (messages only) and
+`output_schema=_OutputAgentState` (messages + optional `structured_response`
+only). `todos`, `files`, `jump_to`, and all middleware-private state carry
+`PrivateStateAttr` / `OmitFromOutput` annotations and are dropped structurally
+at the child's compile time. When mounted via `add_node(role, role_graph)`,
+LangGraph reads the subgraph's own declared input schema and only passes the
+shared `messages` channel between parent and child — no `input_schema=`
+parameter is needed on `add_node`, and no convention filter has to be
+enforced at runtime.
 
-**`messages` growth is bounded by design.** The `messages` key accumulates only lifecycle bookends — stakeholder input and the PM's final product response. It never grows during pipeline execution. Over a project thread's lifetime, `messages` contains at most 2 entries per lifecycle cycle (one `HumanMessage` in, one `AIMessage` out), plus any follow-up re-invocations.
+**Output isolation is enforced by the handoff protocol.** Every role turn
+terminates by emitting `Command(graph=Command.PARENT, ...)` — specialists via
+their handoff tools, PM via handoff tools or the `finish_to_user` terminal
+tool. Command.PARENT emissions carry an explicit `update={...}` dict, and
+only the keys in that dict reach PCG state. The child's in-progress
+conversation history never auto-merges into parent `messages` via subgraph
+completion semantics because the role never completes via the
+natural-completion path. A thin final-turn-guard middleware re-prompts any
+role whose last AIMessage lacks a handoff tool call, making the invariant
+observable and enforceable rather than a silent convention.
 
-**Unbounded handoff log growth is a persistence concern, not a context-flooding concern.** The handoff log accumulates in the PCG's own checkpoint state. Child agents never read it. However, an unbounded log bloats checkpoint storage over time. The AD mandates a cap strategy; the exact mechanism is delegated to the implementation spec:
+**`messages` growth is naturally bounded.** PCG writes to `messages` only
+when `dispatch_handoff` captures a PM's final `AIMessage` on natural
+completion. Headless ingress may produce multiple lifecycle cycles across
+the project thread lifetime, so the `add_messages` reducer is retained on
+the `messages` channel as the idiomatic LangGraph conduit. No invariant
+restricts it to "exactly 2 entries per cycle" — the headless-ready-infra
+policy explicitly expects multi-cycle conversation continuity.
 
-- **v1:** Cap the handoff log to the last N records per project thread. The cap threshold N is a runtime constant. The mitigation mechanism for records that exceed the cap is delegated to the implementation spec (options: summarize into a string field, migrate to LangGraph Store, or discard with a count marker).
-- **v2 option:** Move the full handoff history to the LangGraph `Store` (key-value) instead of the PCG state, so the PCG state never grows. The `run_agent` node and middleware can query the store on demand.
+**Handoff log growth is a persistence concern with no correctness impact.**
+Since gate dispatch now reads the first-class `acceptance_stamps` channel,
+not `handoff_log`, trimming or migrating the log never affects gate logic.
+v1 keeps `handoff_log` in state with an implementation-determined cap;
+v2 option is to move the durable audit trail to the `Store` (namespace
+`projects/{project_id}/handoff_history` or equivalent) on rollover.
 
-**Child agent message compaction** is handled by the Deep Agents `SummarizationMiddleware`, which is already in every agent's middleware stack. No additional compaction mechanism is needed at the PCG level for child agent context.
+**Child agent message compaction** is handled by the Deep Agents
+`SummarizationMiddleware`, which is already in every agent's middleware
+stack. No additional compaction mechanism is needed at the PCG level.
 
 #### Gate-Ownership Boundary: Harness Engineer vs Evaluator
 
@@ -515,33 +800,50 @@ Verb semantics also encode blocking behavior:
 - **`ask`** = the caller is asking a question (non-blocking)
 - **`coordinate`** = QA agents are aligning with each other (non-blocking)
 
-Meta Harness v1 ships **23 handoff tools across six categories**: Pipeline
-Delivery, Pipeline Return, Acceptance, Stage Review, Phase Review, and
-Specialist Consultation. Agent-scoped tool ownership (which agent owns which
-tools), the full tool matrix (caller, target, artifact flow, middleware gate),
-and the end-to-end pipeline flow diagram are the interface contract derived
-from this protocol.
+Meta Harness v1 ships **24 tools total**: 23 handoff tools across six
+categories (Pipeline Delivery, Pipeline Return, Acceptance, Stage Review,
+Phase Review, Specialist Consultation) plus 1 terminal-emission tool
+(`finish_to_user`, PM-only, Category 7 Terminal Emission). Agent-scoped tool
+ownership, the full tool matrix (caller, target, artifact flow, middleware
+gate), and the end-to-end pipeline flow diagram are the interface contract
+derived from this protocol.
+
+**`finish_to_user` (Category 7 Terminal Emission).** PM-only. Returns
+`Command(graph=Command.PARENT, goto=END, update={"messages": [AIMessage(final_response)]})`.
+Does not append to `handoff_log` — this is a lifecycle bookend, not an
+inter-agent handoff. This tool is the mechanism by which the PM writes a
+final response to the user-facing `messages` channel and terminates the
+project thread cleanly. Its presence is what makes the "every turn
+terminates with Command.PARENT" invariant achievable for the PM's terminal
+case.
 
 **Acceptance gate logic for `return_product_to_pm`** is a locked AD decision:
-the middleware gate checks `handoff_log` for acceptance stamps. Evaluator
-acceptance is always required. Harness Engineer acceptance is required only
-if the HE was ever invoked in the project thread (gate derives HE relevance
-by scanning `handoff_log`; no `has_target_harness` state key). If no HE
-participation is found, the HE acceptance check is skipped.
+the middleware gate reads the first-class `acceptance_stamps` channel.
+`state.acceptance_stamps["application"]` must be present (Evaluator stamp;
+always required). `state.acceptance_stamps["harness"]` is required only
+if the HE participated in the project thread; HE participation is derived
+by scanning `handoff_log` for any record with `source_agent == "harness_engineer"`
+or `target_agent == "harness_engineer"`. If no HE participation is found,
+the HE acceptance check is skipped. No `has_target_harness` state key is
+introduced.
 
 > Implementation detail (full tool matrix, agent-scoped ownership table,
 > pipeline flow diagram): see [`docs/specs/handoff-tools.md`](./docs/specs/handoff-tools.md).
 
 ### Project-Scoped Execution Environment
 
-Meta Harness v1 uses a single Project Coordination Graph with peer role Deep
-Agents mounted as child subgraphs. This is the only v1 project-role topology.
-The PM remains the user-facing agent inside that topology.
+Meta Harness v1 uses a single Project Coordination Graph with 1 coordination
+node (`dispatch_handoff`) plus 7 mounted role Deep Agent subgraph nodes.
+The dispatcher routes via `Command(goto=<role_name>)`; roles re-enter the
+dispatcher via `Command(graph=PARENT, goto="dispatch_handoff", update={...})`.
+This is the only v1 project-role topology. The PM remains the user-facing
+agent inside that topology.
 
 Sandbox support does not change the graph topology. A sandbox is a backend and
 runtime environment for file and shell/tool execution, not a separate top-level
-agent application. A sandbox-backed role agent is still a mounted child graph; it
-just receives a sandbox-capable backend.
+agent application. A sandbox-backed role agent is still a mounted Deep Agent
+subgraph node in the PCG; it just receives a sandbox-capable backend when its
+Deep Agent factory is constructed.
 
 Terminology is locked as follows: **project memory/artifact filesystem** means
 Deep Agents file/memory storage for one project's artifacts and context;
@@ -685,9 +987,9 @@ decisions can be stitched together in LangSmith.
 LangGraph Pregel automatically propagates a child callback manager (scoped to
 `graph:step:<N>`) into every node's `RunnableConfig` via
 `manager.get_child(f"graph:step:{step}")` (`.venv/lib/python3.11/site-packages/langgraph/pregel/_algo.py:694-698`).
-When a mounted Deep Agent child graph executes as a subgraph node inside the
-Project Coordination Graph, it inherits the parent's LangSmith run context
-through this mechanism. Each role agent invocation appears as a nested run
+Role Deep Agents are mounted as subgraph nodes under the PCG, so their runs
+inherit the PCG root run's LangSmith context through native subgraph
+callback propagation. Each role agent invocation appears as a nested run
 under the PCG root run automatically. No `parent_run_id` threading in
 application code is needed or appropriate.
 
@@ -820,15 +1122,25 @@ is not an agent registry. `langgraph.json` points to either
 runtime config is needed. Role factories are `create_<role>_agent()`
 returning Deep Agent graphs via `create_deep_agent()`.
 
-PCG nodes do deterministic plumbing only: `process_handoff` records the
-handoff and prepares the invocation payload; `run_agent` constructs a
-`HumanMessage` from the handoff brief and invokes the mounted child graph,
-then clears `pending_handoff`. Phase gate enforcement, HITL question
-surfacing, and routing intelligence are NOT PCG responsibilities. The PCG
-must not implement research, architecture, planning, development,
-eval-science, prompt composition, phase gate logic, or provider/model
-request policy. Those remain in peer Deep Agent factories, SDK
-configuration calls, tool/prompt contracts, and middleware hooks.
+The sole coordination node `dispatch_handoff` does deterministic plumbing
+only: on first invocation it synthesizes the initial handoff record from
+stakeholder input on `messages` and emits `Command(goto="project_manager",
+update={handoff_log, current_agent, current_phase})` to route into the
+mounted PM subgraph node. On re-entry triggered by a child-emitted
+`Command(graph=PARENT, goto="dispatch_handoff", update={...})`, it reads
+`handoff_log[-1]` and emits `Command(goto=<target_agent>)` to route into
+the indicated mounted role subgraph. The dispatcher never invokes role
+graphs directly via `.ainvoke()` — that pattern would break `Command.PARENT`
+bubbling because `.ainvoke()`'d children run in a top-level Pregel context
+and `map_command` raises `InvalidUpdateError` (`.venv/lib/python3.11/site-packages/langgraph/pregel/_io.py:56-59`).
+Role Deep Agents are mounted as subgraph nodes (`add_node(role, role_graph)`)
+so `Command.PARENT` bubbles through the Pregel namespace hierarchy natively.
+Phase gate enforcement, HITL question surfacing, and routing intelligence
+are NOT PCG responsibilities. The PCG must not implement research,
+architecture, planning, development, eval-science, prompt composition,
+phase gate logic, or provider/model request policy. Those remain in peer
+Deep Agent factories, SDK configuration calls, tool/prompt contracts, and
+middleware hooks.
 
 ### Project Workspace and Memory Structure (decisions)
 
@@ -857,15 +1169,15 @@ not backend layers.
 
 ```mermaid
 flowchart LR
-    U["User / UI"] --> PCG["LangGraph Project Coordination Graph\n2 nodes: process_handoff, run_agent\nthread: project_id"]
-    PCG -->|"process_handoff → run_agent"| PM["PM Deep Agent\nnamespace: project_manager"]
+    U["User / UI"] --> PCG["LangGraph Project Coordination Graph\n1 dispatcher + 7 mounted role subgraphs\nthread: project_thread_id"]
+    PCG -->|"Command(goto='project_manager')"| PM["PM Deep Agent\nmounted subgraph: project_manager"]
 
-    PCG -->|"process_handoff → run_agent"| HE["Harness Engineer\nnamespace: harness_engineer"]
-    PCG -->|"process_handoff → run_agent"| R["Researcher\nnamespace: researcher"]
-    PCG -->|"process_handoff → run_agent"| A["Architect\nnamespace: architect"]
-    PCG -->|"process_handoff → run_agent"| PL["Planner\nnamespace: planner"]
-    PCG -->|"process_handoff → run_agent"| D["Developer\nnamespace: developer"]
-    PCG -->|"process_handoff → run_agent"| E["Evaluator\nnamespace: evaluator"]
+    PCG -->|"Command(goto='harness_engineer')"| HE["Harness Engineer\nmounted subgraph: harness_engineer"]
+    PCG -->|"Command(goto='researcher')"| R["Researcher\nmounted subgraph: researcher"]
+    PCG -->|"Command(goto='architect')"| A["Architect\nmounted subgraph: architect"]
+    PCG -->|"Command(goto='planner')"| PL["Planner\nmounted subgraph: planner"]
+    PCG -->|"Command(goto='developer')"| D["Developer\nmounted subgraph: developer"]
+    PCG -->|"Command(goto='evaluator')"| E["Evaluator\nmounted subgraph: evaluator"]
 
     PM -->|"deliver_prd_to_* / return_*_to_pm"| PCG
     A -->|"submit_spec_to_harness_engineer"| PCG
@@ -874,7 +1186,8 @@ flowchart LR
     E -->|"submit_application_acceptance"| PCG
     HE -->|"submit_harness_acceptance"| PCG
 
-    PCG --> FS["Project Artifacts\nPRD, design, plans, evals, datasets"]
+    PCG --> FS["Role Filesystems\nartifacts per namespace"]
+    PCG --> STORE["LangGraph Store\nartifact_manifest\noptimization_trendline\nprojects_registry"]
     PCG --> LG["LangGraph Dev Server\nlanggraph.json graph ID"]
     LG --> STUDIO["LangGraph Studio\nlocal dev inspection"]
     PCG --> OBS["LangSmith\ntraces, run/thread links, evals"]
@@ -897,56 +1210,56 @@ sequenceDiagram
     participant LS as LangSmith
 
     User->>PCG: Scope request and requirements
-    PCG->>PM: process_handoff → run_agent(PM)
+    PCG->>PM: Command(goto="project_manager")
     PM->>PCG: deliver_prd_to_harness_engineer(Command.PARENT)
-    PCG->>FS: Append handoff record and artifact paths
-    PCG->>HE: process_handoff → run_agent(HE)
+    PCG->>FS: Append handoff record to state; PCG writes artifact_manifest to Store
+    PCG->>HE: Command(goto="harness_engineer")
     HE-->>PCG: return_eval_suite_to_pm(Command.PARENT)
 
     alt Stakeholder clarification needed
         HE->>PCG: ask_pm(Command.PARENT)
-        PCG->>PM: process_handoff → run_agent(PM)
+        PCG->>PM: Command(goto="project_manager")
         PM->>User: ask_user middleware (scoped clarification)
         User-->>PM: Answer
         PM-->>PCG: deliver_prd_to_harness_engineer(Command.PARENT)
-        PCG->>HE: process_handoff → run_agent(HE, resume)
+        PCG->>HE: Command(goto="harness_engineer") (resume)
     end
 
     PM->>PCG: deliver_prd_to_researcher(Command.PARENT)
-    PCG->>R: process_handoff → run_agent(Researcher)
+    PCG->>R: Command(goto="researcher")
     R-->>PCG: return_research_bundle_to_pm(Command.PARENT)
 
     PM->>PCG: deliver_design_package_to_architect(Command.PARENT)
-    PCG->>A: process_handoff → run_agent(Architect)
+    PCG->>A: Command(goto="architect")
     A->>PCG: submit_spec_to_harness_engineer(Command.PARENT)
-    PCG->>HE: process_handoff → run_agent(HE, Stage 2)
+    PCG->>HE: Command(goto="harness_engineer") (Stage 2)
     HE-->>PCG: return_eval_coverage_to_architect(Command.PARENT)
-    PCG->>A: process_handoff → run_agent(Architect, resume)
+    PCG->>A: Command(goto="architect") (resume)
     A-->>PCG: return_design_package_to_pm(Command.PARENT)
 
     PM->>PCG: deliver_planning_package_to_planner(Command.PARENT)
-    PCG->>PL: process_handoff → run_agent(Planner)
+    PCG->>PL: Command(goto="planner")
     PL-->>PCG: return_plan_to_pm(Command.PARENT)
 
     PM->>PCG: deliver_development_package_to_developer(Command.PARENT)
-    PCG->>D: process_handoff → run_agent(Developer)
+    PCG->>D: Command(goto="developer")
 
     D->>PCG: submit_phase_to_evaluator(Command.PARENT)
-    PCG->>E: process_handoff → run_agent(Evaluator)
+    PCG->>E: Command(goto="evaluator")
     E-->>PCG: pass/fail findings (Command.PARENT)
-    PCG->>D: process_handoff → run_agent(Developer, resume)
+    PCG->>D: Command(goto="developer") (resume)
 
     Note over D,E: ... repeat for each development phase ...
 
-    E->>PCG: submit_application_acceptance(Command.PARENT)
-    HE->>PCG: submit_harness_acceptance(Command.PARENT)
-    D->>PCG: return_product_to_pm(Command.PARENT, gated by acceptance stamps)
-    PCG->>PM: process_handoff → run_agent(PM)
+    E->>PCG: submit_application_acceptance(Command.PARENT, writes acceptance_stamps["application"])
+    HE->>PCG: submit_harness_acceptance(Command.PARENT, writes acceptance_stamps["harness"])
+    D->>PCG: return_product_to_pm(Command.PARENT, gated by acceptance_stamps channel)
+    PCG->>PM: Command(goto="project_manager")
 
-    PM->>User: Present finished product
+    PM->>User: Present finished product (via ask_user middleware)
     PM->>User: ask_user (satisfaction check)
     User-->>PM: Satisfied
-    PM-->>PCG: PM finishes normally → END
+    PM-->>PCG: finish_to_user(Command.PARENT, goto=END, update={messages: [AIMessage(final)]})
 
     PCG->>LS: Emit correlation metadata
 ```
@@ -955,9 +1268,12 @@ sequenceDiagram
 
 The `HandoffRecord` field set and enum values are locked as AD decisions:
 
-- **Fields:** `project_id`, `project_thread_id`, `handoff_id`, `source_agent`,
-  `target_agent`, `reason`, `brief`, `artifact_paths`, `langsmith_run_id`,
-  `status`, `created_at`.
+- **Core fields:** `project_id`, `project_thread_id`, `handoff_id`,
+  `source_agent`, `target_agent`, `reason`, `brief`, `artifact_paths`,
+  `langsmith_run_id`, `status`, `created_at`.
+- **Optional fields (populated only when relevant):** `phase`
+  (phase-transitioning records only, supports the `current_phase`
+  denormalization), `accepted` (acceptance-stamp records only).
 - **`source_agent` / `target_agent` enum:**
   `project-manager | harness-engineer | researcher | architect | planner | developer | evaluator`.
 - **`reason` enum:** `deliver | return | submit | consult | announce | coordinate | question`.
@@ -1067,8 +1383,17 @@ Web application deployment and compliance hardening are in fact intended for v1.
 
 This index maps closed architecture questions to their primary location in this
 document and detailed rationale in [DECISIONS.md](./DECISIONS.md). Open questions
-(`OQ-H1`, `OQ-3`, `OQ-4`) are tracked in §Open Questions. **Changelog** is archived
-in [CHANGELOG.md](./CHANGELOG.md).
+are tracked in §Open Questions (as of 2026-04-22b: `OQ-1` HITL during development
+phases remains open; `OQ-H5` opened 2026-04-22b flagging the durable cross-thread
+data substrate (Store namespace approach in `pcg-data-contracts.md §7`) for
+robust justification or redesign — likely dominates `OQ-PM1` / `OQ-PM2` /
+`OQ-PM3`; `OQ-PM1` / `OQ-PM2` / `OQ-PM3` opened 2026-04-22b to articulate
+high-priority unresolved questions around PM session behaviour — project-scoped
+memory injection, cross-thread observability mechanism, and live-file access
+boundary; `OQ-HO` / `OQ-H1` / `OQ-H2` / `OQ-H3` / `OQ-H4` all closed by the
+PCG state schema clean-slate rewrite, though `OQ-H1` and `OQ-H3` resolution
+**mechanisms** are flagged under `OQ-H5` for reconsideration).
+**Changelog** is archived in [CHANGELOG.md](./CHANGELOG.md).
 
 **Topology and protocol round (Q1–Q8, 2026-04-11/12):**
 
@@ -1115,9 +1440,9 @@ Implementation contracts extracted from AD decisions under `docs/specs/`. See
 
 | Spec | Derives From | Status | Last Synced |
 |---|---|---|---|
-| [`docs/specs/handoff-tools.md`](./docs/specs/handoff-tools.md) | §4 Handoff Protocol, §4 Handoff Tool Use-Case Matrix, §4 Pipeline Flow Diagram | Active | 2026-04-22 |
-| [`docs/specs/pcg-data-contracts.md`](./docs/specs/pcg-data-contracts.md) | §4 LangGraph Project Coordination Graph (State Schema), §4 Handoff Protocol (Command.PARENT Update Contract), §4 Data Contracts | Active | 2026-04-22 |
-| [`docs/specs/repo-and-workspace-layout.md`](./docs/specs/repo-and-workspace-layout.md) | §4 Repo and Workspace Layout, §4 LangGraph Project Coordination Graph Factory Contract, §4 Project Workspace and Memory Structure | Active | 2026-04-22 |
+| [`docs/specs/handoff-tools.md`](./docs/specs/handoff-tools.md) | §4 Handoff Protocol, §4 Handoff Tool Use-Case Matrix, §4 Pipeline Flow Diagram | Active (rewritten 2026-04-22 for `OQ-HO`) | 2026-04-22 |
+| [`docs/specs/pcg-data-contracts.md`](./docs/specs/pcg-data-contracts.md) | §4 LangGraph Project Coordination Graph (State Schema), §4 Handoff Protocol (Command.PARENT Update Contract), §4 Data Contracts, §4 PM Session And Project Entry Model (Identity Linkage) | Active (rewritten 2026-04-22 for `OQ-HO`; identity naming harmonised 2026-04-22b) | 2026-04-22b |
+| [`docs/specs/repo-and-workspace-layout.md`](./docs/specs/repo-and-workspace-layout.md) | §4 Repo and Workspace Layout, §4 LangGraph Project Coordination Graph Factory Contract, §4 Project Workspace and Memory Structure | Active (updated 2026-04-22 for `OQ-HO`) | 2026-04-22 |
 
 ---
 

@@ -12,7 +12,7 @@ owners: ["@Jason"]
 # Repository and Workspace Layout Specification
 
 > **Provenance:** Derived from `AD.md §4 Full Repo Structure Naming Decision`, `§4 LangGraph Project Coordination Graph Factory Contract`, and `§4 Project Workspace and Memory Structure Proposal`.  
-> **Status:** Active · **Last synced with AD:** 2026-04-22  
+> **Status:** Active · **Last synced with AD:** 2026-04-22 (updated for `OQ-HO` resolution: 1 dispatcher + 7 mounted role subgraph nodes; `ROLE_GRAPHS` registry consumed at graph-construction time).  
 > **Consumers:** Developer (scaffolding, file creation), Evaluator (structural conformance).
 
 ## 1. Purpose
@@ -112,10 +112,61 @@ meta-harness/
 ## 3. PCG Factory Contract
 
 The PCG is a LangGraph application boundary. It is not a Deep Agent and it
-is not an agent registry. A tasteful first implementation keeps this in
-root `graph.py`:
+is not an agent registry. After the `OQ-HO` rewrite (2026-04-22, corrected
+same day), the PCG has **1 coordination node (`dispatch_handoff`) + 7
+mounted role Deep Agent subgraph nodes**. The dispatcher routes via
+`Command(goto=<target_agent>)`; role subgraph handoff tools emit
+`Command(graph=PARENT, goto="dispatch_handoff", update={...})` which
+bubbles back through Pregel's namespace hierarchy. Role graphs are mounted
+(not `.ainvoke()`'d) because `Command.PARENT` only bubbles from inside a
+parent Pregel's namespace (`@/Users/Jason/2026/v4/meta-agent-v5.6.0/.venv/lib/python3.11/site-packages/langgraph/pregel/_io.py:56-59`);
+an `.ainvoke()`'d child runs in a top-level Pregel context and its
+`Command.PARENT` emissions raise `InvalidUpdateError`.
+
+Child isolation is structural at the Deep Agent SDK layer: `create_deep_agent()`
+declares `input_schema=_InputAgentState` (messages only) and
+`output_schema=_OutputAgentState` (messages + optional `structured_response`,
+all other keys dropped via `PrivateStateAttr` / `OmitFromOutput`). LangGraph
+reads the subgraph's declared `input_schema` automatically on mount
+(`@/Users/Jason/2026/v4/meta-agent-v5.6.0/.venv/lib/python3.11/site-packages/langgraph/graph/state.py:1306-1314`),
+so no `input_schema=` parameter is needed on `add_node`.
+
+A tasteful first implementation keeps this in root `graph.py`:
 
 ```python
+from langgraph.graph import StateGraph, START
+from langgraph.pregel import Pregel
+
+from meta_harness.agents.project_manager.agent import create_project_manager_agent
+from meta_harness.agents.harness_engineer.agent import create_harness_engineer_agent
+from meta_harness.agents.researcher.agent import create_researcher_agent
+from meta_harness.agents.architect.agent import create_architect_agent
+from meta_harness.agents.planner.agent import create_planner_agent
+from meta_harness.agents.developer.agent import create_developer_agent
+from meta_harness.agents.evaluator.agent import create_evaluator_agent
+
+
+def _build_role_graphs() -> dict[str, Pregel]:
+    """In-process registry of compiled role Deep Agent graphs.
+
+    Used at graph-construction time to mount each role as a subgraph node.
+    The dispatcher routes into these nodes via Command(goto=<role_name>);
+    it never invokes them directly.
+    """
+    return {
+        "project_manager": create_project_manager_agent(),
+        "harness_engineer": create_harness_engineer_agent(),
+        "researcher": create_researcher_agent(),
+        "architect": create_architect_agent(),
+        "planner": create_planner_agent(),
+        "developer": create_developer_agent(),
+        "evaluator": create_evaluator_agent(),
+    }
+
+
+ROLE_GRAPHS = _build_role_graphs()
+
+
 def make_graph(...) -> CompiledStateGraph:
     builder = StateGraph(
         ProjectCoordinationState,
@@ -123,10 +174,21 @@ def make_graph(...) -> CompiledStateGraph:
         input_schema=ProjectCoordinationInput,
         output_schema=ProjectCoordinationOutput,
     )
-    builder.add_node("process_handoff", process_handoff)
-    builder.add_node("run_agent", run_agent)
-    builder.add_edge(START, "process_handoff")
-    builder.add_edge("process_handoff", "run_agent")
+
+    # Coordination node — returns Command(goto=<role>) to route.
+    builder.add_node("dispatch_handoff", dispatch_handoff)
+
+    # Role Deep Agents mounted as subgraph nodes. No input_schema= needed —
+    # each compiled Deep Agent declares _InputAgentState internally, and
+    # LangGraph honors that on mount. Command.PARENT bubbles natively from
+    # inside these subgraphs.
+    for role_name, role_graph in ROLE_GRAPHS.items():
+        builder.add_node(role_name, role_graph)
+
+    builder.add_edge(START, "dispatch_handoff")
+    # Zero static edges between dispatcher and roles — all routing is via
+    # Command(goto=...) emissions.
+
     return builder.compile(
         checkpointer=checkpointer,
         store=store,
@@ -143,27 +205,42 @@ graph construction needs runtime config, while the CLI server also
 supports a module-level `graph` export. The root `langgraph.json` can
 point to either `./graph.py:graph` or `./graph.py:make_graph`; prefer
 `./graph.py:make_graph` if the PCG needs invocation-time config/runtime,
-otherwise `./graph.py:graph` is simpler. The role factories should use
-`create_<role>_agent()` because those modules return Deep Agent graphs via
+otherwise `./graph.py:graph` is simpler. The role factories use
+`create_<role>_agent()` returning Deep Agent graphs via
 `create_deep_agent()`.
 
 ### 3.1 Node responsibilities (deterministic plumbing only)
 
-- `process_handoff` — On first invocation (no pending handoff): accept
-  stakeholder input, set `current_agent` to PM, create a synthetic handoff
-  record. On subsequent invocations: record the handoff, ensure the
-  target role's checkpoint namespace and workspace paths are initialized,
-  and prepare the invocation payload.
-- `run_agent` — Construct a single `HumanMessage` from
-  `pending_handoff.brief` and invoke the target mounted Deep Agent child
-  graph using the parent project thread and target role namespace. Clear
-  `pending_handoff` on completion.
+- `dispatch_handoff` — The sole coordination node. On first invocation
+  (empty `handoff_log`): synthesize an initial handoff record from
+  stakeholder input on `messages`, upsert `projects_registry`, return
+  `Command(goto="project_manager", update={handoff_log, current_agent, current_phase})`.
+  On re-entry triggered by a child-emitted
+  `Command(graph=PARENT, goto="dispatch_handoff", update={...})`: read
+  `handoff_log[-1]`, upsert `projects_registry`, return
+  `Command(goto=<target_agent>)`. Never invokes role graphs directly —
+  LangGraph handles routing through the Pregel loop.
+- `project_manager` / `harness_engineer` / `researcher` / `architect` /
+  `planner` / `developer` / `evaluator` — Mounted Deep Agent subgraphs.
+  Entered via `Command(goto=<role_name>)`. Exit via a handoff tool
+  (`Command(graph=PARENT, goto="dispatch_handoff", update={...})`) or, for
+  the PM only, the terminal `finish_to_user` tool
+  (`Command(graph=PARENT, goto=END, update={"messages": [AIMessage(...)]})`).
+  Every role's middleware stack includes a final-turn-guard that re-prompts
+  if the agent's last `AIMessage` lacks a tool call to a handoff tool or
+  `finish_to_user` — natural completion of a role subgraph is not
+  permitted because it would merge the child's conversation history into
+  PCG `messages`.
 
 Phase gate enforcement, HITL question surfacing, and routing intelligence
 are **not** PCG responsibilities. Phase gates are middleware hooks on
 handoff tools. HITL questions are handled by the `ask_user` middleware
-provided by the Deep Agents SDK and can be found in the `deepagents_cli`
-module. Routing decisions are made by the calling agent via tool selection.
+provided by the Deep Agents SDK (found in the `deepagents_cli` module).
+Routing decisions are made by the calling agent via tool selection.
+
+See `docs/specs/pcg-data-contracts.md §8` for the `dispatch_handoff`
+reference implementation sketch and the full mount-and-route protocol
+explanation.
 
 ## 4. Project Workspace and Memory Structure
 

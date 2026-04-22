@@ -116,6 +116,13 @@ Before implementing anything touching these SDKs, read local source first. Do
 not rely on training data or general knowledge. See `local-docs/SDK_REFERENCE.md`
 for the full path index and specific line-range references.
 
+## In-Flight Working Analyses (local-docs)
+
+- `local-docs/pcg-state-schema-rewrite-working.md` — record of reasoning for the
+  PCG state schema clean-slate rewrite resolving `OQ-HO` / `OQ-H2` / `OQ-H4`
+  (folding in `OQ-H1` / `OQ-H3`). Temporary; archive or delete once the Phase 2
+  AD + spec pass lands.
+
 ## Local Workflows And Commands
 
 

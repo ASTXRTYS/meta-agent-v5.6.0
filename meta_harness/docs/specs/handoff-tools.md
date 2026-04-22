@@ -4,6 +4,7 @@ derived_from:
   - AD §4 Handoff Protocol
   - AD §4 Handoff Tool Use-Case Matrix
   - AD §4 Pipeline Flow Diagram
+  - AD §4 Command.PARENT Update Contract
 status: active
 last_synced: 2026-04-22
 owners: ["@Jason"]
@@ -11,8 +12,8 @@ owners: ["@Jason"]
 
 # Handoff Tools Specification
 
-> **Provenance:** Derived from `AD.md §4 Handoff Protocol`, `§4 Handoff Tool Use-Case Matrix`, and `§4 Pipeline Flow Diagram`.  
-> **Status:** Active · **Last synced with AD:** 2026-04-22  
+> **Provenance:** Derived from `AD.md §4 Handoff Protocol`, `§4 Handoff Tool Use-Case Matrix`, `§4 Pipeline Flow Diagram`, and `§4 Command.PARENT Update Contract`.  
+> **Status:** Active · **Last synced with AD:** 2026-04-22 (updated for `OQ-HO` resolution: 1 dispatcher + 7 mounted role subgraphs; `acceptance_stamps` channel; `finish_to_user` terminal-emission tool added).  
 > **Consumers:** Developer (implementation), Evaluator (conformance checking).
 
 ## 1. Purpose
@@ -25,6 +26,58 @@ and middleware gate policy.
 The parent AD defines *what* handoffs are and *why* they route the way they
 do. This spec defines *which concrete tools exist, who owns them, what
 artifacts they carry, and which middleware gate applies*.
+
+## 1.1 Uniform Tool Return Shape (handoff tools)
+
+Every handoff tool in this spec returns exactly the shape below. The only
+variation is in the `update` dict payload; the `graph` and `goto` are
+identical for all 23 handoff tools.
+
+```python
+Command(
+    graph=Command.PARENT,
+    goto="dispatch_handoff",
+    update={
+        "handoff_log": [handoff_record],            # append via operator.add
+        "current_agent": target_agent,               # overwrite
+        "current_phase": new_phase_if_transition,    # OMIT if no transition
+        # Acceptance-stamp tools additionally include:
+        # "acceptance_stamps": {"application": stamp_record}
+        #   or
+        # "acceptance_stamps": {"harness": stamp_record}
+    },
+)
+```
+
+The update dict **never** includes `messages` (reserved for the terminal
+`finish_to_user` tool) and **never** includes a `pending_handoff` key
+(removed in `OQ-HO` resolution). See `docs/specs/pcg-data-contracts.md §5`
+for the full update contract.
+
+The PM additionally owns one **terminal-emission tool** that uses a
+different shape — see §1.3 and §4.7 (Category 7: Terminal Emission).
+
+## 1.2 Store-Side Effects
+
+Artifact-producing tools additionally write to the `artifact_manifest`
+`Store` namespace (`("projects", project_id, "artifact_manifest")`) so that
+any surface — TUI, web app, headless ingress, PM session threads — can
+enumerate project artifacts without walking role filesystems. Recommended
+implementation: a thin middleware hook on artifact-producing tools performs
+the Store write, keeping the tool body focused on the handoff contract.
+
+The Harness Engineer's trendline-producing tool additionally writes to the
+`optimization_trendline` `Store` namespace. Developer filesystem
+permissions exclude this namespace (Developer info isolation). See
+`docs/specs/pcg-data-contracts.md §7`.
+
+## 1.3 Every Turn Terminates with `Command.PARENT`
+
+**Invariant.** A role subgraph's turn MUST end by emitting `Command(graph=Command.PARENT, ...)`. Specialists satisfy this naturally — their final tool call is a handoff tool. The PM satisfies it via either a handoff tool or the terminal `finish_to_user` tool (Category 7).
+
+**Why.** LangGraph's mounted-subgraph state mapping merges a naturally-completing subgraph's final state into parent state via shared channel reducers. PCG has `messages` with `add_messages`; a role Deep Agent's `_OutputAgentState` also exposes `messages` (its full conversation history). Without this invariant, every role's natural completion would append the child's entire conversation to PCG `messages`, violating the user-facing-I/O-only invariant.
+
+**Enforcement.** Every role receives a thin **final-turn-guard middleware** in its stack. The middleware's `after_model` hook inspects the agent's last `AIMessage`: if it contains no tool call to a handoff tool or `finish_to_user`, the middleware injects a `SystemMessage` nudge instructing the agent to conclude its turn via the appropriate tool, and forces another model iteration. This is a prompt-hygiene safety net; a correctly-prompted role should never trigger it. The middleware is distinct from `StagnationGuardMiddleware` (which handles overall cost/progress) and runs in the tail stack alongside `HumanInTheLoopMiddleware`.
 
 ## 2. Naming Convention
 
@@ -75,22 +128,37 @@ Tools are organized into six categories by transition type.
 
 ### 4.3 Acceptance — QA agents submit acceptance stamps (non-blocking)
 
-The Developer's `return_product_to_pm` gate reads these stamps.
+The Developer's `return_product_to_pm` gate reads the first-class
+`acceptance_stamps` state channel populated by these tools.
 
-| # | Tool | `reason` | Caller | Target | Artifact Flow | Middleware Gate |
-|---|---|---|---|---|---|---|
-| 11 | `submit_harness_acceptance` | `submit` | HE | PM | Acceptance stamp: target harness quality verified | None (stamp only) |
-| 12 | `submit_application_acceptance` | `submit` | Evaluator | PM | Acceptance stamp: target application quality verified | None (stamp only) |
+| # | Tool | `reason` | Caller | Target | `acceptance_stamps` write | Artifact Flow | Middleware Gate |
+|---|---|---|---|---|---|---|---|
+| 11 | `submit_harness_acceptance` | `submit` | HE | PM | `{"harness": stamp_record}` | Acceptance stamp: target harness quality verified | None (stamp only) |
+| 12 | `submit_application_acceptance` | `submit` | Evaluator | PM | `{"application": stamp_record}` | Acceptance stamp: target application quality verified | None (stamp only) |
+
+Each acceptance-stamp tool's `Command.PARENT` update dict includes the
+`acceptance_stamps` key **in addition to** the standard `handoff_log` /
+`current_agent` entries, so the audit trail and gate channel stay
+synchronized.
 
 **Acceptance gate logic for `return_product_to_pm`.** The middleware gate on
-this tool checks `handoff_log` for acceptance stamps before allowing the
-handoff through. Evaluator acceptance is always required. Harness Engineer
-acceptance is required only if the HE was ever invoked in the project thread
-— the gate derives HE relevance by scanning `handoff_log` for any record
-with `source_agent == "harness_engineer"` or
-`target_agent == "harness_engineer"`. If no HE participation is found, the HE
-acceptance check is skipped. This avoids adding a `has_target_harness` state
-key.
+this tool reads `state["acceptance_stamps"]`:
+
+- `state["acceptance_stamps"]["application"]` must be present (Evaluator
+  stamp; always required).
+- `state["acceptance_stamps"]["harness"]` is required only if the HE
+  participated in the project thread. HE participation is derived by
+  scanning `state["handoff_log"]` for any record with
+  `source_agent == "harness_engineer"` or
+  `target_agent == "harness_engineer"`. If no HE participation is found,
+  the HE acceptance check is skipped.
+- Scanning `handoff_log` for acceptance records is an anti-pattern and
+  must be rejected in review (conformance test: gate reads
+  `acceptance_stamps`, never iterates `handoff_log` looking for
+  `reason == "submit"` stamps).
+
+This preserves the "no `has_target_harness` state key" decision while
+decoupling gate logic from audit-log structure.
 
 ### 4.4 Stage Review — Specialist submits work to HE for eval coverage
 
@@ -118,6 +186,31 @@ key.
 | 22 | `ask_pm` | `question` | Any specialist | PM | Stakeholder question → answer/clarification | None |
 | 23 | `coordinate_qa` | `coordinate` | HE ↔ Evaluator | Evaluator ↔ HE | QA findings → aligned review strategy | None |
 
+### 4.7 Terminal Emission — PM closes the project thread
+
+This category contains exactly one tool. It is not a handoff between agents;
+it is a lifecycle bookend that terminates the PCG graph with the PM's final
+response to the user.
+
+| # | Tool | Caller | Target | Emission Shape | Writes to `handoff_log`? |
+|---|---|---|---|---|---|
+| 24 | `finish_to_user` | PM | (user, via `messages` channel) | `Command(graph=Command.PARENT, goto=END, update={"messages": [AIMessage(final_response)]})` | **No** — terminal emission is a lifecycle bookend, not an inter-agent handoff. |
+
+**When PM uses it.** After the PM has presented the finished product to the
+user (via `ask_user` middleware) and received satisfaction confirmation — or
+after any PM session-thread terminal conversation turn. `finish_to_user` is
+not gated; the PM's system prompt decides when to invoke it.
+
+**Why it's a separate tool, not a handoff.** `finish_to_user` does not
+append to `handoff_log` because termination is not an event in the inter-
+agent coordination audit trail. Including it in `handoff_log` would
+pollute the audit with lifecycle bookends. It satisfies the §1.3
+termination invariant and nothing else.
+
+**Autonomous mode interaction.** When autonomous mode is enabled, the PM
+still calls `finish_to_user` as the terminal action; autonomous mode only
+suppresses the pre-terminal `ask_user` satisfaction check.
+
 ## 5. Agent-Scoped Tool Ownership
 
 Each agent only receives the tools relevant to its role. An agent cannot call
@@ -125,7 +218,7 @@ a tool it does not own.
 
 | Agent | Pipeline Delivery | Pipeline Return | Acceptance | Stage Review | Phase Review | Consultation |
 |---|---|---|---|---|---|---|
-| PM | `deliver_prd_to_harness_engineer`, `deliver_prd_to_researcher`, `deliver_design_package_to_architect`, `deliver_planning_package_to_planner`, `deliver_development_package_to_developer` | — | `submit_harness_acceptance` (receives), `submit_application_acceptance` (receives) | — | — | `request_research_from_researcher` |
+| PM | `deliver_prd_to_harness_engineer`, `deliver_prd_to_researcher`, `deliver_design_package_to_architect`, `deliver_planning_package_to_planner`, `deliver_development_package_to_developer` | — | `submit_harness_acceptance` (receives), `submit_application_acceptance` (receives) | — | — | `request_research_from_researcher`; **Terminal:** `finish_to_user` (Category 7) |
 | Harness Engineer | — | `return_eval_suite_to_pm`, `return_eval_coverage_to_architect` | `submit_harness_acceptance` | `submit_spec_to_harness_engineer` (receives) | `announce_phase_to_harness_engineer` (receives), `submit_phase_to_harness_engineer` (receives) | `consult_harness_engineer_on_gates` (receives), `request_research_from_researcher`, `coordinate_qa` |
 | Researcher | — | `return_research_bundle_to_pm` | — | — | — | `request_research_from_researcher` (receives) |
 | Architect | — | `return_design_package_to_pm` | — | `submit_spec_to_harness_engineer` | — | `request_research_from_researcher` |
@@ -184,7 +277,8 @@ Stakeholder → PM
                     ├─ return_product_to_pm (gated by acceptance stamps)
                     │
               ← PM presents finished product to user
-              PM uses ask_user → user satisfied → PM finishes → END
+              PM uses ask_user → user satisfied → PM calls finish_to_user
+              → Command(graph=PARENT, goto=END, update={messages: [AIMessage(final)]}) → END
 
 Phase communication arc:
   1. Developer announces phase intent to each QA agent (non-blocking)
