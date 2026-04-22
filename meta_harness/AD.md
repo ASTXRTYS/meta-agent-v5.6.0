@@ -112,19 +112,48 @@ makes handoffs observable and auditable.
 🚨 
 ## Open Questions
 
+### OQ-HO 🚨 🔔 : Highest urgency
+- *jason* im not sold on the current approach of our pcg state schema meta_harness/docs/specs/pcg-data-contracts.md i want an our best agent to pick this up. i dont think this was designed intelligently, or maybe it was, sell it to me. The vision.md did not exist when this contract was made, maybe we can do better this time? im being demanding of us becasue i want this project to be written elgantley. 
+
+*note*: this may open up the need for re designing the approach of meta_harness/docs/specs/handoff-tools.md as well, plan accordingly.
+
 ### OQ-H1 (High Priority): PM visibility into executing projects
 
 What does the PM need to see inside executing projects so it can be helpful and insightful while in a `pm_session` thread?
 
-### OQ-3 (High Priority): Developer optimization visibility vs. information isolation
+### OQ-H2 (High Priority): PCG Schema 🚨 
+*Jason*: I dont see the practicality in  `pending_handoff` see: meta_harness/docs/specs/pcg-data-contracts.md ; Need someone to sell me on the value of this and how it earns its place.
+
+### OQ-H3 (High Priority): Developer optimization visibility vs. information isolation 
 
 Vision.md promises iteration-by-iteration trendlines during development. AD §4 declares the Developer is blind to evaluation artifacts. The Harness Engineer must emit a public evaluation dashboard artifact — a sanitized trend/benchmark trail showing how the target harness is trending toward desired benchmarks — written to project memory for PM/web app visibility, while the Developer continues to receive only EBDR-1 feedback packets.
 
-### OQ-4 (Medium Priority): HITL during development phases
+  Why This Is High Value:
+Core Value Proposition: Directly enables making invisible work visible (Vision.md thesis: Headless 90% + Artifact Emitter 10%)
+Scientific Integrity: Maintains critical information isolation (Developer blind to evaluation artifacts) while showing progress
+User Experience: Delivers on promises from README.md: "Evaluation scores trending upward" and "Each iteration of the optimization loop with clear before/after signals"
+Artifact-First Philosophy: Embodies D10: "We make the same data irresistibly readable. When you're ready to go deeper, LangSmith is one click away."
+Headless-First Balance: Provides the essential progress tracking needed even when users interact primarily via Slack/Discord
+Decision Scope:
+What metrics to surface (sanitized trend/benchmark trail showing progress toward desired behavior)
+Visualization format appropriate for the product's design language (Linear/Bloomberg/Stripe exploration mentioned in D11)
+Generation mechanism by Harness Engineer that emits public artifacts without leaking scoring logic/rubrics to Developer
+Consumption method via project memory for PM/web app accessibility
+Information boundary defining exactly what is included in public artifact vs. what remains in EBDR-1 feedback packets
+This decision is foundational to delivering Meta Harness' core promise: democratizing harness engineering by making the optimization loop visible, participatory, and provable to stakeholders while preserving the scientific rigor that makes the process work. Without solving this, you cannot deliver the key user experience of watching "an optimization curve bend toward the target" as proof that the process is working.
+
+
+### OQ-1 (Medium Priority): HITL during development phases
 
 Vision.md promises optimization tuning and taste calibration during development, but the Developer lacks `AskUserMiddleware` (only PM and Architect have it per Q8). Who owns HITL during dev phases? Options: PM relay via `ask_pm`, or add restricted-scope `AskUserMiddleware` to Developer.
 
+### OQ-H4 (High Priority): PCG schema 🚨 
+
+Really good oppurtunity to potentially learn/enhance understanding wich will lead to refining the approach for assertions in @pcg-data-contracts.md#L42-53 *jason* -- > we really should dig into this, its glazed over like the potential state leakage is solved; im not convinced.
+
+
 ---
+
 
 ## 4) Architecture
 
@@ -280,31 +309,43 @@ Its non-responsibilities are equally important:
 | `process_handoff` | On first invocation (no pending handoff): accept stakeholder input, set `current_agent` to PM, create a synthetic handoff record from the user's message. On subsequent invocations: record the handoff, ensure the target role's checkpoint namespace and workspace paths are initialized, and prepare the invocation payload. |
 | `run_agent` | Construct a single `HumanMessage` from `pending_handoff.brief` and invoke the target mounted Deep Agent child graph under its stable role namespace. Clear `pending_handoff` on completion. |
 
-#### PCG State Schema
+#### PCG State Schema (decisions)
 
-The `ProjectCoordinationState` carries only deterministic coordination data — no agent cognition, no artifact content, no specialist messages.
+The `ProjectCoordinationState` carries only deterministic coordination data —
+no agent cognition, no artifact content, no specialist messages. State tracks:
+a user-facing `messages` I/O channel (lifecycle bookends only), project
+identity (`project_id`, `project_thread_id`), pipeline position
+(`current_phase`, `current_agent`), an append-only `handoff_log` audit
+trail, and a `pending_handoff` execution cursor consumed by `run_agent`.
 
-| Field | Type | Purpose | Set by |
-|---|---|---|---|
-| `messages` | `Annotated[list[AnyMessage], add_messages]` | **User-facing I/O channel.** Accumulates stakeholder input and PM's final product response only — lifecycle bookends. Never written to during pipeline execution. Also the only key shared with `_InputAgentState`, so it is the conduit by which `run_agent` passes input to child graphs. | `process_handoff` (stakeholder input), PM normal exit (final response) |
-| `project_id` | `str` | Durable Meta Harness project identity | `process_handoff` (from initial invocation) |
-| `project_thread_id` | `str` | Canonical LangGraph project execution thread identity for this PCG run | `process_handoff` (from routing context) |
-| `current_phase` | `Literal["scoping", "research", "architecture", "planning", "development", "acceptance"]` | Current project phase; middleware reads this for gate dispatch | `process_handoff` (advanced on phase-transition handoffs) |
-| `current_agent` | `Literal["project_manager", "harness_engineer", "researcher", "architect", "planner", "developer", "evaluator"]` | Which role graph is currently active; `run_agent` reads this to select the correct mounted child | `process_handoff` |
-| `handoff_log` | `Annotated[list[HandoffRecord], add_messages]` | Append-only coordination audit trail — who handed what to whom, when, why, with which artifacts. Also serves as acceptance record for gated tools (e.g. `return_product_to_pm`). Capped at N records; cap mitigation delegated to implementation spec. | `process_handoff` |
-| `pending_handoff` | `HandoffRecord \| None` | Active handoff cursor — the handoff record currently being processed by `run_agent`. Set by `process_handoff`, consumed by `run_agent`, cleared on completion. | `process_handoff` (set), `run_agent` (clear) |
+**Decision-level invariants:**
 
-**Key invariants:**
+- `messages` is the user-facing I/O channel. Only stakeholder input and PM's
+  final product response flow through it. Handoff tools do NOT write to it.
+  Child agent intermediate output does NOT flow back into it.
+- Child agents never see PCG state beyond `messages`. Per-child input schema
+  isolation is mandatory on mounted child `add_node` calls.
+- `run_agent` constructs the child's input (a single `HumanMessage` from
+  `pending_handoff.brief`); the PCG never exposes raw state to children.
+- Each mounted Deep Agent owns its own conversation history in its checkpoint
+  namespace. PCG `messages` is not a conversation history. Child message
+  compaction is handled by the SDK's `SummarizationMiddleware` within each
+  agent, not by the PCG.
+- `handoff_log` is append-only and acts as the acceptance record for gated
+  tools (e.g. `return_product_to_pm`). v1 caps to last N records; N is a
+  runtime constant, and cap mitigation is spec territory.
+- `pending_handoff` is an execution cursor, not a data store — required by
+  the two-node topology to flow data between `process_handoff` and
+  `run_agent`.
+- Graph lifecycle is PM-controlled. The PCG is transparent to interrupts —
+  `ask_user` pauses the PM's child graph, which pauses the PCG node, which
+  pauses the graph. Resume flows through automatically.
 
-1. **`messages` is the user-facing I/O channel.** It accumulates only stakeholder `HumanMessage` objects (in) and the PM's final `AIMessage` product response (out) — lifecycle bookends. Handoff tools do NOT write to it. Child agent intermediate output does NOT flow back into it. The `add_messages` reducer is required to prevent overwrite when multiple user messages arrive across invocations.
-2. **`messages` is the only key visible to child agents.** LangGraph maps parent state to child input by shared key name. The Deep Agent input schema (`_InputAgentState`) defines only `messages`. The implementation MUST set `input_schema=_InputAgentState` on each `add_node` call for mounted child graphs to prevent other PCG keys from leaking into child input.
-3. **`run_agent` constructs the child's input, not the PCG.** The `run_agent` node constructs a single `HumanMessage` containing the handoff brief (from `pending_handoff`) and passes it as the child's `messages` input. The child never sees the raw PCG `messages` list.
-4. **`handoff_log` uses `add_messages` for append-only semantics.** `HandoffRecord` objects implement the message protocol (have an `id` field) so `add_messages` provides append-without-overwrite. This is a reuse of the reducer for its semantics, not because handoff records are messages. The cap threshold N is a runtime constant; cap mitigation mechanism is delegated to the implementation spec.
-5. **`pending_handoff` is an execution cursor, not a data store.** It points to the handoff currently being processed. It is set by `process_handoff`, consumed by `run_agent`, and cleared on completion. It is required by the two-node topology (data must flow through state between nodes).
-6. **Child agents own their own conversation history.** Each mounted Deep Agent accumulates messages in its own checkpoint namespace. The PCG's `messages` key is not a conversation history — it's an I/O channel. Child agent message compaction is handled by `SummarizationMiddleware` within each agent, not by the PCG.
-7. **Graph lifecycle is PM-controlled.** The PM decides when to end (finish normally → END) or stay alive (use `ask_user` → interrupt → pause). The PCG is transparent to interrupts — `ask_user` pauses the PM's child graph, which pauses the PCG node, which pauses the graph. Resume flows through automatically.
+Field-level schema, reducer choices, cap mitigation mechanisms, and exact
+Pydantic/TypedDict wire formats are spec territory.
 
-Exact Pydantic/TypedDict wire format and `HandoffRecord` type definition delegated to implementation spec.
+> Implementation detail (full field table, reducer semantics, all seven
+> invariants with rationale): see [`docs/specs/pcg-data-contracts.md`](./docs/specs/pcg-data-contracts.md).
 
 The topology is linear with two nodes:
 
@@ -361,62 +402,34 @@ Artifact paths are references by default — the receiving agent reads artifacts
 from the caller's namespace via the provided paths. Each agent owns its own
 filesystem namespace and tags its artifacts with the `project_id`.
 
-#### `Command.PARENT` Update Contract
+#### `Command.PARENT` Update Contract (decisions)
 
-The handoff tool's `Command.PARENT` update dict writes to specific parent state
-channels using their reducers. The AD specifies which keys are written — this is
-an architectural decision (what gets communicated), not an implementation detail.
+Handoff tools return `Command(graph=Command.PARENT, goto="process_handoff",
+update=...)`. The update dict writes only to PCG coordination keys
+(`handoff_log`, `current_agent`, `current_phase`, `pending_handoff`) — it
+does NOT include `messages`. Handoff briefs and artifact paths flow through
+`handoff_log`, preserving the lifecycle-bookend invariant on `messages`.
 
-```python
-Command(
-    graph=Command.PARENT,
-    goto="process_handoff",
-    update={
-        "handoff_log": [HandoffRecord(
-            project_id=...,
-            project_thread_id=...,
-            source_agent=...,
-            target_agent=...,
-            reason=...,
-            brief=...,
-            artifact_paths=...,
-        )],
-        "current_agent": <target_agent>,           # overwritten (no reducer)
-        "current_phase": <new_phase_if_transition>, # overwritten; only on phase transitions
-        "pending_handoff": HandoffRecord(...),      # same record as handoff_log entry
-    }
-)
-```
+**Caller-vs-PCG field ownership** is locked:
+- The calling agent populates `project_id`, `project_thread_id`,
+  `source_agent`, `target_agent`, `reason`, `brief`, and `artifact_paths`.
+- The PCG fills `handoff_id`, `langsmith_run_id`, `status`, and `created_at`
+  in `process_handoff`.
 
-**Key observation:** The update dict does NOT include `messages`. The handoff brief
-and artifact paths are captured in `handoff_log`, not in `messages`. This is the
-lifecycle-bookend invariant: `messages` only accumulates stakeholder input and the
-PM's final product response.
+**Exception — PM-assembled handoff packages.** For downstream pipeline
+delivery tools where the receiving agent needs the full accumulated artifact
+set, the PM assembles a consolidated project handoff package — a directory
+copied into the receiving agent's filesystem. The receiving agent then owns
+and organizes that copy. This applies to
+`deliver_planning_package_to_planner` and
+`deliver_development_package_to_developer`. Early-stage deliveries remain as
+references because those specialists only need a few specific artifacts from
+the PM's already-organized namespace. The PM's role as organizer aligns with
+its identity as the business-oriented project manager who ensures artifacts
+are properly stored and structured before they flow downstream.
 
-**PCG-filled fields** (`handoff_id`, `langsmith_run_id`, `status`, `created_at`) are
-added by `process_handoff`, not by the calling agent. The calling agent populates:
-`project_id`, `project_thread_id`, `source_agent`, `target_agent`, `reason`, `brief`,
-`artifact_paths`.
-
-**Exception: PM-assembled handoff packages.** For downstream pipeline delivery
-tools where the receiving agent needs the full accumulated artifact set, the PM
-assembles a consolidated project handoff package — a directory that gets copied
-into the receiving agent's filesystem. The receiving agent then owns and organizes
-that copy. This applies to:
-
-- `deliver_spec_to_planner` — Planner receives an organized package of design spec,
-  public eval criteria, and public datasets.
-- `deliver_plan_to_developer` — Developer receives the full project package: plan,
-  spec, public eval, PRD, and research highlights. The Developer organizes this
-  into a structured filesystem layout optimized for implementation and human
-  readability.
-
-Early-stage deliveries (`deliver_prd_to_harness_engineer`,
-`deliver_prd_to_researcher`, `deliver_prd_to_architect`) remain as references
-because those specialists only need a few specific artifacts from the PM's
-already-organized namespace. The PM's role as organizer aligns with its identity
-as the business-oriented project manager who ensures artifacts are properly
-stored and structured before they flow downstream.
+> Implementation detail (full update-dict shape with code sample, field
+> ownership table): see [`docs/specs/pcg-data-contracts.md`](./docs/specs/pcg-data-contracts.md).
 
 ### Phase Gate Middleware
 
