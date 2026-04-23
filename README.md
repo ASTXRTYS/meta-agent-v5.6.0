@@ -78,15 +78,17 @@ Every handoff, every experiment, every evaluation is traced in LangSmith. The we
 
 ### The Agent Team
 
-| Agent | Role |
-|---|---|
-| **Project Manager** | Your point of contact. Translates stakeholder vision into requirements, coordinates the pipeline, surfaces decisions that need your input. |
-| **Harness Engineer** | The evaluation scientist. Owns rubrics, LLM judges, calibration, held-out datasets, and the optimization feedback loop. |
-| **Researcher** | Deep ecosystem research — SDKs, APIs, model capabilities, evidence synthesis. |
-| **Architect** | System design and technical specification. Tool schemas, system prompts, component definitions. |
-| **Planner** | Implementation strategy with phased eval breakpoints. |
-| **Developer** | The optimizer. Builds phase by phase, iterates against evaluation feedback until success criteria are met. |
-| **Evaluator** | Acceptance gatekeeper. Pass/fail on spec compliance, code quality, and deliverable completeness. |
+
+| Agent                | Role                                                                                                                                       |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Project Manager**  | Your point of contact. Translates stakeholder vision into requirements, coordinates the pipeline, surfaces decisions that need your input. |
+| **Harness Engineer** | The evaluation scientist. Owns rubrics, LLM judges, calibration, held-out datasets, and the optimization feedback loop.                    |
+| **Researcher**       | Deep ecosystem research — SDKs, APIs, model capabilities, evidence synthesis.                                                              |
+| **Architect**        | System design and technical specification. Tool schemas, system prompts, component definitions.                                            |
+| **Planner**          | Implementation strategy with phased eval breakpoints.                                                                                      |
+| **Developer**        | The optimizer. Builds phase by phase, iterates against evaluation feedback until success criteria are met.                                 |
+| **Evaluator**        | Acceptance gatekeeper. Pass/fail on spec compliance, code quality, and deliverable completeness.                                           |
+
 
 ### The Optimization Loop
 
@@ -151,14 +153,16 @@ The art of harness engineering — now open to everyone with a problem to solve.
 
 ## Tech Stack
 
-| Layer | Technology |
-|---|---|
-| Agent Framework | [Deep Agents SDK](https://pypi.org/project/deepagents/) |
-| Orchestration | [LangGraph](https://github.com/langchain-ai/langgraph) |
-| Observability | [LangSmith](https://smith.langchain.com) |
-| Models | Anthropic Claude, OpenAI (model-agnostic, per-agent configurable) |
-| Runtime | Python ≥ 3.12 |
-| Sandbox | Daytona (default), with pluggable provider support |
+
+| Layer           | Technology                                                        |
+| --------------- | ----------------------------------------------------------------- |
+| Agent Framework | [Deep Agents SDK](https://pypi.org/project/deepagents/)           |
+| Orchestration   | [LangGraph](https://github.com/langchain-ai/langgraph)            |
+| Observability   | [LangSmith](https://smith.langchain.com)                          |
+| Models          | Anthropic Claude, OpenAI (model-agnostic, per-agent configurable) |
+| Runtime         | Python ≥ 3.12                                                     |
+| Sandbox         | Daytona (default), with pluggable provider support                |
+
 
 ---
 
@@ -168,4 +172,4 @@ Meta Harness is in active development. The architecture is locked — peer Deep 
 
 ---
 
-*Built with [Deep Agents SDK](https://pypi.org/project/deepagents/) · Orchestrated by [LangGraph](https://github.com/langchain-ai/langgraph) · Traced by [LangSmith](https://smith.langchain.com)*
+*Built with [Deep Agents SDK](https://pypi.org/project/deepagents/) · Orchestrated by [LangGraph](https://github.com/langchain-ai/langgraph) · Traced by [LangSmith*](https://smith.langchain.com)

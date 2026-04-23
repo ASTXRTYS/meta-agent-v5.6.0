@@ -41,8 +41,6 @@ The following items are **high-urgency** and must be scoped into the current dro
 
 ## Architecture Foundations
 
-
-
 ### Q1: Repo structure naming
 
 **Status:** Closed · **Approved by:** Jason · **Date:** 2026-04-11
@@ -50,8 +48,6 @@ The following items are **high-urgency** and must be scoped into the current dro
 Adopt the section 4 repo-structure naming decision that uses root `graph.py` for the LangGraph Project Coordination Graph entrypoint, uses `agents/` for peer role modules, reserves `task_agents/` only for future role-owned ephemeral SDK `SubAgent` helpers, uses `developer/` as the canonical Developer module name, and follows the Deep Agents CLI `integrations/` sandbox convention.
 
 ---
-
-
 
 ### Q2: Production checkpointer and store backend
 
@@ -61,8 +57,6 @@ Three runtime modes, two code paths. (1) **Local dev** (`langgraph dev`): `Sqlit
 
 ---
 
-
-
 ### Q3: Handoff wrapper implementation
 
 **Status:** Closed · **Approved by:** Jason · **Date:** 2026-04-12
@@ -70,8 +64,6 @@ Three runtime modes, two code paths. (1) **Local dev** (`langgraph dev`): `Sqlit
 v1 handoffs are explicit Deep Agent tools that return `Command(graph=Command.PARENT, goto=<coordination_node>, update=<handoff_payload>)`; Project Coordination Graph nodes record and route the handoff; custom handoff middleware is out of v1.
 
 ---
-
-
 
 ### Q4: PCG node set (first version)
 
@@ -87,8 +79,6 @@ v1 handoffs are explicit Deep Agent tools that return `Command(graph=Command.PAR
 
 ## Agent Roles & Communication
 
-
-
 ### Q5: Handoff tool use-case matrix
 
 **Status:** Closed · **Approved by:** Jason · **Date:** 2026-04-12
@@ -96,8 +86,6 @@ v1 handoffs are explicit Deep Agent tools that return `Command(graph=Command.PAR
 19 tools across 5 categories (Pipeline Delivery, Pipeline Return, Stage Review, Phase Review, Specialist Consultation). Naming convention `<verb>_<artifact>_to_<role>` — verb encodes blocking semantics. PM is the pipeline hub: specialists return to PM, PM delivers to next specialist. Direct specialist-to-specialist interactions for stage reviews and consultations. `reason` enum changed from phase-based (`scope_handoff|eval_request|...`) to verb-based (`deliver|return|submit|consult|coordinate|question`) — middleware dispatches on `(source, target, reason)` triple. Agent-scoped tool ownership: each agent only receives relevant tools. Artifact paths are references, not copies.
 
 ---
-
-
 
 ### Q6: Handoff record schema
 
@@ -108,8 +96,6 @@ Locked field set is `project_id`, `handoff_id`, `source_agent`, `target_agent`, 
 **Amendment (2026-04-20, Q15):** `project_thread_id` is now canonical runtime identity for project execution and is not globally redundant with `project_id`. Local/dev may set `project_thread_id = project_id` by convention only. Handoff/project contracts may include both identities where runtime correlation requires it.
 
 ---
-
-
 
 ### Q7: Phase gate enum and approval policy
 
@@ -123,8 +109,6 @@ Six phases (`scoping`, `research`, `architecture`, `planning`, `development`, `a
 
 ## Middleware Systems
 
-
-
 ### Q8: Sandbox topology impact
 
 **Status:** Closed · **Approved by:** Jason · **Date:** 2026-04-12
@@ -136,8 +120,6 @@ Sandbox support is backend/runtime configuration for mounted role agents and doe
 **Amendment (2026-04-20, Q16):** Sandbox semantics are now anchored to a project-scoped execution environment invariant: `project_thread_id -> execution_environment_id -> provider root`. This clarifies topology stays mounted while execution environment remains a first-class project contract.
 
 ---
-
-
 
 ### Q9: HE vs Evaluator gate-owner boundary
 
@@ -151,8 +133,6 @@ AD owns the boundary definition (which dimension each role gates), Developer sys
 
 ### Tool & Contract Specifications
 
-
-
 ### Q10: PCG state growth and parent-to-child context propagation
 
 **Status:** Superseded 2026-04-22 by `OQ-HO` resolution · **Originally approved by:** Jason · **Date:** 2026-04-12
@@ -164,8 +144,6 @@ AD owns the boundary definition (which dimension each role gates), Developer sys
 > Child agents do not see PCG state — LangGraph maps parent-to-child by shared key names only, and the Deep Agent input schema (`_InputAgentState`) only shares `messages` with the PCG. The `run_agent` node controls what enters the child's `messages`. Unbounded growth is a persistence concern (checkpoint bloat), not a context-flooding concern. v1 mandates a cap on the handoff log (last N records, older summarized into `handoff_summary`). v2 option: move full history to LangGraph `Store`. Child agent message compaction is handled by `SummarizationMiddleware` (already in every agent stack).
 
 ---
-
-
 
 ### Q11: PCG state schema and initialization topology (refined)
 
@@ -203,8 +181,6 @@ AD owns the boundary definition (which dimension each role gates), Developer sys
 (6) **Model routing implementation** — delegated to design spec. The AD locks the architectural constraints (model-agnostic, per-agent, thread-scoped, provider-specific tool injection); the spec owns the implementation of model routing, provider adapter patterns, and how `create_deep_agent(model=...)` resolves at runtime based on project config.
 
 ---
-
-
 
 ### Q12: Universal agent middleware baseline
 
@@ -759,8 +735,6 @@ This partially answers Q8 but does not close it — Q8 also covers any other rol
 
 ## Provider Integrations
 
-
-
 ### Q13: Anthropic provider-specific middleware integration
 
 **Status:** Closed · **Approved by:** Jason · **Date:** 2026-04-13
@@ -1048,8 +1022,6 @@ The `.md` files are placeholders at project start. The design team authors initi
 
 ## Product Surface & Runtime
 
-
-
 ### Q14: User interface surface
 
 **Status:** Closed · **Approved by:** Jason · **Date:** 2026-04-13
@@ -1128,8 +1100,6 @@ The TUI connects to the LangGraph server defined by `langgraph.json`. For v1, th
 **Decisions delegated to implementation spec:** Exact pipeline awareness widget design and layout; how handoff progress is visualized (timeline, status panel, inline indicators, etc.); approval gate document rendering format (markdown preview, rendered docx, summary card); autonomous mode toggle UX; whether to fork CLI widgets or import them as a dependency; exact `langgraph.json` configuration; TUI module structure within `src/meta_harness/`; welcome banner content and branding; non-interactive / headless mode for CI and scripting.
 
 ---
-
-
 
 ### Q15: Headless PM session, thread identity, and source surfaces
 
@@ -1230,8 +1200,6 @@ only project memory/artifact indexes. The live-file access boundary remains the
 single high-priority open question in `AD.md`.
 
 ---
-
-
 
 ### Q16: Project-scoped execution environment / agent computer
 
