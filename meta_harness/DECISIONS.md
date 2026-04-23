@@ -5,24 +5,24 @@
 ## Decision Index
 
 
-| Decision                                                                                                                       | Theme                          | Summary                                                                                                                                                                                                                                                                                                                                                                              | Details                                                               |
-| ------------------------------------------------------------------------------------------------------------------------------ | ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------- |
-| [Q1: Repo structure naming](#q1-repo-structure-naming)                                                                         | Architecture Foundations       | Standardize the repo layout around the PCG entrypoint, peer-role modules, and the sandbox integration shape so the codebase matches the runtime contract.                                                                                                                                                                                                                            | [Jump](#q1-repo-structure-naming)                                     |
-| [Q2: Production checkpointer and store backend](#q2-production-checkpointer-and-store-backend)                                 | Architecture Foundations       | Use different persistence paths for local dev, shipped CLI, and platform-managed deployment so runtime state lands in the right backend without branching the graph factory.                                                                                                                                                                                                         | [Jump](#q2-production-checkpointer-and-store-backend)                 |
-| [Q3: Handoff wrapper implementation](#q3-handoff-wrapper-implementation)                                                       | Architecture Foundations       | Make handoffs explicit tools that bubble to the parent graph with `Command.PARENT`, keeping orchestration in the graph rather than in middleware.                                                                                                                                                                                                                                    | [Jump](#q3-handoff-wrapper-implementation)                            |
-| [Q4: PCG node set (first version)](#q4-pcg-node-set-first-version)                                                             | Architecture Foundations       | **[Superseded 2026-04-22 by `OQ-HO`]** Originally: keep the coordination graph linear and small so routing stays easy to reason about while handoff tools and middleware own the real branching behavior. Current: 1-node dispatcher (`dispatch_handoff`) routing among mounted role subgraphs.                                                                                      | [Jump](#q4-pcg-node-set-first-version)                                |
-| [Q5: Handoff tool use-case matrix](#q5-handoff-tool-use-case-matrix)                                                           | Agent Roles & Communication    | Define a verb-driven handoff matrix so every role knows when to deliver, return, consult, or question without inventing new routing semantics.                                                                                                                                                                                                                                       | [Jump](#q5-handoff-tool-use-case-matrix)                              |
-| [Q6: Handoff record schema](#q6-handoff-record-schema)                                                                         | Agent Roles & Communication    | Lock the handoff record to a compact field set and reserve `accepted` for later acceptance stamps so audit data stays stable.                                                                                                                                                                                                                                                        | [Jump](#q6-handoff-record-schema)                                     |
-| [Q7: Phase gate enum and approval policy](#q7-phase-gate-enum-and-approval-policy)                                             | Agent Roles & Communication    | Use six lifecycle phases with only two explicit approval gates, and keep approval as a PM-owned document review rather than a graph interrupt.                                                                                                                                                                                                                                       | [Jump](#q7-phase-gate-enum-and-approval-policy)                       |
-| [Q8: Sandbox topology impact](#q8-sandbox-topology-impact)                                                                     | Middleware Systems             | Treat sandboxing as an execution-mode concern for mounted role agents, not as a separate assistant topology.                                                                                                                                                                                                                                                                         | [Jump](#q8-sandbox-topology-impact)                                   |
-| [Q9: HE vs Evaluator gate-owner boundary](#q9-he-vs-evaluator-gate-owner-boundary)                                             | Middleware Systems             | Split harness-science authority from application-quality authority so HE and Evaluator gate different dimensions of the workflow.                                                                                                                                                                                                                                                    | [Jump](#q9-he-vs-evaluator-gate-owner-boundary)                       |
-| [Q10: PCG state growth and parent-to-child context propagation](#q10-pcg-state-growth-and-parent-to-child-context-propagation) | Tool & Contract Specifications | **[Superseded 2026-04-22 by `OQ-HO`]** Originally: bound what parent state reaches child graphs and cap handoff history so persistence stays manageable without flooding child context. Current: child isolation is structural via mounted Deep Agent subgraphs' declared schemas plus terminal-exit discipline; gate dispatch reads `acceptance_stamps` channel, not `handoff_log`. | [Jump](#q10-pcg-state-growth-and-parent-to-child-context-propagation) |
-| [Q11: PCG state schema and initialization topology (refined)](#q11-pcg-state-schema-and-initialization-topology-refined)       | Tool & Contract Specifications | **[Superseded 2026-04-22 by `OQ-HO`]** Originally: narrow user-facing PCG state surface + deterministic child input construction. Current: 1-node dispatcher, typed `operator.add` reducer on `handoff_log`, first-class `acceptance_stamps` channel, `pending_handoff` removed, Store-backed `artifact_manifest` / `optimization_trendline` / `projects_registry`.                  | [Jump](#q11-pcg-state-schema-and-initialization-topology-refined)     |
-| [Q12: Universal agent middleware baseline](#q12-universal-agent-middleware-baseline)                                           | Middleware Systems             | Give every agent the same baseline stack and vary only parameter values so the harness stays consistent across roles.                                                                                                                                                                                                                                                                | [Jump](#q12-universal-agent-middleware-baseline)                      |
-| [Q13: Anthropic provider-specific middleware integration](#q13-anthropic-provider-specific-middleware-integration)             | Provider Integrations          | Add Anthropic-native bash, memory, and server-side tools through provider profiles so Anthropic gets native affordances without polluting shared factories.                                                                                                                                                                                                                          | [Jump](#q13-anthropic-provider-specific-middleware-integration)       |
-| [Q14: User interface surface](#q14-user-interface-surface)                                                                     | Product Surface & Runtime      | Ship a Textual TUI that surfaces pipeline state, approvals, and model selection without turning the UI into the primary runtime.                                                                                                                                                                                                                                                     | [Jump](#q14-user-interface-surface)                                   |
-| [Q15: Headless PM session, thread identity, and source surfaces](#q15-headless-pm-session-thread-identity-and-source-surfaces) | Product Surface & Runtime      | Separate PM-session threads from project threads so headless ingress, source presence, and execution identity stay distinct.                                                                                                                                                                                                                                                         | [Jump](#q15-headless-pm-session-thread-identity-and-source-surfaces)  |
-| [Q16: Project-scoped execution environment / agent computer](#q16-project-scoped-execution-environment--agent-computer)        | Product Surface & Runtime      | Bind each project thread to a real execution environment so coding, evaluation, and publication happen inside the project computer.                                                                                                                                                                                                                                                  | [Jump](#q16-project-scoped-execution-environment--agent-computer)     |
+| Decision                                                                        | Theme                          | Summary                                                                                                                                                                                                                                                                                                                                                                              | Details               |
+| ------------------------------------------------------------------------------- | ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------- |
+| [Q1: Repo structure naming](#decision-q1)                                       | Architecture Foundations       | Standardize the repo layout around the PCG entrypoint, peer-role modules, and the sandbox integration shape so the codebase matches the runtime contract.                                                                                                                                                                                                                            | [Jump](#decision-q1)  |
+| [Q2: Production checkpointer and store backend](#decision-q2)                   | Architecture Foundations       | Use different persistence paths for local dev, shipped CLI, and platform-managed deployment so runtime state lands in the right backend without branching the graph factory.                                                                                                                                                                                                         | [Jump](#decision-q2)  |
+| [Q3: Handoff wrapper implementation](#decision-q3)                              | Architecture Foundations       | Make handoffs explicit tools that bubble to the parent graph with `Command.PARENT`, keeping orchestration in the graph rather than in middleware.                                                                                                                                                                                                                                    | [Jump](#decision-q3)  |
+| [Q4: PCG node set (first version)](#decision-q4)                                | Architecture Foundations       | **[Superseded 2026-04-22 by `OQ-HO`]** Originally: keep the coordination graph linear and small so routing stays easy to reason about while handoff tools and middleware own the real branching behavior. Current: 1-node dispatcher (`dispatch_handoff`) routing among mounted role subgraphs.                                                                                      | [Jump](#decision-q4)  |
+| [Q5: Handoff tool use-case matrix](#decision-q5)                                | Agent Roles & Communication    | Define a verb-driven handoff matrix so every role knows when to deliver, return, consult, or question without inventing new routing semantics.                                                                                                                                                                                                                                       | [Jump](#decision-q5)  |
+| [Q6: Handoff record schema](#decision-q6)                                       | Agent Roles & Communication    | Lock the handoff record to a compact field set and reserve `accepted` for later acceptance stamps so audit data stays stable.                                                                                                                                                                                                                                                        | [Jump](#decision-q6)  |
+| [Q7: Phase gate enum and approval policy](#decision-q7)                         | Agent Roles & Communication    | Use six lifecycle phases with only two explicit approval gates, and keep approval as a PM-owned document review rather than a graph interrupt.                                                                                                                                                                                                                                       | [Jump](#decision-q7)  |
+| [Q8: Sandbox topology impact](#decision-q8)                                     | Middleware Systems             | Treat sandboxing as an execution-mode concern for mounted role agents, not as a separate assistant topology.                                                                                                                                                                                                                                                                         | [Jump](#decision-q8)  |
+| [Q9: HE vs Evaluator gate-owner boundary](#decision-q9)                         | Middleware Systems             | Split harness-science authority from application-quality authority so HE and Evaluator gate different dimensions of the workflow.                                                                                                                                                                                                                                                    | [Jump](#decision-q9)  |
+| [Q10: PCG state growth and parent-to-child context propagation](#decision-q10)  | Tool & Contract Specifications | **[Superseded 2026-04-22 by `OQ-HO`]** Originally: bound what parent state reaches child graphs and cap handoff history so persistence stays manageable without flooding child context. Current: child isolation is structural via mounted Deep Agent subgraphs' declared schemas plus terminal-exit discipline; gate dispatch reads `acceptance_stamps` channel, not `handoff_log`. | [Jump](#decision-q10) |
+| [Q11: PCG state schema and initialization topology (refined)](#decision-q11)    | Tool & Contract Specifications | **[Superseded 2026-04-22 by `OQ-HO`]** Originally: narrow user-facing PCG state surface + deterministic child input construction. Current: 1-node dispatcher, typed `operator.add` reducer on `handoff_log`, first-class `acceptance_stamps` channel, `pending_handoff` removed, Store-backed `artifact_manifest` / `optimization_trendline` / `projects_registry`.                  | [Jump](#decision-q11) |
+| [Q12: Universal agent middleware baseline](#decision-q12)                       | Middleware Systems             | Give every agent the same baseline stack and vary only parameter values so the harness stays consistent across roles.                                                                                                                                                                                                                                                                | [Jump](#decision-q12) |
+| [Q13: Anthropic provider-specific middleware integration](#decision-q13)        | Provider Integrations          | Add Anthropic-native bash, memory, and server-side tools through provider profiles so Anthropic gets native affordances without polluting shared factories.                                                                                                                                                                                                                          | [Jump](#decision-q13) |
+| [Q14: User interface surface](#decision-q14)                                    | Product Surface & Runtime      | Ship a Textual TUI that surfaces pipeline state, approvals, and model selection without turning the UI into the primary runtime.                                                                                                                                                                                                                                                     | [Jump](#decision-q14) |
+| [Q15: Headless PM session, thread identity, and source surfaces](#decision-q15) | Product Surface & Runtime      | Separate PM-session threads from project threads so headless ingress, source presence, and execution identity stay distinct.                                                                                                                                                                                                                                                         | [Jump](#decision-q15) |
+| [Q16: Project-scoped execution environment / agent computer](#decision-q16)     | Product Surface & Runtime      | Bind each project thread to a real execution environment so coding, evaluation, and publication happen inside the project computer.                                                                                                                                                                                                                                                  | [Jump](#decision-q16) |
 
 
 ---
@@ -41,6 +41,8 @@ The following items are **high-urgency** and must be scoped into the current dro
 
 ## Architecture Foundations
 
+
+
 ### Q1: Repo structure naming
 
 **Status:** Closed · **Approved by:** Jason · **Date:** 2026-04-11
@@ -48,6 +50,8 @@ The following items are **high-urgency** and must be scoped into the current dro
 Adopt the section 4 repo-structure naming decision that uses root `graph.py` for the LangGraph Project Coordination Graph entrypoint, uses `agents/` for peer role modules, reserves `task_agents/` only for future role-owned ephemeral SDK `SubAgent` helpers, uses `developer/` as the canonical Developer module name, and follows the Deep Agents CLI `integrations/` sandbox convention.
 
 ---
+
+
 
 ### Q2: Production checkpointer and store backend
 
@@ -57,6 +61,8 @@ Three runtime modes, two code paths. (1) **Local dev** (`langgraph dev`): `Sqlit
 
 ---
 
+
+
 ### Q3: Handoff wrapper implementation
 
 **Status:** Closed · **Approved by:** Jason · **Date:** 2026-04-12
@@ -64,6 +70,8 @@ Three runtime modes, two code paths. (1) **Local dev** (`langgraph dev`): `Sqlit
 v1 handoffs are explicit Deep Agent tools that return `Command(graph=Command.PARENT, goto=<coordination_node>, update=<handoff_payload>)`; Project Coordination Graph nodes record and route the handoff; custom handoff middleware is out of v1.
 
 ---
+
+
 
 ### Q4: PCG node set (first version)
 
@@ -79,6 +87,8 @@ v1 handoffs are explicit Deep Agent tools that return `Command(graph=Command.PAR
 
 ## Agent Roles & Communication
 
+
+
 ### Q5: Handoff tool use-case matrix
 
 **Status:** Closed · **Approved by:** Jason · **Date:** 2026-04-12
@@ -86,6 +96,8 @@ v1 handoffs are explicit Deep Agent tools that return `Command(graph=Command.PAR
 19 tools across 5 categories (Pipeline Delivery, Pipeline Return, Stage Review, Phase Review, Specialist Consultation). Naming convention `<verb>_<artifact>_to_<role>` — verb encodes blocking semantics. PM is the pipeline hub: specialists return to PM, PM delivers to next specialist. Direct specialist-to-specialist interactions for stage reviews and consultations. `reason` enum changed from phase-based (`scope_handoff|eval_request|...`) to verb-based (`deliver|return|submit|consult|coordinate|question`) — middleware dispatches on `(source, target, reason)` triple. Agent-scoped tool ownership: each agent only receives relevant tools. Artifact paths are references, not copies.
 
 ---
+
+
 
 ### Q6: Handoff record schema
 
@@ -96,6 +108,8 @@ Locked field set is `project_id`, `handoff_id`, `source_agent`, `target_agent`, 
 **Amendment (2026-04-20, Q15):** `project_thread_id` is now canonical runtime identity for project execution and is not globally redundant with `project_id`. Local/dev may set `project_thread_id = project_id` by convention only. Handoff/project contracts may include both identities where runtime correlation requires it.
 
 ---
+
+
 
 ### Q7: Phase gate enum and approval policy
 
@@ -109,6 +123,8 @@ Six phases (`scoping`, `research`, `architecture`, `planning`, `development`, `a
 
 ## Middleware Systems
 
+
+
 ### Q8: Sandbox topology impact
 
 **Status:** Closed · **Approved by:** Jason · **Date:** 2026-04-12
@@ -120,6 +136,8 @@ Sandbox support is backend/runtime configuration for mounted role agents and doe
 **Amendment (2026-04-20, Q16):** Sandbox semantics are now anchored to a project-scoped execution environment invariant: `project_thread_id -> execution_environment_id -> provider root`. This clarifies topology stays mounted while execution environment remains a first-class project contract.
 
 ---
+
+
 
 ### Q9: HE vs Evaluator gate-owner boundary
 
@@ -133,6 +151,8 @@ AD owns the boundary definition (which dimension each role gates), Developer sys
 
 ### Tool & Contract Specifications
 
+
+
 ### Q10: PCG state growth and parent-to-child context propagation
 
 **Status:** Superseded 2026-04-22 by `OQ-HO` resolution · **Originally approved by:** Jason · **Date:** 2026-04-12
@@ -144,6 +164,8 @@ AD owns the boundary definition (which dimension each role gates), Developer sys
 > Child agents do not see PCG state — LangGraph maps parent-to-child by shared key names only, and the Deep Agent input schema (`_InputAgentState`) only shares `messages` with the PCG. The `run_agent` node controls what enters the child's `messages`. Unbounded growth is a persistence concern (checkpoint bloat), not a context-flooding concern. v1 mandates a cap on the handoff log (last N records, older summarized into `handoff_summary`). v2 option: move full history to LangGraph `Store`. Child agent message compaction is handled by `SummarizationMiddleware` (already in every agent stack).
 
 ---
+
+
 
 ### Q11: PCG state schema and initialization topology (refined)
 
@@ -181,6 +203,8 @@ AD owns the boundary definition (which dimension each role gates), Developer sys
 (6) **Model routing implementation** — delegated to design spec. The AD locks the architectural constraints (model-agnostic, per-agent, thread-scoped, provider-specific tool injection); the spec owns the implementation of model routing, provider adapter patterns, and how `create_deep_agent(model=...)` resolves at runtime based on project config.
 
 ---
+
+
 
 ### Q12: Universal agent middleware baseline
 
@@ -735,6 +759,8 @@ This partially answers Q8 but does not close it — Q8 also covers any other rol
 
 ## Provider Integrations
 
+
+
 ### Q13: Anthropic provider-specific middleware integration
 
 **Status:** Closed · **Approved by:** Jason · **Date:** 2026-04-13
@@ -1022,6 +1048,8 @@ The `.md` files are placeholders at project start. The design team authors initi
 
 ## Product Surface & Runtime
 
+
+
 ### Q14: User interface surface
 
 **Status:** Closed · **Approved by:** Jason · **Date:** 2026-04-13
@@ -1100,6 +1128,8 @@ The TUI connects to the LangGraph server defined by `langgraph.json`. For v1, th
 **Decisions delegated to implementation spec:** Exact pipeline awareness widget design and layout; how handoff progress is visualized (timeline, status panel, inline indicators, etc.); approval gate document rendering format (markdown preview, rendered docx, summary card); autonomous mode toggle UX; whether to fork CLI widgets or import them as a dependency; exact `langgraph.json` configuration; TUI module structure within `src/meta_harness/`; welcome banner content and branding; non-interactive / headless mode for CI and scripting.
 
 ---
+
+
 
 ### Q15: Headless PM session, thread identity, and source surfaces
 
@@ -1200,6 +1230,8 @@ only project memory/artifact indexes. The live-file access boundary remains the
 single high-priority open question in `AD.md`.
 
 ---
+
+
 
 ### Q16: Project-scoped execution environment / agent computer
 
