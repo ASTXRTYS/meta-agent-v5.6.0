@@ -13,7 +13,7 @@ owners: ["@Jason"]
 # Handoff Tools Specification
 
 > **Provenance:** Derived from `AD.md §4 Handoff Protocol`, `§4 Handoff Tool Use-Case Matrix`, `§4 Pipeline Flow Diagram`, and `§4 Command.PARENT Update Contract`.  
-> **Status:** Active · **Last synced with AD:** 2026-04-23 (updated for `OQ-HO` resolution: 1 dispatcher + 7 mounted role subgraphs; `acceptance_stamps` channel; `finish_to_user` terminal-emission tool added; clarified sibling relationship with `pcg-data-contracts.md`).
+> **Status:** Active · **Last synced with AD:** 2026-04-23 (updated for `OQ-HO` resolution: 1 dispatcher + 7 mounted role subgraphs; `acceptance_stamps` channel; `finish_to_user` terminal-emission tool added; clarified sibling relationship with `pcg-data-contracts.md` and concrete definitions spec).
 > **Consumers:** Developer (implementation), Evaluator (conformance checking).
 
 ## 1. Purpose
@@ -27,15 +27,16 @@ The parent AD defines *what* handoffs are and *why* they route the way they
 do. This spec defines *which concrete tools exist, who owns them, what
 artifacts they carry, and which middleware gate applies*.
 
-**Relationship to PCG data contracts.** This spec owns the semantic tool
-catalog: tool names, caller/target roles, reason values, artifact flow,
-middleware gates, role-scoped ownership, and pipeline order. It intentionally
-does not own the full PCG state or `HandoffRecord` wire contract. Those shared
-data contracts live in `docs/specs/pcg-data-contracts.md`: state channels,
-reducers, `Command.PARENT` update shape, `HandoffRecord` fields, and
-caller-vs-PCG field ownership. A concrete per-tool definition spec should
-compose both sources; code generation or implementation must not infer missing
-tool schemas from one file alone.
+**Relationship to PCG data contracts and concrete definitions.** This spec
+owns the semantic tool catalog: tool names, caller/target roles, reason values,
+artifact flow, middleware gates, role-scoped ownership, and pipeline order. It
+intentionally does not own the full PCG state or concrete model-visible schemas.
+Shared data contracts live in `docs/specs/pcg-data-contracts.md`: state
+channels, reducers, `Command.PARENT` update shape, `HandoffRecord` fields, and
+field ownership. Concrete per-tool definitions live in
+`docs/specs/handoff-tool-definitions.md`: descriptions, visible parameters,
+runtime-injected inputs, fixed fields, and return shapes. Code generation or
+implementation must compose all three specs.
 
 ## 1.1 Uniform Tool Return Shape (handoff tools)
 
@@ -50,7 +51,7 @@ Command(
     update={
         "handoff_log": [handoff_record],            # append via operator.add
         "current_agent": target_agent,               # overwrite
-        "current_phase": new_phase_if_transition,    # OMIT if no transition
+        "current_phase": new_project_phase_if_transition,  # OMIT if no lifecycle transition
         # Acceptance-stamp tools additionally include:
         # "acceptance_stamps": {"application": stamp_record}
         #   or
@@ -178,6 +179,10 @@ decoupling gate logic from audit-log structure.
 | 14 | `return_eval_coverage_to_architect` | `return` | HE | Architect | Eval coverage for new components + dev-phase eval criteria | None |
 
 ### 4.5 Phase Review — Developer submits phase deliverables for QA
+
+The model-visible parameter remains named `phase` on these tools for Developer
+usability, but the concrete definitions spec maps it to `plan_phase_id` in the
+`HandoffRecord`. It is not the PCG lifecycle `current_phase`.
 
 | # | Tool | `reason` | Caller | Target | Artifact Flow | Middleware Gate |
 |---|---|---|---|---|---|---|

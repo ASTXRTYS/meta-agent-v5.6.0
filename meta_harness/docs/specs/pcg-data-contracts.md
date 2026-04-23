@@ -11,7 +11,7 @@ owners: ["@Jason"]
 # PCG Data Contracts Specification
 
 > **Provenance:** Derived from `AD.md §4 LangGraph Project Coordination Graph` (state schema, topology, and invariants), `§4 Handoff Protocol → Command.PARENT Update Contract`, and `§4 Data Contracts`.  
-> **Status:** Active · **Last synced with AD:** 2026-04-23 (rewritten for `OQ-HO` resolution; supersedes Q4 / Q10 / Q11 in `DECISIONS.md`; corrected to mount-as-subgraph pattern after review surfaced `.ainvoke()` / `Command.PARENT` incompatibility; clarified sibling relationship with `handoff-tools.md`).
+> **Status:** Active · **Last synced with AD:** 2026-04-23 (rewritten for `OQ-HO` resolution; supersedes Q4 / Q10 / Q11 in `DECISIONS.md`; corrected to mount-as-subgraph pattern after review surfaced `.ainvoke()` / `Command.PARENT` incompatibility; clarified sibling relationship with `handoff-tools.md`; updated for `handoff-tool-definitions.md` field ownership and `project_phase` / `plan_phase_id` split).
 > **Consumers:** Developer (implementation), Evaluator (conformance checking).
 
 ## 1. Purpose
@@ -29,12 +29,13 @@ durable `Store` namespaces that together implement the AD decisions.
 
 **Relationship to handoff tool specs.** This spec owns the shared PCG-side
 wire/data contract that every handoff tool must emit: state channels, reducers,
-`Command.PARENT` update shape, `HandoffRecord` fields, and caller-vs-PCG field
-ownership. `docs/specs/handoff-tools.md` owns the semantic tool catalog: which
+`Command.PARENT` update shape, `HandoffRecord` fields, and model-vs-system
+field ownership. `docs/specs/handoff-tools.md` owns the semantic tool catalog: which
 tools exist, which role owns each tool, target role, reason, artifact flow,
-middleware gate, and pipeline order. A concrete per-tool definition spec should
-compose both sources; code generation or implementation must not invent fields
-or tool schemas outside that combined contract.
+middleware gate, and pipeline order. `docs/specs/handoff-tool-definitions.md`
+owns the concrete model-visible tool definitions and composes both sources;
+code generation or implementation must not invent fields or tool schemas outside
+that combined contract.
 
 ## 2. Topology Recap (informative)
 
@@ -69,7 +70,7 @@ channel semantics (key names, types, reducer signatures) are preserved.
 | `messages` | `list[AnyMessage]` | `add_messages` | User-facing I/O conduit. Written only via PM's `finish_to_user` tool. | PM's `finish_to_user` tool only | External surfaces only (TUI, web app, headless ingress). Specialist agents never read it. |
 | `project_id` | `str` | overwrite (no reducer) | Durable Meta Harness project identity. | `dispatch_handoff` (initial) | `dispatch_handoff`, middleware, Store writers |
 | `project_thread_id` | `str` | overwrite | Canonical LangGraph project execution thread identity. May equal `project_id` in local/dev. | `dispatch_handoff` (initial) | `dispatch_handoff`, middleware, Store writers |
-| `current_phase` | `Literal["scoping","research","architecture","planning","development","acceptance"]` | overwrite | Denormalization of last phase-transitioning handoff. Fast path for middleware gate dispatch. Not independent source-of-truth. | Handoff tools via `Command.PARENT` update (phase-transitioning records only) | Phase-gate middleware |
+| `current_phase` | `Literal["scoping","research","architecture","planning","development","acceptance"]` | overwrite | Denormalization of last lifecycle-phase-transitioning handoff. Fast path for middleware gate dispatch. Not independent source-of-truth. | Handoff tools via `Command.PARENT` update when `HandoffRecord.project_phase` is present | Phase-gate middleware |
 | `current_agent` | `Literal["project_manager","harness_engineer","researcher","architect","planner","developer","evaluator"]` | overwrite | Which role `dispatch_handoff` is about to invoke. Matches `handoff_log[-1].target_agent`. | Handoff tools via `Command.PARENT` update | `dispatch_handoff`, middleware |
 | `handoff_log` | `list[HandoffRecord]` | `operator.add` | Append-only audit trail of all handoffs. v1 has implementation-determined cap. | Handoff tools via `Command.PARENT` update | `dispatch_handoff` (reads `[-1]`), HE-participation helper for acceptance gate |
 | `acceptance_stamps` | `dict[Literal["application","harness"], HandoffRecord]` | merge-dict (see §3.1) | First-class acceptance-stamp channel. Gate logic reads this; never scans `handoff_log`. | `submit_application_acceptance`, `submit_harness_acceptance` tools via `Command.PARENT` update | `return_product_to_pm` gate middleware |
@@ -77,7 +78,7 @@ channel semantics (key names, types, reducer signatures) are preserved.
 **Channel details:**
 
 - **`messages`**: User-facing I/O conduit (LangGraph convention). Written only via PM's `finish_to_user` tool (`Command(graph=PARENT, goto=END, update={"messages": [AIMessage(...)]})`). Multiple lifecycle cycles may occur across the project thread lifetime (headless-ready-infra policy).
-- **`current_phase`**: Denormalization of the last phase-transitioning handoff. Fast path for middleware gate dispatch. **Not** an independent source of truth — `handoff_log` with `HandoffRecord.phase` remains authoritative.
+- **`current_phase`**: Denormalization of the last lifecycle-phase-transitioning handoff. Fast path for middleware gate dispatch. **Not** an independent source of truth — `handoff_log` with `HandoffRecord.project_phase` remains authoritative. Developer implementation-plan phases are stored separately as `plan_phase_id` and never drive `current_phase`.
 - **`handoff_log`**: Append-only audit trail of all handoffs in the project thread. v1 has an implementation-determined cap; trimming / migration to `Store` is a pure persistence concern.
 - **`acceptance_stamps`**: First-class acceptance-stamp channel. Gate logic for `return_product_to_pm` reads this; never scans `handoff_log`.
 
@@ -103,7 +104,7 @@ def _merge_stamps(
 1. **`messages` is the user-facing I/O conduit.** PCG `messages` is written only by the PM's terminal `finish_to_user` tool (via `Command(graph=PARENT, goto=END, update={"messages": [AIMessage(...)]})`). Other handoff tools never include `messages` in their update dict. Specialist agents never read it. The `add_messages` reducer is retained because `messages` carries real `BaseMessage` objects — unlike the previous (structurally broken) application of `add_messages` to `handoff_log`.
 2. **Child isolation is structural at the Deep Agent SDK layer.** Every role is a `create_deep_agent()` compiled graph with its own declared `input_schema=_InputAgentState` (messages only; `@/Users/Jason/2026/v4/meta-agent-v5.6.0/.venv/lib/python3.11/site-packages/langchain/agents/middleware/types.py:358-361`) and `output_schema=_OutputAgentState` (messages + optional `structured_response`; `types.py:364-368`). `todos`, `files`, `jump_to`, and all middleware-private state carry `PrivateStateAttr` / `OmitFromOutput` annotations (`types.py:346-347`) and are dropped structurally at the child's compile time. When mounted via `add_node(role, role_graph)`, LangGraph reads the subgraph's declared `input_schema` and only passes the shared `messages` channel (`@/Users/Jason/2026/v4/meta-agent-v5.6.0/.venv/lib/python3.11/site-packages/langgraph/graph/state.py:1306-1314`). **Every role turn must terminate by emitting `Command(graph=PARENT, ...)`**; this prevents the child's in-progress `messages` state from merging into PCG `messages` via subgraph-natural-completion semantics. A thin final-turn-guard middleware re-prompts any role whose last `AIMessage` lacks a handoff-tool or `finish_to_user` call. The dispatcher does **not** invoke role graphs via `.ainvoke()` — that would break `Command.PARENT` bubbling (`@/Users/Jason/2026/v4/meta-agent-v5.6.0/.venv/lib/python3.11/site-packages/langgraph/pregel/_io.py:56-59` raises `InvalidUpdateError` on PARENT commands at top-level).
 3. **`handoff_log` uses a typed append reducer.** `Annotated[list[HandoffRecord], operator.add]`. `add_messages` is not valid here because it coerces inputs through `convert_to_messages` which raises `NotImplementedError` on non-`MessageLikeRepresentation` values (`@/Users/Jason/2026/v4/meta-agent-v5.6.0/.venv/lib/python3.11/site-packages/langchain_core/messages/utils.py:727-730`).
-4. **`current_phase` is a denormalization.** It is updated by handoff tools on phase-transitioning records and kept consistent with the `phase` field on `handoff_log[-1]` when present. Middleware may prefer `current_phase` for fast dispatch; conformance tests assert that `current_phase == <last phase-transitioning handoff>.phase`.
+4. **`current_phase` is a denormalization.** It is updated by handoff tools only when the appended record includes `project_phase`, and it is kept consistent with the most recent `HandoffRecord.project_phase`. Middleware may prefer `current_phase` for fast dispatch. Developer plan-phase identifiers are stored as `plan_phase_id` and must never update `current_phase`.
 5. **`acceptance_stamps` is the gate source of truth.** The acceptance gate on `return_product_to_pm` reads `state["acceptance_stamps"]`. Scanning `handoff_log` for acceptance records is an anti-pattern and must be rejected in review.
 6. **Each role Deep Agent owns its own conversation history.** Role state lives in the role's checkpoint namespace. LangGraph's mounted-subgraph persistence uses the parent `thread_id` with a stable child `checkpoint_ns` derived from the node name (`project_manager`, `harness_engineer`, etc.). The PCG's `handoff_log` is not conversation history.
 7. **Durable cross-thread data lives in `Store`.** `artifact_manifest`, `optimization_trendline`, and `projects_registry` are `Store` namespaces, not PCG state channels. See §7.
@@ -121,7 +122,7 @@ Command(
     update={
         "handoff_log": [handoff_record],              # appended via operator.add
         "current_agent": target_agent,                 # overwritten
-        "current_phase": new_phase_if_transition,      # overwritten; OMIT if no transition
+        "current_phase": new_project_phase_if_transition,  # overwritten; OMIT if no lifecycle transition
         # Acceptance-stamp tools additionally include:
         # "acceptance_stamps": {"application": stamp_record}
         #   or
@@ -144,30 +145,41 @@ Command(
 - Handoff-tool update dicts **never** include `messages` (reserved for `finish_to_user`). Handoff briefs and artifact paths travel inside the `HandoffRecord` appended to `handoff_log`.
 - `finish_to_user` is the **only** tool that writes to `messages`. It does NOT append to `handoff_log` — terminal emission is a lifecycle bookend, not an inter-agent handoff.
 - The update dict **never** includes `pending_handoff`. That field no longer exists; the dispatcher reads `handoff_log[-1]`.
-- `current_phase` is set only on phase-transitioning records. Non-transitioning handoffs omit the key.
+- `current_phase` is set only on lifecycle-phase-transitioning records. Non-transitioning handoffs omit the key.
 - Acceptance tools are the only tools that write to `acceptance_stamps`.
 - Artifact-manifest updates are `Store` writes (see §7), not state updates.
 
-### 5.1 Caller-vs-PCG field ownership
+### 5.1 Tool-helper-vs-PCG field ownership
 
-The calling agent populates these fields in the `HandoffRecord`:
+The model-visible tool call supplies only:
+
+- `brief`
+- `artifact_paths`
+- `accepted` (acceptance tools only)
+- `phase` (Developer phase-review tools only; stored as `plan_phase_id`)
+
+Before returning `Command.PARENT`, the tool body calls a system-owned helper
+that assembles the full `HandoffRecord`. The helper populates:
 
 - `project_id`
 - `project_thread_id`
 - `source_agent`
 - `target_agent`
 - `reason`
-- `brief`
-- `artifact_paths`
-- `phase` (only on phase-transitioning records)
-- `accepted` (only on `submit_*_acceptance` tool calls)
-
-The PCG (`dispatch_handoff`) populates:
-
 - `handoff_id` (generated; e.g. `uuid4()`)
 - `langsmith_run_id` (current run id via `langsmith.client.get_current_run_tree()` or equivalent; implementation-specific)
-- `status` (initialized to `"queued"` pre-invocation, transitioned to `"running"` during dispatch, `"completed"` / `"failed"` on return)
+- `status` (initialized to `"queued"` at record creation)
 - `created_at` (RFC3339 timestamp at record creation time)
+- `project_phase` (only when the handoff transitions the PCG lifecycle phase)
+- `plan_phase_id` (only for Developer plan-phase review tools)
+- `accepted` (only on `submit_*_acceptance` tool calls)
+
+The PCG (`dispatch_handoff`) reads the appended record, upserts
+`projects_registry`, and routes to `target_agent`. It does not populate fields
+inside a record after that record has already been appended by the
+`operator.add` reducer. Any future lifecycle status transition beyond
+`"queued"` must use an explicit state/update contract; it must not rely on
+in-place mutation of an appended record.
 
 ### 5.2 Exception — PM-assembled handoff packages
 
@@ -197,7 +209,8 @@ The exact Pydantic / `TypedDict` serialization is left to implementation. The fi
   "langsmith_run_id": "string|null",
   "status": "queued|running|completed|failed",
   "created_at": "RFC3339 timestamp",
-  "phase": "scoping|research|architecture|planning|development|acceptance|null",
+  "project_phase": "scoping|research|architecture|planning|development|acceptance|null",
+  "plan_phase_id": "string|null",
   "accepted": "true|false|null"
 }
 ```
@@ -212,8 +225,9 @@ The exact Pydantic / `TypedDict` serialization is left to implementation. The fi
 - `artifact_paths` are filesystem paths to artifacts the calling agent produced; the receiver reads them from the caller's namespace.
 - `langsmith_run_id` is the LangSmith run id for the dispatching PCG invocation, for trace correlation.
 - `status` tracks the handoff lifecycle (`queued` → `running` → `completed`/`failed`), not the agent's task status.
-- `created_at` is an RFC3339 timestamp set by the PCG when the record is created (pre-invocation).
-- **`phase`** (new 2026-04-22, optional) — populated only when the handoff transitions the project phase. Supports the `current_phase` denormalization.
+- `created_at` is an RFC3339 timestamp set by the system-owned record helper before the parent update is returned.
+- **`project_phase`** (optional) — populated only when the handoff transitions the PCG lifecycle phase. Supports the `current_phase` denormalization.
+- **`plan_phase_id`** (optional) — populated only by Developer phase-review tools. The model-visible tool argument is named `phase`, but the record field is `plan_phase_id` to keep Developer implementation-plan phases distinct from the PCG lifecycle enum.
 - **`accepted`** (optional) — populated only by the two `submit_*_acceptance` tools. Carries the acceptance boolean.
 
 ## 7. Durable Cross-Thread Data (`Store` Namespaces)
@@ -251,7 +265,7 @@ The LangGraph `Store` is the durable cross-thread surface for project data that 
   class TrendlinePoint(TypedDict):
       iteration_id: str
       project_id: str
-      phase: str                 # development phase name
+      plan_phase_id: str         # development plan phase identifier
       metric: str                 # e.g. "harness_pass_rate", "accuracy", "latency_p95"
       value: float
       direction: Literal["higher_is_better", "lower_is_better"]
@@ -279,7 +293,13 @@ The LangGraph `Store` is the durable cross-thread surface for project data that 
       artifact_count: int
       status: Literal["active", "paused", "completed", "archived"]
   ```
-- **Writer:** `dispatch_handoff` on each handoff (updates `current_phase`, `current_agent`, `last_handoff_id`, `last_handoff_at`, `artifact_count`). On PM's `finish_to_user` (terminal emission), a separate hook on that tool sets `status="completed"` in the same `Command.PARENT.update` path or via a companion middleware after-hook.
+- **Writer:** `dispatch_handoff` on each handoff (derives registry
+  `current_phase`, `current_agent`, `last_handoff_id`, `last_handoff_at`, and
+  `artifact_count` from the already-appended `HandoffRecord` and current PCG
+  state). It never mutates `HandoffRecord` fields after append. On PM's
+  `finish_to_user` (terminal emission), a separate hook on that tool sets
+  `status="completed"` in the same `Command.PARENT.update` path or via a
+  companion middleware after-hook.
 - **Readers:** PM session threads (listing active projects), web app project list view, any headless ingress adapter asking "what is project X doing right now."
 
 ## 8. `dispatch_handoff` Node Contract (reference implementation sketch)
@@ -302,7 +322,7 @@ async def dispatch_handoff(
             update={
                 "handoff_log": [initial],
                 "current_agent": initial["target_agent"],
-                "current_phase": initial.get("phase", "scoping"),
+                "current_phase": initial.get("project_phase", "scoping"),
             },
         )
 
@@ -329,6 +349,6 @@ Implementation must pass at least these assertions:
 2. `dispatch_handoff` returns a `Command` with `goto` set to one of the 7 role names (for routing) or `END` (on terminal conditions that the dispatcher itself recognizes). It never calls `.ainvoke()` or `.invoke()` on a role graph (static analysis: search for `ROLE_GRAPHS[...].ainvoke` or `.invoke` inside dispatcher source — must have zero matches).
 3. Every role's handoff-tool set and the PM's `finish_to_user` tool together cover the role's possible terminal actions. A final-turn-guard middleware re-prompts any role whose last `AIMessage` lacks a tool call to a handoff tool or `finish_to_user`.
 4. The acceptance gate on `return_product_to_pm` reads `state["acceptance_stamps"]` and not `state["handoff_log"]` (static analysis or unit test).
-5. `current_phase == state["handoff_log"][-1].get("phase") or <previously-set phase>` after every handoff (denormalization consistency).
+5. `current_phase == <most recent non-null HandoffRecord.project_phase> or <previously-set lifecycle phase>` after every handoff (denormalization consistency). `plan_phase_id` must never drive `current_phase`.
 6. `Store` writes to `projects_registry` occur on every handoff (fuzz: random-length handoff chains, verify registry matches last record).
 7. Developer's filesystem permissions do not include read access to `projects/{project_id}/optimization_trendline` (permission-layer unit test).

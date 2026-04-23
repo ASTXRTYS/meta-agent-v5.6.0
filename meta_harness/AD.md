@@ -114,9 +114,10 @@ makes handoffs observable and auditable.
 
 ### T-H1 / OQ-H6 (High Priority): Concrete handoff tool definition spec
 
-**Status.** Tracked spec work with one resolved decision: concrete handoff tool
-definitions should be specified before implementation/code generation, not
-delegated to the Developer or codegen pass.
+**Status.** Closed 2026-04-23 by
+[`docs/specs/handoff-tool-definitions.md`](./docs/specs/handoff-tool-definitions.md).
+Concrete handoff tool definitions are specified before implementation/code
+generation and are not delegated to the Developer or codegen pass.
 
 **Why now.** Handoff tools are the model-visible API for inter-agent
 coordination. LangChain derives the callable tool schema from function
@@ -128,22 +129,24 @@ matrix, and `docs/specs/pcg-data-contracts.md` locks the PCG wire/data
 contract. What is missing is the composition layer that turns those two sibling
 specs into concrete tool definitions.
 
-**Required output.** Create `docs/specs/handoff-tool-definitions.md` as a
+**Resolution.** `docs/specs/handoff-tool-definitions.md` is the
 `doc_type: spec` derived from `AD.md §4 Handoff Protocol`, `§4 Handoff Tool
 Use-Case Matrix`, `§4 Command.PARENT Update Contract`, and `§4 Data Contracts`.
-The spec should be registered in `AD.md §9 Decision Index → Derived Specs` when
-created.
+It is registered in `AD.md §9 Decision Index → Derived Specs`.
 
 **Minimum scope.** For all 23 handoff tools plus PM's `finish_to_user`, specify:
 tool name, owning role, model-visible description, model-visible parameters,
 runtime-injected parameters, fixed `source_agent` / `target_agent` / `reason`
-values, optional `phase` / `accepted` semantics, `HandoffRecord` assembly,
-which fields are caller-populated vs PCG-populated, `Command.PARENT` return
-shape, middleware gate, Store side effects if any, and role-scoped toolset
-membership. This spec should explicitly carry forward the current AD-level
-schema note: common handoff parameters are `brief: str` and
+values, optional `project_phase` / `plan_phase_id` / `accepted` semantics,
+`HandoffRecord` assembly,
+which fields are model-visible vs system-helper-populated vs PCG-routed,
+`Command.PARENT` return shape, middleware gate, Store side effects if any, and
+role-scoped toolset membership. This spec should explicitly carry forward the
+current AD-level schema note: common handoff parameters are `brief: str` and
 `artifact_paths: list[str]`; acceptance tools add `accepted: bool`; phase review
-tools add `phase: str`; `finish_to_user` is terminal emission, not a handoff.
+tools add model-visible `phase: str` that maps to `plan_phase_id`;
+`project_phase` is reserved for the PCG lifecycle enum that drives
+`current_phase`; `finish_to_user` is terminal emission, not a handoff.
 
 **Documentation convention.** This belongs under `docs/specs/` because it is an
 implementation contract derived from AD decisions. It should follow the normal
@@ -598,13 +601,17 @@ filesystem namespace and tags its artifacts with the `project_id`.
 
 Handoff tools return `Command(graph=Command.PARENT, goto="dispatch_handoff",
 update=...)`. The update dict writes only to PCG coordination channels
-(`handoff_log`, `current_agent`, `current_phase` conditional on phase
-transition, and `acceptance_stamps` for the two `submit_*_acceptance`
+(`handoff_log`, `current_agent`, `current_phase` conditional on lifecycle
+phase transition, and `acceptance_stamps` for the two `submit_*_acceptance`
 tools) — it does NOT include `messages`. Handoff briefs and artifact paths
 flow through the appended `HandoffRecord` in `handoff_log`, keeping
 `messages` reserved for the user-facing PM response.
 
 > Implementation detail (full update-dict shape with code sample, field ownership table): see [`docs/specs/pcg-data-contracts.md`](./docs/specs/pcg-data-contracts.md).
+
+> Implementation detail (concrete handoff tool descriptions, visible schemas,
+runtime-injected fields, fixed source/target/reason values, and role-scoped
+membership): see [`docs/specs/handoff-tool-definitions.md`](./docs/specs/handoff-tool-definitions.md).
 
 ### Phase Gate Middleware
 
@@ -719,6 +726,9 @@ Phase Review, Specialist Consultation) plus 1 terminal-emission tool
 `state.acceptance_stamps["application"]` must be present (Evaluator stamp; always required). `state.acceptance_stamps["harness"]` is required only if the HE participated in the project thread; HE participation is derived by scanning `handoff_log` for any record with `source_agent == "harness_engineer"` or `target_agent == "harness_engineer"`.
 
 > Implementation detail (full tool matrix, agent-scoped ownership table, pipeline flow diagram): see [`docs/specs/handoff-tools.md`](./docs/specs/handoff-tools.md).
+
+> Implementation detail (concrete model-visible parameter families and per-tool
+definition rows): see [`docs/specs/handoff-tool-definitions.md`](./docs/specs/handoff-tool-definitions.md).
 
 ### Project-Scoped Execution Environment
 
@@ -843,9 +853,10 @@ be searchable by at least:
 - `agent_name`
 - `thread_id`
 - `handoff_id`
-- `phase`
-- `from_agent`
-- `to_agent`
+- `project_phase`
+- `plan_phase_id`
+- `source_agent`
+- `target_agent`
 
 LangGraph Studio and LangSmith serve different jobs in the local workflow.
 LangGraph Studio is the interactive local development surface for graph
@@ -894,15 +905,15 @@ name in LangSmith without additional instrumentation.
 
 **Correlation metadata placement:**
 
-The seven required searchable fields are split across two concerns:
+The required searchable fields are split across two concerns:
 
 - `project_id`, `agent_name`, `thread_id` — set once on the PCG's
   `.with_config({"metadata": {...}})` at graph initialization time, scoped to
   the project thread.
-- `handoff_id`, `phase`, `from_agent`, `to_agent` — handoff-scoped fields;
-  carried by the handoff record schema and not set as LangSmith run metadata
-  directly. These are retrieved by querying handoff records, not by filtering
-  LangSmith runs.
+- `handoff_id`, `project_phase`, `plan_phase_id`, `source_agent`,
+  `target_agent` — handoff-scoped fields carried by the handoff record schema
+  and not set as LangSmith run metadata directly. These are retrieved by
+  querying handoff records, not by filtering LangSmith runs.
 
 ### Specialist Loops
 
@@ -1161,12 +1172,16 @@ The `HandoffRecord` field set and enum values are locked as AD decisions:
 - **Core fields:** `project_id`, `project_thread_id`, `handoff_id`,
   `source_agent`, `target_agent`, `reason`, `brief`, `artifact_paths`,
   `langsmith_run_id`, `status`, `created_at`.
-- **Optional fields:** `phase` (phase-transitioning records only), `accepted` (acceptance-stamp records only).
+- **Optional fields:** `project_phase` (PCG lifecycle-phase-transitioning
+  records only), `plan_phase_id` (Developer plan-phase review records only),
+  `accepted` (acceptance-stamp records only).
 - **Enum values:** `source_agent`/`target_agent` (7 role names), `reason` (7 transition types), `status` (4 lifecycle states).
 - **`target_agent` maps 1:1 to checkpoint namespace** in v1.
 - **`reason` encodes transition type**, not pipeline phase; middleware dispatches on `(source_agent, target_agent, reason)` triple.
 
 > Implementation detail (full JSON schema, field-level notes): see [`docs/specs/pcg-data-contracts.md`](./docs/specs/pcg-data-contracts.md).
+> Implementation detail (model-visible phase-review `phase` argument mapped to
+`plan_phase_id`): see [`docs/specs/handoff-tool-definitions.md`](./docs/specs/handoff-tool-definitions.md).
 
 ---
 
@@ -1198,7 +1213,7 @@ there is no predetermined spec-document count or order.
 ### Required Signals
 
 - LangSmith traces for PM and every specialist Deep Agent invocation.
-- Project Coordination Graph handoff records keyed by `project_id`, `handoff_id`, source agent, target agent, phase, artifact refs, run ID, and resulting gate decision.
+- Project Coordination Graph handoff records keyed by `project_id`, `handoff_id`, source agent, target agent, lifecycle `project_phase`, Developer `plan_phase_id`, artifact refs, run ID, and resulting gate decision.
 - Stable project `thread_id`, role `checkpoint_ns`, and `agent_name` metadata on every mounted role invocation.
 - LangGraph Studio local inspection path through `langgraph.json` and `langgraph dev`.
 - LangSmith thread/run links exposed in the UI when tracing is configured.
@@ -1309,6 +1324,7 @@ Implementation contracts extracted from AD decisions under `docs/specs/`. See
 | Spec | Derives From | Status | Last Synced |
 |---|---|---|---|
 | [`docs/specs/handoff-tools.md`](./docs/specs/handoff-tools.md) | §4 Handoff Protocol, §4 Handoff Tool Use-Case Matrix, §4 Pipeline Flow Diagram | Active (rewritten 2026-04-22 for `OQ-HO`; sibling-spec relationship clarified 2026-04-23) | 2026-04-23 |
+| [`docs/specs/handoff-tool-definitions.md`](./docs/specs/handoff-tool-definitions.md) | §4 Handoff Protocol, §4 Handoff Tool Use-Case Matrix, §4 Command.PARENT Update Contract, §4 Data Contracts | Active (created 2026-04-23 for `T-H1` / `OQ-H6`) | 2026-04-23 |
 | [`docs/specs/pcg-data-contracts.md`](./docs/specs/pcg-data-contracts.md) | §4 LangGraph Project Coordination Graph (State Schema), §4 Handoff Protocol (Command.PARENT Update Contract), §4 Data Contracts, §4 PM Session And Project Entry Model (Identity Linkage) | Active (rewritten 2026-04-22 for `OQ-HO`; identity naming harmonised 2026-04-22b; sibling-spec relationship clarified 2026-04-23) | 2026-04-23 |
 | [`docs/specs/repo-and-workspace-layout.md`](./docs/specs/repo-and-workspace-layout.md) | §4 Repo and Workspace Layout, §4 LangGraph Project Coordination Graph Factory Contract, §4 Project Workspace and Memory Structure | Active (updated 2026-04-22 for `OQ-HO`) | 2026-04-22 |
 
