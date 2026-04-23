@@ -112,48 +112,6 @@ makes handoffs observable and auditable.
 🚨 
 ## Open Questions
 
-### T-H1 / OQ-H6 (High Priority): Concrete handoff tool definition spec
-
-**Status.** Closed 2026-04-23 by
-[`docs/specs/handoff-tool-definitions.md`](./docs/specs/handoff-tool-definitions.md).
-Concrete handoff tool definitions are specified before implementation/code
-generation and are not delegated to the Developer or codegen pass.
-
-**Why now.** Handoff tools are the model-visible API for inter-agent
-coordination. LangChain derives the callable tool schema from function
-signatures or `args_schema`, so the implementation would otherwise define
-product semantics by accident: descriptions, argument names, validation,
-runtime-injected fields, and generated-vs-model-visible fields. The AD already
-locks the architecture, `docs/specs/handoff-tools.md` locks the semantic tool
-matrix, and `docs/specs/pcg-data-contracts.md` locks the PCG wire/data
-contract. What is missing is the composition layer that turns those two sibling
-specs into concrete tool definitions.
-
-**Resolution.** `docs/specs/handoff-tool-definitions.md` is the
-`doc_type: spec` derived from `AD.md §4 Handoff Protocol`, `§4 Handoff Tool
-Use-Case Matrix`, `§4 Command.PARENT Update Contract`, and `§4 Data Contracts`.
-It is registered in `AD.md §9 Decision Index → Derived Specs`.
-
-**Minimum scope.** For all 23 handoff tools plus PM's `finish_to_user`, specify:
-tool name, owning role, model-visible description, model-visible parameters,
-runtime-injected parameters, fixed `source_agent` / `target_agent` / `reason`
-values, optional `project_phase` / `plan_phase_id` / `accepted` semantics,
-`HandoffRecord` assembly,
-which fields are model-visible vs system-helper-populated vs PCG-routed,
-`Command.PARENT` return shape, middleware gate, Store side effects if any, and
-role-scoped toolset membership. This spec should explicitly carry forward the
-current AD-level schema note: common handoff parameters are `brief: str` and
-`artifact_paths: list[str]`; acceptance tools add `accepted: bool`; phase review
-tools add model-visible `phase: str` that maps to `plan_phase_id`;
-`project_phase` is reserved for the PCG lifecycle enum that drives
-`current_phase`; `finish_to_user` is terminal emission, not a handoff.
-
-**Documentation convention.** This belongs under `docs/specs/` because it is an
-implementation contract derived from AD decisions. It should follow the normal
-spec governance: YAML provenance header, visible provenance block, parent AD
-pointer, AD §9 registration, and `last_synced` updates whenever the parent AD
-or sibling handoff specs change.
-
 ### OQ-1 (Medium Priority): HITL during development phases
 
 Vision.md promises optimization tuning and taste calibration during development, but the Developer lacks `AskUserMiddleware` (only PM and Architect have it per Q8). Who owns HITL during dev phases? Options: PM relay via `ask_pm`, or add restricted-scope `AskUserMiddleware` to Developer.
@@ -596,6 +554,8 @@ decides what context to load.
 Artifact paths are references by default — the receiving agent reads artifacts
 from the caller's namespace via the provided paths. Each agent owns its own
 filesystem namespace and tags its artifacts with the `project_id`.
+
+> Implementation detail (concrete tool definitions, model-visible API, runtime-injected fields, return shapes): see [`docs/specs/handoff-tool-definitions.md`](./docs/specs/handoff-tool-definitions.md).
 
 #### `Command.PARENT` Update Contract (decisions)
 
@@ -1314,6 +1274,12 @@ are tracked only in §Open Questions (as of 2026-04-22b: `OQ-1`, `OQ-H5`,
 |---|---|---|---|
 | Q15 | Headless PM session and thread identity | §4 Runtime Topology, §4 Thread Identity Model, §4 PM Session And Project Entry Model, §4 Headless Ingress vs Source Presence | [DECISIONS.md](./DECISIONS.md) |
 | Q16 | Project-scoped execution environment / agent computer | §4 Project-Scoped Execution Environment, §4 User Interface Surface | [DECISIONS.md](./DECISIONS.md) |
+
+**Tool and contract specifications round (Q17, 2026-04-23):**
+
+| Q# | Topic | AD section | Detail |
+|---|---|---|---|
+| Q17 | Concrete handoff tool definition spec | §4 Handoff Protocol, §4 Handoff Tool Use-Case Matrix, §4 Command.PARENT Update Contract, §4 Data Contracts | [DECISIONS.md](./DECISIONS.md) |
 
 ### Derived Specs
 
