@@ -83,7 +83,7 @@ Credit where due. The closed decisions (`DECISIONS.md` Q10, Q11) correctly estab
 2. **Handoff tools return `Command.PARENT`; no direct peer invocation.** Correct; preserved.
 3. **Phase gates as middleware hooks on handoff tools, not conditional edges.** Correct; preserved.
 4. **Each role has a stable checkpoint namespace.** Correct; preserved.
-5. **`messages` as user-facing I/O channel (lifecycle bookends), not a conversation buffer.** Correct principle; preserved, but the mechanism (using `messages` key at PCG level) needs reconsideration given headless-ready policy.
+5. `**messages` as user-facing I/O channel (lifecycle bookends), not a conversation buffer.** Correct principle; preserved, but the mechanism (using `messages` key at PCG level) needs reconsideration given headless-ready policy.
 6. **Acceptance-stamp pattern (Evaluator always, HE conditional).** Correct policy; the mechanism (`handoff_log` scanning) is what's wrong, not the policy.
 7. **PM-controlled graph lifecycle (`ask_user` + natural finish).** Correct; preserved.
 8. **Handoff brief as the ONLY thing the child sees; child constructs its own context from `artifact_paths`.** Correct; preserved and strengthened by structural dispatcher isolation.
@@ -92,15 +92,17 @@ The rewrite keeps all of these. The pieces that need replacement are the mechani
 
 ## 3. Diagnosis — Each Weak Point Validated
 
-| # | Weak point | SDK verification | Verdict |
-|---|---|---|---|
-| 1 | `handoff_log` uses `add_messages` reducer on `HandoffRecord` objects | `convert_to_messages` raises `NotImplementedError` for non-message types (see §1.1) | **Broken — must replace with `operator.add` or typed append reducer.** |
-| 2 | `pending_handoff` is an execution cursor | With one dispatcher node, `handoff_log[-1]` is authoritative; no cursor needed | **Dead weight — remove.** |
-| 3 | Child input isolation via `input_schema=_InputAgentState` on `add_node` | Works but is invocation-time filtering, convention-enforced, trivially forgettable | **Replace with structural dispatcher (invoke-from-function); see §1.4.** |
-| 4 | `current_phase` as `Literal[...]` denormalizes `handoff_log` | Spec does not state the denormalization relationship; latent divergence risk | **Keep as a first-class channel with explicit documentation that it is derived from `handoff_log`; invariant added.** |
-| 5 | `messages` channel carrying only lifecycle bookends | Inherits LangChain convention with non-standard semantics; headless ingress can produce multiple user-facing messages per project | **Keep the `messages` channel (LangGraph I/O conduit), drop the "lifecycle bookend" invariant as too restrictive for headless use. Document it as "the surfaced user↔PM channel." Child agents still do not see it.** |
-| 6 | Acceptance gates scan `handoff_log` for stamps | Couples gate logic to audit log structure; v2 "move handoff_log to Store" silently breaks gates | **First-class `acceptance_stamps` channel keyed by stamp type. Gates read the channel, not the log.** |
-| 7 | No artifact manifest / trendline / project-registry surfaces | Vision D1/D10/D12 + headless-ready policy demand cross-surface artifact legibility that the current schema cannot express | **Introduce Store-backed namespaces for artifact manifest, HE-owned optimization trendline, project registry. PCG state stays thin.** |
+
+| #   | Weak point                                                              | SDK verification                                                                                                                  | Verdict                                                                                                                                                                                                               |
+| --- | ----------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | `handoff_log` uses `add_messages` reducer on `HandoffRecord` objects    | `convert_to_messages` raises `NotImplementedError` for non-message types (see §1.1)                                               | **Broken — must replace with `operator.add` or typed append reducer.**                                                                                                                                                |
+| 2   | `pending_handoff` is an execution cursor                                | With one dispatcher node, `handoff_log[-1]` is authoritative; no cursor needed                                                    | **Dead weight — remove.**                                                                                                                                                                                             |
+| 3   | Child input isolation via `input_schema=_InputAgentState` on `add_node` | Works but is invocation-time filtering, convention-enforced, trivially forgettable                                                | **Replace with structural dispatcher (invoke-from-function); see §1.4.**                                                                                                                                              |
+| 4   | `current_phase` as `Literal[...]` denormalizes `handoff_log`            | Spec does not state the denormalization relationship; latent divergence risk                                                      | **Keep as a first-class channel with explicit documentation that it is derived from `handoff_log`; invariant added.**                                                                                                 |
+| 5   | `messages` channel carrying only lifecycle bookends                     | Inherits LangChain convention with non-standard semantics; headless ingress can produce multiple user-facing messages per project | **Keep the `messages` channel (LangGraph I/O conduit), drop the "lifecycle bookend" invariant as too restrictive for headless use. Document it as "the surfaced user↔PM channel." Child agents still do not see it.** |
+| 6   | Acceptance gates scan `handoff_log` for stamps                          | Couples gate logic to audit log structure; v2 "move handoff_log to Store" silently breaks gates                                   | **First-class `acceptance_stamps` channel keyed by stamp type. Gates read the channel, not the log.**                                                                                                                 |
+| 7   | No artifact manifest / trendline / project-registry surfaces            | Vision D1/D10/D12 + headless-ready policy demand cross-surface artifact legibility that the current schema cannot express         | **Introduce Store-backed namespaces for artifact manifest, HE-owned optimization trendline, project registry. PCG state stays thin.**                                                                                 |
+
 
 ## 4. Requirements (Vision + Headless-Ready Infra)
 
@@ -181,11 +183,13 @@ class ProjectCoordinationState(TypedDict):
 
 ### 6.3 What moves to `Store` (durable, cross-thread)
 
-| Store namespace | Owner | Consumers | Purpose |
-|---|---|---|---|
-| `projects/{project_id}/artifact_manifest` | Any agent (via middleware or tool) on artifact production | Web app, TUI, headless ingress, PM session | Single queryable index of artifacts: type, owner, path, created_at, public/private. Replaces walking role filesystems + `handoff_log.artifact_paths`. |
-| `projects/{project_id}/optimization_trendline` | Harness Engineer exclusively | Web app, headless ingress, PM session. **NOT the Developer** (permissions exclude this namespace from Developer's filesystem scope). | Sanitized iteration-by-iteration trend data for Vision D10/D12 visibility without leaking rubrics/judges/held-out data. Addresses `OQ-H3`. |
-| `projects_registry` | PCG `dispatch_handoff` on each handoff | PM session threads, web app project list, any ingress adapter | Compact record per project: `project_id`, `project_thread_id`, `current_phase`, `current_agent`, `last_handoff_at`, `artifact_count`. Addresses `OQ-H1`. |
+
+| Store namespace                                | Owner                                                     | Consumers                                                                                                                            | Purpose                                                                                                                                                  |
+| ---------------------------------------------- | --------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `projects/{project_id}/artifact_manifest`      | Any agent (via middleware or tool) on artifact production | Web app, TUI, headless ingress, PM session                                                                                           | Single queryable index of artifacts: type, owner, path, created_at, public/private. Replaces walking role filesystems + `handoff_log.artifact_paths`.    |
+| `projects/{project_id}/optimization_trendline` | Harness Engineer exclusively                              | Web app, headless ingress, PM session. **NOT the Developer** (permissions exclude this namespace from Developer's filesystem scope). | Sanitized iteration-by-iteration trend data for Vision D10/D12 visibility without leaking rubrics/judges/held-out data. Addresses `OQ-H3`.               |
+| `projects_registry`                            | PCG `dispatch_handoff` on each handoff                    | PM session threads, web app project list, any ingress adapter                                                                        | Compact record per project: `project_id`, `project_thread_id`, `current_phase`, `current_agent`, `last_handoff_at`, `artifact_count`. Addresses `OQ-H1`. |
+
 
 Store access goes through the LangGraph runtime boundary (`langgraph.store.base.BaseStore`); in local dev `SqliteSaver`-backed checkpointer pairs with `InMemoryStore`, in LangGraph Platform the managed store auto-resolves.
 
@@ -284,13 +288,15 @@ LangGraph Pregel's callback manager (`pregel/_algo.py:694-698`) propagates child
 
 ## 7. Resolutions by Open Question
 
-| OQ | Resolution |
-|---|---|
-| `OQ-HO` | Entire rewrite; chosen direction in §6. |
-| `OQ-H2` | `pending_handoff` removed. With one dispatcher node, `handoff_log[-1]` is authoritative. |
+
+| OQ      | Resolution                                                                                                              |
+| ------- | ----------------------------------------------------------------------------------------------------------------------- |
+| `OQ-HO` | Entire rewrite; chosen direction in §6.                                                                                 |
+| `OQ-H2` | `pending_handoff` removed. With one dispatcher node, `handoff_log[-1]` is authoritative.                                |
 | `OQ-H4` | Child isolation is now structural (§6.6). The convention-enforced `input_schema=_InputAgentState` invariant is retired. |
-| `OQ-H1` | Folded in. `projects_registry` Store namespace (§6.3) provides PM-session visibility without per-thread joining. |
-| `OQ-H3` | Folded in. `optimization_trendline` Store namespace (§6.3) is HE-owned, Developer-blind, web/headless consumable. |
+| `OQ-H1` | Folded in. `projects_registry` Store namespace (§6.3) provides PM-session visibility without per-thread joining.        |
+| `OQ-H3` | Folded in. `optimization_trendline` Store namespace (§6.3) is HE-owned, Developer-blind, web/headless consumable.       |
+
 
 ## 8. Downstream Impact
 
@@ -360,41 +366,33 @@ Keep (unchanged):
 
 Candidate B's `dispatch_handoff` invokes role graphs via `role_graph.ainvoke(child_input, child_config)` from inside a plain Python node, then claims "parent state physically cannot reach the child" and "Command.PARENT bubbles back through the parent Pregel loop." Both claims were unsound:
 
-1. **`.ainvoke()` breaks `Command.PARENT` bubbling.** `@/Users/Jason/2026/v4/meta-agent-v5.6.0/.venv/lib/python3.11/site-packages/langgraph/pregel/_io.py:56-59`:
-   ```python
+1. `**.ainvoke()` breaks `Command.PARENT` bubbling.** `@/Users/Jason/2026/v4/meta-agent-v5.6.0/.venv/lib/python3.11/site-packages/langgraph/pregel/_io.py:56-59`:
+  ```python
    def map_command(cmd: Command) -> Iterator[tuple[str, str, Any]]:
        if cmd.graph == Command.PARENT:
            raise InvalidUpdateError("There is no parent graph")
-   ```
+  ```
    And `@/Users/Jason/2026/v4/meta-agent-v5.6.0/.venv/lib/python3.11/site-packages/langgraph/pregel/_retry.py:136-138`:
-   ```python
-   elif cmd.graph == Command.PARENT:
-       exc.args = (replace(cmd, graph=_checkpoint_ns_for_parent_command(ns)),)
-   # bubble up
-   ```
    `Command.PARENT` is handled by re-raising `ParentCommand` from the child Pregel so the parent Pregel can catch it at the next checkpoint-namespace level. That path **only exists when the child is running as a subgraph node inside a parent Pregel's namespace hierarchy.** A child invoked via `.ainvoke()` runs in its own top-level Pregel context — there is no parent to bubble to, so `map_command` raises `InvalidUpdateError` immediately.
-
 2. **The cited canonical pattern doesn't apply.** `SubAgentMiddleware` at `@/Users/Jason/2026/v4/meta-agent-v5.6.0/.reference/libs/deepagents/deepagents/middleware/subagents.py:335-376` uses `subagent.invoke(state)` from inside a tool and packages the result as a `ToolMessage` in a plain `Command(update=...)` back to the caller. It is an **ephemeral-stateless-subagent-as-tool** pattern, equivalent to Option A in `@/Users/Jason/2026/v4/meta-agent-v5.6.0/meta_harness/AD.md:86-90` which Jason already rejected for Meta Harness. It gives no persistent per-role checkpoint state and no peer-to-peer handoff semantics.
-
 3. **Structural isolation via dispatcher was a category error.** There is no in-Pregel mechanism that lets a plain Python node invoke a compiled child and have the child emit `Command.PARENT` back. The mechanism is subgraph mounting, full stop.
 
 ### 11.2 What the SDK actually gives us (verified)
 
 Two compile-time facts make the corrected architecture clean:
 
-1. **`create_deep_agent()` declares its own input/output schemas.** `@/Users/Jason/2026/v4/meta-agent-v5.6.0/.reference/libs/deepagents/deepagents/graph.py:236`:
-   ```python
+1. `**create_deep_agent()` declares its own input/output schemas.** `@/Users/Jason/2026/v4/meta-agent-v5.6.0/.reference/libs/deepagents/deepagents/graph.py:236`:
+  ```python
    ) -> CompiledStateGraph[AgentState[ResponseT], ContextT, _InputAgentState, _OutputAgentState[ResponseT]]:
-   ```
-   - **Input schema** is `_InputAgentState` (messages only, `@/Users/Jason/2026/v4/meta-agent-v5.6.0/.venv/lib/python3.11/site-packages/langchain/agents/middleware/types.py:358-361`).
-   - **Output schema** is `_OutputAgentState` (`messages` + optional `structured_response` only, `@/Users/Jason/2026/v4/meta-agent-v5.6.0/.venv/lib/python3.11/site-packages/langchain/agents/middleware/types.py:364-368`). `todos`, `files`, `jump_to`, `StagnationGuardState._model_call_count`, skills/memory middleware state — all marked `PrivateStateAttr` or `OmitFromOutput` (`@/Users/Jason/2026/v4/meta-agent-v5.6.0/.venv/lib/python3.11/site-packages/langchain/agents/middleware/types.py:346-347`) and dropped structurally at compile time.
-
+  ```
+  - **Input schema** is `_InputAgentState` (messages only, `@/Users/Jason/2026/v4/meta-agent-v5.6.0/.venv/lib/python3.11/site-packages/langchain/agents/middleware/types.py:358-361`).
+  - **Output schema** is `_OutputAgentState` (`messages` + optional `structured_response` only, `@/Users/Jason/2026/v4/meta-agent-v5.6.0/.venv/lib/python3.11/site-packages/langchain/agents/middleware/types.py:364-368`). `todos`, `files`, `jump_to`, `StagnationGuardState._model_call_count`, skills/memory middleware state — all marked `PrivateStateAttr` or `OmitFromOutput` (`@/Users/Jason/2026/v4/meta-agent-v5.6.0/.venv/lib/python3.11/site-packages/langchain/agents/middleware/types.py:346-347`) and dropped structurally at compile time.
 2. **LangGraph respects the subgraph's declared input schema on `add_node`.** `@/Users/Jason/2026/v4/meta-agent-v5.6.0/.venv/lib/python3.11/site-packages/langgraph/graph/state.py:1306-1314`:
-   ```python
+  ```python
    elif node is not None:
        input_schema = node.input_schema if node else self.builder.state_schema
        input_channels = list(self.builder.schemas[input_schema])
-   ```
+  ```
    When we `builder.add_node("project_manager", pm_compiled_graph)`, LangGraph reads the subgraph's own `input_schema` (`_InputAgentState`) and only passes the shared `messages` channel from parent to child. The `input_schema=_InputAgentState` parameter on `add_node` that Candidate D worried about is not a convention we have to remember to pass — it's already baked into the compiled Deep Agent.
 
 Taken together: **mount-as-subgraph is actually structurally isolating in the way Candidate B claimed its dispatcher pattern would be, because the Deep Agent SDK itself does the filtering at its own compile time.** My rejection of Candidate D in §5 was based on a false premise about how `input_schema` propagates.
@@ -409,7 +407,7 @@ This is the only remaining leakage path after mounting. The fix is a small exten
 
 Specialists already satisfy this trivially — their final tool call is a handoff tool which emits `Command.PARENT`. The PM needs one new tool for the terminal case:
 
-- **`finish_to_user(final_response: str)`** (Category 7 in `docs/specs/handoff-tools.md`, new). PM-only. Returns `Command(graph=Command.PARENT, goto=END, update={"messages": [AIMessage(final_response)]})`. Does not append to `handoff_log` — lifecycle bookend, not a handoff record.
+- `**finish_to_user(final_response: str)`** (Category 7 in `docs/specs/handoff-tools.md`, new). PM-only. Returns `Command(graph=Command.PARENT, goto=END, update={"messages": [AIMessage(final_response)]})`. Does not append to `handoff_log` — lifecycle bookend, not a handoff record.
 
 With this rule, the child's in-progress `messages` state remains in the child's checkpoint namespace; only the explicit `Command.PARENT.update` fields reach the PCG. The `messages` append that lands on PCG state is specifically the PM's final AIMessage, delivered intentionally through `finish_to_user`.
 
@@ -476,20 +474,22 @@ The dispatcher is a pure routing function. It never invokes role graphs — Lang
 
 Everything from §6.2 (state schema), §6.3 (Store namespaces), §6.4 (HandoffRecord wire format), §6.5 (Command.PARENT update contract) is unchanged. The delta is strictly topology + terminal-exit rule:
 
-| Survives unchanged | Corrected |
-|---|---|
-| `handoff_log: Annotated[list[HandoffRecord], operator.add]` | — |
-| `acceptance_stamps: Annotated[dict[...], _merge_stamps_reducer]` first-class channel | — |
-| Gate on `return_product_to_pm` reads `acceptance_stamps`, not `handoff_log` scan | — |
-| `pending_handoff` removed | — |
-| `HandoffRecord.phase` / `.accepted` optional fields | — |
-| `Store` namespaces: `artifact_manifest`, `optimization_trendline`, `projects_registry` | — |
-| Developer excluded from `optimization_trendline` via filesystem permissions | — |
-| — | PCG is 8 nodes (1 dispatcher + 7 mounted role subgraphs), not 1 node + registry |
-| — | Dispatcher emits `Command(goto=<role>)`; never calls `.ainvoke()` on a role graph |
-| — | Child isolation is structural via `create_deep_agent()`-declared `_InputAgentState` / `_OutputAgentState`, not via `input_schema=` on `add_node` nor via dispatcher-constructed inputs |
-| — | New Category 7 (Terminal Emission) tool: `finish_to_user` (PM-only; 24th tool total) |
-| — | New middleware requirement: final-turn-guard — every role's last AIMessage must have a tool call (handoff tool or `finish_to_user`) |
+
+| Survives unchanged                                                                     | Corrected                                                                                                                                                                              |
+| -------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `handoff_log: Annotated[list[HandoffRecord], operator.add]`                            | —                                                                                                                                                                                      |
+| `acceptance_stamps: Annotated[dict[...], _merge_stamps_reducer]` first-class channel   | —                                                                                                                                                                                      |
+| Gate on `return_product_to_pm` reads `acceptance_stamps`, not `handoff_log` scan       | —                                                                                                                                                                                      |
+| `pending_handoff` removed                                                              | —                                                                                                                                                                                      |
+| `HandoffRecord.phase` / `.accepted` optional fields                                    | —                                                                                                                                                                                      |
+| `Store` namespaces: `artifact_manifest`, `optimization_trendline`, `projects_registry` | —                                                                                                                                                                                      |
+| Developer excluded from `optimization_trendline` via filesystem permissions            | —                                                                                                                                                                                      |
+| —                                                                                      | PCG is 8 nodes (1 dispatcher + 7 mounted role subgraphs), not 1 node + registry                                                                                                        |
+| —                                                                                      | Dispatcher emits `Command(goto=<role>)`; never calls `.ainvoke()` on a role graph                                                                                                      |
+| —                                                                                      | Child isolation is structural via `create_deep_agent()`-declared `_InputAgentState` / `_OutputAgentState`, not via `input_schema=` on `add_node` nor via dispatcher-constructed inputs |
+| —                                                                                      | New Category 7 (Terminal Emission) tool: `finish_to_user` (PM-only; 24th tool total)                                                                                                   |
+| —                                                                                      | New middleware requirement: final-turn-guard — every role's last AIMessage must have a tool call (handoff tool or `finish_to_user`)                                                    |
+
 
 ### 11.7a Architecture Watch-List (Frontier Work, Requires Periodic Revisit)
 
@@ -505,21 +505,21 @@ The discipline: treat this architecture as "best-we-have-at-this-moment." When a
 
 **Scaling / runtime signals.**
 
-4. **PM token cost or response latency balloons.** Hub-and-spoke coordination has known limits (bottleneck, context bloat). If PM becomes a friction point, evaluate decentralization patterns: event-bus coordination, topic-based subscriptions, CRDT-like state merging.
-5. **`handoff_log` grows past ~1000 entries in long-running projects.** Trim-to-Store migration (v2 option noted in `pcg-data-contracts.md §9`) becomes necessary. Confirm checkpoint serialization cost is the actual bottleneck before migrating.
-6. **LangSmith trace hierarchy becomes unreadable at 3-level nesting** (user → PCG → role subgraph → role's internal agent-loop nodes). If traces are noisy, evaluate flattening the coordination layer or adding span-grouping metadata.
+1. **PM token cost or response latency balloons.** Hub-and-spoke coordination has known limits (bottleneck, context bloat). If PM becomes a friction point, evaluate decentralization patterns: event-bus coordination, topic-based subscriptions, CRDT-like state merging.
+2. `**handoff_log` grows past ~1000 entries in long-running projects.** Trim-to-Store migration (v2 option noted in `pcg-data-contracts.md §9`) becomes necessary. Confirm checkpoint serialization cost is the actual bottleneck before migrating.
+3. **LangSmith trace hierarchy becomes unreadable at 3-level nesting** (user → PCG → role subgraph → role's internal agent-loop nodes). If traces are noisy, evaluate flattening the coordination layer or adding span-grouping metadata.
 
 **Requirement-shift signals.**
 
-7. **Concurrent handoffs become necessary** — e.g., PM dispatches to Planner AND Researcher in parallel, or multiple sandboxed Developers running concurrently for the optimization loop (hinted at by Vision D10/D12). Current `handoff_log` linearity breaks. Need Send-based fanout + revised acceptance-gate mechanism + `role:instance_id` namespace scheme.
-8. **A non-Deep-Agent role is proposed** — e.g., a pure code-formatter role that doesn't need memory/skills/HITL. Mount-as-subgraph accepts any `CompiledStateGraph`, so architecturally fine; but validate the first time it comes up.
-9. **Multi-dimensional QA gates needed** beyond binary pass/fail (e.g., "passed performance but failed security review" as separate dimensions). Current `acceptance_stamps` dict with two keys would need richer typing. Watch for Evaluator role wanting richer semantics.
+1. **Concurrent handoffs become necessary** — e.g., PM dispatches to Planner AND Researcher in parallel, or multiple sandboxed Developers running concurrently for the optimization loop (hinted at by Vision D10/D12). Current `handoff_log` linearity breaks. Need Send-based fanout + revised acceptance-gate mechanism + `role:instance_id` namespace scheme.
+2. **A non-Deep-Agent role is proposed** — e.g., a pure code-formatter role that doesn't need memory/skills/HITL. Mount-as-subgraph accepts any `CompiledStateGraph`, so architecturally fine; but validate the first time it comes up.
+3. **Multi-dimensional QA gates needed** beyond binary pass/fail (e.g., "passed performance but failed security review" as separate dimensions). Current `acceptance_stamps` dict with two keys would need richer typing. Watch for Evaluator role wanting richer semantics.
 
 **Production-learning signals.**
 
-10. **Our own running system shows friction we didn't predict.** The first real execution of the PCG in anger is the most valuable learning opportunity. Log everything, capture anomalies, revisit design with empirical evidence.
-11. **A production post-mortem from someone else hits our architecture's weakness.** Anthropic/LangChain/OpenAI engineers occasionally publish post-mortems or lessons-learned. Actively read these; map observations back to our design.
-12. **Confluence moments from unrelated domains.** A distributed-systems paper, compiler pattern, actor-model primitive, workflow orchestrator that reframes our coordination problem more cleanly. When it hits, write it down immediately — don't let the insight evaporate.
+1. **Our own running system shows friction we didn't predict.** The first real execution of the PCG in anger is the most valuable learning opportunity. Log everything, capture anomalies, revisit design with empirical evidence.
+2. **A production post-mortem from someone else hits our architecture's weakness.** Anthropic/LangChain/OpenAI engineers occasionally publish post-mortems or lessons-learned. Actively read these; map observations back to our design.
+3. **Confluence moments from unrelated domains.** A distributed-systems paper, compiler pattern, actor-model primitive, workflow orchestrator that reframes our coordination problem more cleanly. When it hits, write it down immediately — don't let the insight evaporate.
 
 **Cadence.** Re-read this list at: (a) every `deepagents` / `langgraph` upgrade, (b) the first real production run of the PCG, (c) any Vision iteration that changes coordination requirements, (d) any time something in unrelated work triggers "wait, this maps to PCG."
 
@@ -532,3 +532,4 @@ The discipline: treat this architecture as "best-we-have-at-this-moment." When a
 5. [x] `DECISIONS.md` — Q4 / Q10 / Q11 supersession notes updated in place so the frozen rationale now points at the corrected mounted-subgraph architecture instead of the discarded explicit-invocation pattern.
 6. [x] Appended `CHANGELOG.md` correction entry.
 7. [x] `last_synced: 2026-04-22` on all three specs already at today's date; provenance-line notes updated on pcg-data-contracts.md and handoff-tools.md and repo-and-workspace-layout.md to reference the correction.
+

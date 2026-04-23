@@ -4,24 +4,26 @@
 
 ## Decision Index
 
-| Decision | Theme | Summary | Details |
-|---|---|---|---|
-| Q1: Repo structure naming | Architecture Foundations | Standardize the repo layout around the PCG entrypoint, peer-role modules, and the sandbox integration shape so the codebase matches the runtime contract. | `[Q1](#q1-repo-structure-naming)` |
-| Q2: Production checkpointer and store backend | Architecture Foundations | Use different persistence paths for local dev, shipped CLI, and platform-managed deployment so runtime state lands in the right backend without branching the graph factory. | `[Q2](#q2-production-checkpointer-and-store-backend)` |
-| Q3: Handoff wrapper implementation | Architecture Foundations | Make handoffs explicit tools that bubble to the parent graph with `Command.PARENT`, keeping orchestration in the graph rather than in middleware. | `[Q3](#q3-handoff-wrapper-implementation)` |
-| Q4: PCG node set (first version) | Architecture Foundations | **[Superseded 2026-04-22 by `OQ-HO`]** Originally: keep the coordination graph linear and small so routing stays easy to reason about while handoff tools and middleware own the real branching behavior. Current: 1-node dispatcher (`dispatch_handoff`) routing among mounted role subgraphs. | `[Q4](#q4-pcg-node-set-first-version)` |
-| Q5: Handoff tool use-case matrix | Agent Roles & Communication | Define a verb-driven handoff matrix so every role knows when to deliver, return, consult, or question without inventing new routing semantics. | `[Q5](#q5-handoff-tool-use-case-matrix)` |
-| Q6: Handoff record schema | Agent Roles & Communication | Lock the handoff record to a compact field set and reserve `accepted` for later acceptance stamps so audit data stays stable. | `[Q6](#q6-handoff-record-schema)` |
-| Q7: Phase gate enum and approval policy | Agent Roles & Communication | Use six lifecycle phases with only two explicit approval gates, and keep approval as a PM-owned document review rather than a graph interrupt. | `[Q7](#q7-phase-gate-enum-and-approval-policy)` |
-| Q8: Sandbox topology impact | Middleware Systems | Treat sandboxing as an execution-mode concern for mounted role agents, not as a separate assistant topology. | `[Q8](#q8-sandbox-topology-impact)` |
-| Q9: HE vs Evaluator gate-owner boundary | Middleware Systems | Split harness-science authority from application-quality authority so HE and Evaluator gate different dimensions of the workflow. | `[Q9](#q9-he-vs-evaluator-gate-owner-boundary)` |
-| Q10: PCG state growth and parent-to-child context propagation | Tool & Contract Specifications | **[Superseded 2026-04-22 by `OQ-HO`]** Originally: bound what parent state reaches child graphs and cap handoff history so persistence stays manageable without flooding child context. Current: child isolation is structural via mounted Deep Agent subgraphs' declared schemas plus terminal-exit discipline; gate dispatch reads `acceptance_stamps` channel, not `handoff_log`. | `[Q10](#q10-pcg-state-growth-and-parent-to-child-context-propagation)` |
-| Q11: PCG state schema and initialization topology (refined) | Tool & Contract Specifications | **[Superseded 2026-04-22 by `OQ-HO`]** Originally: narrow user-facing PCG state surface + deterministic child input construction. Current: 1-node dispatcher, typed `operator.add` reducer on `handoff_log`, first-class `acceptance_stamps` channel, `pending_handoff` removed, Store-backed `artifact_manifest` / `optimization_trendline` / `projects_registry`. | `[Q11](#q11-pcg-state-schema-and-initialization-topology-refined)` |
-| Q12: Universal agent middleware baseline | Middleware Systems | Give every agent the same baseline stack and vary only parameter values so the harness stays consistent across roles. | `[Q12](#q12-universal-agent-middleware-baseline)` |
-| Q13: Anthropic provider-specific middleware integration | Provider Integrations | Add Anthropic-native bash, memory, and server-side tools through provider profiles so Anthropic gets native affordances without polluting shared factories. | `[Q13](#q13-anthropic-provider-specific-middleware-integration)` |
-| Q14: User interface surface | Product Surface & Runtime | Ship a Textual TUI that surfaces pipeline state, approvals, and model selection without turning the UI into the primary runtime. | `[Q14](#q14-user-interface-surface)` |
-| Q15: Headless PM session, thread identity, and source surfaces | Product Surface & Runtime | Separate PM-session threads from project threads so headless ingress, source presence, and execution identity stay distinct. | `[Q15](#q15-headless-pm-session-thread-identity-and-source-surfaces)` |
-| Q16: Project-scoped execution environment / agent computer | Product Surface & Runtime | Bind each project thread to a real execution environment so coding, evaluation, and publication happen inside the project computer. | `[Q16](#q16-project-scoped-execution-environment--agent-computer)` |
+
+| Decision                                                                                                                       | Theme                          | Summary                                                                                                                                                                                                                                                                                                                                                                              | Details                                                               |
+| ------------------------------------------------------------------------------------------------------------------------------ | ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------- |
+| [Q1: Repo structure naming](#q1-repo-structure-naming)                                                                         | Architecture Foundations       | Standardize the repo layout around the PCG entrypoint, peer-role modules, and the sandbox integration shape so the codebase matches the runtime contract.                                                                                                                                                                                                                            | [Jump](#q1-repo-structure-naming)                                     |
+| [Q2: Production checkpointer and store backend](#q2-production-checkpointer-and-store-backend)                                 | Architecture Foundations       | Use different persistence paths for local dev, shipped CLI, and platform-managed deployment so runtime state lands in the right backend without branching the graph factory.                                                                                                                                                                                                         | [Jump](#q2-production-checkpointer-and-store-backend)                 |
+| [Q3: Handoff wrapper implementation](#q3-handoff-wrapper-implementation)                                                       | Architecture Foundations       | Make handoffs explicit tools that bubble to the parent graph with `Command.PARENT`, keeping orchestration in the graph rather than in middleware.                                                                                                                                                                                                                                    | [Jump](#q3-handoff-wrapper-implementation)                            |
+| [Q4: PCG node set (first version)](#q4-pcg-node-set-first-version)                                                             | Architecture Foundations       | **[Superseded 2026-04-22 by `OQ-HO`]** Originally: keep the coordination graph linear and small so routing stays easy to reason about while handoff tools and middleware own the real branching behavior. Current: 1-node dispatcher (`dispatch_handoff`) routing among mounted role subgraphs.                                                                                      | [Jump](#q4-pcg-node-set-first-version)                                |
+| [Q5: Handoff tool use-case matrix](#q5-handoff-tool-use-case-matrix)                                                           | Agent Roles & Communication    | Define a verb-driven handoff matrix so every role knows when to deliver, return, consult, or question without inventing new routing semantics.                                                                                                                                                                                                                                       | [Jump](#q5-handoff-tool-use-case-matrix)                              |
+| [Q6: Handoff record schema](#q6-handoff-record-schema)                                                                         | Agent Roles & Communication    | Lock the handoff record to a compact field set and reserve `accepted` for later acceptance stamps so audit data stays stable.                                                                                                                                                                                                                                                        | [Jump](#q6-handoff-record-schema)                                     |
+| [Q7: Phase gate enum and approval policy](#q7-phase-gate-enum-and-approval-policy)                                             | Agent Roles & Communication    | Use six lifecycle phases with only two explicit approval gates, and keep approval as a PM-owned document review rather than a graph interrupt.                                                                                                                                                                                                                                       | [Jump](#q7-phase-gate-enum-and-approval-policy)                       |
+| [Q8: Sandbox topology impact](#q8-sandbox-topology-impact)                                                                     | Middleware Systems             | Treat sandboxing as an execution-mode concern for mounted role agents, not as a separate assistant topology.                                                                                                                                                                                                                                                                         | [Jump](#q8-sandbox-topology-impact)                                   |
+| [Q9: HE vs Evaluator gate-owner boundary](#q9-he-vs-evaluator-gate-owner-boundary)                                             | Middleware Systems             | Split harness-science authority from application-quality authority so HE and Evaluator gate different dimensions of the workflow.                                                                                                                                                                                                                                                    | [Jump](#q9-he-vs-evaluator-gate-owner-boundary)                       |
+| [Q10: PCG state growth and parent-to-child context propagation](#q10-pcg-state-growth-and-parent-to-child-context-propagation) | Tool & Contract Specifications | **[Superseded 2026-04-22 by `OQ-HO`]** Originally: bound what parent state reaches child graphs and cap handoff history so persistence stays manageable without flooding child context. Current: child isolation is structural via mounted Deep Agent subgraphs' declared schemas plus terminal-exit discipline; gate dispatch reads `acceptance_stamps` channel, not `handoff_log`. | [Jump](#q10-pcg-state-growth-and-parent-to-child-context-propagation) |
+| [Q11: PCG state schema and initialization topology (refined)](#q11-pcg-state-schema-and-initialization-topology-refined)       | Tool & Contract Specifications | **[Superseded 2026-04-22 by `OQ-HO`]** Originally: narrow user-facing PCG state surface + deterministic child input construction. Current: 1-node dispatcher, typed `operator.add` reducer on `handoff_log`, first-class `acceptance_stamps` channel, `pending_handoff` removed, Store-backed `artifact_manifest` / `optimization_trendline` / `projects_registry`.                  | [Jump](#q11-pcg-state-schema-and-initialization-topology-refined)     |
+| [Q12: Universal agent middleware baseline](#q12-universal-agent-middleware-baseline)                                           | Middleware Systems             | Give every agent the same baseline stack and vary only parameter values so the harness stays consistent across roles.                                                                                                                                                                                                                                                                | [Jump](#q12-universal-agent-middleware-baseline)                      |
+| [Q13: Anthropic provider-specific middleware integration](#q13-anthropic-provider-specific-middleware-integration)             | Provider Integrations          | Add Anthropic-native bash, memory, and server-side tools through provider profiles so Anthropic gets native affordances without polluting shared factories.                                                                                                                                                                                                                          | [Jump](#q13-anthropic-provider-specific-middleware-integration)       |
+| [Q14: User interface surface](#q14-user-interface-surface)                                                                     | Product Surface & Runtime      | Ship a Textual TUI that surfaces pipeline state, approvals, and model selection without turning the UI into the primary runtime.                                                                                                                                                                                                                                                     | [Jump](#q14-user-interface-surface)                                   |
+| [Q15: Headless PM session, thread identity, and source surfaces](#q15-headless-pm-session-thread-identity-and-source-surfaces) | Product Surface & Runtime      | Separate PM-session threads from project threads so headless ingress, source presence, and execution identity stay distinct.                                                                                                                                                                                                                                                         | [Jump](#q15-headless-pm-session-thread-identity-and-source-surfaces)  |
+| [Q16: Project-scoped execution environment / agent computer](#q16-project-scoped-execution-environment--agent-computer)        | Product Surface & Runtime      | Bind each project thread to a real execution environment so coding, evaluation, and publication happen inside the project computer.                                                                                                                                                                                                                                                  | [Jump](#q16-project-scoped-execution-environment--agent-computer)     |
+
 
 ---
 
@@ -29,15 +31,16 @@
 
 The following items are **high-urgency** and must be scoped into the current droid implementation plan. These represent course corrections or clarifications to prior decisions:
 
-| Flag | Question | Location | Status |
-|------|----------|----------|--------|
+
+| Flag          | Question                                                                                                                                     | Location | Status                                              |
+| ------------- | -------------------------------------------------------------------------------------------------------------------------------------------- | -------- | --------------------------------------------------- |
 | 🚩 **URGENT** | Anthropic server-side tools (web_search, web_fetch, code_execution, tool_search) — previously deferred to v2, now **required for v1 launch** | Q13 §(5) | **REVISED 2026-04-15** — See updated decision below |
+
 
 ---
 
 ## Architecture Foundations
 
-<a id="q1-repo-structure-naming"></a>
 ### Q1: Repo structure naming
 
 **Status:** Closed · **Approved by:** Jason · **Date:** 2026-04-11
@@ -46,7 +49,6 @@ Adopt the section 4 repo-structure naming decision that uses root `graph.py` for
 
 ---
 
-<a id="q2-production-checkpointer-and-store-backend"></a>
 ### Q2: Production checkpointer and store backend
 
 **Status:** Closed · **Approved by:** Jason · **Date:** 2026-04-12
@@ -55,7 +57,6 @@ Three runtime modes, two code paths. (1) **Local dev** (`langgraph dev`): `Sqlit
 
 ---
 
-<a id="q3-handoff-wrapper-implementation"></a>
 ### Q3: Handoff wrapper implementation
 
 **Status:** Closed · **Approved by:** Jason · **Date:** 2026-04-12
@@ -64,7 +65,6 @@ v1 handoffs are explicit Deep Agent tools that return `Command(graph=Command.PAR
 
 ---
 
-<a id="q4-pcg-node-set-first-version"></a>
 ### Q4: PCG node set (first version)
 
 **Status:** Superseded 2026-04-22 by `OQ-HO` resolution · **Originally approved by:** Jason · **Date:** 2026-04-12
@@ -79,7 +79,6 @@ v1 handoffs are explicit Deep Agent tools that return `Command(graph=Command.PAR
 
 ## Agent Roles & Communication
 
-<a id="q5-handoff-tool-use-case-matrix"></a>
 ### Q5: Handoff tool use-case matrix
 
 **Status:** Closed · **Approved by:** Jason · **Date:** 2026-04-12
@@ -88,7 +87,6 @@ v1 handoffs are explicit Deep Agent tools that return `Command(graph=Command.PAR
 
 ---
 
-<a id="q6-handoff-record-schema"></a>
 ### Q6: Handoff record schema
 
 **Status:** Closed · **Approved by:** Jason · **Date:** 2026-04-12
@@ -99,7 +97,6 @@ Locked field set is `project_id`, `handoff_id`, `source_agent`, `target_agent`, 
 
 ---
 
-<a id="q7-phase-gate-enum-and-approval-policy"></a>
 ### Q7: Phase gate enum and approval policy
 
 **Status:** Closed · **Approved by:** Jason · **Date:** 2026-04-12
@@ -112,7 +109,6 @@ Six phases (`scoping`, `research`, `architecture`, `planning`, `development`, `a
 
 ## Middleware Systems
 
-<a id="q8-sandbox-topology-impact"></a>
 ### Q8: Sandbox topology impact
 
 **Status:** Closed · **Approved by:** Jason · **Date:** 2026-04-12
@@ -125,7 +121,6 @@ Sandbox support is backend/runtime configuration for mounted role agents and doe
 
 ---
 
-<a id="q9-he-vs-evaluator-gate-owner-boundary"></a>
 ### Q9: HE vs Evaluator gate-owner boundary
 
 **Status:** Closed · **Approved by:** Jason · **Date:** 2026-04-12
@@ -138,7 +133,6 @@ AD owns the boundary definition (which dimension each role gates), Developer sys
 
 ### Tool & Contract Specifications
 
-<a id="q10-pcg-state-growth-and-parent-to-child-context-propagation"></a>
 ### Q10: PCG state growth and parent-to-child context propagation
 
 **Status:** Superseded 2026-04-22 by `OQ-HO` resolution · **Originally approved by:** Jason · **Date:** 2026-04-12
@@ -151,23 +145,22 @@ AD owns the boundary definition (which dimension each role gates), Developer sys
 
 ---
 
-<a id="q11-pcg-state-schema-and-initialization-topology-refined"></a>
 ### Q11: PCG state schema and initialization topology (refined)
 
 **Status:** Superseded 2026-04-22 by `OQ-HO` resolution · **Originally approved by:** Jason · **Date:** 2026-04-12
 
 > **Supersession note.** Four substantive problems with the original decision, verified against local SDK source:
 >
-> 1. **`add_messages` reducer on `handoff_log` is structurally broken.** `add_messages` coerces both inputs through `convert_to_messages` (`.venv/lib/python3.11/site-packages/langgraph/graph/message.py:194-201`), which raises `NotImplementedError` for non-message types (`.venv/lib/python3.11/site-packages/langchain_core/messages/utils.py:727-730`). A `HandoffRecord` dataclass / `TypedDict` / Pydantic model with an `id` field does not satisfy `MessageLikeRepresentation`. `handoff_log` now uses a typed `operator.add` append reducer.
-> 2. **`pending_handoff` cursor does not pay rent.** With the 1-node dispatcher topology (superseding Q4), `handoff_log[-1]` is the authoritative active handoff. The cursor was an artifact of the two-node split.
-> 3. **`messages` lifecycle-bookend invariant is too restrictive for headless ingress.** The `messages` channel now documents as the user-facing I/O conduit (LangGraph convention), written only by the PM's `finish_to_user` terminal tool. Child agents still never see it (now enforced structurally via mounted subgraphs' declared schemas plus `Command.PARENT` exit discipline).
+> 1. `**add_messages` reducer on `handoff_log` is structurally broken.** `add_messages` coerces both inputs through `convert_to_messages` (`.venv/lib/python3.11/site-packages/langgraph/graph/message.py:194-201`), which raises `NotImplementedError` for non-message types (`.venv/lib/python3.11/site-packages/langchain_core/messages/utils.py:727-730`). A `HandoffRecord` dataclass / `TypedDict` / Pydantic model with an `id` field does not satisfy `MessageLikeRepresentation`. `handoff_log` now uses a typed `operator.add` append reducer.
+> 2. `**pending_handoff` cursor does not pay rent.** With the 1-node dispatcher topology (superseding Q4), `handoff_log[-1]` is the authoritative active handoff. The cursor was an artifact of the two-node split.
+> 3. `**messages` lifecycle-bookend invariant is too restrictive for headless ingress.** The `messages` channel now documents as the user-facing I/O conduit (LangGraph convention), written only by the PM's `finish_to_user` terminal tool. Child agents still never see it (now enforced structurally via mounted subgraphs' declared schemas plus `Command.PARENT` exit discipline).
 > 4. **Acceptance-stamp gate scans `handoff_log`.** Couples gate logic to audit log structure. Acceptance stamps now live on a first-class `acceptance_stamps` channel keyed by stamp type (`application` / `harness`). Gates read the channel.
 >
 > Folded in during the rewrite: `OQ-H1` (PM-session project visibility) via a `projects_registry` `Store` namespace; `OQ-H3` (Developer-blind optimization trendline) via an HE-owned `optimization_trendline` `Store` namespace. See `AD.md §4 LangGraph Project Coordination Graph` (current), `docs/specs/pcg-data-contracts.md` (current), and `local-docs/pcg-state-schema-rewrite-working.md` (working analysis, temporary).
 
 > **Original decision (preserved for historical context):** The PCG owns a narrow, user-facing state surface and the child graph only receives a single constructed `HumanMessage`. This keeps routing deterministic and prevents accidental state leakage.
 
-> (1) **Topology reduced from 3 to 2 nodes** — merged `receive_user_input` into `process_handoff`; `process_handoff` handles both first invocation (no pending handoff → create synthetic handoff for PM) and subsequent invocations. (2) **`messages` redefined as user-facing I/O channel** — accumulates only lifecycle bookends (stakeholder input in, PM's final product response out); never written to during pipeline execution. (3) **`handoff_summary` removed** — cap mitigation is implementation spec territory, not a state key. (4) **`run_agent` constructs child input** — always builds a single `HumanMessage` from `pending_handoff.brief`; child never sees raw PCG `messages` list. (5) **`Command.PARENT` update contract locked** — handoff tools write to `handoff_log`, `current_agent`, `current_phase` (conditional), `pending_handoff`; never write to `messages`. (6) **Acceptance gate pattern** — `return_product_to_pm` gated by `submit_application_acceptance` (Evaluator, always required) and `submit_harness_acceptance` (HE, conditional on HE participation derived from `handoff_log`). (7) **Graph lifecycle is PM-controlled** — PM uses `ask_user` to confirm satisfaction; finishes normally → END. Three new tools added: `return_product_to_pm`, `submit_harness_acceptance`, `submit_application_acceptance`. Total tools: 23 across 6 categories.
+> (1) **Topology reduced from 3 to 2 nodes** — merged `receive_user_input` into `process_handoff`; `process_handoff` handles both first invocation (no pending handoff → create synthetic handoff for PM) and subsequent invocations. (2) `**messages` redefined as user-facing I/O channel** — accumulates only lifecycle bookends (stakeholder input in, PM's final product response out); never written to during pipeline execution. (3) `**handoff_summary` removed** — cap mitigation is implementation spec territory, not a state key. (4) `**run_agent` constructs child input** — always builds a single `HumanMessage` from `pending_handoff.brief`; child never sees raw PCG `messages` list. (5) `**Command.PARENT` update contract locked** — handoff tools write to `handoff_log`, `current_agent`, `current_phase` (conditional), `pending_handoff`; never write to `messages`. (6) **Acceptance gate pattern** — `return_product_to_pm` gated by `submit_application_acceptance` (Evaluator, always required) and `submit_harness_acceptance` (HE, conditional on HE participation derived from `handoff_log`). (7) **Graph lifecycle is PM-controlled** — PM uses `ask_user` to confirm satisfaction; finishes normally → END. Three new tools added: `return_product_to_pm`, `submit_harness_acceptance`, `submit_application_acceptance`. Total tools: 23 across 6 categories.
 
 ---
 
@@ -176,6 +169,7 @@ AD owns the boundary definition (which dimension each role gates), Developer sys
 **Status:** Closed · **Approved by:** Jason · **Date:** 2026-04-13
 
 (1) **Model-agnostic architecture** — no provider lock-in. The harness must support any model provider (Anthropic, OpenAI, GLM, etc.). Users choose models per agent role; the system cannot assume a single provider. (2) **Per-agent model selection** — each of the 7 agent roles can use a different model. Selection is configurable, not hardcoded. (3) **Thread-scoped model config** — model selections are made at project start and remain immutable for the lifespan of that project/thread. Changing models requires starting a new project. (4) **Model-specific server-side tools** — when a particular model is selected for an agent, that agent must receive any provider-specific tools and capabilities the model supports (e.g., Anthropic prompt caching, OpenAI Codex subagent delegation, GPT 5.4 Pro extended thinking). The implementation spec owns how to route provider-specific tool injection based on the selected model. (5) **v1 experimental defaults** (subject to change based on deployment-level experimentation):
+
 - PM: Opus 4.6
 - Researcher: Opus 4.6
 - Architect: TBD — experiment between Opus 4.6, GPT 5.4 (extra-high thinking), GPT 5.4 Pro
@@ -188,7 +182,6 @@ AD owns the boundary definition (which dimension each role gates), Developer sys
 
 ---
 
-<a id="q12-universal-agent-middleware-baseline"></a>
 ### Q12: Universal agent middleware baseline
 
 **Status:** Closed · **Approved by:** Jason · **Date:** 2026-04-13
@@ -235,17 +228,19 @@ Tail:     [Profile extras] → [ToolExclusion] → PromptCaching → Memory → 
 
 **Custom middleware in the `middleware=` slot:**
 
-| Middleware | What it adds | All 7? | Notes |
-|---|---|---|---|
-| `CollapseMiddleware` | Collapses consecutive read/search tool-call groups into badge summaries | Yes | Free (no LLM call). Reduces context before summarization triggers — benchmarks show 4.2x later triggering when paired with `SummarizationMiddleware`. **Do not reimplement.** Install: `pip install langchain-collapse`. Source: [github.com/johanity/langchain-collapse](https://github.com/johanity/langchain-collapse). Listed on [LangChain middleware integrations](https://docs.langchain.com/oss/python/integrations/middleware) as a community integration. |
-| `ContextEditingMiddleware` | Clears old tool results → `[cleared]` when token threshold exceeded | Yes | Free (no LLM call). Mirrors Anthropic's `clear_tool_uses` behavior. **Do not reimplement.** SDK built-in: `from langchain.agents.middleware import ContextEditingMiddleware, ClearToolUsesEdit`. Pluggable `ContextEdit` strategies — default is `ClearToolUsesEdit`. Docs: [langchain.com/middleware/built-in#context-editing](https://docs.langchain.com/oss/python/langchain/middleware/built-in#context-editing). |
-| `SummarizationToolMiddleware` | `compact_conversation` tool (on-demand) | Yes | SDK provides `SummarizationMiddleware` (auto-truncation) as unconditional baseline; this adds the proactive tool. Created via `create_summarization_tool_middleware(model, backend)`. |
-| `ModelCallLimitMiddleware` | Hard ceiling on model API calls per thread | Yes | SDK built-in (`langchain.agents.middleware.model_call_limit`). Not included in `create_deep_agent()` by default — must be added explicitly. Counts model API calls (the cost-accruing unit), not graph steps. `exit_behavior="end"` (graceful termination). Per-role `thread_limit` values below. `run_limit` left `None` — single-run ceiling unnecessary with reasonable thread limit. |
-| `StagnationGuardMiddleware` | Progress-aware call limiter (two-tier: nudge → hard stop) | Yes | Custom middleware — see design vision below. Per-role thresholds. |
-| `AskUserMiddleware` | `ask_user` tool (proactive stakeholder questions) | PM, Architect | PM for stakeholder questions; Architect for interactive spec creation when user toggles the feature. Other agents do not get this. |
-| `ShellAllowListMiddleware` | Shell command validation against allow-list | Conditional | Active for sandbox-backed agents. Inert for local-first. |
-| Phase gate middleware | Handoff tool gate hooks | Per-agent | Agents that own gated tools receive phase gate middleware. Specifics TBD in Q8 (extended middleware). |
-| `interrupt_on={}` | `HumanInTheLoopMiddleware` in tail stack | Yes | Passed as empty dict to all 7 agents — activates the middleware but registers zero interrupt rules. Inert until a future need arises. Cost is negligible (short-circuit on empty config). |
+
+| Middleware                    | What it adds                                                            | All 7?        | Notes                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| ----------------------------- | ----------------------------------------------------------------------- | ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `CollapseMiddleware`          | Collapses consecutive read/search tool-call groups into badge summaries | Yes           | Free (no LLM call). Reduces context before summarization triggers — benchmarks show 4.2x later triggering when paired with `SummarizationMiddleware`. **Do not reimplement.** Install: `pip install langchain-collapse`. Source: [github.com/johanity/langchain-collapse](https://github.com/johanity/langchain-collapse). Listed on [LangChain middleware integrations](https://docs.langchain.com/oss/python/integrations/middleware) as a community integration. |
+| `ContextEditingMiddleware`    | Clears old tool results → `[cleared]` when token threshold exceeded     | Yes           | Free (no LLM call). Mirrors Anthropic's `clear_tool_uses` behavior. **Do not reimplement.** SDK built-in: `from langchain.agents.middleware import ContextEditingMiddleware, ClearToolUsesEdit`. Pluggable `ContextEdit` strategies — default is `ClearToolUsesEdit`. Docs: [langchain.com/middleware/built-in#context-editing](https://docs.langchain.com/oss/python/langchain/middleware/built-in#context-editing).                                               |
+| `SummarizationToolMiddleware` | `compact_conversation` tool (on-demand)                                 | Yes           | SDK provides `SummarizationMiddleware` (auto-truncation) as unconditional baseline; this adds the proactive tool. Created via `create_summarization_tool_middleware(model, backend)`.                                                                                                                                                                                                                                                                               |
+| `ModelCallLimitMiddleware`    | Hard ceiling on model API calls per thread                              | Yes           | SDK built-in (`langchain.agents.middleware.model_call_limit`). Not included in `create_deep_agent()` by default — must be added explicitly. Counts model API calls (the cost-accruing unit), not graph steps. `exit_behavior="end"` (graceful termination). Per-role `thread_limit` values below. `run_limit` left `None` — single-run ceiling unnecessary with reasonable thread limit.                                                                            |
+| `StagnationGuardMiddleware`   | Progress-aware call limiter (two-tier: nudge → hard stop)               | Yes           | Custom middleware — see design vision below. Per-role thresholds.                                                                                                                                                                                                                                                                                                                                                                                                   |
+| `AskUserMiddleware`           | `ask_user` tool (proactive stakeholder questions)                       | PM, Architect | PM for stakeholder questions; Architect for interactive spec creation when user toggles the feature. Other agents do not get this.                                                                                                                                                                                                                                                                                                                                  |
+| `ShellAllowListMiddleware`    | Shell command validation against allow-list                             | Conditional   | Active for sandbox-backed agents. Inert for local-first.                                                                                                                                                                                                                                                                                                                                                                                                            |
+| Phase gate middleware         | Handoff tool gate hooks                                                 | Per-agent     | Agents that own gated tools receive phase gate middleware. Specifics TBD in Q8 (extended middleware).                                                                                                                                                                                                                                                                                                                                                               |
+| `interrupt_on={}`             | `HumanInTheLoopMiddleware` in tail stack                                | Yes           | Passed as empty dict to all 7 agents — activates the middleware but registers zero interrupt rules. Inert until a future need arises. Cost is negligible (short-circuit on empty config).                                                                                                                                                                                                                                                                           |
+
 
 #### Context management strategy — layered pipeline
 
@@ -268,15 +263,17 @@ Layers 0–1 are free (string operations, no LLM calls). They delay when Layer 2
 
 `recursion_limit` (graph steps) is NOT a cost control — the SDK sets it to 9,999 (effectively unlimited). `ModelCallLimitMiddleware` counts model API calls directly, which is the cost-accruing unit. One model call = one count. A single model call + tool execution = 2–3 graph steps, so `recursion_limit=100` ≈ only 30–50 model calls — which caused issues in v0.5.
 
-| Agent | `thread_limit` | Rationale |
-|---|---|---|
-| PM | 150 | Decisive, few calls — mostly stakeholder interaction |
-| Researcher | 300 | Deep research = many read/search calls |
-| Architect | 250 | Design iteration, spec writing |
-| Planner | 200 | Structured planning, bounded |
-| Developer | 500 | Longest — edit/test/fix cycles, subagent orchestration |
-| HE | 300 | Eval design is exploratory, many tool calls |
-| Evaluator | 200 | Methodical but bounded |
+
+| Agent      | `thread_limit` | Rationale                                              |
+| ---------- | -------------- | ------------------------------------------------------ |
+| PM         | 150            | Decisive, few calls — mostly stakeholder interaction   |
+| Researcher | 300            | Deep research = many read/search calls                 |
+| Architect  | 250            | Design iteration, spec writing                         |
+| Planner    | 200            | Structured planning, bounded                           |
+| Developer  | 500            | Longest — edit/test/fix cycles, subagent orchestration |
+| HE         | 300            | Eval design is exploratory, many tool calls            |
+| Evaluator  | 200            | Methodical but bounded                                 |
+
 
 `run_limit` is `None` for all agents — a single run shouldn't need a separate ceiling when the thread limit is reasonable. `exit_behavior="end"` — graceful termination with an `AIMessage` explaining the limit was reached, matching `StagnationGuardMiddleware`'s hard stop behavior.
 
@@ -314,11 +311,13 @@ class SignalVerdict:
 
 **Built-in signal providers (general-purpose, model-agnostic):**
 
-| Provider | Signal source | What it detects | Works without |
-|---|---|---|---|
-| `TodoProgressSignal` | `todos` state key (from `TodoListMiddleware`) | Todos not being completed or advancing | If `todos` absent → always returns `progressing=True` (no signal = no stagnation claim) |
-| `ArtifactProductionSignal` | `messages` (tool call history) | No file writes or artifact-producing tool calls in recent window | If no write-like tools → always returns `progressing=True` |
-| `ToolCallDiversitySignal` | `messages` (consecutive tool calls) | Same tool called with similar args repeatedly (edit→read→edit→read on same file) | Always available — reads from `messages` which every agent has |
+
+| Provider                   | Signal source                                 | What it detects                                                                  | Works without                                                                           |
+| -------------------------- | --------------------------------------------- | -------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| `TodoProgressSignal`       | `todos` state key (from `TodoListMiddleware`) | Todos not being completed or advancing                                           | If `todos` absent → always returns `progressing=True` (no signal = no stagnation claim) |
+| `ArtifactProductionSignal` | `messages` (tool call history)                | No file writes or artifact-producing tool calls in recent window                 | If no write-like tools → always returns `progressing=True`                              |
+| `ToolCallDiversitySignal`  | `messages` (consecutive tool calls)           | Same tool called with similar args repeatedly (edit→read→edit→read on same file) | Always available — reads from `messages` which every agent has                          |
+
 
 **Graceful absence.** If a signal provider's state key is missing (e.g., no `todos` because `TodoListMiddleware` isn't in the stack), the provider returns `progressing=True` with `confidence=0.0`. It contributes no signal rather than a false stagnation claim. This makes the middleware safe for any agent configuration — it degrades gracefully.
 
@@ -348,15 +347,17 @@ class StagnationGuardMiddleware(AgentMiddleware):
 
 **Per-role thresholds for Meta Harness (implementation spec owns exact values):**
 
-| Agent | `check_interval` (estimated) | Rationale |
-|---|---|---|
-| PM | 20 | Shorter leash — PM should be decisive, not exploratory |
-| Researcher | 40 | Longer — deep research involves many read calls |
-| Architect | 35 | Design thinking is iterative |
-| Planner | 30 | Planning is structured but not endless |
-| Developer | 50 | Longest — coding involves many edit/test cycles |
-| HE | 40 | Eval design is exploratory |
-| Evaluator | 30 | Evaluation is methodical but bounded |
+
+| Agent      | `check_interval` (estimated) | Rationale                                              |
+| ---------- | ---------------------------- | ------------------------------------------------------ |
+| PM         | 20                           | Shorter leash — PM should be decisive, not exploratory |
+| Researcher | 40                           | Longer — deep research involves many read calls        |
+| Architect  | 35                           | Design thinking is iterative                           |
+| Planner    | 30                           | Planning is structured but not endless                 |
+| Developer  | 50                           | Longest — coding involves many edit/test cycles        |
+| HE         | 40                           | Eval design is exploratory                             |
+| Evaluator  | 30                           | Evaluation is methodical but bounded                   |
+
 
 **State schema extension:**
 
@@ -373,17 +374,21 @@ Private state attrs — not passed to the model, not visible to other middleware
 
 **Deferred to v2 (requires SDK modification):**
 
-| Middleware | Why deferred |
-|---|---|
+
+| Middleware                                  | Why deferred                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| ------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `CompactionMiddleware` (compact-middleware) | Strict superset of `SummarizationMiddleware` — 9-section structured summary, hybrid token counting, post-compaction restoration, circuit breaker, partial compaction. Cannot replace `SummarizationMiddleware` without a `disable_summarization` flag in `create_deep_agent()`. v1 uses free pre-summarization optimizers (Collapse + ContextEditing) instead. v2 will contribute the disable flag upstream and switch. **Do not reimplement.** Install: `pip install compact-middleware`. Source: [github.com/emanueleielo/compact-middleware](https://github.com/emanueleielo/compact-middleware). Listed on [LangChain middleware integrations](https://docs.langchain.com/oss/python/integrations/middleware) as a community integration. |
+
 
 **Explicitly excluded from v1:**
 
-| CLI Middleware | Why excluded |
-|---|---|
-| `TokenStateMiddleware` | Schema-only middleware that registers `_context_tokens` for CLI status bar. Nothing writes to it in our topology. Token counts are available in LangSmith traces. |
+
+| CLI Middleware                | Why excluded                                                                                                                                                                                                            |
+| ----------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `TokenStateMiddleware`        | Schema-only middleware that registers `_context_tokens` for CLI status bar. Nothing writes to it in our topology. Token counts are available in LangSmith traces.                                                       |
 | `ConfigurableModelMiddleware` | Enables mid-conversation model swapping. Q11 locked thread-scoped model config — model selections are immutable for the project/thread lifespan. This middleware exists to enable the behavior we explicitly ruled out. |
-| `LocalContextMiddleware` | Injects git info and directory tree into CLI context. Mounted child graphs receive context via handoff briefs, not local context scanning. |
+| `LocalContextMiddleware`      | Injects git info and directory tree into CLI context. Mounted child graphs receive context via handoff briefs, not local context scanning.                                                                              |
+
 
 **Backend is not middleware.** The `backend=` param is a separate top-level concern — it determines where files live and whether shell execution works. Middleware *consumes* the backend (e.g., `FilesystemMiddleware(backend=backend)`) but the backend itself is the I/O substrate. The AD already locks dual-modality backend semantics (local-first or sandbox) at §568–571.
 
@@ -399,31 +404,35 @@ The universal baseline (Q12) covers all context management, cost control, and pr
 
 **Per-agent `middleware=` slot (complete):**
 
-| Agent | Universal (5) | + Phase Gate | + AskUser | + ShellAllowList | Total custom |
-|---|---|---|---|---|---|
-| PM | ✓ | ✓ | ✓ | sandbox | 7 |
-| Developer | ✓ | ✓ | — | sandbox | 6 |
-| Architect | ✓ | ✓ | ✓ | sandbox | 7 |
-| HE | ✓ | — | — | sandbox | 5 |
-| Researcher | ✓ | — | — | sandbox | 5 |
-| Planner | ✓ | — | — | sandbox | 5 |
-| Evaluator | ✓ | — | — | sandbox | 5 |
+
+| Agent      | Universal (5) | + Phase Gate | + AskUser | + ShellAllowList | Total custom |
+| ---------- | ------------- | ------------ | --------- | ---------------- | ------------ |
+| PM         | ✓             | ✓            | ✓         | sandbox          | 7            |
+| Developer  | ✓             | ✓            | —         | sandbox          | 6            |
+| Architect  | ✓             | ✓            | ✓         | sandbox          | 7            |
+| HE         | ✓             | —            | —         | sandbox          | 5            |
+| Researcher | ✓             | —            | —         | sandbox          | 5            |
+| Planner    | ✓             | —            | —         | sandbox          | 5            |
+| Evaluator  | ✓             | —            | —         | sandbox          | 5            |
+
 
 Universal 5 = CollapseMiddleware + ContextEditingMiddleware + SummarizationToolMiddleware + ModelCallLimitMiddleware + StagnationGuardMiddleware
 
 **Phase gate middleware — per-agent gate logic (derived from Q9 dispatch table):**
 
-| Agent | Gated tools owned | Gate type | What the middleware checks before allowing the tool call |
-|---|---|---|---|
-| PM | `deliver_prd_to_harness_engineer` (D1) | Prerequisite | `artifact_paths` non-empty with PRD artifact |
-| PM | `deliver_prd_to_researcher` (D2) | Prerequisite + User Approval | `(HE, PM, return)` in `handoff_log` AND `(PM, PM, submit, accepted=true)` |
-| PM | `deliver_design_package_to_architect` (D3) | Prerequisite | `(Researcher, PM, return)` in `handoff_log` |
-| PM | `deliver_planning_package_to_planner` (D4) | Prerequisite + User Approval | `(Architect, PM, return)` in `handoff_log` AND `(PM, PM, submit, accepted=true)` |
-| PM | `deliver_development_package_to_developer` (D5) | Prerequisite | `(Planner, PM, return)` in `handoff_log` |
-| PM | User approval recording | Self-referential | PM runs approval tool → creates `(PM, PM, submit, accepted=true/false)` record |
-| Developer | `return_product_to_pm` (R5) | Acceptance stamps | `(Evaluator, PM, submit, accepted=true)` in `handoff_log`; if HE participated → also `(HE, PM, submit, accepted=true)` |
-| Developer | `submit_phase_to_evaluator` (P3) | Prerequisite | `(Developer, Evaluator, announce)` with matching `phase` in `handoff_log`; `artifact_paths` non-empty |
-| Architect | `submit_spec_to_harness_engineer` (S1) | Prerequisite | `artifact_paths` non-empty with spec artifacts |
+
+| Agent     | Gated tools owned                               | Gate type                    | What the middleware checks before allowing the tool call                                                               |
+| --------- | ----------------------------------------------- | ---------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| PM        | `deliver_prd_to_harness_engineer` (D1)          | Prerequisite                 | `artifact_paths` non-empty with PRD artifact                                                                           |
+| PM        | `deliver_prd_to_researcher` (D2)                | Prerequisite + User Approval | `(HE, PM, return)` in `handoff_log` AND `(PM, PM, submit, accepted=true)`                                              |
+| PM        | `deliver_design_package_to_architect` (D3)      | Prerequisite                 | `(Researcher, PM, return)` in `handoff_log`                                                                            |
+| PM        | `deliver_planning_package_to_planner` (D4)      | Prerequisite + User Approval | `(Architect, PM, return)` in `handoff_log` AND `(PM, PM, submit, accepted=true)`                                       |
+| PM        | `deliver_development_package_to_developer` (D5) | Prerequisite                 | `(Planner, PM, return)` in `handoff_log`                                                                               |
+| PM        | User approval recording                         | Self-referential             | PM runs approval tool → creates `(PM, PM, submit, accepted=true/false)` record                                         |
+| Developer | `return_product_to_pm` (R5)                     | Acceptance stamps            | `(Evaluator, PM, submit, accepted=true)` in `handoff_log`; if HE participated → also `(HE, PM, submit, accepted=true)` |
+| Developer | `submit_phase_to_evaluator` (P3)                | Prerequisite                 | `(Developer, Evaluator, announce)` with matching `phase` in `handoff_log`; `artifact_paths` non-empty                  |
+| Architect | `submit_spec_to_harness_engineer` (S1)          | Prerequisite                 | `artifact_paths` non-empty with spec artifacts                                                                         |
+
 
 4 agents (HE, Researcher, Planner, Evaluator) own no gated tools and receive no phase gate middleware.
 
@@ -431,15 +440,17 @@ Universal 5 = CollapseMiddleware + ContextEditingMiddleware + SummarizationToolM
 
 **Per-role parameter values (all other middleware):**
 
-| Agent | `ModelCallLimitMiddleware.thread_limit` | `StagnationGuardMiddleware.check_interval` |
-|---|---|---|
-| PM | 150 | 20 |
-| Developer | 500 | 50 |
-| Architect | 250 | 35 |
-| HE | 300 | 40 |
-| Researcher | 300 | 40 |
-| Planner | 200 | 30 |
-| Evaluator | 200 | 30 |
+
+| Agent      | `ModelCallLimitMiddleware.thread_limit` | `StagnationGuardMiddleware.check_interval` |
+| ---------- | --------------------------------------- | ------------------------------------------ |
+| PM         | 150                                     | 20                                         |
+| Developer  | 500                                     | 50                                         |
+| Architect  | 250                                     | 35                                         |
+| HE         | 300                                     | 40                                         |
+| Researcher | 300                                     | 40                                         |
+| Planner    | 200                                     | 30                                         |
+| Evaluator  | 200                                     | 30                                         |
+
 
 ---
 
@@ -449,14 +460,17 @@ Universal 5 = CollapseMiddleware + ContextEditingMiddleware + SummarizationToolM
 
 **(1) Common parameter shape — 2 LLM-facing parameters across all 23 tools:**
 
-| Parameter | Type | Required | Default | Source |
-|---|---|---|---|---|
-| `brief` | `str` | Yes | — | LLM provides: prose summary for receiving agent |
-| `artifact_paths` | `list[str]` | No | `[]` | LLM provides: filesystem paths to artifacts |
 
-**Rationale for minimal common shape:** The tool name encodes `source_agent`, `target_agent`, and `reason` (e.g., `deliver_prd_to_harness_engineer` → source=PM, target=HE, reason=deliver). `project_id` is thread-scoped context available at call time, not something the LLM needs to pass. The only decisions the LLM makes are *what to say* (`brief`) and *what to attach* (`artifact_paths`). `artifact_paths` defaults to `[]` because non-blocking tools (`ask_pm`, `announce_*`, `coordinate_qa`) often carry no artifacts. This minimizes per-tool schema variation and keeps tool descriptions focused on *when* to use the tool and *what goes in brief*, not on parameter boilerplate.
+| Parameter        | Type        | Required | Default | Source                                          |
+| ---------------- | ----------- | -------- | ------- | ----------------------------------------------- |
+| `brief`          | `str`       | Yes      | —       | LLM provides: prose summary for receiving agent |
+| `artifact_paths` | `list[str]` | No       | `[]`    | LLM provides: filesystem paths to artifacts     |
+
+
+**Rationale for minimal common shape:** The tool name encodes `source_agent`, `target_agent`, and `reason` (e.g., `deliver_prd_to_harness_engineer` → source=PM, target=HE, reason=deliver). `project_id` is thread-scoped context available at call time, not something the LLM needs to pass. The only decisions the LLM makes are *what to say* (`brief`) and *what to attach* (`artifact_paths`). `artifact_paths` defaults to `[]` because non-blocking tools (`ask_pm`, `announce_`*, `coordinate_qa`) often carry no artifacts. This minimizes per-tool schema variation and keeps tool descriptions focused on *when* to use the tool and *what goes in brief*, not on parameter boilerplate.
 
 **Derived at call time (not LLM parameters):**
+
 - `project_id` — from thread context (root thread_id)
 - `source_agent` — from tool ownership (which agent is calling)
 - `target_agent` — from tool name suffix (`_to_<role>`)
@@ -468,19 +482,23 @@ Universal 5 = CollapseMiddleware + ContextEditingMiddleware + SummarizationToolM
 
 **Acceptance tools** — add `accepted: bool`:
 
-| Tool | Additional param | Rationale |
-|---|---|---|
-| `submit_harness_acceptance` | `accepted: bool` | Gate must distinguish acceptance from rejection; `true` satisfies gate, `false` is audit record only |
-| `submit_application_acceptance` | `accepted: bool` | Same |
+
+| Tool                            | Additional param | Rationale                                                                                            |
+| ------------------------------- | ---------------- | ---------------------------------------------------------------------------------------------------- |
+| `submit_harness_acceptance`     | `accepted: bool` | Gate must distinguish acceptance from rejection; `true` satisfies gate, `false` is audit record only |
+| `submit_application_acceptance` | `accepted: bool` | Same                                                                                                 |
+
 
 **Phase Review tools** — add `phase: str`:
 
-| Tool | Additional param | Rationale |
-|---|---|---|
-| `announce_phase_to_evaluator` | `phase: str` | QA agent must match announcement against correct plan phase |
-| `announce_phase_to_harness_engineer` | `phase: str` | Same |
-| `submit_phase_to_evaluator` | `phase: str` | QA agent evaluates deliverables against specific phase criteria |
-| `submit_phase_to_harness_engineer` | `phase: str` | Same |
+
+| Tool                                 | Additional param | Rationale                                                       |
+| ------------------------------------ | ---------------- | --------------------------------------------------------------- |
+| `announce_phase_to_evaluator`        | `phase: str`     | QA agent must match announcement against correct plan phase     |
+| `announce_phase_to_harness_engineer` | `phase: str`     | Same                                                            |
+| `submit_phase_to_evaluator`          | `phase: str`     | QA agent evaluates deliverables against specific phase criteria |
+| `submit_phase_to_harness_engineer`   | `phase: str`     | Same                                                            |
+
 
 `phase` is a free-form identifier matching a phase in the Planner's implementation plan — not the 6-value PCG phase enum. The Planner defines phase identifiers; Developer and QA agents reference them. This distinction matters: the PCG phase enum (`scoping`, `research`, etc.) tracks project lifecycle; `phase` here tracks implementation plan subsections within the development stage.
 
@@ -488,15 +506,18 @@ Universal 5 = CollapseMiddleware + ContextEditingMiddleware + SummarizationToolM
 
 `submit_harness_acceptance` and `submit_application_acceptance` each take:
 
-| Param | Type | Required | Description |
-|---|---|---|---|
-| `brief` | `str` | Yes | Reasoning — what was verified, what passed/failed, evidence summary |
-| `artifact_paths` | `list[str]` | No | Paths to eval results, test outputs, evidence artifacts |
-| `accepted` | `bool` | Yes | `true` = quality verified, `false` = rejected with reasoning in brief |
+
+| Param            | Type        | Required | Description                                                           |
+| ---------------- | ----------- | -------- | --------------------------------------------------------------------- |
+| `brief`          | `str`       | Yes      | Reasoning — what was verified, what passed/failed, evidence summary   |
+| `artifact_paths` | `list[str]` | No       | Paths to eval results, test outputs, evidence artifacts               |
+| `accepted`       | `bool`      | Yes      | `true` = quality verified, `false` = rejected with reasoning in brief |
+
 
 **HandoffRecord extension:** Acceptance stamps add `accepted: bool | None` to the HandoffRecord (default `None`). Normal handoff records have `accepted=None`; acceptance stamps have `accepted=true` or `accepted=false`. This is a Q10 extension to the Q6 base field set, not a Q6 reopening — Q6 locked the base fields; Q10 defines the acceptance-specific field that the gate logic requires.
 
 **Gate logic for `return_product_to_pm`:** Scan `handoff_log` for records where:
+
 - `(source_agent="evaluator", target_agent="pm", reason="submit", accepted=true)` — always required
 - `(source_agent="harness_engineer", target_agent="pm", reason="submit", accepted=true)` — required only if HE participated (derived from `handoff_log` scan per Q11/PCG decision)
 
@@ -525,15 +546,17 @@ Parameters: `brief` + `artifact_paths` (no additional parameters).
 
 **(6) Summary:**
 
-| Category | Tools | Common Only | + `accepted` | + `phase` |
-|---|---|---|---|---|
-| Pipeline Delivery | 5 | 5 | — | — |
-| Pipeline Return | 5 | 5 | — | — |
-| Acceptance | 2 | — | 2 | — |
-| Stage Review | 2 | 2 | — | — |
-| Phase Review | 4 | — | — | 4 |
-| Consultation | 5 | 5 | — | — |
-| **Total** | **23** | **17** | **2** | **4** |
+
+| Category          | Tools  | Common Only | + `accepted` | + `phase` |
+| ----------------- | ------ | ----------- | ------------ | --------- |
+| Pipeline Delivery | 5      | 5           | —            | —         |
+| Pipeline Return   | 5      | 5           | —            | —         |
+| Acceptance        | 2      | —           | 2            | —         |
+| Stage Review      | 2      | 2           | —            | —         |
+| Phase Review      | 4      | —           | —            | 4         |
+| Consultation      | 5      | 5           | —            | —         |
+| **Total**         | **23** | **17**      | **2**        | **4**     |
+
 
 **Decisions delegated to implementation spec:** Exact Pydantic/InputSchema wire types, tool description text, `phase` identifier format (free-form string vs. structured), `accepted=false` rejection feedback flow (does the agent retry? does it return to Developer?), `artifact_paths` path format conventions (absolute vs. relative, namespace prefix).
 
@@ -549,86 +572,102 @@ Parameters: `brief` + `artifact_paths` (no additional parameters).
 
 **Pipeline Delivery (5 triples):**
 
-| # | Triple | Tool | Gate Type |
-|---|---|---|---|
-| D1 | `(PM, HE, deliver)` | `deliver_prd_to_harness_engineer` | Prerequisite |
-| D2 | `(PM, Researcher, deliver)` | `deliver_prd_to_researcher` | Prerequisite + User Approval |
-| D3 | `(PM, Architect, deliver)` | `deliver_design_package_to_architect` | Prerequisite |
-| D4 | `(PM, Planner, deliver)` | `deliver_planning_package_to_planner` | Prerequisite + User Approval |
-| D5 | `(PM, Developer, deliver)` | `deliver_development_package_to_developer` | Prerequisite |
+
+| #   | Triple                      | Tool                                       | Gate Type                    |
+| --- | --------------------------- | ------------------------------------------ | ---------------------------- |
+| D1  | `(PM, HE, deliver)`         | `deliver_prd_to_harness_engineer`          | Prerequisite                 |
+| D2  | `(PM, Researcher, deliver)` | `deliver_prd_to_researcher`                | Prerequisite + User Approval |
+| D3  | `(PM, Architect, deliver)`  | `deliver_design_package_to_architect`      | Prerequisite                 |
+| D4  | `(PM, Planner, deliver)`    | `deliver_planning_package_to_planner`      | Prerequisite + User Approval |
+| D5  | `(PM, Developer, deliver)`  | `deliver_development_package_to_developer` | Prerequisite                 |
+
 
 **Pipeline Return (5 triples):**
 
-| # | Triple | Tool | Gate Type |
-|---|---|---|---|
-| R1 | `(HE, PM, return)` | `return_eval_suite_to_pm` | Ungated |
-| R2 | `(Researcher, PM, return)` | `return_research_bundle_to_pm` | Ungated |
-| R3 | `(Architect, PM, return)` | `return_design_package_to_pm` | Ungated |
-| R4 | `(Planner, PM, return)` | `return_plan_to_pm` | Ungated |
-| R5 | `(Developer, PM, return)` | `return_product_to_pm` | Prerequisite (acceptance stamps) |
+
+| #   | Triple                     | Tool                           | Gate Type                        |
+| --- | -------------------------- | ------------------------------ | -------------------------------- |
+| R1  | `(HE, PM, return)`         | `return_eval_suite_to_pm`      | Ungated                          |
+| R2  | `(Researcher, PM, return)` | `return_research_bundle_to_pm` | Ungated                          |
+| R3  | `(Architect, PM, return)`  | `return_design_package_to_pm`  | Ungated                          |
+| R4  | `(Planner, PM, return)`    | `return_plan_to_pm`            | Ungated                          |
+| R5  | `(Developer, PM, return)`  | `return_product_to_pm`         | Prerequisite (acceptance stamps) |
+
 
 **Acceptance (2 triples):**
 
-| # | Triple | Tool | Gate Type |
-|---|---|---|---|
-| A1 | `(HE, PM, submit)` | `submit_harness_acceptance` | Stamp only (no gate on emission) |
-| A2 | `(Evaluator, PM, submit)` | `submit_application_acceptance` | Stamp only (no gate on emission) |
+
+| #   | Triple                    | Tool                            | Gate Type                        |
+| --- | ------------------------- | ------------------------------- | -------------------------------- |
+| A1  | `(HE, PM, submit)`        | `submit_harness_acceptance`     | Stamp only (no gate on emission) |
+| A2  | `(Evaluator, PM, submit)` | `submit_application_acceptance` | Stamp only (no gate on emission) |
+
 
 **Stage Review (2 triples):**
 
-| # | Triple | Tool | Gate Type |
-|---|---|---|---|
-| S1 | `(Architect, HE, submit)` | `submit_spec_to_harness_engineer` | Prerequisite |
-| S2 | `(HE, Architect, return)` | `return_eval_coverage_to_architect` | Ungated |
+
+| #   | Triple                    | Tool                                | Gate Type    |
+| --- | ------------------------- | ----------------------------------- | ------------ |
+| S1  | `(Architect, HE, submit)` | `submit_spec_to_harness_engineer`   | Prerequisite |
+| S2  | `(HE, Architect, return)` | `return_eval_coverage_to_architect` | Ungated      |
+
 
 **Phase Review (4 triples):**
 
-| # | Triple | Tool | Gate Type |
-|---|---|---|---|
-| P1 | `(Developer, Evaluator, announce)` | `announce_phase_to_evaluator` | Ungated |
-| P2 | `(Developer, HE, announce)` | `announce_phase_to_harness_engineer` | Ungated |
-| P3 | `(Developer, Evaluator, submit)` | `submit_phase_to_evaluator` | Prerequisite |
-| P4 | `(Developer, HE, submit)` | `submit_phase_to_harness_engineer` | Ungated |
+
+| #   | Triple                             | Tool                                 | Gate Type    |
+| --- | ---------------------------------- | ------------------------------------ | ------------ |
+| P1  | `(Developer, Evaluator, announce)` | `announce_phase_to_evaluator`        | Ungated      |
+| P2  | `(Developer, HE, announce)`        | `announce_phase_to_harness_engineer` | Ungated      |
+| P3  | `(Developer, Evaluator, submit)`   | `submit_phase_to_evaluator`          | Prerequisite |
+| P4  | `(Developer, HE, submit)`          | `submit_phase_to_harness_engineer`   | Ungated      |
+
 
 **Consultation (11 triples):**
 
-| # | Triple | Tool | Gate Type |
-|---|---|---|---|
-| C1 | `(Planner, HE, consult)` | `consult_harness_engineer_on_gates` | Ungated |
-| C2 | `(Planner, Evaluator, consult)` | `consult_evaluator_on_gates` | Ungated |
-| C3 | `(Architect, Researcher, consult)` | `request_research_from_researcher` | Ungated |
-| C4 | `(HE, Researcher, consult)` | `request_research_from_researcher` | Ungated |
-| C5 | `(PM, Researcher, consult)` | `request_research_from_researcher` | Ungated |
-| C6 | `(HE, PM, question)` | `ask_pm` | Ungated |
-| C7 | `(Researcher, PM, question)` | `ask_pm` | Ungated |
-| C8 | `(Architect, PM, question)` | `ask_pm` | Ungated |
-| C9 | `(Planner, PM, question)` | `ask_pm` | Ungated |
-| C10 | `(Developer, PM, question)` | `ask_pm` | Ungated |
-| C11 | `(Evaluator, PM, question)` | `ask_pm` | Ungated |
-| C12 | `(HE, Evaluator, coordinate)` | `coordinate_qa` | Ungated |
-| C13 | `(Evaluator, HE, coordinate)` | `coordinate_qa` | Ungated |
+
+| #   | Triple                             | Tool                                | Gate Type |
+| --- | ---------------------------------- | ----------------------------------- | --------- |
+| C1  | `(Planner, HE, consult)`           | `consult_harness_engineer_on_gates` | Ungated   |
+| C2  | `(Planner, Evaluator, consult)`    | `consult_evaluator_on_gates`        | Ungated   |
+| C3  | `(Architect, Researcher, consult)` | `request_research_from_researcher`  | Ungated   |
+| C4  | `(HE, Researcher, consult)`        | `request_research_from_researcher`  | Ungated   |
+| C5  | `(PM, Researcher, consult)`        | `request_research_from_researcher`  | Ungated   |
+| C6  | `(HE, PM, question)`               | `ask_pm`                            | Ungated   |
+| C7  | `(Researcher, PM, question)`       | `ask_pm`                            | Ungated   |
+| C8  | `(Architect, PM, question)`        | `ask_pm`                            | Ungated   |
+| C9  | `(Planner, PM, question)`          | `ask_pm`                            | Ungated   |
+| C10 | `(Developer, PM, question)`        | `ask_pm`                            | Ungated   |
+| C11 | `(Evaluator, PM, question)`        | `ask_pm`                            | Ungated   |
+| C12 | `(HE, Evaluator, coordinate)`      | `coordinate_qa`                     | Ungated   |
+| C13 | `(Evaluator, HE, coordinate)`      | `coordinate_qa`                     | Ungated   |
+
 
 **(2) Summary by gate type:**
 
-| Gate Type | Count | Triples |
-|---|---|---|
-| Ungated (pass-through) | 19 | R1–R4, S2, P1–P2, P4, C1–C13 |
-| Prerequisite only | 6 | D1, D3, D5, R5, S1, P3 |
-| Prerequisite + User Approval | 2 | D2, D4 |
-| Stamp only (no gate on emission) | 2 | A1, A2 |
+
+| Gate Type                        | Count | Triples                      |
+| -------------------------------- | ----- | ---------------------------- |
+| Ungated (pass-through)           | 19    | R1–R4, S2, P1–P2, P4, C1–C13 |
+| Prerequisite only                | 6     | D1, D3, D5, R5, S1, P3       |
+| Prerequisite + User Approval     | 2     | D2, D4                       |
+| Stamp only (no gate on emission) | 2     | A1, A2                       |
+
 
 **(3) Prerequisite check details — gate logic derived from `handoff_log`, not `current_phase`:**
 
-| Triple | What the gate checks | `handoff_log` condition |
-|---|---|---|
-| `(PM, HE, deliver)` | PRD finalized + eval criteria exist | `artifact_paths` non-empty with PRD artifact |
-| `(PM, Researcher, deliver)` | HE Stage 1 complete + user approved scoping→research transition | `handoff_log` contains `(HE, PM, return)` record AND `(PM, PM, submit, accepted=true)` record |
-| `(PM, Architect, deliver)` | Research complete | `handoff_log` contains `(Researcher, PM, return)` record |
-| `(PM, Planner, deliver)` | HE Stage 2 complete + user approved architecture→planning transition | `handoff_log` contains `(Architect, PM, return)` record AND `(PM, PM, submit, accepted=true)` record |
-| `(PM, Developer, deliver)` | Plan accepted | `handoff_log` contains `(Planner, PM, return)` record |
-| `(Developer, PM, return)` | Acceptance stamps present | `handoff_log` contains `(Evaluator, PM, submit, accepted=true)`; if HE participated → also `(HE, PM, submit, accepted=true)` |
-| `(Architect, HE, submit)` | Design spec complete | `artifact_paths` non-empty with spec artifacts |
-| `(Developer, Evaluator, submit)` | Phase announced + deliverables reference plan | `handoff_log` contains `(Developer, Evaluator, announce)` with matching `phase` identifier; `artifact_paths` non-empty |
+
+| Triple                           | What the gate checks                                                 | `handoff_log` condition                                                                                                      |
+| -------------------------------- | -------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| `(PM, HE, deliver)`              | PRD finalized + eval criteria exist                                  | `artifact_paths` non-empty with PRD artifact                                                                                 |
+| `(PM, Researcher, deliver)`      | HE Stage 1 complete + user approved scoping→research transition      | `handoff_log` contains `(HE, PM, return)` record AND `(PM, PM, submit, accepted=true)` record                                |
+| `(PM, Architect, deliver)`       | Research complete                                                    | `handoff_log` contains `(Researcher, PM, return)` record                                                                     |
+| `(PM, Planner, deliver)`         | HE Stage 2 complete + user approved architecture→planning transition | `handoff_log` contains `(Architect, PM, return)` record AND `(PM, PM, submit, accepted=true)` record                         |
+| `(PM, Developer, deliver)`       | Plan accepted                                                        | `handoff_log` contains `(Planner, PM, return)` record                                                                        |
+| `(Developer, PM, return)`        | Acceptance stamps present                                            | `handoff_log` contains `(Evaluator, PM, submit, accepted=true)`; if HE participated → also `(HE, PM, submit, accepted=true)` |
+| `(Architect, HE, submit)`        | Design spec complete                                                 | `artifact_paths` non-empty with spec artifacts                                                                               |
+| `(Developer, Evaluator, submit)` | Phase announced + deliverables reference plan                        | `handoff_log` contains `(Developer, Evaluator, announce)` with matching `phase` identifier; `artifact_paths` non-empty       |
+
 
 **Design decision: `current_phase` is NOT a gate authority.** `current_phase` is a PCG routing field — it tells `process_handoff` which agent to invoke next. It is a derived summary, not a gate authority. The `handoff_log` is the append-only ground truth of what actually happened. Implementation may use `current_phase` as a fast-fail optimization, but the AD does not mandate it as a gate condition.
 
@@ -637,8 +676,8 @@ Parameters: `brief` + `artifact_paths` (no additional parameters).
 Two transitions require explicit user approval (per Q7): `scoping→research` (D2) and `architecture→planning` (D4). The approval is recorded as a self-referential triple:
 
 - **Triple:** `(PM, PM, submit)` — PM is both source and target.
-- **`accepted` field:** `true` (user approved) or `false` (user requested revisions).
-- **`brief`:** Description of what was reviewed and the decision.
+- `**accepted` field:** `true` (user approved) or `false` (user requested revisions).
+- `**brief`:** Description of what was reviewed and the decision.
 
 **Rationale for self-referential triple:** `source_agent` is an enum of mounted child graphs. Stakeholder is not a mounted child graph — adding it to the enum pollutes a routing enum with a non-agent entity. The PM runs the approval tool and records the outcome; the `brief` carries the human-readable semantics. The triple is for middleware dispatch, not narrative.
 
@@ -650,19 +689,23 @@ Two transitions require explicit user approval (per Q7): `scoping→research` (D
 
 Both use the same `HandoffRecord` type. The `accepted` field (added per Q10) is the discriminator:
 
-| Field | Normal Record | Acceptance Stamp (pass) | Acceptance Stamp (fail) |
-|---|---|---|---|
-| `accepted` | `None` | `true` | `false` |
-| `reason` | any | `submit` | `submit` |
-| `brief` | work summary | verification reasoning + evidence | rejection reasoning + deficiencies |
-| `artifact_paths` | work artifacts | eval results, test outputs | eval results, failure evidence |
+
+| Field            | Normal Record  | Acceptance Stamp (pass)           | Acceptance Stamp (fail)            |
+| ---------------- | -------------- | --------------------------------- | ---------------------------------- |
+| `accepted`       | `None`         | `true`                            | `false`                            |
+| `reason`         | any            | `submit`                          | `submit`                           |
+| `brief`          | work summary   | verification reasoning + evidence | rejection reasoning + deficiencies |
+| `artifact_paths` | work artifacts | eval results, test outputs        | eval results, failure evidence     |
+
 
 **Gate semantics:**
+
 - `accepted=true` → satisfies the acceptance gate on `return_product_to_pm`
 - `accepted=false` → audit record only; does NOT satisfy the gate
 - `accepted=None` → not an acceptance stamp; ignored by acceptance gate logic
 
 **Phase gate approval records** use the same `accepted` field:
+
 - `(PM, PM, submit, accepted=true)` → satisfies the user-approval gate on D2/D4
 - `(PM, PM, submit, accepted=false)` → user requested revisions; PM must revise and re-present
 
@@ -674,15 +717,17 @@ Both use the same `HandoffRecord` type. The `accepted` field (added per Q10) is 
 
 The dispatch table determines which agents need phase gate middleware. Agents that own gated tools (gates fire on the calling agent's side):
 
-| Agent | Gated tools owned | Needs phase gate middleware? |
-|---|---|---|
-| PM | D1, D2, D3, D4, D5 (prerequisite/approval) + approval recording | Yes |
-| Developer | R5 (acceptance stamps), P3 (prerequisite) | Yes |
-| Architect | S1 (prerequisite) | Yes |
-| HE | A1 (stamp only — no gate logic) | No |
-| Researcher | None | No |
-| Planner | None | No |
-| Evaluator | None | No |
+
+| Agent      | Gated tools owned                                               | Needs phase gate middleware? |
+| ---------- | --------------------------------------------------------------- | ---------------------------- |
+| PM         | D1, D2, D3, D4, D5 (prerequisite/approval) + approval recording | Yes                          |
+| Developer  | R5 (acceptance stamps), P3 (prerequisite)                       | Yes                          |
+| Architect  | S1 (prerequisite)                                               | Yes                          |
+| HE         | A1 (stamp only — no gate logic)                                 | No                           |
+| Researcher | None                                                            | No                           |
+| Planner    | None                                                            | No                           |
+| Evaluator  | None                                                            | No                           |
+
 
 This partially answers Q8 but does not close it — Q8 also covers any other role-specific middleware beyond phase gate middleware.
 
@@ -690,7 +735,6 @@ This partially answers Q8 but does not close it — Q8 also covers any other rol
 
 ## Provider Integrations
 
-<a id="q13-anthropic-provider-specific-middleware-integration"></a>
 ### Q13: Anthropic provider-specific middleware integration
 
 **Status:** Closed · **Approved by:** Jason · **Date:** 2026-04-13
@@ -699,29 +743,34 @@ This partially answers Q8 but does not close it — Q8 also covers any other rol
 
 **(1) Decision — two Anthropic middleware adopted, three rejected:**
 
-| Middleware | Decision | Rationale |
-|---|---|---|
-| `ClaudeBashToolMiddleware` | **Adopt** | Provides Anthropic's native `bash_20250124` tool descriptor that Claude was trained on. Extends `ShellToolMiddleware` (same execution logic, same `self.tools`). Only swaps the generic shell tool descriptor for Anthropic's native one via `wrap_model_call`. No overlap with `FilesystemMiddleware` tools. Zero cost, measurable tool-use accuracy gain. |
-| `FilesystemClaudeMemoryMiddleware` | **Adopt** | Provides Anthropic's native `memory_20250818` tool with dedicated `/memories/` scratchpad. Complements (does not overlap) the SDK's `MemoryMiddleware` — see §(2) below. Uses disk persistence (survives across threads), which aligns with the agent-learning vision. Default `MEMORY_SYSTEM_PROMPT` is accepted for v1; per-role tuning deferred to Q12 behavioral contracts. |
-| `StateClaudeTextEditorMiddleware` / `FilesystemClaudeTextEditorMiddleware` | **Reject** | Overlaps with `FilesystemMiddleware`'s `edit_file` tool. Two editing tools on the same model creates ambiguity — which one does the model pick? `FilesystemMiddleware` tools are model-agnostic and consistent across all providers. The marginal accuracy gain from Anthropic's native `text_editor_20250728` schema is not worth the cross-provider inconsistency cost. |
-| `StateFileSearchMiddleware` | **Reject** | Overlaps with `FilesystemMiddleware`'s `glob`/`grep` tools. Same reasoning as text editor — our tools already provide this capability model-agnostically. |
+
+| Middleware                                                                 | Decision   | Rationale                                                                                                                                                                                                                                                                                                                                                                       |
+| -------------------------------------------------------------------------- | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ClaudeBashToolMiddleware`                                                 | **Adopt**  | Provides Anthropic's native `bash_20250124` tool descriptor that Claude was trained on. Extends `ShellToolMiddleware` (same execution logic, same `self.tools`). Only swaps the generic shell tool descriptor for Anthropic's native one via `wrap_model_call`. No overlap with `FilesystemMiddleware` tools. Zero cost, measurable tool-use accuracy gain.                     |
+| `FilesystemClaudeMemoryMiddleware`                                         | **Adopt**  | Provides Anthropic's native `memory_20250818` tool with dedicated `/memories/` scratchpad. Complements (does not overlap) the SDK's `MemoryMiddleware` — see §(2) below. Uses disk persistence (survives across threads), which aligns with the agent-learning vision. Default `MEMORY_SYSTEM_PROMPT` is accepted for v1; per-role tuning deferred to Q12 behavioral contracts. |
+| `StateClaudeTextEditorMiddleware` / `FilesystemClaudeTextEditorMiddleware` | **Reject** | Overlaps with `FilesystemMiddleware`'s `edit_file` tool. Two editing tools on the same model creates ambiguity — which one does the model pick? `FilesystemMiddleware` tools are model-agnostic and consistent across all providers. The marginal accuracy gain from Anthropic's native `text_editor_20250728` schema is not worth the cross-provider inconsistency cost.       |
+| `StateFileSearchMiddleware`                                                | **Reject** | Overlaps with `FilesystemMiddleware`'s `glob`/`grep` tools. Same reasoning as text editor — our tools already provide this capability model-agnostically.                                                                                                                                                                                                                       |
+
 
 **(2) Two-layer memory architecture — SDK `MemoryMiddleware` and Anthropic `memory` tool are complementary, not overlapping:**
 
-| Dimension | SDK `MemoryMiddleware` | Anthropic `memory` tool (via `FilesystemClaudeMemoryMiddleware`) |
-|---|---|---|
-| **Mechanism** | System prompt injection (no tool) | Native tool + system prompt injection |
-| **Write path** | Uses `edit_file` (from `FilesystemMiddleware`) | Dedicated `memory` tool (view/create/str_replace/insert/delete/rename) |
-| **Storage** | AGENTS.md files on backend | `/memories/` directory on disk |
-| **Persistence** | Survives across threads (backend-backed) | Survives across threads (disk-backed) |
-| **Prompt philosophy** | "Learn from user feedback, update your instructions" (long-term) | "Assume interruption, always persist progress" (short-term) |
-| **Scope** | High-signal persistent context — project overviews, cross-project learnings, style guidelines, architecture notes | Short-term procedural working memory — what was tried, what failed, what worked on this specific task |
-| **Access pattern** | Passive — loaded into system prompt every turn, agent doesn't choose to read it | Active — agent decides when to write progress and when to check prior state |
-| **Creates folder?** | No — reads existing AGENTS.md files | Yes — `FilesystemClaudeMemoryMiddleware.__init__` creates `root_path` directory on disk |
+
+| Dimension             | SDK `MemoryMiddleware`                                                                                            | Anthropic `memory` tool (via `FilesystemClaudeMemoryMiddleware`)                                      |
+| --------------------- | ----------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| **Mechanism**         | System prompt injection (no tool)                                                                                 | Native tool + system prompt injection                                                                 |
+| **Write path**        | Uses `edit_file` (from `FilesystemMiddleware`)                                                                    | Dedicated `memory` tool (view/create/str_replace/insert/delete/rename)                                |
+| **Storage**           | AGENTS.md files on backend                                                                                        | `/memories/` directory on disk                                                                        |
+| **Persistence**       | Survives across threads (backend-backed)                                                                          | Survives across threads (disk-backed)                                                                 |
+| **Prompt philosophy** | "Learn from user feedback, update your instructions" (long-term)                                                  | "Assume interruption, always persist progress" (short-term)                                           |
+| **Scope**             | High-signal persistent context — project overviews, cross-project learnings, style guidelines, architecture notes | Short-term procedural working memory — what was tried, what failed, what worked on this specific task |
+| **Access pattern**    | Passive — loaded into system prompt every turn, agent doesn't choose to read it                                   | Active — agent decides when to write progress and when to check prior state                           |
+| **Creates folder?**   | No — reads existing AGENTS.md files                                                                               | Yes — `FilesystemClaudeMemoryMiddleware.__init`__ creates `root_path` directory on disk               |
+
 
 **Design intent.** `MemoryMiddleware` (AGENTS.md) is the long-horizon knowledge base — cross-project learnings that eventually get synthesized into reusable skills. The Anthropic `memory` tool (`/memories/`) is the short-horizon working scratchpad — procedural learnings from the current and recent projects that improve agent precision over time (e.g., Developer learning SDK patterns, Architect learning design patterns). The two layers serve different memory horizons and different access patterns. They are additive, not redundant.
 
 **Canonical source references for the overlap analysis:**
+
 - SDK `MemoryMiddleware`: `.reference/libs/deepagents/deepagents/middleware/memory.py` — `before_agent` loads AGENTS.md content into `state.memory_contents`; `wrap_model_call` injects `<agent_memory>` block into system prompt; no tool provided; write path is `edit_file` from `FilesystemMiddleware`.
 - Anthropic `memory` middleware: `.venv/lib/python3.11/site-packages/langchain_anthropic/middleware/anthropic_tools.py` lines 37–44 (`MEMORY_SYSTEM_PROMPT`), lines 611–654 (`StateClaudeMemoryMiddleware`), lines 1110–1161 (`FilesystemClaudeMemoryMiddleware`) — provides `memory` tool with commands view/create/str_replace/insert/delete/rename; enforces `/memories` path prefix; injects `MEMORY_SYSTEM_PROMPT` via `wrap_model_call`.
 - Anthropic `bash` middleware: `.venv/lib/python3.11/site-packages/langchain_anthropic/middleware/bash.py` — extends `ShellToolMiddleware`; `wrap_model_call` replaces generic shell descriptor with `{"type": "bash_20250124", "name": "bash"}`; does NOT touch `FilesystemMiddleware` tools.
@@ -732,10 +781,12 @@ This partially answers Q8 but does not close it — Q8 also covers any other rol
 
 `AnthropicPromptCachingMiddleware` and the new provider-specific middleware enter the stack through **different mechanisms**:
 
-| Middleware | Path | Why |
-|---|---|---|
-| `AnthropicPromptCachingMiddleware` | **Hardcoded** in `graph.py` (lines 450, 508, 579) — appended unconditionally to every stack for every model. No-ops for non-Anthropic models via `unsupported_model_behavior="ignore"`. | Considered universal infrastructure. Even if it only benefits Anthropic models, the no-op cost is negligible and it avoids a special-case code path. |
-| `ClaudeBashToolMiddleware` + `FilesystemClaudeMemoryMiddleware` | **Provider profile** via `_register_harness_profile("anthropic", ...)` — only injected when model provider resolves to `"anthropic"`. Non-Anthropic models never see these. | These are genuinely provider-specific (Anthropic-native tool descriptors). They would error or behave incorrectly on non-Anthropic models. Conditional injection is required. |
+
+| Middleware                                                      | Path                                                                                                                                                                                    | Why                                                                                                                                                                           |
+| --------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `AnthropicPromptCachingMiddleware`                              | **Hardcoded** in `graph.py` (lines 450, 508, 579) — appended unconditionally to every stack for every model. No-ops for non-Anthropic models via `unsupported_model_behavior="ignore"`. | Considered universal infrastructure. Even if it only benefits Anthropic models, the no-op cost is negligible and it avoids a special-case code path.                          |
+| `ClaudeBashToolMiddleware` + `FilesystemClaudeMemoryMiddleware` | **Provider profile** via `_register_harness_profile("anthropic", ...)` — only injected when model provider resolves to `"anthropic"`. Non-Anthropic models never see these.             | These are genuinely provider-specific (Anthropic-native tool descriptors). They would error or behave incorrectly on non-Anthropic models. Conditional injection is required. |
+
 
 Anthropic server-side tools middleware (`AnthropicServerSideToolsMiddleware`) follows the same profile path — added as an entry to the `extra_middleware` factory lambda. No `graph.py` changes needed. See §(5) below for the v1 integration decision.
 
@@ -821,26 +872,31 @@ This is not a blocker — `FilesystemClaudeMemoryMiddleware.__init__` accepts `s
 
 The Anthropic API `ToolUnionParam` (`.venv/lib/python3.11/site-packages/anthropic/types/tool_union_param.py`) includes server-side tools that execute on Anthropic's infrastructure (model emits `server_tool_use` → Anthropic executes → result returns inline in same response, no turn break, no `ToolMessage`). These have NO middleware in `langchain_anthropic` yet, but **must be integrated for v1**.
 
-| Server-side tool | Type constants | What it does | Target Agents |
-|---|---|---|---|
-| `web_search` | `web_search_20250305`, `web_search_20260209` | Web search with domain filtering, location awareness, max_uses | **Researcher, Architect** (primary); HE, Planner, Evaluator (secondary) |
-| `web_fetch` | `web_fetch_20250910`, `web_fetch_20260209`, `web_fetch_20260309` | URL content fetching with citations, caching control | **Researcher** (primary); Architect (secondary) |
-| `code_execution` | `code_execution_20250522`, `code_execution_20250825`, `code_execution_20260120` | Server-side REPL with daemon mode + gVisor checkpoint | **Developer, HE, Evaluator** (tool-heavy agents) |
-| `tool_search_tool_bm25` | `tool_search_tool_bm25_20251119` | BM25-based tool discovery (for `defer_loading` pattern) | **Developer** (tool-heavy agent) |
-| `tool_search_tool_regex` | `tool_search_tool_regex_20251119` | Regex-based tool discovery | **Developer** |
+
+| Server-side tool         | Type constants                                                                  | What it does                                                   | Target Agents                                                           |
+| ------------------------ | ------------------------------------------------------------------------------- | -------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| `web_search`             | `web_search_20250305`, `web_search_20260209`                                    | Web search with domain filtering, location awareness, max_uses | **Researcher, Architect** (primary); HE, Planner, Evaluator (secondary) |
+| `web_fetch`              | `web_fetch_20250910`, `web_fetch_20260209`, `web_fetch_20260309`                | URL content fetching with citations, caching control           | **Researcher** (primary); Architect (secondary)                         |
+| `code_execution`         | `code_execution_20250522`, `code_execution_20250825`, `code_execution_20260120` | Server-side REPL with daemon mode + gVisor checkpoint          | **Developer, HE, Evaluator** (tool-heavy agents)                        |
+| `tool_search_tool_bm25`  | `tool_search_tool_bm25_20251119`                                                | BM25-based tool discovery (for `defer_loading` pattern)        | **Developer** (tool-heavy agent)                                        |
+| `tool_search_tool_regex` | `tool_search_tool_regex_20251119`                                               | Regex-based tool discovery                                     | **Developer**                                                           |
+
 
 **Options weighed:**
 
-| Option | Description | Verdict |
-|--------|-------------|---------|
-| (a) **Lightweight descriptor-injection middleware** | Create middleware that detects Anthropic models and appends server-side tool descriptors to `request.tools`. Follows the existing `AnthropicPromptCachingMiddleware` pattern where middleware gracefully ignores non-Anthropic models. | **RECOMMENDED** — Clean, testable, follows SDK conventions |
-| (b) Pass descriptors via `tools=[]` param | Add dict-style tool descriptors directly to agent factory `tools` lists. | Rejected — pollutes agent factories with provider-specific concerns; violates model-agnostic design |
-| (c) Contribute upstream to `langchain-anthropic` | Wait for SDK to provide official server-side tool middleware. | Rejected — timeline unknown; v1 cannot block on upstream |
-| (d) Hardcode into `create_deep_agent()` | Add server-side tool injection directly into SDK's `graph.py`. | Rejected — requires SDK fork/contribution; out of scope for Meta Harness |
+
+| Option                                              | Description                                                                                                                                                                                                                            | Verdict                                                                                             |
+| --------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| (a) **Lightweight descriptor-injection middleware** | Create middleware that detects Anthropic models and appends server-side tool descriptors to `request.tools`. Follows the existing `AnthropicPromptCachingMiddleware` pattern where middleware gracefully ignores non-Anthropic models. | **RECOMMENDED** — Clean, testable, follows SDK conventions                                          |
+| (b) Pass descriptors via `tools=[]` param           | Add dict-style tool descriptors directly to agent factory `tools` lists.                                                                                                                                                               | Rejected — pollutes agent factories with provider-specific concerns; violates model-agnostic design |
+| (c) Contribute upstream to `langchain-anthropic`    | Wait for SDK to provide official server-side tool middleware.                                                                                                                                                                          | Rejected — timeline unknown; v1 cannot block on upstream                                            |
+| (d) Hardcode into `create_deep_agent()`             | Add server-side tool injection directly into SDK's `graph.py`.                                                                                                                                                                         | Rejected — requires SDK fork/contribution; out of scope for Meta Harness                            |
+
 
 **Selected approach (signal intent for droids):**
 
 Implement a lightweight middleware (e.g., `AnthropicServerSideToolsMiddleware`) that:
+
 - Detects Anthropic models via `isinstance(request.model, ChatAnthropic)` check
 - Appends server-side tool descriptors to `request.tools` before model invocation
 - Gracefully ignores non-Anthropic models (mirrors `AnthropicPromptCachingMiddleware` pattern)
@@ -848,7 +904,7 @@ Implement a lightweight middleware (e.g., `AnthropicServerSideToolsMiddleware`) 
 
 **Droid implementation authority:** The droids own the final implementation spec. This decision provides signal intent and constraints, not a complete technical specification. The droids should evaluate whether the recommended middleware pattern aligns with their architecture and adjust as needed to achieve an elegant, production-grade solution.
 
-**Agent-specific tool provisioning:** The droids should determine which agents receive which server-side tools. Initial guidance: Researcher receives `web_search` 2026 + `web_fetch`2026; Architect receives `web_search`; Developer receives `code_execution` + `tool_search_*`; HE and Evaluator receive subsets based on their tool-usage patterns but ideally are allocated tool search, code execution etc.
+**Agent-specific tool provisioning:** The droids should determine which agents receive which server-side tools. Initial guidance: Researcher receives `web_search` 2026 + `web_fetch`2026; Architect receives `web_search`; Developer receives `code_execution` + `tool_search`_*; HE and Evaluator receive subsets based on their tool-usage patterns but ideally are allocated tool search, code execution etc.
 
 **Beta-only tools (not in stable API union, out of scope):** `computer_use` (3 versions), `mcp_toolset`.
 
@@ -910,11 +966,13 @@ agents/
 ```
 
 **Precedent.** This follows the same pattern as:
+
 - v0.5 reference implementation: `meta_agent_v.0.5/prompts/` directory with external markdown prompt files
 - Deep Agent CLI: `.reference/libs/cli/deepagents_cli/agent.py` loads system prompts from files
 - The `MEMORY_SYSTEM_PROMPT` override pattern from Q13 — even Anthropic's middleware accepts `system_prompt=` as a parameter, decoupling prompt content from code
 
 **Why external files over hardcoded strings:**
+
 - **Maintainer-friendly**: prompt iteration is a content concern, not an engineering concern — no code changes, no PRs, no deployments to update a prompt
 - **Debuggable**: the exact prompt the agent received is inspectable as a file, not buried in a Python string literal
 - **Spec-team-friendly**: the design team can author and iterate prompts without touching Python code
@@ -926,15 +984,17 @@ The AD defines *what each agent must recognize and must not do* — the behavior
 
 **Per-agent behavioral invariants (locked by the AD):**
 
-| Agent | Must Recognize | Must Not Do | Self-Awareness Trigger |
-|---|---|---|---|
-| PM | PRD finalization → invoke `deliver_prd_to_harness_engineer`; HE return → invoke next delivery tool; user approval requirement for scoping→research and architecture→planning transitions | Must NOT perform research, design, or coding work directly | "I have the full PRD, eval criteria, and datasets. Time to bring in the expert." |
-| HE | PRD delivery → begin eval design; Architect spec → evaluate new tools/prompts; Developer phase submission → run advisory review | Must NOT make business decisions or override PM scope | "I've received the PRD. My job is the science of evaluation." |
-| Researcher | PM delivery → begin research; Architect consultation request → targeted research | Must NOT design solutions or make architectural decisions | "I've found what the Architect needs. Time to return the bundle." |
-| Architect | Research bundle + PRD → begin design; knowledge gap → request research from Researcher | Must NOT research (that's Researcher's domain) or plan implementation (that's Planner's domain) | "I have a knowledge gap on X SDK. I need targeted research before I can finalize design." |
-| Planner | Design spec + eval criteria → begin planning | Must NOT design (that's Architect) or implement (that's Developer) | "I have the full design. My job is to decompose it into an executable plan." |
-| Developer | Plan + eval criteria → begin implementation; phase completion → announce to Evaluator/HE | Must NOT self-certify acceptance (that's Evaluator/HE); must NOT call `submit_phase_to_evaluator` for eval-science concerns | "Phase N complete. Time to submit for evaluation." |
-| Evaluator | Developer phase submission → evaluate against spec/plan; final product → acceptance stamp | Must NOT modify code or design; must NOT gate on eval-science concerns (that's HE) | "I've verified the deliverable against the spec. Here's my assessment." |
+
+| Agent      | Must Recognize                                                                                                                                                                           | Must Not Do                                                                                                                 | Self-Awareness Trigger                                                                    |
+| ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| PM         | PRD finalization → invoke `deliver_prd_to_harness_engineer`; HE return → invoke next delivery tool; user approval requirement for scoping→research and architecture→planning transitions | Must NOT perform research, design, or coding work directly                                                                  | "I have the full PRD, eval criteria, and datasets. Time to bring in the expert."          |
+| HE         | PRD delivery → begin eval design; Architect spec → evaluate new tools/prompts; Developer phase submission → run advisory review                                                          | Must NOT make business decisions or override PM scope                                                                       | "I've received the PRD. My job is the science of evaluation."                             |
+| Researcher | PM delivery → begin research; Architect consultation request → targeted research                                                                                                         | Must NOT design solutions or make architectural decisions                                                                   | "I've found what the Architect needs. Time to return the bundle."                         |
+| Architect  | Research bundle + PRD → begin design; knowledge gap → request research from Researcher                                                                                                   | Must NOT research (that's Researcher's domain) or plan implementation (that's Planner's domain)                             | "I have a knowledge gap on X SDK. I need targeted research before I can finalize design." |
+| Planner    | Design spec + eval criteria → begin planning                                                                                                                                             | Must NOT design (that's Architect) or implement (that's Developer)                                                          | "I have the full design. My job is to decompose it into an executable plan."              |
+| Developer  | Plan + eval criteria → begin implementation; phase completion → announce to Evaluator/HE                                                                                                 | Must NOT self-certify acceptance (that's Evaluator/HE); must NOT call `submit_phase_to_evaluator` for eval-science concerns | "Phase N complete. Time to submit for evaluation."                                        |
+| Evaluator  | Developer phase submission → evaluate against spec/plan; final product → acceptance stamp                                                                                                | Must NOT modify code or design; must NOT gate on eval-science concerns (that's HE)                                          | "I've verified the deliverable against the spec. Here's my assessment."                   |
+
 
 **Boundary enforcement principle:** Each agent's system prompt must encode the boundary between its expertise and the next agent's. The PM/HE boundary is the canonical example: PM scopes *what* success looks like; HE owns *how* to evaluate. Neither crosses into the other's domain.
 
@@ -962,7 +1022,6 @@ The `.md` files are placeholders at project start. The design team authors initi
 
 ## Product Surface & Runtime
 
-<a id="q14-user-interface-surface"></a>
 ### Q14: User interface surface
 
 **Status:** Closed · **Approved by:** Jason · **Date:** 2026-04-13
@@ -974,6 +1033,7 @@ The `.md` files are placeholders at project start. The design team authors initi
 The v1 user interface is a terminal TUI built on the Textual framework, launched via the standard `langgraph dev` server. This is the fastest path to a working, interactive prototype — no custom server, no deployment pipeline, just `langgraph dev` pointing at our `langgraph.json` with a Textual app as the client.
 
 **Deployment evolution:**
+
 - **v1 (prototyping):** `langgraph dev` + Textual TUI + LangGraph Studio for dev-time inspection
 - **v2 (product):** LangGraph Platform deployment + `pip install meta-harness` (standalone CLI product, like Claude Code or Codex — provide an API key and go)
 
@@ -985,17 +1045,19 @@ The Deep Agents CLI (`deepagents_cli/`) ships a production-quality Textual TUI w
 
 **Widget mapping — CLI → Meta Harness:**
 
-| Meta Harness need | CLI widget | Source file | Reuse verdict |
-|---|---|---|---|
-| `ask_user` interrupt UX | `AskUserMenu` | `widgets/ask_user.py` | Direct reuse — PM and Architect both use `ask_user` middleware |
-| Shell / tool approval gates | `ApprovalMenu` | `widgets/approval.py` | Direct reuse — maps to our phase gate approval UX |
-| Chat input with autocomplete | `ChatInput` | `widgets/chat_input.py` | Direct reuse |
-| Message rendering (assistant, tool calls, errors) | `AppMessage`, `AssistantMessage`, `ToolCallMessage`, etc. | `widgets/messages.py` | Direct reuse |
-| Status bar / spinners / loading | `StatusBar`, `LoadingWidget` | `widgets/status.py`, `widgets/loading.py` | Direct reuse |
-| Thread / project selector | `ThreadSelector` | `widgets/thread_selector.py` | Adapt — maps to project selection (our `project_id`) |
-| Theme system (dark/light, brand colors, custom themes) | `Theme`, `ThemeSelector` | `theme.py`, `widgets/theme_selector.py` | Direct reuse |
-| Model selector | `ModelSelector` | `widgets/model_selector.py` | Adapt — maps to per-agent model config at project start |
-| Welcome banner | `WelcomeBanner` | `widgets/welcome.py` | Adapt — Meta Harness branding |
+
+| Meta Harness need                                      | CLI widget                                                | Source file                               | Reuse verdict                                                  |
+| ------------------------------------------------------ | --------------------------------------------------------- | ----------------------------------------- | -------------------------------------------------------------- |
+| `ask_user` interrupt UX                                | `AskUserMenu`                                             | `widgets/ask_user.py`                     | Direct reuse — PM and Architect both use `ask_user` middleware |
+| Shell / tool approval gates                            | `ApprovalMenu`                                            | `widgets/approval.py`                     | Direct reuse — maps to our phase gate approval UX              |
+| Chat input with autocomplete                           | `ChatInput`                                               | `widgets/chat_input.py`                   | Direct reuse                                                   |
+| Message rendering (assistant, tool calls, errors)      | `AppMessage`, `AssistantMessage`, `ToolCallMessage`, etc. | `widgets/messages.py`                     | Direct reuse                                                   |
+| Status bar / spinners / loading                        | `StatusBar`, `LoadingWidget`                              | `widgets/status.py`, `widgets/loading.py` | Direct reuse                                                   |
+| Thread / project selector                              | `ThreadSelector`                                          | `widgets/thread_selector.py`              | Adapt — maps to project selection (our `project_id`)           |
+| Theme system (dark/light, brand colors, custom themes) | `Theme`, `ThemeSelector`                                  | `theme.py`, `widgets/theme_selector.py`   | Direct reuse                                                   |
+| Model selector                                         | `ModelSelector`                                           | `widgets/model_selector.py`               | Adapt — maps to per-agent model config at project start        |
+| Welcome banner                                         | `WelcomeBanner`                                           | `widgets/welcome.py`                      | Adapt — Meta Harness branding                                  |
+
 
 **The gap — pipeline awareness:**
 
@@ -1015,17 +1077,19 @@ Following the same pattern as Q12 (AD locks behavioral invariants, spec owns pro
 
 **Locked information requirements (the TUI must surface these):**
 
-| Surface | Source | Already in AD |
-|---|---|---|
-| Active agent name | `current_agent` in PCG state | §4 PCG State Schema |
-| Current phase | `current_phase` in PCG state | §4 PCG State Schema |
-| Handoff log (recent entries) | `handoff_log` in PCG state | §4 PCG State Schema |
-| User-facing messages (lifecycle bookends) | `messages` in PCG state | §4 PCG State Schema |
-| `ask_user` prompts (PM, Architect) | `AskUserMiddleware` interrupt | §4 Agent Primitives (Q8) |
-| Approval gate interactions (2 gates) | Phase gate middleware | §4 Phase Gates |
-| Autonomous mode status | Runtime toggle | §4 Phase Gates |
-| Model selections per agent | Project config | §4 Agent Primitives (Q11) |
-| LangSmith trace links | `langsmith_run_id` in handoff records | §6 Observability |
+
+| Surface                                   | Source                                | Already in AD             |
+| ----------------------------------------- | ------------------------------------- | ------------------------- |
+| Active agent name                         | `current_agent` in PCG state          | §4 PCG State Schema       |
+| Current phase                             | `current_phase` in PCG state          | §4 PCG State Schema       |
+| Handoff log (recent entries)              | `handoff_log` in PCG state            | §4 PCG State Schema       |
+| User-facing messages (lifecycle bookends) | `messages` in PCG state               | §4 PCG State Schema       |
+| `ask_user` prompts (PM, Architect)        | `AskUserMiddleware` interrupt         | §4 Agent Primitives (Q8)  |
+| Approval gate interactions (2 gates)      | Phase gate middleware                 | §4 Phase Gates            |
+| Autonomous mode status                    | Runtime toggle                        | §4 Phase Gates            |
+| Model selections per agent                | Project config                        | §4 Agent Primitives (Q11) |
+| LangSmith trace links                     | `langsmith_run_id` in handoff records | §6 Observability          |
+
 
 **(4) `langgraph.json` is the single server entrypoint:**
 
@@ -1037,7 +1101,6 @@ The TUI connects to the LangGraph server defined by `langgraph.json`. For v1, th
 
 ---
 
-<a id="q15-headless-pm-session-thread-identity-and-source-surfaces"></a>
 ### Q15: Headless PM session, thread identity, and source surfaces
 
 **Status:** Closed · **Approved by:** Jason · **Date:** 2026-04-20
@@ -1055,10 +1118,12 @@ Server runs against the correct LangGraph thread.
 
 Meta Harness defines exactly two base `thread_kind` values:
 
-| `thread_kind` | Meaning |
-|---|---|
-| `pm_session` | Projectless or cross-project PM conversation used for intake, discovery, status questions, and pre-seed scoping |
-| `project` | Canonical project execution thread that runs the Project Coordination Graph |
+
+| `thread_kind` | Meaning                                                                                                         |
+| ------------- | --------------------------------------------------------------------------------------------------------------- |
+| `pm_session`  | Projectless or cross-project PM conversation used for intake, discovery, status questions, and pre-seed scoping |
+| `project`     | Canonical project execution thread that runs the Project Coordination Graph                                     |
+
 
 No base `utility` thread kind is adopted. Utility/background work is modeled as
 tools, subagent tasks, artifacts, Store records, or implementation-specific runs
@@ -1066,12 +1131,14 @@ owned by a `pm_session` or `project` thread.
 
 **(3) Identifier contract:**
 
-| Identifier | Definition |
-|---|---|
-| `thread_id` | LangGraph checkpoint/conversation identity |
-| `project_id` | Durable Meta Harness project identity |
-| `project_thread_id` | Canonical LangGraph thread for one executable project |
+
+| Identifier             | Definition                                                     |
+| ---------------------- | -------------------------------------------------------------- |
+| `thread_id`            | LangGraph checkpoint/conversation identity                     |
+| `project_id`           | Durable Meta Harness project identity                          |
+| `project_thread_id`    | Canonical LangGraph thread for one executable project          |
 | `pm_session_thread_id` | LangGraph thread for non-project/cross-project PM conversation |
+
 
 `project_thread_id` may equal `project_id` in local/dev, but that is a
 convention, not the definition of `project_id`.
@@ -1090,9 +1157,8 @@ separate graph compilation or graph ID is required for this distinction.
 > **Supersession note (2026-04-22):** The field names `parent_pm_thread_id`,
 > `active_project_id`, and `active_project_thread_id` in this subsection were
 > drifted from Jason's original intent during documentation migration. The
-> canonical naming is locked in `AD.md §4 PM Session And Project Entry Model →
-> Identity Linkage and Cardinality`: primary identifiers are `pm_session_thread_id`
-> and `project_thread_id` with **no** `parent_*`, `active_*`, `source_*`, or
+> canonical naming is locked in `AD.md §4 PM Session And Project Entry Model → Identity Linkage and Cardinality`: primary identifiers are `pm_session_thread_id`
+> and `project_thread_id` with **no** `parent_`*, `active_`*, `source_*`, or
 > `origin_*` prefix; the link from a project back to its originating pm_session
 > lives as a nullable `pm_session_thread_id` field on the project's
 > `projects_registry` Store entry; there is no active-project pointer in
@@ -1114,10 +1180,12 @@ threads.
 Headless is a UI/ingress/source-presence paradigm over the same core app, not a
 different agent application.
 
-| Layer | Responsibility |
-|---|---|
-| Headless ingress | External event -> source identity -> LangGraph thread -> Agent Server run |
-| Source presence | Tools/middleware that let PM act inside Slack/email/Discord/GitHub/Linear during a run |
+
+| Layer            | Responsibility                                                                         |
+| ---------------- | -------------------------------------------------------------------------------------- |
+| Headless ingress | External event -> source identity -> LangGraph thread -> Agent Server run              |
+| Source presence  | Tools/middleware that let PM act inside Slack/email/Discord/GitHub/Linear during a run |
+
 
 Core project lifecycle, project thread, execution environment, repository
 binding, contribution policy, and PR publication flow remain the same across
@@ -1133,7 +1201,6 @@ single high-priority open question in `AD.md`.
 
 ---
 
-<a id="q16-project-scoped-execution-environment-agent-computer"></a>
 ### Q16: Project-scoped execution environment / agent computer
 
 **Status:** Closed · **Approved by:** Jason · **Date:** 2026-04-20
@@ -1154,11 +1221,13 @@ project_thread_id -> execution_environment_id -> provider sandbox/devbox/local r
 
 **(2) Execution modes:**
 
-| Mode | Decision |
-|---|---|
-| `managed_sandbox` | Default for v1 production, web app, headless/autonomous work, client repos, and untrusted code |
-| `external_devbox` | Customer/enterprise-managed provider, image, network policy, secrets policy, and lifecycle |
+
+| Mode              | Decision                                                                                                        |
+| ----------------- | --------------------------------------------------------------------------------------------------------------- |
+| `managed_sandbox` | Default for v1 production, web app, headless/autonomous work, client repos, and untrusted code                  |
+| `external_devbox` | Customer/enterprise-managed provider, image, network policy, secrets policy, and lifecycle                      |
 | `local_workspace` | Explicit opt-in local-first mode; local shell access must be guarded because commands run on the user's machine |
+
 
 Daytona is the default managed sandbox/devbox provider for v1. LangSmith sandbox
 may be supported as an optional/future/beta provider, not as the default.
@@ -1192,12 +1261,14 @@ not write long-lived secrets into the sandbox.
 Greenfield projects do not require immediate GitHub repo creation. Supported
 persistence modes are:
 
-| Mode | Meaning |
-|---|---|
-| `vm_only` | Keep work inside the execution environment and expose previews/artifacts/exports |
-| `meta_harness_staging_repo` | Push to a Meta Harness-owned staging repository |
-| `client_repo` | Create or push to a client-owned repository when approved |
-| `archive_artifact` | Export a bundle without remote git publication |
+
+| Mode                        | Meaning                                                                          |
+| --------------------------- | -------------------------------------------------------------------------------- |
+| `vm_only`                   | Keep work inside the execution environment and expose previews/artifacts/exports |
+| `meta_harness_staging_repo` | Push to a Meta Harness-owned staging repository                                  |
+| `client_repo`               | Create or push to a client-owned repository when approved                        |
+| `archive_artifact`          | Export a bundle without remote git publication                                   |
+
 
 **(6) Native web app invariant:**
 
@@ -1221,7 +1292,6 @@ execution-environment files versus only memory/artifact indexes.
 
 ### Middleware Systems
 
-<a id="archived-q8-per-agent-middleware"></a>
 ### Q8: Per-Agent Middleware (Archived)
 
 > **Decision Summary:** Keep the middleware stack identical across roles except where a role explicitly owns gate or stakeholder interaction logic. This preserves a single mental model for stack composition.
@@ -1232,81 +1302,89 @@ See [Q9](#archived-q9-middleware-dispatch-table) for gate logic derivation.
 
 **Custom middleware in the `middleware=` slot:**
 
-| Middleware | PM | HE | Researcher | Architect | Planner | Developer | Evaluator |
-|---|---|---|---|---|---|---|---|
-| CollapseMiddleware | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
-| ContextEditingMiddleware | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
-| SummarizationToolMiddleware | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
-| ModelCallLimitMiddleware | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
-| StagnationGuardMiddleware | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
-| Phase gate middleware | ✓ | — | — | ✓ | — | ✓ | — |
-| AskUserMiddleware | ✓ | — | — | ✓ | — | — | — |
-| ShellAllowListMiddleware | sandbox | sandbox | sandbox | sandbox | sandbox | sandbox | sandbox |
+
+| Middleware                  | PM      | HE      | Researcher | Architect | Planner | Developer | Evaluator |
+| --------------------------- | ------- | ------- | ---------- | --------- | ------- | --------- | --------- |
+| CollapseMiddleware          | ✓       | ✓       | ✓          | ✓         | ✓       | ✓         | ✓         |
+| ContextEditingMiddleware    | ✓       | ✓       | ✓          | ✓         | ✓       | ✓         | ✓         |
+| SummarizationToolMiddleware | ✓       | ✓       | ✓          | ✓         | ✓       | ✓         | ✓         |
+| ModelCallLimitMiddleware    | ✓       | ✓       | ✓          | ✓         | ✓       | ✓         | ✓         |
+| StagnationGuardMiddleware   | ✓       | ✓       | ✓          | ✓         | ✓       | ✓         | ✓         |
+| Phase gate middleware       | ✓       | —       | —          | ✓         | —       | ✓         | —         |
+| AskUserMiddleware           | ✓       | —       | —          | ✓         | —       | —         | —         |
+| ShellAllowListMiddleware    | sandbox | sandbox | sandbox    | sandbox   | sandbox | sandbox   | sandbox   |
+
 
 **Per-agent parameter values:**
 
-| Agent | `thread_limit` | `check_interval` |
-|---|---|---|
-| PM | 150 | 20 |
-| Developer | 500 | 50 |
-| Architect | 250 | 35 |
-| HE | 300 | 40 |
-| Researcher | 300 | 40 |
-| Planner | 200 | 30 |
-| Evaluator | 200 | 30 |
+
+| Agent      | `thread_limit` | `check_interval` |
+| ---------- | -------------- | ---------------- |
+| PM         | 150            | 20               |
+| Developer  | 500            | 50               |
+| Architect  | 250            | 35               |
+| HE         | 300            | 40               |
+| Researcher | 300            | 40               |
+| Planner    | 200            | 30               |
+| Evaluator  | 200            | 30               |
+
 
 **Phase gate middleware — per-agent gate logic:**
 
-| Agent | Gated tools | Gate type | What middleware checks |
-|---|---|---|---|
-| PM | `deliver_prd_to_harness_engineer` (D1) | Prerequisite | `artifact_paths` non-empty with PRD |
-| PM | `deliver_prd_to_researcher` (D2) | Prerequisite + User Approval | `(HE, PM, return)` in `handoff_log` AND `(PM, PM, submit, accepted=true)` |
-| PM | `deliver_design_package_to_architect` (D3) | Prerequisite | `(Researcher, PM, return)` in `handoff_log` |
-| PM | `deliver_planning_package_to_planner` (D4) | Prerequisite + User Approval | `(Architect, PM, return)` in `handoff_log` AND `(PM, PM, submit, accepted=true)` |
-| PM | `deliver_development_package_to_developer` (D5) | Prerequisite | `(Planner, PM, return)` in `handoff_log` |
-| Developer | `return_product_to_pm` (R5) | Acceptance stamps | `(Evaluator, PM, submit, accepted=true)`; if HE participated → also `(HE, PM, submit, accepted=true)` |
-| Developer | `submit_phase_to_evaluator` (P3) | Prerequisite | `(Developer, Evaluator, announce)` with matching `phase`; `artifact_paths` non-empty |
-| Architect | `submit_spec_to_harness_engineer` (S1) | Prerequisite | `artifact_paths` non-empty with spec artifacts |
+
+| Agent     | Gated tools                                     | Gate type                    | What middleware checks                                                                                |
+| --------- | ----------------------------------------------- | ---------------------------- | ----------------------------------------------------------------------------------------------------- |
+| PM        | `deliver_prd_to_harness_engineer` (D1)          | Prerequisite                 | `artifact_paths` non-empty with PRD                                                                   |
+| PM        | `deliver_prd_to_researcher` (D2)                | Prerequisite + User Approval | `(HE, PM, return)` in `handoff_log` AND `(PM, PM, submit, accepted=true)`                             |
+| PM        | `deliver_design_package_to_architect` (D3)      | Prerequisite                 | `(Researcher, PM, return)` in `handoff_log`                                                           |
+| PM        | `deliver_planning_package_to_planner` (D4)      | Prerequisite + User Approval | `(Architect, PM, return)` in `handoff_log` AND `(PM, PM, submit, accepted=true)`                      |
+| PM        | `deliver_development_package_to_developer` (D5) | Prerequisite                 | `(Planner, PM, return)` in `handoff_log`                                                              |
+| Developer | `return_product_to_pm` (R5)                     | Acceptance stamps            | `(Evaluator, PM, submit, accepted=true)`; if HE participated → also `(HE, PM, submit, accepted=true)` |
+| Developer | `submit_phase_to_evaluator` (P3)                | Prerequisite                 | `(Developer, Evaluator, announce)` with matching `phase`; `artifact_paths` non-empty                  |
+| Architect | `submit_spec_to_harness_engineer` (S1)          | Prerequisite                 | `artifact_paths` non-empty with spec artifacts                                                        |
+
 
 4 agents (HE, Researcher, Planner, Evaluator) own no gated tools and receive no phase gate middleware.
 
-<a id="archived-q9-middleware-dispatch-table"></a>
 ### Q9: Middleware Dispatch Table (Archived)
 
 29 distinct `(source, target, reason)` triples from 23 tools:
 
-| Gate Type | Count | Triples |
-|---|---|---|
-| Ungated (pass-through) | 19 | R1–R4, S2, P1–P2, P4, C1–C13 |
-| Prerequisite only | 6 | D1, D3, D5, R5, S1, P3 |
-| Prerequisite + User Approval | 2 | D2, D4 |
-| Stamp only (no gate on emission) | 2 | A1, A2 |
+
+| Gate Type                        | Count | Triples                      |
+| -------------------------------- | ----- | ---------------------------- |
+| Ungated (pass-through)           | 19    | R1–R4, S2, P1–P2, P4, C1–C13 |
+| Prerequisite only                | 6     | D1, D3, D5, R5, S1, P3       |
+| Prerequisite + User Approval     | 2     | D2, D4                       |
+| Stamp only (no gate on emission) | 2     | A1, A2                       |
+
 
 `current_phase` is NOT a gate authority — `handoff_log` is the append-only ground truth. Implementation may use `current_phase` as a fast-fail optimization, but the AD does not mandate it as a gate condition. User approval is recorded as `(PM, PM, submit, accepted=true/false)` — PM is both source and target.
 
 ### Tool & Contract Specifications
 
-<a id="archived-q10-tool-schema-contracts"></a>
 ### Q10: Tool Schema Contracts (Archived)
 
 > **Decision Summary:** Every handoff tool shares the same base schema, and only a small subset gets an extra field (`accepted` or `phase`). This keeps the tool surface simple enough for every model to use correctly.
 
 **Common parameter shape — 2 LLM-facing parameters across all 23 tools:**
 
-| Parameter | Type | Required | Default |
-|---|---|---|---|
-| `brief` | `str` | Yes | — |
-| `artifact_paths` | `list[str]` | No | `[]` |
+
+| Parameter        | Type        | Required | Default |
+| ---------------- | ----------- | -------- | ------- |
+| `brief`          | `str`       | Yes      | —       |
+| `artifact_paths` | `list[str]` | No       | `[]`    |
+
 
 `source_agent`, `target_agent`, `reason`, and `project_id` are derived at call time — not LLM parameters.
 
 **6 of 23 tools require one extra parameter:**
+
 - Acceptance tools (2): add `accepted: bool`
 - Phase Review tools (4): add `phase: str` (free-form plan phase identifier, not the 6-value PCG phase enum)
 
 **Acceptance stamp contract:** `HandoffRecord` extended with `accepted: bool | None` (default `None`). Normal records: `accepted=None`. Acceptance stamps: `accepted=true` or `accepted=false`.
 
-<a id="archived-q11-model-selection-per-agent"></a>
 ### Q11: Model Selection Per Agent (Archived)
 
 Model-agnostic architecture — no provider lock-in. Per-agent model selection, thread-scoped (immutable for project lifespan). Provider-specific tools injected based on selected model.
@@ -1315,17 +1393,18 @@ Model-agnostic architecture — no provider lock-in. Per-agent model selection, 
 
 **v1 experimental defaults:**
 
-| Agent | Default model | Notes |
-|---|---|---|
-| PM | Opus 4.6 | — |
-| Researcher | Opus 4.6 | — |
-| Architect | TBD | Experiment: Opus 4.6 vs GPT 5.4 extra-high thinking vs GPT 5.4 Pro |
-| Planner | Opus 4.6 | — |
-| HE | TBD | Likely GPT 5.4 Pro |
-| Evaluator | Opus 4.6 | — |
-| Developer | TBD | Experiment: Opus 4.6 (server-side tools) vs GPT 5.4 + Codex vs GPT 5.4 Pro |
 
-<a id="archived-q12-system-prompt-behavioral-contracts"></a>
+| Agent      | Default model | Notes                                                                      |
+| ---------- | ------------- | -------------------------------------------------------------------------- |
+| PM         | Opus 4.6      | —                                                                          |
+| Researcher | Opus 4.6      | —                                                                          |
+| Architect  | TBD           | Experiment: Opus 4.6 vs GPT 5.4 extra-high thinking vs GPT 5.4 Pro         |
+| Planner    | Opus 4.6      | —                                                                          |
+| HE         | TBD           | Likely GPT 5.4 Pro                                                         |
+| Evaluator  | Opus 4.6      | —                                                                          |
+| Developer  | TBD           | Experiment: Opus 4.6 (server-side tools) vs GPT 5.4 + Codex vs GPT 5.4 Pro |
+
+
 ### Q12: System Prompt Behavioral Contracts (Archived)
 
 System prompts live in external `.md` files next to each agent factory (not hardcoded in Python). The AD locks behavioral invariants; prompt text is spec territory.
@@ -1334,41 +1413,46 @@ System prompts live in external `.md` files next to each agent factory (not hard
 
 **Per-agent behavioral invariants:**
 
-| Agent | Must Recognize | Must Not Do | Self-Awareness Trigger |
-|---|---|---|---|
-| PM | PRD finalization → invoke HE delivery; HE return → invoke next delivery; user approval for scoping→research and architecture→planning | Research, design, or code directly | "I have the full PRD. Time to bring in the expert." |
-| HE | PRD delivery → begin eval design; Architect spec → evaluate new tools; Developer phase → advisory review | Make business decisions or override PM scope | "I've received the PRD. My job is the science of evaluation." |
-| Researcher | PM delivery → begin research; Architect consultation → targeted research | Design solutions or make architectural decisions | "I've found what the Architect needs. Time to return the bundle." |
-| Architect | Research bundle + PRD → begin design; knowledge gap → request research | Research (Researcher's domain) or plan implementation (Planner's domain) | "I have a knowledge gap on X. I need targeted research." |
-| Planner | Design spec + eval criteria → begin planning | Design (Architect) or implement (Developer) | "I have the full design. My job is to decompose it." |
-| Developer | Plan + eval criteria → begin implementation; phase completion → announce to QA | Self-certify acceptance; call `submit_phase_to_evaluator` for eval-science concerns | "Phase N complete. Time to submit for evaluation." |
-| Evaluator | Developer phase submission → evaluate against spec/plan; final product → acceptance stamp | Modify code or design; gate on eval-science concerns (HE's domain) | "I've verified against the spec. Here's my assessment." |
+
+| Agent      | Must Recognize                                                                                                                        | Must Not Do                                                                         | Self-Awareness Trigger                                            |
+| ---------- | ------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
+| PM         | PRD finalization → invoke HE delivery; HE return → invoke next delivery; user approval for scoping→research and architecture→planning | Research, design, or code directly                                                  | "I have the full PRD. Time to bring in the expert."               |
+| HE         | PRD delivery → begin eval design; Architect spec → evaluate new tools; Developer phase → advisory review                              | Make business decisions or override PM scope                                        | "I've received the PRD. My job is the science of evaluation."     |
+| Researcher | PM delivery → begin research; Architect consultation → targeted research                                                              | Design solutions or make architectural decisions                                    | "I've found what the Architect needs. Time to return the bundle." |
+| Architect  | Research bundle + PRD → begin design; knowledge gap → request research                                                                | Research (Researcher's domain) or plan implementation (Planner's domain)            | "I have a knowledge gap on X. I need targeted research."          |
+| Planner    | Design spec + eval criteria → begin planning                                                                                          | Design (Architect) or implement (Developer)                                         | "I have the full design. My job is to decompose it."              |
+| Developer  | Plan + eval criteria → begin implementation; phase completion → announce to QA                                                        | Self-certify acceptance; call `submit_phase_to_evaluator` for eval-science concerns | "Phase N complete. Time to submit for evaluation."                |
+| Evaluator  | Developer phase submission → evaluate against spec/plan; final product → acceptance stamp                                             | Modify code or design; gate on eval-science concerns (HE's domain)                  | "I've verified against the spec. Here's my assessment."           |
+
 
 Autonomous mode: PM auto-approves the two user-approval gates by creating `(PM, PM, submit, accepted=true)` records. All other invariants unchanged. `MEMORY_SYSTEM_PROMPT` per-role tuning: act on handoff brief first, then check memory directory.
 
 ### Provider Integrations
 
-<a id="archived-q13-anthropic-provider-specific-middleware"></a>
 ### Q13: Anthropic Provider-Specific Middleware (Archived)
 
 > **Decision Summary:** Anthropic-specific middleware belongs in provider profiles, not in shared agent factories, and server-side tools are injected the same way. The profile handles the provider-specific surface; the agent factories stay generic.
 
 **Adopted** (via Anthropic provider profile `extra_middleware`):
+
 - `ClaudeBashToolMiddleware` — native `bash` tool for Anthropic models (additive, no overlap with `FilesystemMiddleware`)
 - `FilesystemClaudeMemoryMiddleware` — `/memories/` tool for short-horizon working memory (two-layer memory: AGENTS.md = long-term, `/memories/` = short-term)
 
 **Rejected** (overlap with `FilesystemMiddleware`):
+
 - Text editor middleware — `FilesystemMiddleware` already provides `edit_file`
 - File search middleware — `FilesystemMiddleware` already provides `glob` + `grep`
 
 **Required for v1 (revised 2026-04-15):** Anthropic server-side tools (`web_search`, `web_fetch`, `code_execution`, `tool_search_tool_bm25`, `tool_search_tool_regex`) execute on Anthropic's infrastructure (model emits `server_tool_use` → Anthropic executes → result returns inline, no turn break). Integrated via lightweight descriptor-injection middleware (`AnthropicServerSideToolsMiddleware`) in the Anthropic provider profile. Per-agent assignment:
 
-| Server-side tool | Type constants | Target Agents |
-|---|---|---|
-| `web_search` | `web_search_20250305`, `web_search_20260209` | **Researcher, Architect** (primary); HE, Planner, Evaluator (secondary) |
-| `web_fetch` | `web_fetch_20250910`, `web_fetch_20260209`, `web_fetch_20260309` | **Researcher** (primary); Architect (secondary) |
-| `code_execution` | `code_execution_20250522`, `code_execution_20250825`, `code_execution_20260120` | **Developer, HE, Evaluator** |
-| `tool_search_tool_bm25` | `tool_search_tool_bm25_20251119` | **Developer** |
-| `tool_search_tool_regex` | `tool_search_tool_regex_20251119` | **Developer** |
+
+| Server-side tool         | Type constants                                                                  | Target Agents                                                           |
+| ------------------------ | ------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| `web_search`             | `web_search_20250305`, `web_search_20260209`                                    | **Researcher, Architect** (primary); HE, Planner, Evaluator (secondary) |
+| `web_fetch`              | `web_fetch_20250910`, `web_fetch_20260209`, `web_fetch_20260309`                | **Researcher** (primary); Architect (secondary)                         |
+| `code_execution`         | `code_execution_20250522`, `code_execution_20250825`, `code_execution_20260120` | **Developer, HE, Evaluator**                                            |
+| `tool_search_tool_bm25`  | `tool_search_tool_bm25_20251119`                                                | **Developer**                                                           |
+| `tool_search_tool_regex` | `tool_search_tool_regex_20251119`                                               | **Developer**                                                           |
+
 
 **Injection mechanism:** Provider profile registered via `_register_harness_profile()` in a provider profile module (e.g., `agents/profiles/_anthropic.py`). Profile is resolved automatically by `create_deep_agent()` when model provider is `"anthropic"`. Agent factory files remain clean — they only call `create_deep_agent(model=<string>)`.
