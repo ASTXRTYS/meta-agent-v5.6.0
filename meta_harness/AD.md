@@ -112,30 +112,6 @@ makes handoffs observable and auditable.
 🚨 
 ## Open Questions
 
-### OQ-HO (Closed 2026-04-22): PCG state schema clean-slate rewrite
-
-**Resolution.** Clean-slate rewrite landed 2026-04-22. Chosen direction: 1-node dispatcher (`dispatch_handoff`) plus 7 mounted role Deep Agent subgraph nodes, typed `operator.add` reducer on `handoff_log`, first-class `acceptance_stamps` channel, structural child isolation via the Deep Agent SDK's declared input/output schemas plus mounted-subgraph `Command.PARENT` routing, `pending_handoff` removed, and Store-backed `artifact_manifest` / `optimization_trendline` / `projects_registry` namespaces. Rationale in `local-docs/pcg-state-schema-rewrite-working.md` (temporary working analysis). New decisions absorbed into `AD.md §4 LangGraph Project Coordination Graph` (current). Supersedes `DECISIONS.md` Q4 / Q10 / Q11 (PCG state). Folded in `OQ-H1` (projects_registry namespace) and `OQ-H3` (optimization_trendline namespace).
-
-### OQ-H1 (Closed 2026-04-22): PM visibility into executing projects
-
-**Resolution.** Folded into `OQ-HO` resolution. A `projects_registry` `Store` namespace holds a compact record per project (`project_id`, `project_thread_id`, `current_phase`, `current_agent`, `last_handoff_at`, `artifact_count`) written by `dispatch_handoff` on each handoff. PM session threads query this namespace to render status of all active projects without joining each project thread. See `AD.md §4 LangGraph Project Coordination Graph → PCG State Schema (decisions)` (Store table).
-
-> **Note (2026-04-22b):** The functional requirement (PM session visibility into executing projects) remains resolved. The chosen **mechanism** (LangGraph `Store` namespace) is flagged for reconsideration under `OQ-H5` — substrate choice, write-path enforcement, and read-path interface are not yet justified from upstream principles.
-
-### OQ-H2 (Closed 2026-04-22): `pending_handoff` cursor
-
-**Resolution.** Removed. With the 1-node dispatcher topology, `handoff_log[-1]` is the authoritative active handoff; no separate cursor needed. The cursor was an artifact of the previous two-node split. See `AD.md §4 LangGraph Project Coordination Graph → PCG State Schema (decisions)` and `DECISIONS.md` Q11 supersession.
-
-### OQ-H3 (Closed 2026-04-22): Developer optimization visibility vs. information isolation
-
-**Resolution.** Folded into `OQ-HO` resolution. An `optimization_trendline` `Store` namespace (scoped to `projects/{project_id}/`) is written exclusively by the Harness Engineer with sanitized per-iteration trend data. The Developer's filesystem permissions exclude this namespace, preserving info isolation. TUI / web app / any headless ingress adapter reads this namespace to render Vision D10/D12 optimization-loop visibility. See `AD.md §4 LangGraph Project Coordination Graph → PCG State Schema (decisions)` (Store table).
-
-> **Note (2026-04-22b):** The functional requirement (Developer-blind optimization visibility) remains resolved. The chosen **mechanism** (LangGraph `Store` namespace with conventional sanitization and filesystem-permission-based Developer exclusion) is flagged for reconsideration under `OQ-H5` — permission-layer ownership, sanitization enforcement (convention vs structure), and substrate choice are not yet justified from upstream principles.
-
-### OQ-H4 (Closed 2026-04-22): Parent-to-child state leakage
-
-**Resolution.** Child isolation is structural at the Deep Agent SDK layer. Every role is a `create_deep_agent()` compiled graph with its own declared `input_schema=_InputAgentState` (messages only) and `output_schema=_OutputAgentState` (messages + optional `structured_response`, all other keys dropped via `PrivateStateAttr` / `OmitFromOutput`). When mounted via `add_node(role, role_graph)` in the PCG, LangGraph reads the subgraph's own declared input schema and only passes the shared `messages` channel from parent to child — no `input_schema=` convention on `add_node` has to be remembered, no runtime filter has to be enforced. Output isolation is enforced by the handoff protocol: every role turn terminates by emitting `Command(graph=PARENT, ...)`, so the child's in-progress conversation never merges into PCG `messages` via subgraph-natural-completion semantics. A thin final-turn-guard middleware catches any role that tries to natural-complete. See `AD.md §4 LangGraph Project Coordination Graph → PCG State Growth and Parent-to-Child Context Propagation` and `DECISIONS.md` Q10 supersession.
-
 ### OQ-1 (Medium Priority): HITL during development phases
 
 Vision.md promises optimization tuning and taste calibration during development, but the Developer lacks `AskUserMiddleware` (only PM and Architect have it per Q8). Who owns HITL during dev phases? Options: PM relay via `ask_pm`, or add restricted-scope `AskUserMiddleware` to Developer.
@@ -1383,18 +1359,10 @@ Web application deployment and compliance hardening are in fact intended for v1.
  
 ## 9) Decision Index
 
-This index maps closed architecture questions to their primary location in this
+This index maps prior architecture decisions to their primary location in this
 document and detailed rationale in [DECISIONS.md](./DECISIONS.md). Open questions
-are tracked in §Open Questions (as of 2026-04-22b: `OQ-1` HITL during development
-phases remains open; `OQ-H5` opened 2026-04-22b flagging the durable cross-thread
-data substrate (Store namespace approach in `pcg-data-contracts.md §7`) for
-robust justification or redesign — likely dominates `OQ-PM1` / `OQ-PM2` /
-`OQ-PM3`; `OQ-PM1` / `OQ-PM2` / `OQ-PM3` opened 2026-04-22b to articulate
-high-priority unresolved questions around PM session behaviour — project-scoped
-memory injection, cross-thread observability mechanism, and live-file access
-boundary; `OQ-HO` / `OQ-H1` / `OQ-H2` / `OQ-H3` / `OQ-H4` all closed by the
-PCG state schema clean-slate rewrite, though `OQ-H1` and `OQ-H3` resolution
-**mechanisms** are flagged under `OQ-H5` for reconsideration).
+are tracked only in §Open Questions (as of 2026-04-22b: `OQ-1`, `OQ-H5`,
+`OQ-PM1`, `OQ-PM2`, and `OQ-PM3` remain open).
 **Changelog** is archived in [CHANGELOG.md](./CHANGELOG.md).
 
 **Topology and protocol round (Q1–Q8, 2026-04-11/12):**
