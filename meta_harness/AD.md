@@ -112,6 +112,45 @@ makes handoffs observable and auditable.
 🚨 
 ## Open Questions
 
+### T-H1 / OQ-H6 (High Priority): Concrete handoff tool definition spec
+
+**Status.** Tracked spec work with one resolved decision: concrete handoff tool
+definitions should be specified before implementation/code generation, not
+delegated to the Developer or codegen pass.
+
+**Why now.** Handoff tools are the model-visible API for inter-agent
+coordination. LangChain derives the callable tool schema from function
+signatures or `args_schema`, so the implementation would otherwise define
+product semantics by accident: descriptions, argument names, validation,
+runtime-injected fields, and generated-vs-model-visible fields. The AD already
+locks the architecture, `docs/specs/handoff-tools.md` locks the semantic tool
+matrix, and `docs/specs/pcg-data-contracts.md` locks the PCG wire/data
+contract. What is missing is the composition layer that turns those two sibling
+specs into concrete tool definitions.
+
+**Required output.** Create `docs/specs/handoff-tool-definitions.md` as a
+`doc_type: spec` derived from `AD.md §4 Handoff Protocol`, `§4 Handoff Tool
+Use-Case Matrix`, `§4 Command.PARENT Update Contract`, and `§4 Data Contracts`.
+The spec should be registered in `AD.md §9 Decision Index → Derived Specs` when
+created.
+
+**Minimum scope.** For all 23 handoff tools plus PM's `finish_to_user`, specify:
+tool name, owning role, model-visible description, model-visible parameters,
+runtime-injected parameters, fixed `source_agent` / `target_agent` / `reason`
+values, optional `phase` / `accepted` semantics, `HandoffRecord` assembly,
+which fields are caller-populated vs PCG-populated, `Command.PARENT` return
+shape, middleware gate, Store side effects if any, and role-scoped toolset
+membership. This spec should explicitly carry forward the current AD-level
+schema note: common handoff parameters are `brief: str` and
+`artifact_paths: list[str]`; acceptance tools add `accepted: bool`; phase review
+tools add `phase: str`; `finish_to_user` is terminal emission, not a handoff.
+
+**Documentation convention.** This belongs under `docs/specs/` because it is an
+implementation contract derived from AD decisions. It should follow the normal
+spec governance: YAML provenance header, visible provenance block, parent AD
+pointer, AD §9 registration, and `last_synced` updates whenever the parent AD
+or sibling handoff specs change.
+
 ### OQ-1 (Medium Priority): HITL during development phases
 
 Vision.md promises optimization tuning and taste calibration during development, but the Developer lacks `AskUserMiddleware` (only PM and Architect have it per Q8). Who owns HITL during dev phases? Options: PM relay via `ask_pm`, or add restricted-scope `AskUserMiddleware` to Developer.
@@ -497,97 +536,21 @@ an append-only `handoff_log` audit trail, and a first-class
 data (artifact manifest, optimization trendline, projects registry) lives
 in LangGraph `Store`, not in PCG state.
 
-**Decision-level invariants:**
+**Architectural invariants:**
 
-- `messages` is the user-facing I/O channel (LangGraph convention). PCG
-  writes to it only when the PM calls `finish_to_user`, which emits
-  `Command(graph=Command.PARENT, goto=END, update={"messages":
-  [AIMessage(...)]})`. Handoff tools do NOT write to it.
-  Specialist agents never read it.
-- **Child isolation is structural at the Deep Agent SDK layer.** Every role is a `create_deep_agent()` compiled graph, which declares `input_schema=_InputAgentState` (messages only) and `output_schema=_OutputAgentState` (messages + optional `structured_response`) at its own compile time (`@/Users/Jason/2026/v4/meta-agent-v5.6.0/.reference/libs/deepagents/deepagents/graph.py:236`, `@/Users/Jason/2026/v4/meta-agent-v5.6.0/.venv/lib/python3.11/site-packages/langchain/agents/middleware/types.py:358-368`). `todos`, `files`, `jump_to`, and middleware-private state (`StagnationGuardState._model_call_count`, skills/memory internals, etc.) carry `PrivateStateAttr` / `OmitFromOutput` annotations (`types.py:346-347`) and are dropped structurally at compile time. When mounted via `add_node(role_name, role_compiled_graph)`, LangGraph reads the subgraph's own declared `input_schema` (`graph/state.py:1306-1314`) and only passes the shared `messages` channel from parent to child — we do not need to pass `input_schema=` on `add_node` ourselves.
-- `dispatch_handoff` reads `handoff_log[-1]` to identify the active handoff.
-  No separate cursor key. The previous `pending_handoff` field is removed.
-- `handoff_log` uses an `operator.add` append reducer over
-  `list[HandoffRecord]`. The previous use of `add_messages` on non-message
-  types is retired as structurally broken (`add_messages` coerces through
-  `convert_to_messages` which rejects non-`MessageLikeRepresentation`
-  values; verified at `.venv/lib/python3.11/site-packages/langchain_core/messages/utils.py:727-730`).
-- `acceptance_stamps` is a first-class channel keyed by `"application"` /
-  `"harness"`, updated only by the two `submit_*_acceptance` tools. Gate
-  dispatch reads this channel instead of scanning `handoff_log`.
-- `current_phase` is a denormalization of the last phase-transitioning
-  handoff in `handoff_log`. It is a fast-path for middleware gate dispatch,
-  not an independent source of truth. `HandoffRecord.phase` (new, optional)
-  carries the phase on transitioning records to support this denormalization
-  safely.
-- Each role Deep Agent owns its own conversation history in its checkpoint
-  namespace (role name). PCG `messages` is not a conversation history.
-  Child message compaction is handled by the SDK's `SummarizationMiddleware`
-  within each agent.
-- `handoff_log` cap strategy: v1 retains the in-state log with an
-  implementation-determined cap; v2 option is to migrate the audit trail to
-  LangGraph `Store` for unbounded durable audit without state bloat. Since
-  gates now read `acceptance_stamps`, not `handoff_log`, the v2 migration
-  is a pure persistence concern with no correctness risk.
-- Graph lifecycle is PM-controlled. The PCG is transparent to interrupts —
-  `ask_user` pauses the PM's child graph during `dispatch_handoff`'s
-  invocation, which pauses the PCG node, which pauses the graph. Resume
-  flows through automatically.
+- `messages` is the user-facing I/O channel, written only by PM's `finish_to_user` terminal tool
+- Child isolation is structural at the Deep Agent SDK layer via `input_schema`/`output_schema` declarations
+- `handoff_log` uses `operator.add` append reducer (not `add_messages`)
+- `acceptance_stamps` is a first-class channel for gate logic (not derived from scanning `handoff_log`)
+- `current_phase` is a denormalization fast-path, not an independent source of truth
+- Each role Deep Agent owns its own conversation history in its checkpoint namespace
+- Durable cross-thread data lives in `Store` namespaces, not PCG state
 
-**Durable cross-thread data lives in `Store`, not in PCG state:**
-
-| `Store` namespace | Owner (writer) | Consumers | Purpose |
-|---|---|---|---|
-| `projects/{project_id}/artifact_manifest` | Artifact-producing agents (typically via middleware) | TUI, web app, any headless ingress adapter, PM session threads | Single queryable index of artifacts (type, owner, path, created_at, public/private). Supplants walking role filesystems + `handoff_log.artifact_paths`. |
-| `projects/{project_id}/optimization_trendline` | Harness Engineer (exclusive) | TUI, web app, headless ingress, PM session. **Not the Developer** — Developer's filesystem permissions exclude this namespace, preserving info isolation. | Sanitized per-iteration trend data enabling Vision D10/D12 visibility without leaking rubrics, judges, or held-out datasets. Resolves `OQ-H3`. |
-| `projects_registry` | `dispatch_handoff` (on each handoff) | PM session threads, web app project list, all ingress adapters | Compact record per project: `project_id`, `project_thread_id`, `current_phase`, `current_agent`, `last_handoff_at`, `artifact_count`. Resolves `OQ-H1` (PM session visibility into executing projects). |
-
-Field-level schema, reducer choices, cap mitigation mechanisms, and exact
-Pydantic/TypedDict wire formats are spec territory.
-
-> Implementation detail (full field table, reducer semantics, all
-> invariants with rationale, `Store` namespace schemas): see
-> [`docs/specs/pcg-data-contracts.md`](./docs/specs/pcg-data-contracts.md).
+> Implementation detail (full field table, reducer semantics, all invariants with rationale, `Store` namespace schemas): see [`docs/specs/pcg-data-contracts.md`](./docs/specs/pcg-data-contracts.md).
 
 The topology is 1 coordination node + 7 mounted role subgraph nodes. All
 routing is driven by `Command(goto=...)` emissions; there are zero static
-edges between dispatcher and roles and zero conditional edges:
-
-```txt
-START → dispatch_handoff
-          │
-          │  First invocation: synthesize initial handoff from user input on
-          │  messages. Return Command(goto="project_manager", update={
-          │      handoff_log: [initial_record],
-          │      current_agent: "project_manager",
-          │      current_phase: "scoping",
-          │  }).
-          │
-          │  Re-entry: Command(goto=handoff_log[-1].target_agent).
-          │
-          ▼
-     (role subgraph node, e.g. project_manager)
-          │
-          │  Role's handoff tool fires.
-          │  Middleware hook fires (phase gate / acceptance gate).
-          │
-          │  Gate passes  → Command(graph=PARENT, goto="dispatch_handoff",
-          │                         update={handoff_log: [record], …}) emitted.
-          │  Gate fails   → tool returns revision prompt to calling agent;
-          │                 agent remains in its subgraph.
-          │
-          │  PARENT command bubbles up through Pregel namespaces; PCG
-          │  absorbs the update; re-enters dispatch_handoff; routes to
-          │  the next role indicated by handoff_log[-1].
-          │
-          │  Terminal case (PM only): PM calls finish_to_user →
-          │  Command(graph=PARENT, goto=END,
-          │          update={messages: [AIMessage(final_response)]})
-          │  → PCG absorbs messages; graph terminates.
-          │
-          ▼
-         END
-```
+edges between dispatcher and roles and zero conditional edges.
 
 Every role turn terminates by emitting `Command(graph=PARENT, ...)`. Natural
 completion (the role's last node returns without emitting a command) is an
@@ -595,6 +558,8 @@ error condition that a thin final-turn-guard middleware catches by
 re-prompting the agent. This invariant prevents the child's full
 conversation history from merging into PCG `messages` through LangGraph's
 default subgraph-output→parent-state mapping.
+
+> Implementation detail (topology diagram, mount-and-route protocol, dispatch_handoff contract): see [`docs/specs/pcg-data-contracts.md`](./docs/specs/pcg-data-contracts.md) §2 and §8.
 
 ### Handoff Protocol
 
@@ -639,28 +604,7 @@ tools) — it does NOT include `messages`. Handoff briefs and artifact paths
 flow through the appended `HandoffRecord` in `handoff_log`, keeping
 `messages` reserved for the user-facing PM response.
 
-**Caller-vs-PCG field ownership** is locked:
-- The calling agent populates `project_id`, `project_thread_id`,
-  `source_agent`, `target_agent`, `reason`, `brief`, `artifact_paths`, and
-  — on phase-transitioning records only — `phase`. Acceptance tools
-  additionally populate `accepted`.
-- The PCG fills `handoff_id`, `langsmith_run_id`, `status`, and `created_at`
-  inside `dispatch_handoff` (pre-invocation).
-
-**Exception — PM-assembled handoff packages.** For downstream pipeline
-delivery tools where the receiving agent needs the full accumulated artifact
-set, the PM assembles a consolidated project handoff package — a directory
-copied into the receiving agent's filesystem. The receiving agent then owns
-and organizes that copy. This applies to
-`deliver_planning_package_to_planner` and
-`deliver_development_package_to_developer`. Early-stage deliveries remain as
-references because those specialists only need a few specific artifacts from
-the PM's already-organized namespace. The PM's role as organizer aligns with
-its identity as the business-oriented project manager who ensures artifacts
-are properly stored and structured before they flow downstream.
-
-> Implementation detail (full update-dict shape with code sample, field
-> ownership table): see [`docs/specs/pcg-data-contracts.md`](./docs/specs/pcg-data-contracts.md).
+> Implementation detail (full update-dict shape with code sample, field ownership table): see [`docs/specs/pcg-data-contracts.md`](./docs/specs/pcg-data-contracts.md).
 
 ### Phase Gate Middleware
 
@@ -764,49 +708,17 @@ The two QA-gate roles own orthogonal dimensions of target-application quality:
 Tools are organized into six categories by transition type. The naming
 convention is `<verb>_<artifact|phase>_package_to_<role>`: the tool name reads
 as a sentence that tells both the calling agent and any maintainer exactly what
-is flowing where. Single-artifact deliveries use the artifact name
-(e.g. `deliver_prd_to_harness_engineer`); composite package deliveries use the
-phase name plus `package` (e.g. `deliver_design_package_to_architect`) to signal
-that the PM is handing off a consolidated bundle of accumulated artifacts.
-
-Verb semantics also encode blocking behavior:
-- **`deliver`** = the caller is handing off ownership of a pipeline stage (blocking)
-- **`return`** = the specialist is returning completed work to the PM or calling specialist (blocking)
-- **`submit`** = the caller is submitting work for review or evaluation (blocking)
-- **`consult`** = the caller is requesting expert input without transferring ownership (non-blocking)
-- **`announce`** = the caller is pushing intent or a heads-up without expecting a deliverable back (non-blocking)
-- **`ask`** = the caller is asking a question (non-blocking)
-- **`coordinate`** = QA agents are aligning with each other (non-blocking)
+is flowing where. Verb semantics encode blocking behavior (deliver/return/submit = blocking; consult/announce/ask/coordinate = non-blocking).
 
 Meta Harness v1 ships **24 tools total**: 23 handoff tools across six
 categories (Pipeline Delivery, Pipeline Return, Acceptance, Stage Review,
 Phase Review, Specialist Consultation) plus 1 terminal-emission tool
-(`finish_to_user`, PM-only, Category 7 Terminal Emission). Agent-scoped tool
-ownership, the full tool matrix (caller, target, artifact flow, middleware
-gate), and the end-to-end pipeline flow diagram are the interface contract
-derived from this protocol.
+(`finish_to_user`, PM-only, Category 7 Terminal Emission).
 
-**`finish_to_user` (Category 7 Terminal Emission).** PM-only. Returns
-`Command(graph=Command.PARENT, goto=END, update={"messages": [AIMessage(final_response)]})`.
-Does not append to `handoff_log` — this is a lifecycle bookend, not an
-inter-agent handoff. This tool is the mechanism by which the PM writes a
-final response to the user-facing `messages` channel and terminates the
-project thread cleanly. Its presence is what makes the "every turn
-terminates with Command.PARENT" invariant achievable for the PM's terminal
-case.
+**Acceptance gate logic for `return_product_to_pm`** reads the first-class `acceptance_stamps` channel.
+`state.acceptance_stamps["application"]` must be present (Evaluator stamp; always required). `state.acceptance_stamps["harness"]` is required only if the HE participated in the project thread; HE participation is derived by scanning `handoff_log` for any record with `source_agent == "harness_engineer"` or `target_agent == "harness_engineer"`.
 
-**Acceptance gate logic for `return_product_to_pm`** is a locked AD decision:
-the middleware gate reads the first-class `acceptance_stamps` channel.
-`state.acceptance_stamps["application"]` must be present (Evaluator stamp;
-always required). `state.acceptance_stamps["harness"]` is required only
-if the HE participated in the project thread; HE participation is derived
-by scanning `handoff_log` for any record with `source_agent == "harness_engineer"`
-or `target_agent == "harness_engineer"`. If no HE participation is found,
-the HE acceptance check is skipped. No `has_target_harness` state key is
-introduced.
-
-> Implementation detail (full tool matrix, agent-scoped ownership table,
-> pipeline flow diagram): see [`docs/specs/handoff-tools.md`](./docs/specs/handoff-tools.md).
+> Implementation detail (full tool matrix, agent-scoped ownership table, pipeline flow diagram): see [`docs/specs/handoff-tools.md`](./docs/specs/handoff-tools.md).
 
 ### Project-Scoped Execution Environment
 
@@ -1249,26 +1161,12 @@ The `HandoffRecord` field set and enum values are locked as AD decisions:
 - **Core fields:** `project_id`, `project_thread_id`, `handoff_id`,
   `source_agent`, `target_agent`, `reason`, `brief`, `artifact_paths`,
   `langsmith_run_id`, `status`, `created_at`.
-- **Optional fields (populated only when relevant):** `phase`
-  (phase-transitioning records only, supports the `current_phase`
-  denormalization), `accepted` (acceptance-stamp records only).
-- **`source_agent` / `target_agent` enum:**
-  `project-manager | harness-engineer | researcher | architect | planner | developer | evaluator`.
-- **`reason` enum:** `deliver | return | submit | consult | announce | coordinate | question`.
-- **`status` enum:** `queued | running | completed | failed`.
-- **`created_at`:** RFC3339 timestamp set by the PCG when the handoff is
-  recorded.
-- **`target_agent` maps 1:1 to the checkpoint namespace** in v1; no separate
-  `target_role_namespace` field needed.
-- **`reason` encodes the *type of transition*, not the pipeline phase.**
-  Middleware dispatches on the `(source_agent, target_agent, reason)` triple.
-  The `question` reason covers specialist-to-PM stakeholder questions — no
-  separate `question` field needed.
+- **Optional fields:** `phase` (phase-transitioning records only), `accepted` (acceptance-stamp records only).
+- **Enum values:** `source_agent`/`target_agent` (7 role names), `reason` (7 transition types), `status` (4 lifecycle states).
+- **`target_agent` maps 1:1 to checkpoint namespace** in v1.
+- **`reason` encodes transition type**, not pipeline phase; middleware dispatches on `(source_agent, target_agent, reason)` triple.
 
-Exact Pydantic/TypedDict wire format and JSON rendering are spec territory.
-
-> Implementation detail (full JSON schema, field-level notes): see
-> [`docs/specs/pcg-data-contracts.md`](./docs/specs/pcg-data-contracts.md).
+> Implementation detail (full JSON schema, field-level notes): see [`docs/specs/pcg-data-contracts.md`](./docs/specs/pcg-data-contracts.md).
 
 ---
 
@@ -1410,8 +1308,8 @@ Implementation contracts extracted from AD decisions under `docs/specs/`. See
 
 | Spec | Derives From | Status | Last Synced |
 |---|---|---|---|
-| [`docs/specs/handoff-tools.md`](./docs/specs/handoff-tools.md) | §4 Handoff Protocol, §4 Handoff Tool Use-Case Matrix, §4 Pipeline Flow Diagram | Active (rewritten 2026-04-22 for `OQ-HO`) | 2026-04-22 |
-| [`docs/specs/pcg-data-contracts.md`](./docs/specs/pcg-data-contracts.md) | §4 LangGraph Project Coordination Graph (State Schema), §4 Handoff Protocol (Command.PARENT Update Contract), §4 Data Contracts, §4 PM Session And Project Entry Model (Identity Linkage) | Active (rewritten 2026-04-22 for `OQ-HO`; identity naming harmonised 2026-04-22b) | 2026-04-22b |
+| [`docs/specs/handoff-tools.md`](./docs/specs/handoff-tools.md) | §4 Handoff Protocol, §4 Handoff Tool Use-Case Matrix, §4 Pipeline Flow Diagram | Active (rewritten 2026-04-22 for `OQ-HO`; sibling-spec relationship clarified 2026-04-23) | 2026-04-23 |
+| [`docs/specs/pcg-data-contracts.md`](./docs/specs/pcg-data-contracts.md) | §4 LangGraph Project Coordination Graph (State Schema), §4 Handoff Protocol (Command.PARENT Update Contract), §4 Data Contracts, §4 PM Session And Project Entry Model (Identity Linkage) | Active (rewritten 2026-04-22 for `OQ-HO`; identity naming harmonised 2026-04-22b; sibling-spec relationship clarified 2026-04-23) | 2026-04-23 |
 | [`docs/specs/repo-and-workspace-layout.md`](./docs/specs/repo-and-workspace-layout.md) | §4 Repo and Workspace Layout, §4 LangGraph Project Coordination Graph Factory Contract, §4 Project Workspace and Memory Structure | Active (updated 2026-04-22 for `OQ-HO`) | 2026-04-22 |
 
 ---

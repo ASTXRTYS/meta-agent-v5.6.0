@@ -75,7 +75,7 @@ This mirrors the pattern of dashboards that distill signal while preserving acce
 
 **Decision:** LangSmith artifacts (traces, threads, runs, experiments) are surfaced in Meta Harness as **deep links only**. No iframes, no embedded viewers, no preview cards that render LangSmith data. Every LangSmith reference in the UI is a consistent "↗ View in LangSmith" affordance that opens LangSmith in a new tab.
 
-**Rationale:** Direct consequence of D10. If we're the executive summary and LangSmith is the audit trail, the correct UI treatment is a hand-off link, not an embed. This also maximizes our visual independence — because LangSmith never appears inside our chrome, we have zero obligation to share visual vocabulary with it. The three visual families under exploration (Linear / Bloomberg / Stripe) can go fully their own direction.
+**Rationale:** Direct consequence of D10. If we're the executive summary and LangSmith is the audit trail, the correct UI treatment is a hand-off link, not an embed. This also maximizes our visual independence — because LangSmith never appears inside our chrome, we have zero obligation to share visual vocabulary with it.
 
 **Tradeoffs:** Users context-switch (new tab) when drilling into a trace. Accepted — the context switch is a *feature* here: it signals "you are now in the raw-detail tool."
 

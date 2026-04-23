@@ -6,14 +6,14 @@ derived_from:
   - AD §4 Pipeline Flow Diagram
   - AD §4 Command.PARENT Update Contract
 status: active
-last_synced: 2026-04-22
+last_synced: 2026-04-23
 owners: ["@Jason"]
 ---
 
 # Handoff Tools Specification
 
 > **Provenance:** Derived from `AD.md §4 Handoff Protocol`, `§4 Handoff Tool Use-Case Matrix`, `§4 Pipeline Flow Diagram`, and `§4 Command.PARENT Update Contract`.  
-> **Status:** Active · **Last synced with AD:** 2026-04-22 (updated for `OQ-HO` resolution: 1 dispatcher + 7 mounted role subgraphs; `acceptance_stamps` channel; `finish_to_user` terminal-emission tool added).  
+> **Status:** Active · **Last synced with AD:** 2026-04-23 (updated for `OQ-HO` resolution: 1 dispatcher + 7 mounted role subgraphs; `acceptance_stamps` channel; `finish_to_user` terminal-emission tool added; clarified sibling relationship with `pcg-data-contracts.md`).
 > **Consumers:** Developer (implementation), Evaluator (conformance checking).
 
 ## 1. Purpose
@@ -26,6 +26,16 @@ and middleware gate policy.
 The parent AD defines *what* handoffs are and *why* they route the way they
 do. This spec defines *which concrete tools exist, who owns them, what
 artifacts they carry, and which middleware gate applies*.
+
+**Relationship to PCG data contracts.** This spec owns the semantic tool
+catalog: tool names, caller/target roles, reason values, artifact flow,
+middleware gates, role-scoped ownership, and pipeline order. It intentionally
+does not own the full PCG state or `HandoffRecord` wire contract. Those shared
+data contracts live in `docs/specs/pcg-data-contracts.md`: state channels,
+reducers, `Command.PARENT` update shape, `HandoffRecord` fields, and
+caller-vs-PCG field ownership. A concrete per-tool definition spec should
+compose both sources; code generation or implementation must not infer missing
+tool schemas from one file alone.
 
 ## 1.1 Uniform Tool Return Shape (handoff tools)
 
