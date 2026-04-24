@@ -5,14 +5,14 @@ derived_from:
   - AD §4 LangGraph Project Coordination Graph Factory Contract
   - AD §4 Project Workspace and Memory Structure Proposal
 status: active
-last_synced: 2026-04-22
+last_synced: 2026-04-24
 owners: ["@Jason"]
 ---
 
 # Repository and Workspace Layout Specification
 
 > **Provenance:** Derived from `AD.md §4 Full Repo Structure Naming Decision`, `§4 LangGraph Project Coordination Graph Factory Contract`, and `§4 Project Workspace and Memory Structure Proposal`.  
-> **Status:** Active · **Last synced with AD:** 2026-04-22 (updated for `OQ-HO` resolution: 1 dispatcher + 7 mounted role subgraph nodes; `ROLE_GRAPHS` registry consumed at graph-construction time).  
+> **Status:** Active · **Last synced with AD:** 2026-04-24 (updated for `OQ-HO` resolution: 1 dispatcher + 7 mounted role subgraph nodes; `ROLE_GRAPHS` registry consumed at graph-construction time; **corrected routing primitive from string `goto` to `Send` for explicit child input injection per Ticket 1**).  
 > **Consumers:** Developer (scaffolding, file creation), Evaluator (structural conformance).
 
 ## 1. Purpose
@@ -113,13 +113,17 @@ meta-harness/
 
 The PCG is a LangGraph application boundary. It is not a Deep Agent and it
 is not an agent registry. After the `OQ-HO` rewrite (2026-04-22, corrected
-same day), the PCG has **1 coordination node (`dispatch_handoff`) + 7
-mounted role Deep Agent subgraph nodes**. The dispatcher routes via
-`Command(goto=<target_agent>)`; role subgraph handoff tools emit
-`Command(graph=PARENT, goto="dispatch_handoff", update={...})` which
-bubbles back through Pregel's namespace hierarchy. Role graphs are mounted
-(not `.ainvoke()`'d) because `Command.PARENT` only bubbles from inside a
-parent Pregel's namespace (`@/Users/Jason/2026/v4/meta-agent-v5.6.0/.venv/lib/python3.11/site-packages/langgraph/pregel/_io.py:56-59`);
+same day), the PCG has exactly 2 nodes: `dispatch_handoff` plus 7 mounted role
+Deep Agent subgraph nodes. The dispatcher routes via
+`Command(goto=Send(target_agent, {"messages": [handoff_message]}))`; role
+subgraph handoff tools emit `Command(graph=PARENT, goto="dispatch_handoff",
+update={...})` which bubbles back through Pregel's namespace hierarchy.
+`Send` is required (not string `goto`) because the Deep Agent's `_InputAgentState`
+only accepts `messages` (`.venv/lib/python3.11/site-packages/langchain/agents/middleware/types.py:358-361`),
+and `Send.arg` is passed directly as child input (`.venv/lib/python3.11/site-packages/langgraph/pregel/_algo.py:1002`).
+Role graphs are mounted (not `.ainvoke()`'d) because `Command.PARENT` only bubbles
+from inside a parent Pregel's namespace
+(`@/Users/Jason/2026/v4/meta-agent-v5.6.0/.venv/lib/python3.11/site-packages/langgraph/pregel/_io.py:56-59`);
 an `.ainvoke()`'d child runs in a top-level Pregel context and its
 `Command.PARENT` emissions raise `InvalidUpdateError`.
 
@@ -213,16 +217,20 @@ otherwise `./graph.py:graph` is simpler. The role factories use
 
 - `dispatch_handoff` — The sole coordination node. On first invocation
   (empty `handoff_log`): synthesize an initial handoff record from
-  stakeholder input on `messages`, upsert `projects_registry`, return
-  `Command(goto="project_manager", update={handoff_log, current_agent, current_phase})`.
+  stakeholder input, validate, upsert `projects_registry`, return
+  `Command(goto=Send("project_manager", {"messages": [handoff_message]}), update={handoff_log, current_agent, current_phase})`.
   On re-entry triggered by a child-emitted
   `Command(graph=PARENT, goto="dispatch_handoff", update={...})`: read
-  `handoff_log[-1]`, upsert `projects_registry`, return
-  `Command(goto=<target_agent>)`. Never invokes role graphs directly —
-  LangGraph handles routing through the Pregel loop.
+  `handoff_log[-1]`, validate, construct `handoff_message` per
+  `pcg-data-contracts.md §8.3`, upsert `projects_registry`, return
+  `Command(goto=Send(target_agent, {"messages": [handoff_message]}))`.
+  Never invokes role graphs directly — LangGraph handles routing through
+  the Pregel loop.
 - `project_manager` / `harness_engineer` / `researcher` / `architect` /
   `planner` / `developer` / `evaluator` — Mounted Deep Agent subgraphs.
-  Entered via `Command(goto=<role_name>)`. Exit via a handoff tool
+  Entered via `Command(goto=Send(role_name, {"messages": [handoff_message]}))`.
+  The `Send.arg` is passed directly as the child's `messages` input per
+  `_InputAgentState` schema. Exit via a handoff tool
   (`Command(graph=PARENT, goto="dispatch_handoff", update={...})`) or, for
   the PM only, the terminal `finish_to_user` tool
   (`Command(graph=PARENT, goto=END, update={"messages": [AIMessage(...)]})`).

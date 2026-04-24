@@ -476,14 +476,14 @@ Its non-responsibilities are equally important:
 
 | Node | Purpose |
 |---|---|
-| `dispatch_handoff` | The sole coordination node. On first invocation (empty `handoff_log`): synthesize an initial handoff record from stakeholder input on `messages`, upsert `projects_registry`, return `Command(goto=<initial_target_agent>, update={handoff_log, current_agent, current_phase})`. On re-entry triggered by a child's `Command(graph=PARENT, goto="dispatch_handoff", update={...})`: read the newly-appended `handoff_log[-1]`, upsert `projects_registry`, return `Command(goto=<target_agent>)`. Never invokes role graphs directly — LangGraph handles routing through the Pregel loop once the `Command(goto=...)` is emitted. |
-| `project_manager` | Mounted PM Deep Agent subgraph (`create_deep_agent()` result). Entered via `Command(goto="project_manager")`. Exits via a handoff tool (`Command(graph=PARENT, goto="dispatch_handoff", update={...})`) or the terminal `finish_to_user` tool (`Command(graph=PARENT, goto=END, update={"messages": [AIMessage(...)]})`). |
-| `harness_engineer` | Mounted HE Deep Agent subgraph. Entered via `Command(goto="harness_engineer")`. Exits via a handoff tool. |
-| `researcher` | Mounted Researcher Deep Agent subgraph. Entered via `Command(goto="researcher")`. Exits via a handoff tool. |
-| `architect` | Mounted Architect Deep Agent subgraph. Entered via `Command(goto="architect")`. Exits via a handoff tool. |
-| `planner` | Mounted Planner Deep Agent subgraph. Entered via `Command(goto="planner")`. Exits via a handoff tool. |
-| `developer` | Mounted Developer Deep Agent subgraph. Entered via `Command(goto="developer")`. Exits via a handoff tool. |
-| `evaluator` | Mounted Evaluator Deep Agent subgraph. Entered via `Command(goto="evaluator")`. Exits via a handoff tool. |
+| `dispatch_handoff` | The sole coordination node. On first invocation (empty `handoff_log`): synthesize an initial handoff record from stakeholder input, validate, upsert `projects_registry`, and return `Command(goto=Send(target_agent, {"messages": [handoff_message]}), update={handoff_log, current_agent, current_phase})`. On re-entry triggered by a child's `Command(graph=PARENT, goto="dispatch_handoff", update={...})`: read `handoff_log[-1]`, validate the handoff, upsert `projects_registry`, and return `Command(goto=Send(target_agent, {"messages": [handoff_message]}))`. The `Send` primitive passes the handoff brief directly as the child's `messages` input (`.venv/lib/python3.11/site-packages/langgraph/pregel/_io.py:66-67` yields `Send` to `TASKS` channel; `.venv/lib/python3.11/site-packages/langgraph/pregel/_algo.py:1002` passes `packet.arg` as task input). Never invokes role graphs directly — LangGraph handles routing through the Pregel loop. |
+| `project_manager` | Mounted PM Deep Agent subgraph (`create_deep_agent()` result). Entered via `Command(goto=Send("project_manager", {"messages": [handoff_message]}))`. Receives handoff as `messages` input per `_InputAgentState` schema (`.venv/lib/python3.11/site-packages/langchain/agents/middleware/types.py:358-361`). Exits via a handoff tool (`Command(graph=PARENT, goto="dispatch_handoff", update={...})`) or the terminal `finish_to_user` tool (`Command(graph=PARENT, goto=END, update={"messages": [AIMessage(...)]})`). |
+| `harness_engineer` | Mounted HE Deep Agent subgraph. Entered via `Command(goto=Send("harness_engineer", {"messages": [handoff_message]}))`. Receives handoff as `messages` input. Exits via a handoff tool. |
+| `researcher` | Mounted Researcher Deep Agent subgraph. Entered via `Command(goto=Send("researcher", {"messages": [handoff_message]}))`. Receives handoff as `messages` input. Exits via a handoff tool. |
+| `architect` | Mounted Architect Deep Agent subgraph. Entered via `Command(goto=Send("architect", {"messages": [handoff_message]}))`. Receives handoff as `messages` input. Exits via a handoff tool. |
+| `planner` | Mounted Planner Deep Agent subgraph. Entered via `Command(goto=Send("planner", {"messages": [handoff_message]}))`. Receives handoff as `messages` input. Exits via a handoff tool. |
+| `developer` | Mounted Developer Deep Agent subgraph. Entered via `Command(goto=Send("developer", {"messages": [handoff_message]}))`. Receives handoff as `messages` input. Exits via a handoff tool. |
+| `evaluator` | Mounted Evaluator Deep Agent subgraph. Entered via `Command(goto=Send("evaluator", {"messages": [handoff_message]}))`. Receives handoff as `messages` input. Exits via a handoff tool. |
 
 #### PCG State Schema (decisions)
 

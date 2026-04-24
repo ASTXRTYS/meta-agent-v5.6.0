@@ -5,13 +5,13 @@ derived_from:
   - AD §4 Handoff Protocol
   - AD §4 Data Contracts
 status: active
-last_synced: 2026-04-23
+last_synced: 2026-04-24
 owners: ["@Jason"]
 ---
 # PCG Data Contracts Specification
 
 > **Provenance:** Derived from `AD.md §4 LangGraph Project Coordination Graph` (state schema, topology, and invariants), `§4 Handoff Protocol → Command.PARENT Update Contract`, and `§4 Data Contracts`.  
-> **Status:** Active · **Last synced with AD:** 2026-04-23 (rewritten for `OQ-HO` resolution; supersedes Q4 / Q10 / Q11 in `DECISIONS.md`; corrected to mount-as-subgraph pattern after review surfaced `.ainvoke()` / `Command.PARENT` incompatibility; clarified sibling relationship with `handoff-tools.md`; updated for `handoff-tool-definitions.md` field ownership and `project_phase` / `plan_phase_id` split).
+> **Status:** Active · **Last synced with AD:** 2026-04-24 (rewritten for `OQ-HO` resolution; supersedes Q4 / Q10 / Q11 in `DECISIONS.md`; corrected to mount-as-subgraph pattern after review surfaced `.ainvoke()` / `Command.PARENT` incompatibility; clarified sibling relationship with `handoff-tools.md`; updated for `handoff-tool-definitions.md` field ownership and `project_phase` / `plan_phase_id` split; **corrected routing primitive from string `goto` to `Send` for explicit child input injection per Ticket 1**).
 > **Consumers:** Developer (implementation), Evaluator (conformance checking).
 
 ## 1. Purpose
@@ -41,7 +41,9 @@ that combined contract.
 
 ```txt
 START → dispatch_handoff
-          │  emits Command(goto=<target_agent>) into the mounted role node
+          │  emits Command(goto=Send(target_agent, {"messages": [handoff_message]}))
+          │  into the mounted role node. The Send.arg becomes the child's
+          │  messages input per _InputAgentState schema.
           ▼
      (mounted role subgraph: project_manager | harness_engineer | ...)
           │  role turn terminates by emitting Command(graph=PARENT, ...)
@@ -56,7 +58,21 @@ START → dispatch_handoff
 
 1 coordination node + 7 mounted role subgraph nodes. Zero conditional
 edges. Zero static edges between dispatcher and roles — routing is
-entirely driven by `Command(goto=...)` emissions. See `AD.md §4 LangGraph Project Coordination Graph` for the authoritative description.
+entirely driven by `Command(goto=Send(...))` emissions.
+
+**Why `Send` not string `goto`:** A string `goto` (e.g., `Command(goto="project_manager")`)
+triggers a PULL task that reads input from parent state channels
+(`.venv/lib/python3.11/site-packages/langgraph/pregel/_io.py:68-69`).
+The Deep Agent's `_InputAgentState` only accepts `messages`
+(`.venv/lib/python3.11/site-packages/langchain/agents/middleware/types.py:358-361`),
+but PCG `messages` is reserved for user-facing I/O (Invariant #1). Using
+`Send(target_agent, {"messages": [handoff_message]})` creates a PUSH task
+that passes `packet.arg` directly as the child's input
+(`.venv/lib/python3.11/site-packages/langgraph/pregel/_io.py:66-67`,
+`.venv/lib/python3.11/site-packages/langgraph/pregel/_algo.py:1002`),
+ensuring the handoff brief reaches the receiving agent without polluting
+PCG `messages`. See `AD.md §4 LangGraph Project Coordination Graph` for the
+authoritative description.
 
 ## 3. `ProjectCoordinationState` Schema
 
@@ -304,35 +320,159 @@ The LangGraph `Store` is the durable cross-thread surface for project data that 
 
 ## 8. `dispatch_handoff` Node Contract (reference implementation sketch)
 
-Not normative code, but the semantic contract every conforming implementation must preserve. The dispatcher is a pure routing function — it returns `Command(goto=<target_agent>)` and never calls `.ainvoke()` on a role graph. LangGraph routes into the mounted role subgraph node through the normal Pregel loop once the Command is emitted.
+Not normative code, but the semantic contract every conforming implementation must preserve. The dispatcher is a pure routing function — it returns `Command(goto=Send(...))` and never calls `.ainvoke()` on a role graph. LangGraph routes into the mounted role subgraph node through the Pregel loop once the Command is emitted.
+
+### 8.1 Routing Primitive
+
+The dispatcher MUST use `Send(target_agent, {"messages": [handoff_message]})` as the `goto` value, not a string. SDK behavior:
+- `Send` yields to `TASKS` channel (`.venv/lib/python3.11/site-packages/langgraph/pregel/_io.py:66-67`)
+- `packet.arg` is passed directly as the subgraph's input (`.venv/lib/python3.11/site-packages/langgraph/pregel/_algo.py:1002`)
+- The child's `_InputAgentState` receives only the `messages` key (`.venv/lib/python3.11/site-packages/langchain/agents/middleware/types.py:358-361`)
+
+String `goto` (e.g., `Command(goto="project_manager")`) is **forbidden** — it triggers PULL task semantics that read from parent channels, which would incorrectly pass PCG's user-facing `messages` to the child.
+
+### 8.2 Receiving-Agent Input Payload Shape
+
+The `Send.arg` MUST be a dict with exactly one key:
 
 ```python
+{
+    "messages": [
+        {
+            "role": "user",
+            "content": "[[Handoff from {source_agent}]]\n\n{brief}\n\n[[Artifacts]]\n{artifact_list}",
+            "name": None,  # Optional: could include handoff_id as metadata
+        }
+    ]
+}
+```
+
+**Field specifications:**
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `role` | `Literal["user"]` | Yes | Fixed as `"user"` — the handoff arrives as a user message from the perspective of the receiving agent |
+| `content` | `str` | Yes | Formatted handoff packet (see §8.3) |
+
+### 8.3 Handoff Message Content Format
+
+The `content` string MUST follow this exact structure:
+
+```
+[[Handoff from {source_agent} to {target_agent}]]
+Reason: {reason}
+
+{Brief text from HandoffRecord.brief}
+
+[[Artifacts]]
+- {artifact_path_1}
+- {artifact_path_2}
+...
+```
+
+**Formatting rules:**
+1. `source_agent`, `target_agent`, `reason` come from `HandoffRecord`
+2. `brief` is inserted verbatim from `HandoffRecord.brief`
+3. `artifact_paths` from `HandoffRecord.artifact_paths` are rendered as a bullet list
+4. Empty `artifact_paths` list renders `[[Artifacts]]\nNone` (not omitted)
+5. Lines are separated by `\n` (Unix-style)
+
+### 8.4 Pre-Routing Validation Rules
+
+Before constructing the `Send`, the dispatcher MUST validate:
+
+1. **`target_agent` presence**: `HandoffRecord.target_agent` must be non-empty and in `ROLE_GRAPHS.keys()`. **Failure**: raise `ValueError(f"Invalid target_agent: {target_agent}")` — do not route.
+
+2. **`brief` presence**: `HandoffRecord.brief` must be non-empty string after stripping whitespace. **Failure**: raise `ValueError("HandoffRecord.brief is empty")` — do not route.
+
+3. **`artifact_paths` validity**: Each path must be a string starting with `/` (absolute) or a valid relative path. **Failure**: raise `ValueError(f"Invalid artifact path: {path}")` — do not route.
+
+4. **Sanity check**: `source_agent != target_agent` (no self-handoff). **Failure**: raise `ValueError("Self-handoff not permitted")` — do not route.
+
+All validation failures are **hard stops** — the dispatcher does not emit a `Command`, allowing Pregel to surface the exception to the caller.
+
+### 8.5 Initial Stakeholder Input to First PM Turn
+
+On first invocation (`not state["handoff_log"]`):
+
+1. Extract initial stakeholder input from `ProjectCoordinationInput` (not from PCG `messages` channel directly)
+2. Synthesize a `HandoffRecord` with:
+   - `source_agent`: `"system"` (special value for initial bootstrap)
+   - `target_agent`: `"project_manager"`
+   - `reason`: `"coordinate"`
+   - `brief`: The stakeholder input text
+   - `artifact_paths`: Empty list (or paths from input if provided)
+3. Proceed through validation and `Send` construction as normal
+
+This ensures the initial PM turn receives the stakeholder request as a formatted handoff message, identical to subsequent inter-agent handoffs.
+
+### 8.6 Reference Implementation
+
+```python
+from langgraph.types import Command, Send
+from langchain_core.messages import HumanMessage
+
 async def dispatch_handoff(
     state: ProjectCoordinationState,
     runtime: Runtime[ProjectCoordinationContext],
 ) -> Command:
-    """Coordination node. Emits Command(goto=<role>) to route; never invokes directly."""
+    """Coordination node. Emits Command(goto=Send(...)) to route; never invokes directly."""
+
+    from meta_harness.agents.catalog import ROLE_GRAPHS  # 7 valid role names
 
     # --- 1. First invocation: synthesize initial handoff from stakeholder input --
     if not state["handoff_log"]:
-        initial = _synthesize_initial_handoff(state, runtime)
-        await _upsert_projects_registry(state, initial, runtime.store)
+        record = _synthesize_initial_handoff(state, runtime)
+    else:
+        record = state["handoff_log"][-1]
+
+    # --- 2. Pre-routing validation (hard stops on failure) -----------------------
+    target = record["target_agent"]
+    if target not in ROLE_GRAPHS:
+        raise ValueError(f"Invalid target_agent: {target}")
+    if not record.get("brief", "").strip():
+        raise ValueError("HandoffRecord.brief is empty")
+    for path in record.get("artifact_paths", []):
+        if not isinstance(path, str) or not path.strip():
+            raise ValueError(f"Invalid artifact path: {path}")
+    if record["source_agent"] == target:
+        raise ValueError("Self-handoff not permitted")
+
+    # --- 3. Construct handoff message ------------------------------------------
+    artifact_list = "\n".join(f"- {p}" for p in record.get("artifact_paths", [])) or "None"
+    content = (
+        f"[[Handoff from {record['source_agent']} to {record['target_agent']}]]\n"
+        f"Reason: {record['reason']}\n\n"
+        f"{record['brief']}\n\n"
+        f"[[Artifacts]]\n"
+        f"{artifact_list}"
+    )
+    handoff_message = HumanMessage(content=content)
+
+    # --- 4. Update projects registry ---------------------------------------------
+    await _upsert_projects_registry(state, record, runtime.store)
+
+    # --- 5. Route via Send (not string goto) -------------------------------------
+    if not state["handoff_log"]:
+        # First invocation: include initial state updates
         return Command(
-            goto=initial["target_agent"],
+            goto=Send(target, {"messages": [handoff_message]}),
             update={
-                "handoff_log": [initial],
-                "current_agent": initial["target_agent"],
-                "current_phase": initial.get("project_phase", "scoping"),
+                "handoff_log": [record],
+                "current_agent": target,
+                "current_phase": record.get("project_phase", "scoping"),
             },
         )
-
-    # --- 2. Re-entry: route into mounted role subgraph for handoff_log[-1] ------
-    active = state["handoff_log"][-1]
-    await _upsert_projects_registry(state, active, runtime.store)
-    return Command(goto=active["target_agent"])
+    else:
+        # Re-entry: route to target with handoff message
+        return Command(goto=Send(target, {"messages": [handoff_message]}))
 ```
 
-**How routing actually works.** When `dispatch_handoff` emits `Command(goto="project_manager")`, LangGraph's Pregel loop schedules the `project_manager` node. That node is a mounted Deep Agent subgraph (`builder.add_node("project_manager", pm_compiled_graph)`). Pregel invokes the subgraph with parent state filtered through the subgraph's own `input_schema=_InputAgentState` (messages only). The subgraph runs until one of its internal nodes emits a Command. If a handoff tool emits `Command(graph=PARENT, goto="dispatch_handoff", update={...})`, the inner Pregel raises `ParentCommand`; the outer Pregel catches it, applies the update to PCG state via reducers, and re-enters `dispatch_handoff`. If `finish_to_user` emits `Command(graph=PARENT, goto=END, update={...})`, the outer Pregel applies the `messages` update and terminates the graph. Natural completion of a role subgraph is not expected and should be prevented by the final-turn-guard middleware.
+**How routing actually works.** When `dispatch_handoff` emits `Command(goto=Send("project_manager", {"messages": [handoff_message]}))`, LangGraph's Pregel loop:
+1. Maps the `Send` to the `TASKS` channel (`.venv/lib/python3.11/site-packages/langgraph/pregel/_io.py:66-67`)
+2. Creates a PUSH task where `packet.arg` (the `{"messages": [...]}` dict) is passed directly as the subgraph's input (`.venv/lib/python3.11/site-packages/langgraph/pregel/_algo.py:1002`)
+3. The mounted Deep Agent subgraph receives the input filtered through its `_InputAgentState` schema — only `messages` is accepted
+4. The subgraph runs until one of its internal nodes emits a Command. If a handoff tool emits `Command(graph=PARENT, goto="dispatch_handoff", update={...})`, the inner Pregel raises `ParentCommand`; the outer Pregel catches it, applies the update to PCG state via reducers, and re-enters `dispatch_handoff`. If `finish_to_user` emits `Command(graph=PARENT, goto=END, update={...})`, the outer Pregel applies the `messages` update and terminates the graph. Natural completion of a role subgraph is not expected and should be prevented by the final-turn-guard middleware.
 
 ## 9. Growth, Cap, and Migration Notes
 
@@ -352,3 +492,9 @@ Implementation must pass at least these assertions:
 5. `current_phase == <most recent non-null HandoffRecord.project_phase> or <previously-set lifecycle phase>` after every handoff (denormalization consistency). `plan_phase_id` must never drive `current_phase`.
 6. `Store` writes to `projects_registry` occur on every handoff (fuzz: random-length handoff chains, verify registry matches last record).
 7. Developer's filesystem permissions do not include read access to `projects/{project_id}/optimization_trendline` (permission-layer unit test).
+8. **Receiving-agent input contains rendered HandoffRecord packet, not raw PCG messages.** Given a mounted role subgraph with a spy node that captures its input, when `dispatch_handoff` routes to that role, the spy receives exactly one `HumanMessage` with:
+   - `content` containing the formatted handoff packet per §8.3
+   - `role == "user"`
+   - The `brief` text from `HandoffRecord` appears verbatim in the content
+   - The `artifact_paths` are rendered as a bullet list
+   The raw PCG `messages` channel MUST NOT appear in the child's input (structural assertion via `_InputAgentState` schema filtering).
