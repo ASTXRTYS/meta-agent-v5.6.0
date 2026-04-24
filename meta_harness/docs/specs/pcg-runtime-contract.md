@@ -10,8 +10,8 @@ owners: ["@Jason"]
 ---
 # PCG Runtime Contract Specification
 
-> **Provenance:** Derived from `AD.md §4 PM Session And Project Entry Model`, `§4 Identity Linkage and Cardinality`, and `§4 LangGraph Project Coordination Graph Factory Contract`.  
-> **Status:** Active · **Last synced with AD:** 2026-04-24  
+> **Provenance:** Derived from `AD.md §4 PM Session And Project Entry Model`, `§4 Identity Linkage and Cardinality`, and `§4 LangGraph Project Coordination Graph Factory Contract`.
+> **Status:** Active · **Last synced with AD:** 2026-04-24 (org identity bridge synced for Ticket 6 / Project Data Plane)
 > **Consumers:** Developer (graph factory implementation), Agent Server callers (web app, headless ingress adapters, PM session tools), Evaluator (conformance checking).
 
 ## 1. Purpose
@@ -32,7 +32,7 @@ The parent AD names `ProjectCoordinationInput`, `ProjectCoordinationContext`, an
 **Key invariants from AD:**
 - `project_thread_id` may equal `project_id` in local/dev by convention, but that is not the definition of `project_id`.
 - `pm_session` is not a second PM identity and not a `ProjectCoordinationState` key. It is a LangGraph thread with metadata `thread_kind = "pm_session"`.
-- The link from a project back to its originating `pm_session` (if any) lives in the `projects_registry` Store namespace as a nullable `pm_session_thread_id` field. `null` denotes UI-onboarding path (no originating session).
+- The link from a project back to its originating `pm_session` (if any) lives in the Project Data Plane `project_registry` record as a nullable `pm_session_thread_id` field. `null` denotes UI-onboarding path (no originating session).
 - A single `pm_session` thread may spawn multiple `project` threads over its lifetime (one-to-many, append never overwrite).
 - PM session threads and project threads are fully independent LangGraph threads; they do not share a Pregel namespace hierarchy.
 
@@ -45,6 +45,7 @@ class AutonomousModeConfig(TypedDict, total=False):
     enabled: bool
 
 class ProjectCoordinationInput(TypedDict, total=False):
+    org_id: str
     project_id: str
     project_thread_id: str | None
     pm_session_thread_id: str | None
@@ -57,24 +58,25 @@ class ProjectCoordinationInput(TypedDict, total=False):
 
 | Field | Type | Required | Source | Purpose |
 |-------|------|----------|--------|---------|
-| `project_id` | `str` | Yes | Caller (web app, headless ingress, PM tool) or system-generated (UI-onboarding) | Durable Meta Harness project identity. Used as the primary key in Store namespaces (`projects_registry`, `artifact_manifest`, `optimization_trendline`). |
+| `org_id` | `str` | Yes | Authenticated surface/backend, PM tool, or headless ingress adapter | Tenant identity used by Project Data Plane rows and authorization. Must match thread metadata `org_id`. |
+| `project_id` | `str` | Yes | Caller (web app, headless ingress, PM tool) or system-generated (UI-onboarding) | Durable Meta Harness project identity. Used as the primary key in Project Data Plane records (`project_registry`, `artifact_manifest`, `optimization_trendline`). |
 | `project_thread_id` | `str \| None` | No | Caller (web app, headless ingress, PM tool) or LangGraph Agent Server (if omitted, SDK generates UUID) | Canonical LangGraph thread for project execution. If omitted, the Agent Server generates a UUID. Must equal the `thread_id` of the LangGraph thread on which the PCG runs. |
-| `pm_session_thread_id` | `str \| None` | No | Caller (web app onboarding flow) or PM tool (chat-driven path) | Link back to originating `pm_session` thread. `null` denotes UI-onboarding path (no originating session). Stored in `projects_registry.pm_session_thread_id`. |
+| `pm_session_thread_id` | `str \| None` | No | Caller (web app onboarding flow) or PM tool (chat-driven path) | Link back to originating `pm_session` thread. `null` denotes UI-onboarding path (no originating session). Stored in `project_registry.pm_session_thread_id`. |
 | `initial_stakeholder_input` | `str` | Yes | Caller (web app onboarding form, headless ingress payload, PM tool synthesis) | The initial stakeholder request that becomes the first PM turn. Synthesized by `dispatch_handoff` into the initial `HandoffRecord` with `source_agent="system"`, `target_agent="project_manager"`, `reason="coordinate"`. |
 | `initial_artifact_paths` | `list[str] \| None` | No | Caller (web app onboarding file upload, headless ingress attachment list) | Optional filesystem paths to pre-existing artifacts (e.g. uploaded PRD, reference spec). Included in the initial `HandoffRecord.artifact_paths`. |
 | `autonomous_mode_config` | `AutonomousModeConfig \| None` | No | Caller (headless ingress adapter, future web app autonomous toggle) | Runtime toggle for autonomous execution. `enabled=true` means approval gates auto-approve as specified in `approval-and-gate-contracts.md`; timeout policies and checkpoint cadence remain future decisions. |
 
 ### Field sourcing rules
 
-- **UI-onboarding path:** The web app backend calls `client.threads.create(metadata={"thread_kind": "project"}, thread_id=<caller-provided-or-generated>)` then `client.runs.create(thread_id=..., input={...ProjectCoordinationInput...})`. The web app provides `project_id`, `pm_session_thread_id=null`, `initial_stakeholder_input`, and optionally `initial_artifact_paths`. The Agent Server generates `project_thread_id` if omitted.
-- **Chat-driven path:** The PM's `spawn_project` tool calls the Agent Server thread-create API from inside its execution context. The PM provides `project_id` (or requests system generation), `pm_session_thread_id` (the current PM session's thread_id), `initial_stakeholder_input` (synthesized from conversation context), and optionally `initial_artifact_paths`. The Agent Server generates `project_thread_id` if omitted.
-- **Headless ingress path:** The ingress adapter (Slack, email, Discord, GitHub, Linear) calls the Agent Server APIs directly. The adapter provides `project_id` (if resuming) or requests system generation, `pm_session_thread_id=null` (headless has no PM session), `initial_stakeholder_input` (parsed from ingress event), and optionally `initial_artifact_paths` (attachments).
+- **UI-onboarding path:** The web app backend calls `client.threads.create(metadata={"thread_kind": "project", "org_id": org_id}, thread_id=<caller-provided-or-generated>)` then `client.runs.create(thread_id=..., input={...ProjectCoordinationInput...})`. The web app provides `org_id`, `project_id`, `pm_session_thread_id=null`, `initial_stakeholder_input`, and optionally `initial_artifact_paths`. The Agent Server generates `project_thread_id` if omitted.
+- **Chat-driven path:** The PM's `spawn_project` tool calls the Agent Server thread-create API from inside its execution context. The PM provides `org_id` from the current PM session thread metadata, `project_id` (or requests system generation), `pm_session_thread_id` (the current PM session's thread_id), `initial_stakeholder_input` (synthesized from conversation context), and optionally `initial_artifact_paths`. The Agent Server generates `project_thread_id` if omitted.
+- **Headless ingress path:** The ingress adapter (Slack, email, Discord, GitHub, Linear) calls the Agent Server APIs directly. The adapter resolves `org_id`, provides `project_id` (if resuming) or requests system generation, sets `pm_session_thread_id=null` (headless has no PM session), provides `initial_stakeholder_input` (parsed from ingress event), and optionally provides `initial_artifact_paths` (attachments).
 
 ### Idempotency behavior
 
 Repeated project-spawn attempts with the same `project_id`:
 - **If `project_thread_id` is provided:** The caller asserts a specific thread identity. If a thread with that `thread_id` already exists, the behavior depends on the LangGraph SDK `if_exists` parameter passed to `threads.create()`. Meta Harness callers SHOULD use `if_exists="do_nothing"` and validate that the existing thread's `thread_kind="project"` metadata matches expectations before proceeding.
-- **If `project_thread_id` is omitted:** The Agent Server generates a new UUID on each call. Multiple calls with the same `project_id` but omitted `project_thread_id` create multiple distinct threads — this is a caller error. The `projects_registry` enforces `project_id` uniqueness at the Store level (one registry entry per `project_id`).
+- **If `project_thread_id` is omitted:** The Agent Server generates a new UUID on each call. Multiple calls with the same `project_id` but omitted `project_thread_id` create multiple distinct threads — this is a caller error. The Project Data Plane enforces `(org_id, project_id)` uniqueness and rejects conflicting `project_thread_id` values.
 
 ## 4. `ProjectCoordinationContext` Schema
 
@@ -116,6 +118,7 @@ The output schema defines what the PCG returns to external callers. This is the 
 ```python
 class ProjectCoordinationOutput(TypedDict, total=False):
     messages: list[AnyMessage]
+    org_id: str
     project_id: str
     project_thread_id: str
     current_phase: str
@@ -128,18 +131,19 @@ class ProjectCoordinationOutput(TypedDict, total=False):
 | Field | Type | Required | Source | Purpose |
 |-------|------|----------|--------|---------|
 | `messages` | `list[AnyMessage]` | Yes | PCG state `messages` channel (PM's `finish_to_user` tool) | User-facing output. Written only by the PM's terminal `finish_to_user` tool via `Command(graph=PARENT, goto=END, update={"messages": [AIMessage(...)]})`. |
+| `org_id` | `str` | Yes | PCG state `org_id` channel | Tenant identity echoed back to caller for confirmation and data-plane correlation. |
 | `project_id` | `str` | Yes | PCG state `project_id` channel | Durable project identity, echoed back to caller for confirmation. |
 | `project_thread_id` | `str` | Yes | PCG state `project_thread_id` channel | Canonical execution thread identity, echoed back to caller. |
 | `current_phase` | `str` | Yes | PCG state `current_phase` channel | Lifecycle phase at graph completion. |
 | `current_agent` | `str \| None` | No | PCG state `current_agent` channel | Which agent was active when the graph completed. `None` if graph terminated without an active agent (e.g. terminal emission). |
-| `status` | `Literal["active", "paused", "completed", "failed"]` | Yes | Derived from `projects_registry` or termination condition | Project status at graph completion. Set to `"completed"` on PM's `finish_to_user` terminal emission. Set to `"failed"` on unhandled exception. Set to `"paused"` on interrupt (HITL). Default `"active"` otherwise. |
+| `status` | `Literal["active", "paused", "completed", "failed"]` | Yes | Derived from Project Data Plane `project_registry` or termination condition | Project status at graph completion. Set to `"completed"` on PM's `finish_to_user` terminal emission. Set to `"failed"` on unhandled exception. Set to `"paused"` on interrupt (HITL). Default `"active"` otherwise. |
 
 ### Output on resume
 
 When resuming a project thread (subsequent run on the same `project_thread_id`):
 - `messages` contains only the NEW messages written since the last checkpoint (the `add_messages` reducer appends).
 - Other fields reflect the current PCG state at resumption time.
-- The caller should distinguish "initial bootstrap output" (first run, `handoff_log` empty) from "resumption output" (subsequent run, `handoff_log` non-empty) by checking the run history or the `projects_registry.last_handoff_at` timestamp.
+- The caller should distinguish "initial bootstrap output" (first run, `handoff_log` empty) from "resumption output" (subsequent run, `handoff_log` non-empty) by checking the run history or the Project Data Plane `project_registry.last_handoff_at` timestamp.
 
 ## 6. Thread Metadata Contract
 
@@ -148,6 +152,7 @@ Every LangGraph thread created for Meta Harness MUST include the following metad
 | Key | Value | Required | Thread kind |
 |-----|-------|----------|-------------|
 | `thread_kind` | `"pm_session"` or `"project"` | Yes | Both |
+| `org_id` | `str` | Yes | Both |
 | `project_id` | `str` (the durable project identity) | Yes for `project` threads | `project` only |
 | `pm_session_thread_id` | `str \| None` | No (null for UI-onboarding) | `project` only |
 | `autonomous_mode` | `bool` | No (defaults false) | `project` only |
@@ -196,11 +201,10 @@ On first PCG invocation (empty `handoff_log`), the `dispatch_handoff` coordinati
    - `project_id`, `project_thread_id`: from PCG state (populated from input on first invocation)
    - `handoff_id`: generated (e.g. `uuid4()`)
    - `langsmith_run_id`: from `runtime.execution_info.run_id`
-   - `status`: `"queued"`
    - `created_at`: RFC3339 timestamp
-3. Appends the synthesized record to `handoff_log` via the initial state update.
+3. Copies `org_id` from input/thread metadata into PCG state and appends the synthesized record to `handoff_log` via the initial state update.
 4. Sets `current_agent = "project_manager"` and `current_phase = "scoping"` via the initial state update.
-5. Constructs the handoff message per `pcg-data-contracts.md §8.3` and emits `Command(goto=Send("project_manager", child_input))`, where `child_input` contains the handoff message and PM's `pcg_gate_context`.
+5. Constructs the handoff message per `pcg-data-contracts.md §9.3` and emits `Command(goto=Send("project_manager", child_input))`, where `child_input` contains the handoff message and PM's `pcg_gate_context`.
 
 This ensures the initial PM turn receives the stakeholder request as a formatted handoff message, identical to subsequent inter-agent handoffs. The PCG `messages` channel remains empty until the PM's terminal `finish_to_user` tool writes to it.
 
@@ -208,7 +212,7 @@ This ensures the initial PM turn receives the stakeholder request as a formatted
 
 1. User completes onboarding flow in web app.
 2. Web app backend collects `project_id` (or requests system generation), `initial_stakeholder_input`, and optional `initial_artifact_paths`.
-3. Web app backend calls `client.threads.create(metadata={"thread_kind": "project", "project_id": project_id, "pm_session_thread_id": None}, thread_id=<caller-provided-or-generated>)`.
+3. Web app backend calls `client.threads.create(metadata={"thread_kind": "project", "org_id": org_id, "project_id": project_id, "pm_session_thread_id": None}, thread_id=<caller-provided-or-generated>)`.
 4. Web app backend calls `client.runs.create(thread_id=project_thread_id, input={ProjectCoordinationInput...}, assistant_id="meta-harness-project-coordination-graph")`.
 5. Agent Server invokes the PCG with the provided input.
 6. `dispatch_handoff` executes the first-invocation contract (§7.1).
@@ -218,7 +222,7 @@ This ensures the initial PM turn receives the stakeholder request as a formatted
 
 1. User chats with PM on a `pm_session` thread.
 2. PM perceives readiness and calls session-scoped `spawn_project` tool with synthesized `initial_stakeholder_input`.
-3. `spawn_project` tool body calls `client.threads.create(metadata={"thread_kind": "project", "project_id": project_id, "pm_session_thread_id": runtime.execution_info.thread_id}, thread_id=<caller-provided-or-generated>)` from inside its execution context.
+3. `spawn_project` tool body calls `client.threads.create(metadata={"thread_kind": "project", "org_id": org_id, "project_id": project_id, "pm_session_thread_id": runtime.execution_info.thread_id}, thread_id=<caller-provided-or-generated>)` from inside its execution context.
 4. Tool returns `{project_id, project_thread_id, status}` to the PM and (via tool output) to the surface.
 5. Surface backend calls `client.runs.create(thread_id=project_thread_id, input={ProjectCoordinationInput...}, assistant_id="meta-harness-project-coordination-graph")`.
 6. Agent Server invokes the PCG with the provided input.
@@ -230,7 +234,7 @@ This ensures the initial PM turn receives the stakeholder request as a formatted
 1. Ingress event arrives (Slack message, email, GitHub issue, Linear ticket, etc.).
 2. Ingress adapter parses the event into `initial_stakeholder_input` and optional `initial_artifact_paths`.
 3. Ingress adapter determines if this is a new project (no existing `project_id` binding) or a resumption (existing `project_id` in adapter state).
-4. For new project: adapter calls `client.threads.create(metadata={"thread_kind": "project", "project_id": <generated-or-provided>, "pm_session_thread_id": None})` then `client.runs.create(thread_id=project_thread_id, input={ProjectCoordinationInput...})`.
+4. For new project: adapter calls `client.threads.create(metadata={"thread_kind": "project", "org_id": org_id, "project_id": <generated-or-provided>, "pm_session_thread_id": None})` then `client.runs.create(thread_id=project_thread_id, input={ProjectCoordinationInput...})`.
 5. For resumption: adapter calls `client.runs.create(thread_id=existing_project_thread_id, input={ProjectCoordinationInput...})` with `initial_stakeholder_input` set to the new user message.
 6. Agent Server invokes the PCG.
 7. For new project: `dispatch_handoff` executes the first-invocation contract (§7.1).
@@ -280,7 +284,7 @@ The graph-level `input_schema` MUST be a superset of the node's input schema for
 - The node function signature accepts `DispatchHandoffInput`
 - LangGraph registers `DispatchHandoffInput` in `self.schemas` and the node reads from those channels
 
-**Approach B: Bootstrap fields in state schema (not recommended)**
+**Approach B: Bootstrap fields in state schema (rejected)**
 - Add `initial_stakeholder_input` and `initial_artifact_paths` to `ProjectCoordinationState`
 - These become persistent state channels
 - Violates the invariant that PCG state is only for coordination data
@@ -293,6 +297,7 @@ This spec uses **Approach A** to keep bootstrap fields transient (only on first 
 class DispatchHandoffInput(TypedDict, total=False):
     # Inherits all ProjectCoordinationState channels
     messages: list[AnyMessage]
+    org_id: str
     project_id: str
     project_thread_id: str
     current_phase: Literal["scoping","research","architecture","planning","development","acceptance"]
@@ -328,7 +333,7 @@ On first invocation, bootstrap fields are populated from graph-level `ProjectCoo
 
 **Conflict resolved:** PCG `messages` is described as PM-terminal user output, while initial project bootstrap uses stakeholder input to create the first handoff.
 
-**Resolution:** The `messages` channel is strictly the user-facing I/O conduit written ONLY by the PM's `finish_to_user` tool. Initial stakeholder input does NOT flow through `messages` at all. It flows through `ProjectCoordinationInput.initial_stakeholder_input`, which `dispatch_handoff` synthesizes into the initial `HandoffRecord` on first invocation. The handoff brief is then passed to the PM via the `Send` payload as the child's `messages` input (per `pcg-data-contracts.md §8.2`). This preserves the invariant that PCG `messages` contains only PM-terminal output, while still giving the PM the stakeholder input as its first turn.
+**Resolution:** The `messages` channel is strictly the user-facing I/O conduit written ONLY by the PM's `finish_to_user` tool. Initial stakeholder input does NOT flow through `messages` at all. It flows through `ProjectCoordinationInput.initial_stakeholder_input`, which `dispatch_handoff` synthesizes into the initial `HandoffRecord` on first invocation. The handoff brief is then passed to the PM via the `Send` payload as the child's `messages` input (per `pcg-data-contracts.md §9.2`). This preserves the invariant that PCG `messages` contains only PM-terminal output, while still giving the PM the stakeholder input as its first turn.
 
 **On resume:** Subsequent runs on the same `project_thread_id` receive user input via the `input` parameter to `runs.create()`. The caller provides a new `ProjectCoordinationInput` with a fresh `initial_stakeholder_input`. `dispatch_handoff` treats this as a new handoff from "system" to the current agent, synthesizes a `HandoffRecord`, and routes accordingly. The PCG `messages` channel remains empty until the PM's next `finish_to_user` emission.
 
@@ -354,6 +359,7 @@ class AutonomousModeConfig(TypedDict, total=False):
     enabled: bool
 
 class ProjectCoordinationInput(TypedDict, total=False):
+    org_id: str
     project_id: str
     project_thread_id: str | None
     pm_session_thread_id: str | None
@@ -367,6 +373,7 @@ class ProjectCoordinationContext(TypedDict, total=False):
 
 class ProjectCoordinationOutput(TypedDict, total=False):
     messages: list[AnyMessage]
+    org_id: str
     project_id: str
     project_thread_id: str
     current_phase: str
@@ -389,12 +396,13 @@ See `docs/specs/repo-and-workspace-layout.md §3` for the full factory contract.
 
 Implementation must pass at least these assertions:
 
-1. **Thread metadata completeness.** Given a thread created by the web app backend or PM session tool, the thread's metadata dict contains keys `thread_kind`, `project_id` (for `project` threads), and optionally `pm_session_thread_id`. Missing required keys is a rejection condition.
+1. **Thread metadata completeness.** Given a thread created by the web app backend or PM session tool, the thread's metadata dict contains keys `thread_kind`, `org_id`, `project_id` (for `project` threads), and optionally `pm_session_thread_id`. Missing required keys is a rejection condition.
 2. **First-invocation input isolation.** Given a first PCG invocation with `ProjectCoordinationInput.initial_stakeholder_input="build a chatbot"`, the PCG state `messages` channel is empty after `dispatch_handoff` completes. The stakeholder input appears only in the synthesized `HandoffRecord.brief` and in the PM's child input via `Send`.
-3. **Bootstrap handoff record shape.** Given a first PCG invocation, the synthesized `HandoffRecord` has `source_agent="system"`, `target_agent="project_manager"`, `reason="coordinate"`, `status="queued"`, and non-empty `brief` matching the input.
-4. **UI-onboarding null pm_session_thread_id.** Given a project created via the UI-onboarding path, the `projects_registry` entry for that project has `pm_session_thread_id=null`.
-5. **Chat-driven pm_session_thread_id linkage.** Given a project created via the chat-driven path, the `projects_registry` entry for that project has `pm_session_thread_id` equal to the originating PM session's thread_id.
+3. **Bootstrap handoff record shape.** Given a first PCG invocation, the synthesized `HandoffRecord` has `source_agent="system"`, `target_agent="project_manager"`, `reason="coordinate"`, and non-empty `brief` matching the input.
+4. **UI-onboarding null pm_session_thread_id.** Given a project created via the UI-onboarding path, the Project Data Plane `project_registry` entry for that project has `pm_session_thread_id=null`.
+5. **Chat-driven pm_session_thread_id linkage.** Given a project created via the chat-driven path, the Project Data Plane `project_registry` entry for that project has `pm_session_thread_id` equal to the originating PM session's thread_id.
 6. **Output schema derivation.** Given a completed PCG run, the output dict contains all keys from `ProjectCoordinationOutput` with non-null values where required. Missing required keys is a rejection condition.
 7. **Context injection.** Given a PCG node function with `runtime: Runtime[ProjectCoordinationContext]` parameter, `runtime.execution_info.thread_id` equals the LangGraph thread ID and `runtime.execution_info.run_id` equals the LangGraph run ID.
 8. **Idempotency with explicit project_thread_id.** Given two `threads.create` calls with the same `project_thread_id` and `if_exists="do_nothing"`, the second call returns the existing thread without error and the thread's metadata is unchanged.
 9. **Autonomous config bridge.** Given `ProjectCoordinationInput.autonomous_mode_config={"enabled": True}`, the run submission includes `config={"configurable": {"autonomous_mode": True}}`, and PM's `request_approval` tool observes `runtime.config["configurable"]["autonomous_mode"] is True`.
+10. **Org identity bridge.** Given a project run with `ProjectCoordinationInput.org_id`, `dispatch_handoff` writes the same value into PCG state and Project Data Plane operations receive that `org_id`.

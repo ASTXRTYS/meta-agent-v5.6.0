@@ -186,7 +186,7 @@ before finalizing payload shapes:
 - There is no conflict between initial stakeholder input and the `messages`
   channel invariant.
 
-## Ticket 3 — Mounted Role Persistence and Namespace Contract
+## Ticket 3 — Mounted Role Persistence and Namespace Contract *[Resolved]*
 
 ### Problem
 
@@ -259,7 +259,7 @@ The assignee must verify the exact semantics against the installed SDK:
 - The docs do not rely on a vague phrase like "stable checkpoint namespace"
   without defining the namespace source.
 
-## Ticket 4 — PCG Wire/Data Contract Repair
+## Ticket 4 — PCG Wire/Data Contract Repair *[Resolved]*
 
 ### Problem
 
@@ -330,7 +330,7 @@ spec set and SDK:
 - No line in the PCG data contract asks implementation to choose a cap,
   migration path, enum value, status transition, or correlation source.
 
-## Ticket 5 — Gate, Approval, and Terminal-Emission Contract
+## Ticket 5 — Gate, Approval, and Terminal-Emission Contract *[Resolved]*
 
 ### Problem
 
@@ -404,7 +404,7 @@ The assignee must verify middleware and tool behavior against source:
 - No prompt author is responsible for silently enforcing a runtime invariant
   that belongs in middleware or a tool contract.
 
-## Ticket 6 — Project Data Plane Contract
+## Ticket 6 — Project Data Plane Contract *[Resolved]*
 
 ### Problem
 

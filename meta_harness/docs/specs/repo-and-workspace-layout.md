@@ -11,7 +11,7 @@ owners: ["@Jason"]
 
 # Repository and Workspace Layout Specification
 
-> **Provenance:** Derived from `AD.md §4 Full Repo Structure Naming Decision`, `§4 LangGraph Project Coordination Graph Factory Contract`, and `§4 Project Workspace and Memory Structure Proposal`.  
+> **Provenance:** Derived from `AD.md §4 Full Repo Structure Naming Decision`, `§4 LangGraph Project Coordination Graph Factory Contract`, and `§4 Project Workspace and Memory Structure Proposal`.
 > **Status:** Active · **Last synced with AD:** 2026-04-24 (updated for `OQ-HO` resolution: 1 dispatcher + 7 mounted role subgraph nodes; `ROLE_GRAPHS` registry consumed at graph-construction time; **corrected routing primitive from string `goto` to `Send` for explicit child input injection per Ticket 1**; **added persistence contract for mounted role subgraphs per Ticket 3**).
 > **Consumers:** Developer (scaffolding, file creation), Evaluator (structural conformance).
 
@@ -250,12 +250,12 @@ otherwise `./graph.py:graph` is simpler. The role factories use
 
 - `dispatch_handoff` — The sole coordination node. On first invocation
   (empty `handoff_log`): synthesize an initial handoff record from
-  stakeholder input, validate, upsert `projects_registry`, return
+  stakeholder input, validate, call Project Data Plane `update_project_progress`, return
   `Command(goto=Send("project_manager", child_input), update={handoff_log, current_agent, current_phase})`.
   On re-entry triggered by a child-emitted
   `Command(graph=PARENT, goto="dispatch_handoff", update={...})`: read
   `handoff_log[-1]`, validate, construct `handoff_message` per
-  `pcg-data-contracts.md §8.3`, upsert `projects_registry`, return
+  `pcg-data-contracts.md §9.3`, call `update_project_progress`, return
   `Command(goto=Send(target_agent, child_input))`.
   Never invokes role graphs directly — LangGraph handles routing through
   the Pregel loop.

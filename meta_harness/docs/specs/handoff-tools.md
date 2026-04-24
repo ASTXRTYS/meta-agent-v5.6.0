@@ -68,19 +68,19 @@ for the full update contract.
 The PM additionally owns one **terminal-emission tool** that uses a
 different shape — see §1.3 and §4.7 (Category 7: Terminal Emission).
 
-## 1.2 Store-Side Effects
+## 1.2 Project Data Plane Side Effects
 
-Artifact-producing tools additionally write to the `artifact_manifest`
-`Store` namespace (`("projects", project_id, "artifact_manifest")`) so that
-any surface — TUI, web app, headless ingress, PM session threads — can
-enumerate project artifacts without walking role filesystems. Recommended
-implementation: a thin middleware hook on artifact-producing tools performs
-the Store write, keeping the tool body focused on the handoff contract.
+Artifact-producing tools additionally call Project Data Plane
+`register_artifact` so that any surface — TUI, web app, headless ingress, PM
+session threads — can enumerate project artifacts without walking role
+filesystems. A handoff or artifact-producing helper must not return a successful
+`Command.PARENT` for a newly visible artifact until registration succeeds or the
+agent receives recoverable feedback.
 
-The Harness Engineer's trendline-producing tool additionally writes to the
-`optimization_trendline` `Store` namespace. Developer filesystem
-permissions exclude this namespace (Developer info isolation). See
-`docs/specs/pcg-data-contracts.md §7`.
+The Harness Engineer's trendline-producing helper additionally calls
+`record_trendline_point`. Developer info isolation is enforced by tool
+availability and Project Data Plane data-access policy, not by filesystem
+permissions over LangGraph Store. See `docs/specs/project-data-plane.md`.
 
 ## 1.3 Every Turn Terminates with `Command.PARENT`
 
