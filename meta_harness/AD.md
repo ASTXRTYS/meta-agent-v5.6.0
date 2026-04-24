@@ -438,10 +438,9 @@ checkpoint_ns = "developer"                # Developer role state
 checkpoint_ns = "evaluator"                # Evaluator role state
 ```
 
-The exact namespace strings can change during implementation, but the invariant
-cannot: re-invoking the Harness Engineer for the same project must resume the
-Harness Engineer's role state, not the PM state and not a fresh ephemeral
-subagent task.
+**Persistence contract.** The PCG receives a concrete `BaseCheckpointSaver` instance (e.g., `PostgresSaver` in production, `SqliteSaver` in local/dev) from the Agent Server runtime configuration in hosted mode or from an explicit factory function in headless mode, and compiles with `checkpointer=<saver>`. Each role Deep Agent is compiled with `checkpointer=None` (inherits from parent). LangGraph's mounted-subgraph persistence uses the parent `thread_id` with a stable child `checkpoint_ns` derived from the node name. The stable namespace is the recast checkpoint namespace (role name without task ID), which LangGraph uses when resolving checkpoint storage for subgraphs with inherited checkpointers. Repeated handoffs to the same role resume from that stable namespace under the same `project_thread_id`.
+
+> Implementation detail (checkpointer mode, namespace semantics, SDK citations): see [`docs/specs/pcg-data-contracts.md`](./docs/specs/pcg-data-contracts.md) invariant #6 and [`docs/specs/repo-and-workspace-layout.md`](./docs/specs/repo-and-workspace-layout.md) §3.
 
 ### LangGraph Project Coordination Graph
 

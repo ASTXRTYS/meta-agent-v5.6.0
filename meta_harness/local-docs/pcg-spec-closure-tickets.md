@@ -113,7 +113,7 @@ specs. Treat the following as starting points, not conclusions:
   `target_agent` are rejected before routing.
 - No implementation author has to decide the child input shape from inference.
 
-## Ticket 2 — Project Thread Bootstrap, Context, Input, and Output
+## Ticket 2 — Project Thread Bootstrap, Context, Input, and Output *[resolved]*
 
 ### Problem
 

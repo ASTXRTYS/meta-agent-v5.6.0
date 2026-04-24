@@ -5,14 +5,14 @@ derived_from:
   - AD §4 LangGraph Project Coordination Graph Factory Contract
   - AD §4 Project Workspace and Memory Structure Proposal
 status: active
-last_synced: 2026-04-24
+last_synced: 2026-04-26
 owners: ["@Jason"]
 ---
 
 # Repository and Workspace Layout Specification
 
 > **Provenance:** Derived from `AD.md §4 Full Repo Structure Naming Decision`, `§4 LangGraph Project Coordination Graph Factory Contract`, and `§4 Project Workspace and Memory Structure Proposal`.  
-> **Status:** Active · **Last synced with AD:** 2026-04-24 (updated for `OQ-HO` resolution: 1 dispatcher + 7 mounted role subgraph nodes; `ROLE_GRAPHS` registry consumed at graph-construction time; **corrected routing primitive from string `goto` to `Send` for explicit child input injection per Ticket 1**).  
+> **Status:** Active · **Last synced with AD:** 2026-04-25 (updated for `OQ-HO` resolution: 1 dispatcher + 7 mounted role subgraph nodes; `ROLE_GRAPHS` registry consumed at graph-construction time; **corrected routing primitive from string `goto` to `Send` for explicit child input injection per Ticket 1**; **added persistence contract for mounted role subgraphs per Ticket 3**).  
 > **Consumers:** Developer (scaffolding, file creation), Evaluator (structural conformance).
 
 ## 1. Purpose
@@ -156,15 +156,40 @@ def _build_role_graphs() -> dict[str, Pregel]:
     Used at graph-construction time to mount each role as a subgraph node.
     The dispatcher routes into these nodes via Command(goto=<role_name>);
     it never invokes them directly.
+
+    Persistence contract: each role is compiled with checkpointer=None to
+    inherit the parent PCG's checkpointer at runtime. LangGraph's mounted-subgraph
+    persistence uses the parent thread_id with a stable child checkpoint_ns
+    derived from the node name. The stable namespace is the recast checkpoint
+    namespace (role name without task ID), which LangGraph uses when resolving
+    checkpoint storage for subgraphs with inherited checkpointers. This ensures
+    repeated handoffs to the same role resume from the stable namespace under
+    the same project_thread_id.
+
+    Inheritance mechanism: checkpointer=None does NOT bind the parent's checkpointer
+    instance at graph-construction time. Instead, LangGraph propagates the parent's
+    checkpointer to child subgraphs at runtime via CONFIG_KEY_CHECKPOINTER config
+    propagation. The parent Pregel passes its checkpointer in the task config
+    (_algo.py:715-718), and the child retrieves it from config with fallback to
+    self.checkpointer (main.py:1265-1266). When querying a subgraph's state,
+    the parent explicitly patches the config to pass its checkpointer
+    (main.py:1279-1281). The child's compiled checkpointer=None enables this
+    runtime inheritance by signaling "use the checkpointer from config."
+    (SDK verification: types.py:96-102 defines Checkpointer type with None=inherit;
+    state.py:1060 documents runtime inheritance; _algo.py:592-602 constructs task
+    namespaces; _config.py:34-45 defines recast_checkpoint_ns; _algo.py:715-718
+    shows CONFIG_KEY_CHECKPOINTER propagation during task execution;
+    main.py:1265-1266 shows checkpointer resolution from config;
+    main.py:1279-1281 shows parent patching config for subgraph state queries.)
     """
     return {
-        "project_manager": create_project_manager_agent(),
-        "harness_engineer": create_harness_engineer_agent(),
-        "researcher": create_researcher_agent(),
-        "architect": create_architect_agent(),
-        "planner": create_planner_agent(),
-        "developer": create_developer_agent(),
-        "evaluator": create_evaluator_agent(),
+        "project_manager": create_project_manager_agent(checkpointer=None),
+        "harness_engineer": create_harness_engineer_agent(checkpointer=None),
+        "researcher": create_researcher_agent(checkpointer=None),
+        "architect": create_architect_agent(checkpointer=None),
+        "planner": create_planner_agent(checkpointer=None),
+        "developer": create_developer_agent(checkpointer=None),
+        "evaluator": create_evaluator_agent(checkpointer=None),
     }
 
 
