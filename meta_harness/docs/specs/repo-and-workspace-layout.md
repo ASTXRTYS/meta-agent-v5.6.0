@@ -173,14 +173,16 @@ ROLE_GRAPHS = _build_role_graphs()
 
 def make_graph(...) -> CompiledStateGraph:
     builder = StateGraph(
-        ProjectCoordinationState,
-        context_schema=ProjectCoordinationContext,
-        input_schema=ProjectCoordinationInput,
-        output_schema=ProjectCoordinationOutput,
+        ProjectCoordinationState,  # from pcg-data-contracts.md
+        context_schema=ProjectCoordinationContext,  # from pcg-runtime-contract.md
+        input_schema=ProjectCoordinationInput,  # from pcg-runtime-contract.md
+        output_schema=ProjectCoordinationOutput,  # from pcg-runtime-contract.md
     )
 
     # Coordination node — returns Command(goto=<role>) to route.
-    builder.add_node("dispatch_handoff", dispatch_handoff)
+    # Uses node-level input schema to access bootstrap fields.
+    # See pcg-runtime-contract.md §8 for input-to-state mapping details.
+    builder.add_node("dispatch_handoff", dispatch_handoff, input_schema=DispatchHandoffInput)
 
     # Role Deep Agents mounted as subgraph nodes. No input_schema= needed —
     # each compiled Deep Agent declares _InputAgentState internally, and

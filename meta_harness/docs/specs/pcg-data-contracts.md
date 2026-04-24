@@ -37,6 +37,8 @@ owns the concrete model-visible tool definitions and composes both sources;
 code generation or implementation must not invent fields or tool schemas outside
 that combined contract.
 
+**Relationship to runtime contract spec.** This spec owns the internal PCG state schema (channels, reducers, `HandoffRecord`, `Command.PARENT` update contract). `docs/specs/pcg-runtime-contract.md` owns the Agent Server boundary contract: `ProjectCoordinationInput`, `ProjectCoordinationContext`, `ProjectCoordinationOutput` schemas, thread metadata, bootstrap behavior, and the mapping from external caller to PCG state initialization. The two specs are siblings: runtime bootstrap readers consult `pcg-runtime-contract.md`; PCG state channel readers consult this spec.
+
 ## 2. Topology Recap (informative)
 
 ```txt

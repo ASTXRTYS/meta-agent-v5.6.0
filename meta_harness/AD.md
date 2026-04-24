@@ -374,8 +374,9 @@ supported:
 Both paths converge on the same primitive: the Agent Server
 `threads.create(...)` API with `thread_kind = "project"` metadata and a
 pre-seeded initial state. Exact SDK call, pre-seed payload shape, and
-idempotency guards are spec territory (see `docs/specs/pcg-data-contracts.md`
-and spec derivations).
+idempotency guards are spec territory (see `docs/specs/pcg-runtime-contract.md`
+for input/context/output schemas and bootstrap behavior; see
+`docs/specs/pcg-data-contracts.md` for internal state contracts).
 
 #### Identity Linkage and Cardinality
 
@@ -403,6 +404,8 @@ continuity is achieved through the Store, project memory, artifact indexes,
 and (future) project-thread run submissions — never by merging checkpoints.
 PM session threads and project threads are fully independent LangGraph
 threads; they do not share a Pregel namespace hierarchy.
+
+> Implementation detail (thread identity linkage, `pm_session_thread_id` storage in `projects_registry`): see [`docs/specs/pcg-runtime-contract.md`](./docs/specs/pcg-runtime-contract.md).
 
 ### Headless Ingress vs Source Presence
 
@@ -999,6 +1002,9 @@ so `Command.PARENT` bubbles through the Pregel namespace hierarchy natively.
 Phase gate enforcement, HITL question surfacing, and routing intelligence
 are NOT PCG responsibilities. The PCG must not implement research,
 architecture, planning, development, eval-science, prompt composition,
+
+> Implementation detail (input/context/output schemas, thread metadata, bootstrap behavior): see [`docs/specs/pcg-runtime-contract.md`](./docs/specs/pcg-runtime-contract.md).
+> Implementation detail (internal state schema, reducers, `HandoffRecord`, `Command.PARENT` update contract): see [`docs/specs/pcg-data-contracts.md`](./docs/specs/pcg-data-contracts.md).
 phase gate logic, or provider/model request policy. Those remain in peer
 Deep Agent factories, SDK configuration calls, tool/prompt contracts, and
 middleware hooks.
@@ -1291,7 +1297,8 @@ Implementation contracts extracted from AD decisions under `docs/specs/`. See
 |---|---|---|---|
 | [`docs/specs/handoff-tools.md`](./docs/specs/handoff-tools.md) | §4 Handoff Protocol, §4 Handoff Tool Use-Case Matrix, §4 Pipeline Flow Diagram | Active (rewritten 2026-04-22 for `OQ-HO`; sibling-spec relationship clarified 2026-04-23) | 2026-04-23 |
 | [`docs/specs/handoff-tool-definitions.md`](./docs/specs/handoff-tool-definitions.md) | §4 Handoff Protocol, §4 Handoff Tool Use-Case Matrix, §4 Command.PARENT Update Contract, §4 Data Contracts | Active (created 2026-04-23 for `T-H1` / `OQ-H6`) | 2026-04-23 |
-| [`docs/specs/pcg-data-contracts.md`](./docs/specs/pcg-data-contracts.md) | §4 LangGraph Project Coordination Graph (State Schema), §4 Handoff Protocol (Command.PARENT Update Contract), §4 Data Contracts, §4 PM Session And Project Entry Model (Identity Linkage) | Active (rewritten 2026-04-22 for `OQ-HO`; identity naming harmonised 2026-04-22b; sibling-spec relationship clarified 2026-04-23) | 2026-04-23 |
+| [`docs/specs/pcg-data-contracts.md`](./docs/specs/pcg-data-contracts.md) | §4 LangGraph Project Coordination Graph (State Schema), §4 Handoff Protocol (Command.PARENT Update Contract), §4 Data Contracts, §4 PM Session And Project Entry Model (Identity Linkage) | Active (rewritten 2026-04-22 for `OQ-HO`; identity naming harmonised 2026-04-22b; sibling-spec relationship clarified 2026-04-23; runtime contract sibling added 2026-04-24) | 2026-04-24 |
+| [`docs/specs/pcg-runtime-contract.md`](./docs/specs/pcg-runtime-contract.md) | §4 PM Session And Project Entry Model, §4 Identity Linkage and Cardinality, §4 LangGraph Project Coordination Graph Factory Contract | Active (created 2026-04-24 for Ticket 2) | 2026-04-24 |
 | [`docs/specs/repo-and-workspace-layout.md`](./docs/specs/repo-and-workspace-layout.md) | §4 Repo and Workspace Layout, §4 LangGraph Project Coordination Graph Factory Contract, §4 Project Workspace and Memory Structure | Active (updated 2026-04-22 for `OQ-HO`) | 2026-04-22 |
 
 ---
