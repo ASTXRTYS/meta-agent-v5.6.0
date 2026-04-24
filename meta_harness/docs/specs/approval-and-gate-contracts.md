@@ -13,7 +13,7 @@ owners: ["@Jason"]
 # Approval and Gate Contracts Specification
 
 > **Provenance:** Derived from `AD.md §4 Phase Gate Middleware` (middleware hooks on handoff tools), `§4 Handoff Protocol` (two user-approval transitions), `§4 Handoff Tool Use-Case Matrix` (gated tool table), and `§4 Command.PARENT Update Contract` (state update shapes).
-> **Status:** Draft · **Last synced with AD:** 2026-04-24 (revised per EBDR-1 feedback: fixed final-turn guard jump_to routing; added StampKey type coherence; unified approval/rejection return pattern via Command.PARENT with feedback field; removed invalid ApprovalPersistenceMiddleware; restored dispatcher `goto` for handoff tools; added explicit `pcg_gate_context` bridge for role middleware; synchronized gate matrix and `request_approval` tool registration across specs).
+> **Status:** Draft · **Last synced with AD:** 2026-04-24 (revised per EBDR-1 feedback: fixed final-turn guard jump_to routing; added StampKey type coherence; unified approval/rejection return pattern via Command.PARENT with feedback field; removed invalid ApprovalPersistenceMiddleware; restored dispatcher `goto` for handoff tools; added explicit `pcg_gate_context` bridge for role middleware; synchronized gate matrix and `request_approval` tool registration across specs; clarified PM-session composition per Ticket 7).
 > **Consumers:** Developer (gate middleware implementation), Evaluator (conformance checking).
 
 ## 1. Purpose
@@ -1319,7 +1319,24 @@ Developer returns product to PM
   → PCG terminates
 ```
 
-### 12.4 Separation of Concerns
+### 12.4 PM-session Flow
+
+```txt
+User sends PM-session turn
+  → PCG session mode routes input to mounted PM
+  → PM may call ask_user for clarification
+  → PM may call session tools such as spawn_project or project-status reads
+  → PM calls finish_to_user
+  → PCG terminates the current session run
+```
+
+`request_approval` and phase-gate middleware are project-mode only. They are not
+model-visible on `pm_session` threads because session mode has no project
+handoff topology, no `pcg_gate_context`, and no `acceptance_stamps` parent state.
+`ask_user` and `finish_to_user` remain available to the PM in both modes. See
+`pcg-runtime-contract.md §7.5` for the session input/state contract.
+
+### 12.5 Separation of Concerns
 
 - `ask_user` (AskUserMiddleware): General human feedback loop, not tied to specific gates
 - `request_approval`: Structured approval checkpoint for specific lifecycle transitions, creates audit trail in `acceptance_stamps`

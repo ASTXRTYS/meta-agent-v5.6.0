@@ -12,7 +12,7 @@ owners: ["@Jason"]
 # PCG Data Contracts Specification
 
 > **Provenance:** Derived from `AD.md §4 LangGraph Project Coordination Graph` (state schema, topology, and invariants), `§4 Handoff Protocol → Command.PARENT Update Contract`, `§4 Data Contracts`, and `§4 PM Session And Project Entry Model`.
-> **Status:** Active · **Last synced with AD:** 2026-04-24 (rewritten for `OQ-HO` resolution; supersedes Q4 / Q10 / Q11 in `DECISIONS.md`; corrected to mount-as-subgraph pattern after review surfaced `.ainvoke()` / `Command.PARENT` incompatibility; clarified sibling relationship with `handoff-tools.md`; updated for `handoff-tool-definitions.md` field ownership and `project_phase` / `plan_phase_id` split; corrected routing primitive from string `goto` to `Send` for explicit child input injection per Ticket 1; added persistence contract and namespace semantics for mounted role subgraphs per Ticket 3; **repaired wire/data contract inconsistencies per Ticket 4: canonical snake_case role enums, removed unused status field, explicit langsmith_run_id fallback, no handoff_log cap, explicit type aliases, clarified acceptance truth semantics**; **restored dispatcher re-entry `goto` on normal handoff parent commands and added approval-result stamp feedback semantics per Ticket 5 feedback**; **moved product data-plane schemas to `project-data-plane.md` for Ticket 6 / `OQ-H5` closure**).
+> **Status:** Active · **Last synced with AD:** 2026-04-24 (rewritten for `OQ-HO` resolution; supersedes Q4 / Q10 / Q11 in `DECISIONS.md`; corrected to mount-as-subgraph pattern after review surfaced `.ainvoke()` / `Command.PARENT` incompatibility; clarified sibling relationship with `handoff-tools.md`; updated for `handoff-tool-definitions.md` field ownership and `project_phase` / `plan_phase_id` split; corrected routing primitive from string `goto` to `Send` for explicit child input injection per Ticket 1; added persistence contract and namespace semantics for mounted role subgraphs per Ticket 3; **repaired wire/data contract inconsistencies per Ticket 4: canonical snake_case role enums, removed unused status field, explicit langsmith_run_id fallback, no handoff_log cap, explicit type aliases, clarified acceptance truth semantics**; **restored dispatcher re-entry `goto` on normal handoff parent commands and added approval-result stamp feedback semantics per Ticket 5 feedback**; **moved product data-plane schemas to `project-data-plane.md` for Ticket 6 / `OQ-H5` closure**; **clarified PM-session state projection for Ticket 7**).
 > **Consumers:** Developer (implementation), Evaluator (conformance checking).
 
 ## 1. Purpose
@@ -148,6 +148,15 @@ authoritative description.
 The `ProjectCoordinationState` is a `TypedDict` with the following channels.
 Implementation may substitute a `dataclass` or Pydantic model provided the
 channel semantics (key names, types, reducer signatures) are preserved.
+
+**Mode scope.** This table is the full project-mode state contract. The same
+PCG envelope also runs `pm_session` threads, but session mode only populates the
+parent PCG `messages` and `org_id` channels. Project-only channels
+(`project_id`, `project_thread_id`, `current_phase`, `current_agent`,
+`handoff_log`, `acceptance_stamps`) remain unset or empty on `pm_session`
+threads; PM session project visibility comes from Project Data Plane tools, not
+from fake project state on the session thread. See
+`docs/specs/pcg-runtime-contract.md §2.1` and `§7.5`.
 
 
 | Channel | Type | Reducer | Purpose | Writers | Readers |

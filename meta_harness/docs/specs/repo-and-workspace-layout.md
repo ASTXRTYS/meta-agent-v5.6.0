@@ -12,7 +12,7 @@ owners: ["@Jason"]
 # Repository and Workspace Layout Specification
 
 > **Provenance:** Derived from `AD.md §4 Full Repo Structure Naming Decision`, `§4 LangGraph Project Coordination Graph Factory Contract`, and `§4 Project Workspace and Memory Structure Proposal`.
-> **Status:** Active · **Last synced with AD:** 2026-04-24 (updated for `OQ-HO` resolution: 1 dispatcher + 7 mounted role subgraph nodes; `ROLE_GRAPHS` registry consumed at graph-construction time; **corrected routing primitive from string `goto` to `Send` for explicit child input injection per Ticket 1**; **added persistence contract for mounted role subgraphs per Ticket 3**).
+> **Status:** Active · **Last synced with AD:** 2026-04-24 (updated for `OQ-HO` resolution: 1 dispatcher + 7 mounted role subgraph nodes; `ROLE_GRAPHS` registry consumed at graph-construction time; **corrected routing primitive from string `goto` to `Send` for explicit child input injection per Ticket 1**; **added persistence contract for mounted role subgraphs per Ticket 3**; **clarified dispatcher input for PM-session mode per Ticket 7**).
 > **Consumers:** Developer (scaffolding, file creation), Evaluator (structural conformance).
 
 ## 1. Purpose
@@ -211,7 +211,7 @@ def make_graph(...) -> CompiledStateGraph:
     )
 
     # Coordination node — returns Command(goto=Send(<role>, {...})) to route.
-    # Uses node-level input schema to access bootstrap fields.
+    # Uses node-level input schema to access bootstrap/session fields.
     # See pcg-runtime-contract.md §8 for input-to-state mapping details.
     builder.add_node("dispatch_handoff", dispatch_handoff, input_schema=DispatchHandoffInput)
 
