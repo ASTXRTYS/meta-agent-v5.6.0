@@ -41,13 +41,16 @@ The parent AD names `ProjectCoordinationInput`, `ProjectCoordinationContext`, an
 The input schema defines what external callers (web app, headless ingress adapters, PM session tools) provide when invoking the PCG. This is the `input_schema` parameter to the LangGraph `StateGraph` constructor.
 
 ```python
+class AutonomousModeConfig(TypedDict, total=False):
+    enabled: bool
+
 class ProjectCoordinationInput(TypedDict, total=False):
     project_id: str
     project_thread_id: str | None
     pm_session_thread_id: str | None
     initial_stakeholder_input: str
     initial_artifact_paths: list[str] | None
-    autonomous_mode_config: dict[str, Any] | None
+    autonomous_mode_config: AutonomousModeConfig | None
 ```
 
 ### Field table
@@ -59,7 +62,7 @@ class ProjectCoordinationInput(TypedDict, total=False):
 | `pm_session_thread_id` | `str \| None` | No | Caller (web app onboarding flow) or PM tool (chat-driven path) | Link back to originating `pm_session` thread. `null` denotes UI-onboarding path (no originating session). Stored in `projects_registry.pm_session_thread_id`. |
 | `initial_stakeholder_input` | `str` | Yes | Caller (web app onboarding form, headless ingress payload, PM tool synthesis) | The initial stakeholder request that becomes the first PM turn. Synthesized by `dispatch_handoff` into the initial `HandoffRecord` with `source_agent="system"`, `target_agent="project_manager"`, `reason="coordinate"`. |
 | `initial_artifact_paths` | `list[str] \| None` | No | Caller (web app onboarding file upload, headless ingress attachment list) | Optional filesystem paths to pre-existing artifacts (e.g. uploaded PRD, reference spec). Included in the initial `HandoffRecord.artifact_paths`. |
-| `autonomous_mode_config` | `dict[str, Any] \| None` | No | Caller (headless ingress adapter, future web app autonomous toggle) | Configuration for autonomous execution (e.g. approval gates auto-approve, timeout policies, checkpoint cadence). Spec-level detail deferred; placeholder for future decision. |
+| `autonomous_mode_config` | `AutonomousModeConfig \| None` | No | Caller (headless ingress adapter, future web app autonomous toggle) | Runtime toggle for autonomous execution. `enabled=true` means approval gates auto-approve as specified in `approval-and-gate-contracts.md`; timeout policies and checkpoint cadence remain future decisions. |
 
 ### Field sourcing rules
 
@@ -147,8 +150,35 @@ Every LangGraph thread created for Meta Harness MUST include the following metad
 | `thread_kind` | `"pm_session"` or `"project"` | Yes | Both |
 | `project_id` | `str` (the durable project identity) | Yes for `project` threads | `project` only |
 | `pm_session_thread_id` | `str \| None` | No (null for UI-onboarding) | `project` only |
+| `autonomous_mode` | `bool` | No (defaults false) | `project` only |
 
 **Enforcement:** The Agent Server does not enforce these metadata keys natively. Meta Harness callers (web app backend, PM session tools, headless ingress adapters) MUST include them. Conformance tests SHOULD verify that thread creation calls include the required metadata.
+
+### 6.1 Autonomous Mode Runtime Config Bridge
+
+LangGraph SDK run APIs accept a `config` argument (`runs.create(...,
+config=...)` / `runs.stream(..., config=...)`). Meta Harness callers MUST bridge
+the input/thread toggle into runnable config on every project run:
+
+```python
+autonomous_mode = bool(
+    input.get("autonomous_mode_config", {}).get("enabled")
+    if input.get("autonomous_mode_config") is not None
+    else thread_metadata.get("autonomous_mode", False)
+)
+
+client.runs.create(
+    thread_id=project_thread_id,
+    assistant_id="meta-harness-project-coordination-graph",
+    input=input,
+    config={"configurable": {"autonomous_mode": autonomous_mode}},
+)
+```
+
+The approval and terminal-emission spec reads only
+`runtime.config["configurable"]["autonomous_mode"]`. It does not read
+`ProjectCoordinationInput` or thread metadata directly. Missing
+`configurable.autonomous_mode` is treated as `False`.
 
 ## 7. Bootstrap Behavior
 
@@ -170,7 +200,7 @@ On first PCG invocation (empty `handoff_log`), the `dispatch_handoff` coordinati
    - `created_at`: RFC3339 timestamp
 3. Appends the synthesized record to `handoff_log` via the initial state update.
 4. Sets `current_agent = "project_manager"` and `current_phase = "scoping"` via the initial state update.
-5. Constructs the handoff message per `pcg-data-contracts.md §8.3` and emits `Command(goto=Send("project_manager", {"messages": [handoff_message]}))`.
+5. Constructs the handoff message per `pcg-data-contracts.md §8.3` and emits `Command(goto=Send("project_manager", child_input))`, where `child_input` contains the handoff message and PM's `pcg_gate_context`.
 
 This ensures the initial PM turn receives the stakeholder request as a formatted handoff message, identical to subsequent inter-agent handoffs. The PCG `messages` channel remains empty until the PM's terminal `finish_to_user` tool writes to it.
 
@@ -268,7 +298,7 @@ class DispatchHandoffInput(TypedDict, total=False):
     current_phase: Literal["scoping","research","architecture","planning","development","acceptance"]
     current_agent: Literal["project_manager","harness_engineer","researcher","architect","planner","developer","evaluator"]
     handoff_log: list[HandoffRecord]
-    acceptance_stamps: dict[Literal["application","harness"], HandoffRecord]
+    acceptance_stamps: dict[Literal["application","harness","scoping_to_research","architecture_to_planning"], HandoffRecord]
     # Bootstrap fields (only on first invocation)
     initial_stakeholder_input: str
     initial_artifact_paths: list[str] | None
@@ -304,7 +334,12 @@ On first invocation, bootstrap fields are populated from graph-level `ProjectCoo
 
 ## 10. Autonomous Mode Configuration
 
-**Status:** Placeholder. The `autonomous_mode_config` field in `ProjectCoordinationInput` is reserved for future decision. The AD does not yet specify autonomous execution semantics (approval gate auto-approval policies, timeout policies, checkpoint cadence, etc.). This field is included in the schema to avoid breaking changes when autonomous mode is designed, but its structure and semantics are undefined in v1.
+**Status:** Specified for approval and terminal-emission behavior. The
+`autonomous_mode_config.enabled` input field and optional
+`thread_metadata["autonomous_mode"]` field are bridged into
+`config={"configurable": {"autonomous_mode": bool}}` on every run. Approval-gate
+behavior is specified in `approval-and-gate-contracts.md`; timeout policies and
+checkpoint cadence remain future decisions.
 
 ## 10. Graph Factory Signature (updated for `repo-and-workspace-layout.md`)
 
@@ -315,13 +350,16 @@ from langgraph.graph import StateGraph, START
 from langgraph.pregel import Pregel
 from typing_extensions import TypedDict
 
+class AutonomousModeConfig(TypedDict, total=False):
+    enabled: bool
+
 class ProjectCoordinationInput(TypedDict, total=False):
     project_id: str
     project_thread_id: str | None
     pm_session_thread_id: str | None
     initial_stakeholder_input: str
     initial_artifact_paths: list[str] | None
-    autonomous_mode_config: dict[str, Any] | None
+    autonomous_mode_config: AutonomousModeConfig | None
 
 class ProjectCoordinationContext(TypedDict, total=False):
     execution_info: ExecutionInfo
@@ -359,3 +397,4 @@ Implementation must pass at least these assertions:
 6. **Output schema derivation.** Given a completed PCG run, the output dict contains all keys from `ProjectCoordinationOutput` with non-null values where required. Missing required keys is a rejection condition.
 7. **Context injection.** Given a PCG node function with `runtime: Runtime[ProjectCoordinationContext]` parameter, `runtime.execution_info.thread_id` equals the LangGraph thread ID and `runtime.execution_info.run_id` equals the LangGraph run ID.
 8. **Idempotency with explicit project_thread_id.** Given two `threads.create` calls with the same `project_thread_id` and `if_exists="do_nothing"`, the second call returns the existing thread without error and the thread's metadata is unchanged.
+9. **Autonomous config bridge.** Given `ProjectCoordinationInput.autonomous_mode_config={"enabled": True}`, the run submission includes `config={"configurable": {"autonomous_mode": True}}`, and PM's `request_approval` tool observes `runtime.config["configurable"]["autonomous_mode"] is True`.

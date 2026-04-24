@@ -27,18 +27,20 @@
 ```txt
 We will model PM, Harness Engineer, Researcher, Architect, Planner, Developer,
 and Evaluator as peer, stateful Deep Agent graphs mounted under a thin LangGraph
-Project Coordination Graph for project execution. LangGraph/LangSmith Agent
-Server is the runtime boundary for assistants, threads, runs, Store, auth,
-persistence, and queueing. The product uses two LangGraph thread kinds:
-`pm_session` and `project`. `thread_id` is checkpoint/conversation identity;
-`project_id` is durable project identity; `project_thread_id` is the canonical
-project execution thread (and may equal `project_id` in local/dev only by
-convention). PM session/intake handles non-project and cross-project PM
+Project Coordination Graph (PCG) envelope. The PCG runs in two modes keyed by
+LangGraph thread metadata: `pm_session` routes to the mounted PM child graph
+with the session tool surface active; `project` routes through the full
+project-execution topology with all mounted role graphs available. LangGraph /
+LangSmith Agent Server is the runtime boundary for assistants, threads, runs,
+Store, auth, persistence, and queueing. `thread_id` is checkpoint/conversation
+identity; `project_id` is durable project identity; `project_thread_id` is the
+canonical project execution thread (and may equal `project_id` in local/dev only
+by convention). PM session/intake handles non-project and cross-project PM
 conversation. Project creation creates a separate project thread and links it to
-the parent PM session. Project threads own a project-scoped execution environment
-(`project_thread_id -> execution_environment_id`) with managed sandbox/devbox as
-the default execution mode (Daytona default provider). Headless and first-party
-surfaces run the same lifecycle and contribution model.
+the parent PM session. Project threads own a project-scoped execution
+environment (`project_thread_id -> execution_environment_id`) with managed
+sandbox/devbox as the default execution mode (Daytona default provider).
+Headless and first-party surfaces run the same lifecycle and contribution model.
 ```
 
 ### Decision Badge
@@ -232,7 +234,7 @@ Vision.md promises optimization tuning and taste calibration during development,
 
 **Problem.** (Restatement of the "live-file access boundary" open question flagged in `DECISIONS.md` Q15(6) as "the single high-priority open question in `AD.md`", now articulated with explicit decision space.) When a user on a `pm_session` thread asks about the **current live state** of an actively-running project — e.g. *"what's in `src/handlers.py` in project X right now?"*, *"what did the Developer just write?"*, *"did the tests pass in the sandbox?"* — can PM-on-pm_session read the live execution-environment filesystem of the project, or is it limited to committed artifacts and project memory indexed at the last handoff?
 
-The tension: pm_session is architecturally **not** a participant in the project's PCG run; reading the live sandbox from outside the run introduces cross-thread cross-namespace reads against a potentially-mutating filesystem. But limiting pm_session to Store/memory reads significantly undercuts its usefulness in autonomous/long-running/headless scenarios where the user is monitoring a live project from Slack or the web app.
+The tension: pm_session is architecturally **not** a participant in the target project's project-mode PCG run; reading the live sandbox from outside that run introduces cross-thread cross-namespace reads against a potentially-mutating filesystem. But limiting pm_session to Store/memory reads significantly undercuts its usefulness in autonomous/long-running/headless scenarios where the user is monitoring a live project from Slack or the web app.
 
 **Decision space.**
 
@@ -265,15 +267,16 @@ External source or first-party UI event
   -> source identity resolution (adapter/UI)
   -> LangGraph/LangSmith Agent Server thread lookup or create
   -> run submission on selected thread
-      -> if thread_kind = "pm_session": PM Deep Agent (session tools active)
-      -> if thread_kind = "project": Project Coordination Graph
-          -> PM Deep Agent child graph (project tools active)
-          -> Harness Engineer Deep Agent child graph
-          -> Researcher Deep Agent child graph
-          -> Architect Deep Agent child graph
-          -> Planner Deep Agent child graph
-          -> Developer Deep Agent child graph
-          -> Evaluator Deep Agent child graph
+      -> Project Coordination Graph envelope
+          -> if thread_kind = "pm_session": PM Deep Agent child graph (session tools active)
+          -> if thread_kind = "project": dispatch_handoff coordination node
+              -> PM Deep Agent child graph (project tools active)
+              -> Harness Engineer Deep Agent child graph
+              -> Researcher Deep Agent child graph
+              -> Architect Deep Agent child graph
+              -> Planner Deep Agent child graph
+              -> Developer Deep Agent child graph
+              -> Evaluator Deep Agent child graph
 ```
 
 Agent Server is the runtime boundary for assistants, threads, runs, Store, auth,
@@ -281,20 +284,24 @@ persistence, and queueing. Meta Harness does not create a second thread runtime.
 
 The PM is one Deep Agent — one `create_deep_agent()` call, one identity, one
 memory source. It operates across two thread contexts distinguished by
-`thread_kind` metadata: `pm_session` and `project`. The PM's tool set adapts at
-runtime via middleware that reads `thread_kind` from thread metadata and
-conditionally includes session tools (project status, portfolio queries) or
-project tools (handoff tools, phase delivery). This is the same mechanism
-`FilesystemMiddleware` uses to conditionally expose `execute` based on backend
-capabilities — no separate graph compilation required.
+`thread_kind` metadata: `pm_session` and `project`. In both contexts, the PM is
+mounted as the `project_manager` child graph inside the PCG envelope. The PM's
+tool set adapts at runtime via middleware that reads `thread_kind` from thread
+metadata and conditionally includes session tools (project status, portfolio
+queries) or project tools (handoff tools, phase delivery). This is the same
+mechanism `FilesystemMiddleware` uses to conditionally expose `execute` based on
+backend capabilities — no separate PM graph compilation required.
 
-The Project Coordination Graph remains the canonical project execution boundary.
-When a `project` thread is active, the PM runs as a mounted Deep Agent
-subgraph node inside the PCG; the PCG's `dispatch_handoff` coordination node
-routes into it via `Command(goto="project_manager")` (see `AD.md §4 LangGraph
-Project Coordination Graph`). When a `pm_session` thread is active, the PM
-runs standalone with session-scoped tools. Same agent, different thread
-context, different tool surface.
+The Project Coordination Graph remains the canonical LangGraph application
+boundary. When a `project` thread is active, the PCG runs in project mode: its
+`dispatch_handoff` coordination node routes into the mounted PM via
+`Command(goto=Send("project_manager", child_input))` and may route among the
+other mounted role graphs (see `AD.md §4 LangGraph Project Coordination Graph`).
+When a `pm_session` thread is active, the same PCG envelope runs in session
+mode: it routes to the mounted PM child graph with session-scoped tools active
+and does not enter the project handoff topology unless the PM creates or
+switches into a `project` thread. Same agent, different thread context,
+different tool surface.
 
 ### Thread Identity Model
 
@@ -319,32 +326,37 @@ convention, not the definition of `project_id`.
 
 `pm_session` is not a second PM identity and not a `ProjectCoordinationState`
 key. It is a LangGraph thread with metadata `thread_kind = "pm_session"`. The
-PM Deep Agent runs standalone on these threads with session tools active.
+PCG runs on these threads in session mode and routes to the mounted PM child
+graph with session tools active.
 
 ### PM Session And Project Entry Model
 
 `pm_session` is the **default landing state** for every first-party and future
 headless surface (TUI, web app, and downstream Slack/email/Discord/GitHub/Linear
 adapters). Any entry event that is not explicitly bound to an existing
-`project_thread_id` runs the PM Deep Agent on a `pm_session` thread with
-session-scoped tools active.
+`project_thread_id` runs the PCG on a `pm_session` thread; the PCG session-mode
+entry path routes to the mounted PM child graph with session-scoped tools
+active.
 
-The PM Deep Agent on a `pm_session` thread and the PM Deep Agent mounted inside
-a PCG project thread **share the same root memory** — user preferences,
-cross-project knowledge, and session continuity are not fragmented across modes.
-The only runtime difference between the two modes is the **tool and skill
-surface** made available by the `thread_kind`-reading middleware: session tools
-(e.g. project status, portfolio queries, project creation) on `pm_session`;
-project tools (handoff tools, phase delivery) inside the PCG. System prompt
-conditioning is spec-level detail, but the memory invariant is architectural.
+The PM Deep Agent reached through a PCG `pm_session` thread and the PM Deep
+Agent reached through a PCG `project` thread **share the same root memory** —
+user preferences, cross-project knowledge, and session continuity are not
+fragmented across modes. The runtime difference between the two modes is the
+**tool and skill surface** made available by the `thread_kind`-reading
+middleware, plus the PCG route set made reachable by the active thread kind:
+session tools (e.g. project status, portfolio queries, project creation) on
+`pm_session`; project tools (handoff tools, phase delivery) and project role
+handoffs on `project`. System prompt conditioning is spec-level detail, but the
+memory invariant is architectural.
 
 #### Entry Routing
 
 ```txt
 if request is explicitly bound to a project_thread_id:
-    run Project Coordination Graph on that project thread
+    run Project Coordination Graph in project mode on that project thread
 else:
-    run PM Deep Agent on a pm_session thread (session tools active)
+    run Project Coordination Graph in session mode on a pm_session thread
+    route to mounted PM child graph (session tools active)
 ```
 
 #### Project Creation Transition
@@ -459,7 +471,10 @@ Its responsibilities are:
 
 - Accept the handoff command from a Deep Agent tool via `Command.PARENT`.
 - Record the handoff in Project Coordination Graph state.
-- Route to the target role Deep Agent by emitting `Command(goto=<target_agent_name>)`. Role Deep Agents are mounted as LangGraph subgraph nodes; routing is by name, not by direct invocation.
+- Route to the target role Deep Agent by emitting
+  `Command(goto=Send(<target_agent_name>, child_input))`.
+  Role Deep Agents are mounted as LangGraph subgraph nodes; routing is by
+  explicit `Send` input, not by direct invocation.
 - Preserve enough Project Coordination Graph state to reconstruct which agent handed work
   to whom, why, and with which artifact references.
 
@@ -478,14 +493,14 @@ Its non-responsibilities are equally important:
 
 | Node | Purpose |
 |---|---|
-| `dispatch_handoff` | The sole coordination node. On first invocation (empty `handoff_log`): synthesize an initial handoff record from stakeholder input, validate, upsert `projects_registry`, and return `Command(goto=Send(target_agent, {"messages": [handoff_message]}), update={handoff_log, current_agent, current_phase})`. On re-entry triggered by a child's `Command(graph=PARENT, goto="dispatch_handoff", update={...})`: read `handoff_log[-1]`, validate the handoff, upsert `projects_registry`, and return `Command(goto=Send(target_agent, {"messages": [handoff_message]}))`. The `Send` primitive passes the handoff brief directly as the child's `messages` input (`.venv/lib/python3.11/site-packages/langgraph/pregel/_io.py:66-67` yields `Send` to `TASKS` channel; `.venv/lib/python3.11/site-packages/langgraph/pregel/_algo.py:1002` passes `packet.arg` as task input). Never invokes role graphs directly — LangGraph handles routing through the Pregel loop. |
-| `project_manager` | Mounted PM Deep Agent subgraph (`create_deep_agent()` result). Entered via `Command(goto=Send("project_manager", {"messages": [handoff_message]}))`. Receives handoff as `messages` input per `_InputAgentState` schema (`.venv/lib/python3.11/site-packages/langchain/agents/middleware/types.py:358-361`). Exits via a handoff tool (`Command(graph=PARENT, goto="dispatch_handoff", update={...})`) or the terminal `finish_to_user` tool (`Command(graph=PARENT, goto=END, update={"messages": [AIMessage(...)]})`). |
-| `harness_engineer` | Mounted HE Deep Agent subgraph. Entered via `Command(goto=Send("harness_engineer", {"messages": [handoff_message]}))`. Receives handoff as `messages` input. Exits via a handoff tool. |
-| `researcher` | Mounted Researcher Deep Agent subgraph. Entered via `Command(goto=Send("researcher", {"messages": [handoff_message]}))`. Receives handoff as `messages` input. Exits via a handoff tool. |
-| `architect` | Mounted Architect Deep Agent subgraph. Entered via `Command(goto=Send("architect", {"messages": [handoff_message]}))`. Receives handoff as `messages` input. Exits via a handoff tool. |
-| `planner` | Mounted Planner Deep Agent subgraph. Entered via `Command(goto=Send("planner", {"messages": [handoff_message]}))`. Receives handoff as `messages` input. Exits via a handoff tool. |
-| `developer` | Mounted Developer Deep Agent subgraph. Entered via `Command(goto=Send("developer", {"messages": [handoff_message]}))`. Receives handoff as `messages` input. Exits via a handoff tool. |
-| `evaluator` | Mounted Evaluator Deep Agent subgraph. Entered via `Command(goto=Send("evaluator", {"messages": [handoff_message]}))`. Receives handoff as `messages` input. Exits via a handoff tool. |
+| `dispatch_handoff` | The sole coordination node. On first invocation (empty `handoff_log`): synthesize an initial handoff record from stakeholder input, validate, upsert `projects_registry`, and return `Command(goto=Send(target_agent, child_input), update={handoff_log, current_agent, current_phase})`. On re-entry triggered by a child's `Command(graph=PARENT, goto="dispatch_handoff", update={...})`: read `handoff_log[-1]`, validate the handoff, upsert `projects_registry`, and return `Command(goto=Send(target_agent, child_input))`. `child_input` always carries `messages: [handoff_message]` and carries `pcg_gate_context` for gated roles. The `Send` primitive passes `packet.arg` as task input (`.venv/lib/python3.11/site-packages/langgraph/pregel/_io.py:66-67`; `.venv/lib/python3.11/site-packages/langgraph/pregel/_algo.py:1002`). Never invokes role graphs directly — LangGraph handles routing through the Pregel loop. |
+| `project_manager` | Mounted PM Deep Agent subgraph (`create_deep_agent()` result). Entered via `Command(goto=Send("project_manager", child_input))`. Receives handoff as `messages` input and gate context as `pcg_gate_context` when applicable. Exits via a handoff tool (`Command(graph=PARENT, goto="dispatch_handoff", update={...})`), `request_approval` (`Command(graph=PARENT, goto=Send("project_manager", {...}), update={"acceptance_stamps": ...})`), or the terminal `finish_to_user` tool (`Command(graph=PARENT, goto=END, update={"messages": [AIMessage(...)]})`). |
+| `harness_engineer` | Mounted HE Deep Agent subgraph. Entered via `Command(goto=Send("harness_engineer", child_input))`. Receives handoff as `messages` input. Exits via a handoff tool. |
+| `researcher` | Mounted Researcher Deep Agent subgraph. Entered via `Command(goto=Send("researcher", child_input))`. Receives handoff as `messages` input. Exits via a handoff tool. |
+| `architect` | Mounted Architect Deep Agent subgraph. Entered via `Command(goto=Send("architect", child_input))`. Receives handoff as `messages` input and gate context as `pcg_gate_context`. Exits via a handoff tool. |
+| `planner` | Mounted Planner Deep Agent subgraph. Entered via `Command(goto=Send("planner", child_input))`. Receives handoff as `messages` input. Exits via a handoff tool. |
+| `developer` | Mounted Developer Deep Agent subgraph. Entered via `Command(goto=Send("developer", child_input))`. Receives handoff as `messages` input and gate context as `pcg_gate_context`. Exits via a handoff tool. |
+| `evaluator` | Mounted Evaluator Deep Agent subgraph. Entered via `Command(goto=Send("evaluator", child_input))`. Receives handoff as `messages` input. Exits via a handoff tool. |
 
 #### PCG State Schema (decisions)
 
@@ -531,7 +546,9 @@ tool returns `Command(graph=Command.PARENT, goto="dispatch_handoff",
 update=<handoff_payload>)` rather than directly invoking arbitrary peers. The
 PARENT command bubbles up through the Pregel namespace hierarchy; the PCG
 absorbs the update; `dispatch_handoff` re-enters and returns
-`Command(goto=<target_agent>)` to route into the next mounted role subgraph.
+`Command(goto=Send(<target_agent>, child_input))` to route into the next
+mounted role subgraph. `child_input` includes a `pcg_gate_context` projection
+for gated roles.
 
 A handoff should carry:
 
@@ -597,6 +614,16 @@ gate checks different things than the `(Architect, HE, submit)` gate. The
 `(source_agent, target_agent, reason)` triple tells the middleware which gate
 logic to apply.
 
+Mounted role middleware does not receive parent PCG state directly. LangGraph
+filters a mounted subgraph's input through that subgraph's declared
+`input_schema`, so gate middleware reads a projected `pcg_gate_context` child
+input prepared by `dispatch_handoff`, not `ProjectCoordinationState` itself.
+The gate middleware state schema accepts this projection as non-model-visible
+input and omits it from output. Direct parent-state reads from role middleware
+are invalid.
+
+> Implementation detail (full gate and approval contract): see [`docs/specs/approval-and-gate-contracts.md`](./docs/specs/approval-and-gate-contracts.md).
+
 #### Phase Gates
 
 Phase enum values: `scoping`, `research`, `architecture`, `planning`, `development`, `acceptance`.
@@ -608,7 +635,14 @@ Two transitions require **explicit user approval**; all others auto-advance:
 | `scoping` → `research` | PRD + eval suite + business-logic datasets, rendered as stakeholder-friendly document package | PM receives completed eval suite from HE, packages it, presents to user |
 | `architecture` → `planning` | Full design spec + tool schemas + system prompts, rendered as stakeholder-friendly document package | PM receives completed design from Architect, packages it, presents to user |
 
-**Approval mechanism:** The PM owns a dedicated tool that presents the document package (docx/pdf/pptx) to the user for review. The user can accept, request revisions, or provide feedback. The PM resumes on user response. This is prompt-driven — the PM decides when to invoke the tool based on its system prompt — not a PCG-level interrupt. Exact tool schema and document rendering format are delegated to the implementation spec.
+**Approval mechanism:** The PM owns a dedicated tool that presents the document
+package (docx/pdf/pptx) to the user for review. The user can accept, request
+revisions, or provide feedback. The tool persists a gate-specific stamp in
+`acceptance_stamps` and re-enters the mounted PM role with an explicit
+approval-result message; it does not append a handoff record or route through
+`dispatch_handoff`. This is prompt-driven — the PM decides when to invoke the
+tool based on its system prompt — not a PCG-level interrupt. Exact tool schema
+and document rendering format are delegated to the implementation spec.
 
 **Autonomous mode:** A runtime toggle that, when enabled, auto-advances all gates including the two approval gates. In autonomous mode the PM still packages the documents but does not pause for user review.
 
@@ -617,16 +651,16 @@ Two transitions require **explicit user approval**; all others auto-advance:
 #### PCG State Growth and Parent-to-Child Context Propagation
 
 **Child isolation is structural at the Deep Agent SDK layer.** Every role is
-a `create_deep_agent()` compiled graph that declares its own
-`input_schema=_InputAgentState` (messages only) and
-`output_schema=_OutputAgentState` (messages + optional `structured_response`
-only). `todos`, `files`, `jump_to`, and all middleware-private state carry
-`PrivateStateAttr` / `OmitFromOutput` annotations and are dropped structurally
-at the child's compile time. When mounted via `add_node(role, role_graph)`,
-LangGraph reads the subgraph's own declared input schema and only passes the
-shared `messages` channel between parent and child — no `input_schema=`
-parameter is needed on `add_node`, and no convention filter has to be
-enforced at runtime.
+a `create_deep_agent()` compiled graph. The base input schema accepts
+`messages`; gated roles extend their agent state schema with a
+non-model-visible `pcg_gate_context` input so middleware can evaluate PCG
+prerequisites after LangGraph filters the mounted subgraph input. The field is
+omitted from output. `todos`, `files`, `jump_to`, and middleware-private state
+carry `PrivateStateAttr` / `OmitFromOutput` annotations and are dropped
+structurally at the child's compile time. When mounted via
+`add_node(role, role_graph)`, LangGraph reads the subgraph's own declared input
+schema — no `input_schema=` parameter is needed on `add_node`, and no
+convention filter has to be enforced at runtime.
 
 **Output isolation is enforced by the handoff protocol.** Every role turn
 terminates by emitting `Command(graph=Command.PARENT, ...)` — specialists via
@@ -679,13 +713,21 @@ convention is `<verb>_<artifact|phase>_package_to_<role>`: the tool name reads
 as a sentence that tells both the calling agent and any maintainer exactly what
 is flowing where. Verb semantics encode blocking behavior (deliver/return/submit = blocking; consult/announce/ask/coordinate = non-blocking).
 
-Meta Harness v1 ships **24 tools total**: 23 handoff tools across six
-categories (Pipeline Delivery, Pipeline Return, Acceptance, Stage Review,
-Phase Review, Specialist Consultation) plus 1 terminal-emission tool
-(`finish_to_user`, PM-only, Category 7 Terminal Emission).
+Meta Harness v1 ships **25 model-visible tools total**: 23 handoff tools across
+six categories (Pipeline Delivery, Pipeline Return, Acceptance, Stage Review,
+Phase Review, Specialist Consultation), 1 terminal-emission tool
+(`finish_to_user`, PM-only), and 1 structured approval tool
+(`request_approval`, PM-only).
 
-**Acceptance gate logic for `return_product_to_pm`** reads the first-class `acceptance_stamps` channel.
-`state.acceptance_stamps["application"]` must be present (Evaluator stamp; always required). `state.acceptance_stamps["harness"]` is required only if the HE participated in the project thread; HE participation is derived by scanning `handoff_log` for any record with `source_agent == "harness_engineer"` or `target_agent == "harness_engineer"`.
+**Acceptance gate logic for `return_product_to_pm`** reads the first-class
+`acceptance_stamps` channel through the `pcg_gate_context` projection.
+`pcg_gate_context.acceptance_stamps["application"]` must be present with
+`accepted is True` (Evaluator stamp; always required).
+`pcg_gate_context.acceptance_stamps["harness"]` is required with
+`accepted is True` only if the HE participated in the project thread; HE
+participation is derived by scanning `pcg_gate_context.handoff_log` for any
+record with `source_agent == "harness_engineer"` or
+`target_agent == "harness_engineer"`.
 
 > Implementation detail (full tool matrix, agent-scoped ownership table, pipeline flow diagram): see [`docs/specs/handoff-tools.md`](./docs/specs/handoff-tools.md).
 
@@ -696,7 +738,8 @@ definition rows): see [`docs/specs/handoff-tool-definitions.md`](./docs/specs/ha
 
 Meta Harness v1 uses a single Project Coordination Graph with 1 coordination
 node (`dispatch_handoff`) plus 7 mounted role Deep Agent subgraph nodes.
-The dispatcher routes via `Command(goto=<role_name>)`; roles re-enter the
+The dispatcher routes via
+`Command(goto=Send(<role_name>, child_input))`; roles re-enter the
 dispatcher via `Command(graph=PARENT, goto="dispatch_handoff", update={...})`.
 This is the only v1 project-role topology. The PM remains the user-facing
 agent inside that topology.
@@ -918,7 +961,7 @@ The following per-agent configuration decisions extend the base architecture. Th
 **Locked constraints (summary):**
 
 - **Universal middleware baseline (all 7 agents):** `CollapseMiddleware`, `ContextEditingMiddleware`, `SummarizationToolMiddleware`, `ModelCallLimitMiddleware`, `StagnationGuardMiddleware`. Per-agent variation: PM and Architect additionally receive `AskUserMiddleware`; PM, Developer, and Architect receive phase gate middleware. Per-agent call limits and stagnation thresholds are configured at agent factory time — see `agents/catalog.py` for values.
-- **29 distinct `(source, target, reason)` triples** from 23 tools. Gate types: 19 ungated, 6 prerequisite-only, 2 prerequisite+user-approval, 2 stamp-only. `handoff_log` is the append-only ground truth for gate dispatch; `current_phase` is a fast-fail optimization only.
+- **29 distinct `(source, target, reason)` triples** from 23 handoff tools, plus PM-only `finish_to_user` and `request_approval` tools. Gate types: ungated handoffs, prerequisite-only gates, two prerequisite+user-approval gates, two stamp-only acceptance tools, and the final product acceptance gate. Prerequisite and approval gates read the `pcg_gate_context` projection inside role middleware; that projection is built from `handoff_log`, `acceptance_stamps`, and `current_phase`. `current_phase` is a fast-fail optimization only.
 - **Tool schema:** 2 common LLM-facing parameters (`brief: str`, `artifact_paths: list[str]`). 6 tools add one extra parameter: acceptance tools add `accepted: bool`; phase review tools add `phase: str`. `HandoffRecord` extended with `accepted: bool | None`.
 - **Model selection:** Model-agnostic, per-agent, thread-scoped (immutable for project lifespan). v1 experimental defaults: PM/Researcher/Planner/Evaluator → Opus 4.6; Architect/HE/Developer → TBD (experimentation required).
 - **System prompts:** External `.md` files next to each agent factory. AD locks behavioral invariants (must-recognize, must-not-do, self-awareness trigger) per agent; prompt text is spec territory. Autonomous mode: PM auto-approves the two user-approval gates by creating `(PM, PM, submit, accepted=true)` records.
@@ -987,12 +1030,14 @@ returning Deep Agent graphs via `create_deep_agent()`.
 
 The sole coordination node `dispatch_handoff` does deterministic plumbing
 only: on first invocation it synthesizes the initial handoff record from
-stakeholder input on `messages` and emits `Command(goto="project_manager",
-update={handoff_log, current_agent, current_phase})` to route into the
-mounted PM subgraph node. On re-entry triggered by a child-emitted
+stakeholder input and emits
+`Command(goto=Send("project_manager", child_input),
+update={handoff_log, current_agent, current_phase})` to route into the mounted
+PM subgraph node. On re-entry triggered by a child-emitted
 `Command(graph=PARENT, goto="dispatch_handoff", update={...})`, it reads
-`handoff_log[-1]` and emits `Command(goto=<target_agent>)` to route into
-the indicated mounted role subgraph. The dispatcher never invokes role
+`handoff_log[-1]` and emits
+`Command(goto=Send(<target_agent>, child_input))` to route
+into the indicated mounted role subgraph. The dispatcher never invokes role
 graphs directly via `.ainvoke()` — that pattern would break `Command.PARENT`
 bubbling because `.ainvoke()`'d children run in a top-level Pregel context
 and `map_command` raises `InvalidUpdateError` (`.venv/lib/python3.11/site-packages/langgraph/pregel/_io.py:56-59`).
@@ -1036,14 +1081,14 @@ not backend layers.
 ```mermaid
 flowchart LR
     U["User / UI"] --> PCG["LangGraph Project Coordination Graph\n1 dispatcher + 7 mounted role subgraphs\nthread: project_thread_id"]
-    PCG -->|"Command(goto='project_manager')"| PM["PM Deep Agent\nmounted subgraph: project_manager"]
+    PCG -->|"Command(goto=Send('project_manager', child_input))"| PM["PM Deep Agent\nmounted subgraph: project_manager"]
 
-    PCG -->|"Command(goto='harness_engineer')"| HE["Harness Engineer\nmounted subgraph: harness_engineer"]
-    PCG -->|"Command(goto='researcher')"| R["Researcher\nmounted subgraph: researcher"]
-    PCG -->|"Command(goto='architect')"| A["Architect\nmounted subgraph: architect"]
-    PCG -->|"Command(goto='planner')"| PL["Planner\nmounted subgraph: planner"]
-    PCG -->|"Command(goto='developer')"| D["Developer\nmounted subgraph: developer"]
-    PCG -->|"Command(goto='evaluator')"| E["Evaluator\nmounted subgraph: evaluator"]
+    PCG -->|"Command(goto=Send('harness_engineer', child_input))"| HE["Harness Engineer\nmounted subgraph: harness_engineer"]
+    PCG -->|"Command(goto=Send('researcher', child_input))"| R["Researcher\nmounted subgraph: researcher"]
+    PCG -->|"Command(goto=Send('architect', child_input))"| A["Architect\nmounted subgraph: architect"]
+    PCG -->|"Command(goto=Send('planner', child_input))"| PL["Planner\nmounted subgraph: planner"]
+    PCG -->|"Command(goto=Send('developer', child_input))"| D["Developer\nmounted subgraph: developer"]
+    PCG -->|"Command(goto=Send('evaluator', child_input))"| E["Evaluator\nmounted subgraph: evaluator"]
 
     PM -->|"deliver_prd_to_* / return_*_to_pm"| PCG
     A -->|"submit_spec_to_harness_engineer"| PCG
@@ -1076,51 +1121,51 @@ sequenceDiagram
     participant LS as LangSmith
 
     User->>PCG: Scope request and requirements
-    PCG->>PM: Command(goto="project_manager")
+    PCG->>PM: Command(goto=Send("project_manager", {...}))
     PM->>PCG: deliver_prd_to_harness_engineer(Command.PARENT)
     PCG->>FS: Append handoff record to state; PCG writes artifact_manifest to Store
-    PCG->>HE: Command(goto="harness_engineer")
+    PCG->>HE: Command(goto=Send("harness_engineer", {...}))
     HE-->>PCG: return_eval_suite_to_pm(Command.PARENT)
 
     alt Stakeholder clarification needed
         HE->>PCG: ask_pm(Command.PARENT)
-        PCG->>PM: Command(goto="project_manager")
+        PCG->>PM: Command(goto=Send("project_manager", {...}))
         PM->>User: ask_user middleware (scoped clarification)
         User-->>PM: Answer
         PM-->>PCG: deliver_prd_to_harness_engineer(Command.PARENT)
-        PCG->>HE: Command(goto="harness_engineer") (resume)
+        PCG->>HE: Command(goto=Send("harness_engineer", {...})) (resume)
     end
 
     PM->>PCG: deliver_prd_to_researcher(Command.PARENT)
-    PCG->>R: Command(goto="researcher")
+    PCG->>R: Command(goto=Send("researcher", {...}))
     R-->>PCG: return_research_bundle_to_pm(Command.PARENT)
 
     PM->>PCG: deliver_design_package_to_architect(Command.PARENT)
-    PCG->>A: Command(goto="architect")
+    PCG->>A: Command(goto=Send("architect", {...}))
     A->>PCG: submit_spec_to_harness_engineer(Command.PARENT)
-    PCG->>HE: Command(goto="harness_engineer") (Stage 2)
+    PCG->>HE: Command(goto=Send("harness_engineer", {...})) (Stage 2)
     HE-->>PCG: return_eval_coverage_to_architect(Command.PARENT)
-    PCG->>A: Command(goto="architect") (resume)
+    PCG->>A: Command(goto=Send("architect", {...})) (resume)
     A-->>PCG: return_design_package_to_pm(Command.PARENT)
 
     PM->>PCG: deliver_planning_package_to_planner(Command.PARENT)
-    PCG->>PL: Command(goto="planner")
+    PCG->>PL: Command(goto=Send("planner", {...}))
     PL-->>PCG: return_plan_to_pm(Command.PARENT)
 
     PM->>PCG: deliver_development_package_to_developer(Command.PARENT)
-    PCG->>D: Command(goto="developer")
+    PCG->>D: Command(goto=Send("developer", {...}))
 
     D->>PCG: submit_phase_to_evaluator(Command.PARENT)
-    PCG->>E: Command(goto="evaluator")
+    PCG->>E: Command(goto=Send("evaluator", {...}))
     E-->>PCG: pass/fail findings (Command.PARENT)
-    PCG->>D: Command(goto="developer") (resume)
+    PCG->>D: Command(goto=Send("developer", {...})) (resume)
 
     Note over D,E: ... repeat for each development phase ...
 
     E->>PCG: submit_application_acceptance(Command.PARENT, writes acceptance_stamps["application"])
     HE->>PCG: submit_harness_acceptance(Command.PARENT, writes acceptance_stamps["harness"])
     D->>PCG: return_product_to_pm(Command.PARENT, gated by acceptance_stamps channel)
-    PCG->>PM: Command(goto="project_manager")
+    PCG->>PM: Command(goto=Send("project_manager", {...}))
 
     PM->>User: Present finished product (via ask_user middleware)
     PM->>User: ask_user (satisfaction check)
@@ -1294,11 +1339,12 @@ Implementation contracts extracted from AD decisions under `docs/specs/`. See
 
 | Spec | Derives From | Status | Last Synced |
 |---|---|---|---|
-| [`docs/specs/handoff-tools.md`](./docs/specs/handoff-tools.md) | §4 Handoff Protocol, §4 Handoff Tool Use-Case Matrix, §4 Pipeline Flow Diagram | Active (rewritten 2026-04-22 for `OQ-HO`; sibling-spec relationship clarified 2026-04-23) | 2026-04-23 |
-| [`docs/specs/handoff-tool-definitions.md`](./docs/specs/handoff-tool-definitions.md) | §4 Handoff Protocol, §4 Handoff Tool Use-Case Matrix, §4 Command.PARENT Update Contract, §4 Data Contracts | Active (created 2026-04-23 for `T-H1` / `OQ-H6`) | 2026-04-23 |
-| [`docs/specs/pcg-data-contracts.md`](./docs/specs/pcg-data-contracts.md) | §4 LangGraph Project Coordination Graph (State Schema), §4 Handoff Protocol (Command.PARENT Update Contract), §4 Data Contracts, §4 PM Session And Project Entry Model (Identity Linkage) | Active (rewritten 2026-04-22 for `OQ-HO`; identity naming harmonised 2026-04-22b; sibling-spec relationship clarified 2026-04-23; runtime contract sibling added 2026-04-24) | 2026-04-24 |
+| [`docs/specs/handoff-tools.md`](./docs/specs/handoff-tools.md) | §4 Handoff Protocol, §4 Handoff Tool Use-Case Matrix, §4 Pipeline Flow Diagram | Active (rewritten 2026-04-22 for `OQ-HO`; sibling-spec relationship clarified 2026-04-23; sync metadata corrected 2026-04-24) | 2026-04-24 |
+| [`docs/specs/handoff-tool-definitions.md`](./docs/specs/handoff-tool-definitions.md) | §4 Handoff Protocol, §4 Handoff Tool Use-Case Matrix, §4 Command.PARENT Update Contract, §4 Data Contracts | Active (created 2026-04-23 for `T-H1` / `OQ-H6`; Ticket 5 parent-routing contract restored 2026-04-24) | 2026-04-24 |
+| [`docs/specs/pcg-data-contracts.md`](./docs/specs/pcg-data-contracts.md) | §4 LangGraph Project Coordination Graph (State Schema), §4 Handoff Protocol (Command.PARENT Update Contract), §4 Data Contracts, §4 PM Session And Project Entry Model (Identity Linkage) | Active (rewritten 2026-04-22 for `OQ-HO`; identity naming harmonised 2026-04-22b; sibling-spec relationship clarified 2026-04-23; runtime contract sibling added 2026-04-24; Ticket 5 approval-stamp ownership synced 2026-04-24) | 2026-04-24 |
 | [`docs/specs/pcg-runtime-contract.md`](./docs/specs/pcg-runtime-contract.md) | §4 PM Session And Project Entry Model, §4 Identity Linkage and Cardinality, §4 LangGraph Project Coordination Graph Factory Contract | Active (created 2026-04-24 for Ticket 2) | 2026-04-24 |
-| [`docs/specs/repo-and-workspace-layout.md`](./docs/specs/repo-and-workspace-layout.md) | §4 Repo and Workspace Layout, §4 LangGraph Project Coordination Graph Factory Contract, §4 Project Workspace and Memory Structure | Active (updated 2026-04-22 for `OQ-HO`) | 2026-04-22 |
+| [`docs/specs/approval-and-gate-contracts.md`](./docs/specs/approval-and-gate-contracts.md) | §4 Phase Gate Middleware, §4 Handoff Protocol, §4 Handoff Tool Use-Case Matrix, §4 Command.PARENT Update Contract | Draft (created 2026-04-23 for Ticket 5; updated 2026-04-24 per EBDR-1 feedback) | 2026-04-24 |
+| [`docs/specs/repo-and-workspace-layout.md`](./docs/specs/repo-and-workspace-layout.md) | §4 Repo and Workspace Layout, §4 LangGraph Project Coordination Graph Factory Contract, §4 Project Workspace and Memory Structure | Active (updated 2026-04-22 for `OQ-HO`; sync metadata corrected 2026-04-24) | 2026-04-24 |
 
 ---
 

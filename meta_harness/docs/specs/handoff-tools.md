@@ -4,14 +4,14 @@ derived_from:
   - AD §4 Handoff Protocol
   - AD §4 Handoff Tool Use-Case Matrix
 status: active
-last_synced: 2026-04-27
+last_synced: 2026-04-24
 owners: ["@Jason"]
 ---
 
 # Handoff Tools Specification
 
 > **Provenance:** Derived from `AD.md §4 Handoff Protocol` (tool catalog, role-scoped ownership, pipeline order, gate semantics) and `§4 Handoff Tool Use-Case Matrix` (23-tool matrix).
-> **Status:** Active · **Last synced with AD:** 2026-04-27 (updated for `OQ-HO` resolution: 1 dispatcher + 7 mounted role subgraphs; `acceptance_stamps` channel; `finish_to_user` terminal-emission tool added; clarified sibling relationship with `pcg-data-contracts.md` and concrete definitions spec; **clarified acceptance gate truth semantics per Ticket 4: gate requires both stamp presence AND accepted is True**).
+> **Status:** Active · **Last synced with AD:** 2026-04-24 (updated for `OQ-HO` resolution: 1 dispatcher + 7 mounted role subgraphs; `acceptance_stamps` channel; `finish_to_user` terminal-emission tool added; clarified sibling relationship with `pcg-data-contracts.md` and concrete definitions spec; **clarified acceptance gate truth semantics per Ticket 4: gate requires both stamp presence AND accepted is True**).
 > **Consumers:** Developer (implementation), Evaluator (conformance checking).
 
 ## 1. Purpose
@@ -19,7 +19,9 @@ owners: ["@Jason"]
 This spec is the interface contract for agent-to-agent handoff tools in Meta
 Harness. It enumerates the 23 concrete tools that implement the decisions
 locked in `AD.md §4`: the `reason` enum, verb semantics, PM-as-hub pipeline,
-and middleware gate policy.
+and middleware gate policy. It also names PM-only lifecycle tools that must be
+registered with the same role factory (`finish_to_user` and
+`request_approval`) so the role-scoped tool catalog is complete.
 
 The parent AD defines *what* handoffs are and *why* they route the way they
 do. This spec defines *which concrete tools exist, who owns them, what
@@ -86,7 +88,7 @@ permissions exclude this namespace (Developer info isolation). See
 
 **Why.** LangGraph's mounted-subgraph state mapping merges a naturally-completing subgraph's final state into parent state via shared channel reducers. PCG has `messages` with `add_messages`; a role Deep Agent's `_OutputAgentState` also exposes `messages` (its full conversation history). Without this invariant, every role's natural completion would append the child's entire conversation to PCG `messages`, violating the user-facing-I/O-only invariant.
 
-**Enforcement.** Every role receives a thin **final-turn-guard middleware** in its stack. The middleware's `after_model` hook inspects the agent's last `AIMessage`: if it contains no tool call to a handoff tool or `finish_to_user`, the middleware injects a `SystemMessage` nudge instructing the agent to conclude its turn via the appropriate tool, and forces another model iteration. This is a prompt-hygiene safety net; a correctly-prompted role should never trigger it. The middleware is distinct from `StagnationGuardMiddleware` (which handles overall cost/progress) and runs in the tail stack alongside `HumanInTheLoopMiddleware`.
+**Enforcement.** Every role receives a thin **final-turn-guard middleware** in its stack. The middleware's `after_model` hook inspects the agent's last `AIMessage`: if it contains no tool call to a handoff tool or `finish_to_user`, the middleware injects a `SystemMessage` nudge instructing the agent to conclude its turn via the appropriate tool, and forces another model iteration. This is a prompt-hygiene safety net; a correctly-prompted role should never trigger it. The middleware is distinct from `StagnationGuardMiddleware` (which handles overall cost/progress) and runs as the last role-supplied custom middleware, after role-specific `AskUserMiddleware` and phase-gate middleware when present.
 
 ## 2. Naming Convention
 
@@ -151,16 +153,17 @@ Each acceptance-stamp tool's `Command.PARENT` update dict includes the
 synchronized.
 
 **Acceptance gate logic for `return_product_to_pm`.** The middleware gate on
-this tool reads `state["acceptance_stamps"]`:
+this tool reads the dispatcher-projected
+`pcg_gate_context["acceptance_stamps"]`:
 
-- `state["acceptance_stamps"]["application"]` must be present AND
-  `state["acceptance_stamps"]["application"]["accepted"] is True` (Evaluator
+- `pcg_gate_context["acceptance_stamps"]["application"]` must be present AND
+  `pcg_gate_context["acceptance_stamps"]["application"]["accepted"] is True` (Evaluator
   stamp; always required). Presence alone is insufficient; rejected stamps
   (`accepted is False`) are written for auditability but never satisfy the gate.
-- `state["acceptance_stamps"]["harness"]` must be present AND
-  `state["acceptance_stamps"]["harness"]["accepted"] is True` if the HE
+- `pcg_gate_context["acceptance_stamps"]["harness"]` must be present AND
+  `pcg_gate_context["acceptance_stamps"]["harness"]["accepted"] is True` if the HE
   participated in the project thread. HE participation is derived by
-  scanning `state["handoff_log"]` for any record with
+  scanning `pcg_gate_context["handoff_log"]` for any record with
   `source_agent == "harness_engineer"` or
   `target_agent == "harness_engineer"`. If no HE participation is found,
   the HE acceptance check is skipped.
@@ -227,20 +230,30 @@ termination invariant and nothing else.
 still calls `finish_to_user` as the terminal action; autonomous mode only
 suppresses the pre-terminal `ask_user` satisfaction check.
 
+### 4.8 Approval Checkpoint — PM requests stakeholder approval
+
+This category contains exactly one PM-only model-visible tool. It is not an
+agent-to-agent handoff, but it is part of the canonical role tool catalog
+because PM must call it before retrying the two user-approval gated handoffs.
+
+| # | Tool | Caller | Target | Writes to `handoff_log`? | Side effect |
+|---|---|---|---|---|---|
+| 25 | `request_approval` | PM | PM self-reentry | **No** | Writes `acceptance_stamps[approval_type]`, then re-enters PM with approval-result message and refreshed `pcg_gate_context` |
+
 ## 5. Agent-Scoped Tool Ownership
 
 Each agent only receives the tools relevant to its role. An agent cannot call
 a tool it does not own.
 
-| Agent | Pipeline Delivery | Pipeline Return | Acceptance | Stage Review | Phase Review | Consultation |
-|---|---|---|---|---|---|---|
-| PM | `deliver_prd_to_harness_engineer`, `deliver_prd_to_researcher`, `deliver_design_package_to_architect`, `deliver_planning_package_to_planner`, `deliver_development_package_to_developer` | — | `submit_harness_acceptance` (receives), `submit_application_acceptance` (receives) | — | — | `request_research_from_researcher`; **Terminal:** `finish_to_user` (Category 7) |
-| Harness Engineer | — | `return_eval_suite_to_pm`, `return_eval_coverage_to_architect` | `submit_harness_acceptance` | `submit_spec_to_harness_engineer` (receives) | `announce_phase_to_harness_engineer` (receives), `submit_phase_to_harness_engineer` (receives) | `consult_harness_engineer_on_gates` (receives), `request_research_from_researcher`, `coordinate_qa` |
-| Researcher | — | `return_research_bundle_to_pm` | — | — | — | `request_research_from_researcher` (receives) |
-| Architect | — | `return_design_package_to_pm` | — | `submit_spec_to_harness_engineer` | — | `request_research_from_researcher` |
-| Planner | — | `return_plan_to_pm` | — | — | — | `consult_harness_engineer_on_gates`, `consult_evaluator_on_gates` |
-| Developer | — | `return_product_to_pm` | — | — | `announce_phase_to_evaluator`, `announce_phase_to_harness_engineer`, `submit_phase_to_evaluator`, `submit_phase_to_harness_engineer` | `ask_pm` |
-| Evaluator | — | — | `submit_application_acceptance` | — | `announce_phase_to_evaluator` (receives), `submit_phase_to_evaluator` (receives) | `consult_evaluator_on_gates` (receives), `coordinate_qa` |
+| Agent | Pipeline Delivery | Pipeline Return | Acceptance | Stage Review | Phase Review | Consultation | Terminal | Approval |
+|---|---|---|---|---|---|---|---|---|
+| PM | `deliver_prd_to_harness_engineer`, `deliver_prd_to_researcher`, `deliver_design_package_to_architect`, `deliver_planning_package_to_planner`, `deliver_development_package_to_developer` | — | `submit_harness_acceptance` (receives), `submit_application_acceptance` (receives) | — | — | `request_research_from_researcher` | `finish_to_user` | `request_approval` |
+| Harness Engineer | — | `return_eval_suite_to_pm`, `return_eval_coverage_to_architect` | `submit_harness_acceptance` | `submit_spec_to_harness_engineer` (receives) | `announce_phase_to_harness_engineer` (receives), `submit_phase_to_harness_engineer` (receives) | `consult_harness_engineer_on_gates` (receives), `request_research_from_researcher`, `coordinate_qa` | — | — |
+| Researcher | — | `return_research_bundle_to_pm` | — | — | — | `request_research_from_researcher` (receives) | — | — |
+| Architect | — | `return_design_package_to_pm` | — | `submit_spec_to_harness_engineer` | — | `request_research_from_researcher` | — | — |
+| Planner | — | `return_plan_to_pm` | — | — | — | `consult_harness_engineer_on_gates`, `consult_evaluator_on_gates` | — | — |
+| Developer | — | `return_product_to_pm` | — | — | `announce_phase_to_evaluator`, `announce_phase_to_harness_engineer`, `submit_phase_to_evaluator`, `submit_phase_to_harness_engineer` | `ask_pm` | — | — |
+| Evaluator | — | — | `submit_application_acceptance` | — | `announce_phase_to_evaluator` (receives), `submit_phase_to_evaluator` (receives) | `consult_evaluator_on_gates` (receives), `coordinate_qa` | — | — |
 
 ## 6. Pipeline Flow Diagram
 

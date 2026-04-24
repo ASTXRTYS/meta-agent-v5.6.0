@@ -5,21 +5,24 @@ derived_from:
   - AD §4 Handoff Protocol
   - AD §4 Data Contracts
 status: active
-last_synced: 2026-04-27
+last_synced: 2026-04-24
 owners: ["@Jason"]
 ---
 # PCG Data Contracts Specification
 
 > **Provenance:** Derived from `AD.md §4 LangGraph Project Coordination Graph` (state schema, topology, and invariants), `§4 Handoff Protocol → Command.PARENT Update Contract`, and `§4 Data Contracts`.
-> **Status:** Active · **Last synced with AD:** 2026-04-27 (rewritten for `OQ-HO` resolution; supersedes Q4 / Q10 / Q11 in `DECISIONS.md`; corrected to mount-as-subgraph pattern after review surfaced `.ainvoke()` / `Command.PARENT` incompatibility; clarified sibling relationship with `handoff-tools.md`; updated for `handoff-tool-definitions.md` field ownership and `project_phase` / `plan_phase_id` split; corrected routing primitive from string `goto` to `Send` for explicit child input injection per Ticket 1; added persistence contract and namespace semantics for mounted role subgraphs per Ticket 3; **repaired wire/data contract inconsistencies per Ticket 4: canonical snake_case role enums, removed unused status field, explicit langsmith_run_id fallback, no handoff_log cap, explicit type aliases, clarified acceptance truth semantics**).
+> **Status:** Active · **Last synced with AD:** 2026-04-24 (rewritten for `OQ-HO` resolution; supersedes Q4 / Q10 / Q11 in `DECISIONS.md`; corrected to mount-as-subgraph pattern after review surfaced `.ainvoke()` / `Command.PARENT` incompatibility; clarified sibling relationship with `handoff-tools.md`; updated for `handoff-tool-definitions.md` field ownership and `project_phase` / `plan_phase_id` split; corrected routing primitive from string `goto` to `Send` for explicit child input injection per Ticket 1; added persistence contract and namespace semantics for mounted role subgraphs per Ticket 3; **repaired wire/data contract inconsistencies per Ticket 4: canonical snake_case role enums, removed unused status field, explicit langsmith_run_id fallback, no handoff_log cap, explicit type aliases, clarified acceptance truth semantics**; **restored dispatcher re-entry `goto` on normal handoff parent commands and added approval-result stamp feedback semantics per Ticket 5 feedback**).
 > **Consumers:** Developer (implementation), Evaluator (conformance checking).
 
 ## 1. Purpose
 
 The parent AD decides that the Project Coordination Graph (PCG) is a thin
 graph with 1 coordination node (`dispatch_handoff`) plus 7 mounted role
-Deep Agent subgraph nodes. The coordination node records handoffs and
-routes via `Command(goto=<target_agent>)`. Role Deep Agents are mounted as
+Deep Agent subgraph nodes. The coordination node records handoffs and routes via
+`Command(goto=Send(<target_agent>, child_input))`, where `child_input` always
+contains the rendered handoff message and contains `pcg_gate_context` for
+gated roles.
+Role Deep Agents are mounted as
 subgraph nodes so `Command.PARENT` emitted by their handoff tools bubbles
 natively through the Pregel namespace hierarchy. No agent cognition, no
 artifact content, no specialist messages live in PCG state. This spec
@@ -32,6 +35,9 @@ durable `Store` namespaces that together implement the AD decisions.
 The following type aliases are used throughout this spec and the handoff tool definitions:
 
 ```python
+from typing import Literal
+from typing_extensions import TypedDict
+
 AgentName = Literal[
     "project_manager",
     "harness_engineer",
@@ -61,7 +67,15 @@ ProjectPhase = Literal[
     "acceptance",
 ]
 
-StampKey = Literal["application", "harness"]
+StampKey = Literal["application", "harness", "scoping_to_research", "architecture_to_planning"]
+
+class PCGGateContext(TypedDict, total=False):
+    project_id: str
+    project_thread_id: str
+    current_phase: ProjectPhase
+    current_agent: AgentName
+    handoff_log: list[HandoffRecord]
+    acceptance_stamps: dict[StampKey, HandoffRecord]
 ```
 
 **Rationale:** These aliases provide canonical type definitions for enum values used across the PCG state schema and handoff tools. All role names use snake_case (Python convention) for consistency with code generation and SDK integration.
@@ -82,9 +96,9 @@ that combined contract.
 
 ```txt
 START → dispatch_handoff
-          │  emits Command(goto=Send(target_agent, {"messages": [handoff_message]}))
+          │  emits Command(goto=Send(target_agent, child_input))
           │  into the mounted role node. The Send.arg becomes the child's
-          │  messages input per _InputAgentState schema.
+          │  input and may include pcg_gate_context for gated roles.
           ▼
      (mounted role subgraph: project_manager | harness_engineer | ...)
           │  role turn terminates by emitting Command(graph=PARENT, ...)
@@ -107,8 +121,8 @@ triggers a PULL task that reads input from parent state channels
 The Deep Agent's `_InputAgentState` only accepts `messages`
 (`.venv/lib/python3.11/site-packages/langchain/agents/middleware/types.py:358-361`),
 but PCG `messages` is reserved for user-facing I/O (Invariant #1). Using
-`Send(target_agent, {"messages": [handoff_message]})` creates a PUSH task
-that passes `packet.arg` directly as the child's input
+`Send(target_agent, child_input)` creates a PUSH task that passes `packet.arg`
+directly as the child's input
 (`.venv/lib/python3.11/site-packages/langgraph/pregel/_io.py:66-67`,
 `.venv/lib/python3.11/site-packages/langgraph/pregel/_algo.py:1002`),
 ensuring the handoff brief reaches the receiving agent without polluting
@@ -127,17 +141,20 @@ channel semantics (key names, types, reducer signatures) are preserved.
 | `messages` | `list[AnyMessage]` | `add_messages` | User-facing I/O conduit. Written only via PM's `finish_to_user` tool. | PM's `finish_to_user` tool only | External surfaces only (TUI, web app, headless ingress). Specialist agents never read it. |
 | `project_id` | `str` | overwrite (no reducer) | Durable Meta Harness project identity. | `dispatch_handoff` (initial) | `dispatch_handoff`, middleware, Store writers |
 | `project_thread_id` | `str` | overwrite | Canonical LangGraph project execution thread identity. May equal `project_id` in local/dev. | `dispatch_handoff` (initial) | `dispatch_handoff`, middleware, Store writers |
-| `current_phase` | `ProjectPhase` | overwrite | Denormalization of last lifecycle-phase-transitioning handoff. Fast path for middleware gate dispatch. Not independent source-of-truth. | Handoff tools via `Command.PARENT` update when `HandoffRecord.project_phase` is present | Phase-gate middleware |
+| `current_phase` | `ProjectPhase` | overwrite | Denormalization of last lifecycle-phase-transitioning handoff. Fast path for middleware gate dispatch. Not independent source-of-truth. | Handoff tools via `Command.PARENT` update when `HandoffRecord.project_phase` is present | `dispatch_handoff`; projected into `pcg_gate_context` for phase-gate middleware |
 | `current_agent` | `AgentName` | overwrite | Which role `dispatch_handoff` is about to invoke. Matches `handoff_log[-1].target_agent`. | Handoff tools via `Command.PARENT` update | `dispatch_handoff`, middleware |
-| `handoff_log` | `list[HandoffRecord]` | `operator.add` (list concatenation) | Append-only audit trail of all handoffs. No cap in v1. | Handoff tools via `Command.PARENT` update | `dispatch_handoff` (reads `[-1]`), HE-participation helper for acceptance gate |
-| `acceptance_stamps` | `dict[StampKey, HandoffRecord]` | merge-dict (see §4.1) | First-class acceptance-stamp channel. Gate logic reads this; never scans `handoff_log`. | `submit_application_acceptance`, `submit_harness_acceptance` tools via `Command.PARENT` update | `return_product_to_pm` gate middleware |
+| `handoff_log` | `list[HandoffRecord]` | `operator.add` (list concatenation) | Append-only audit trail of all handoffs. No cap in v1. | Handoff tools via `Command.PARENT` update | `dispatch_handoff` (reads `[-1]`); projected into `pcg_gate_context` for prerequisite gates and HE-participation helper |
+| `acceptance_stamps` | `dict[StampKey, HandoffRecord]` | merge-dict (see §4.1) | First-class stamp channel for product acceptance and user approval gates. Gate logic reads this through `pcg_gate_context`; never scans `handoff_log`. | `submit_application_acceptance`, `submit_harness_acceptance`, `request_approval` tools via `Command.PARENT` update | `dispatch_handoff`; projected into `pcg_gate_context` for user-approval gate middleware and `return_product_to_pm` gate middleware |
 
 **Channel details:**
 
 - **`messages`**: User-facing I/O conduit (LangGraph convention). Written only via PM's `finish_to_user` tool (`Command(graph=PARENT, goto=END, update={"messages": [AIMessage(...)]})`). Multiple lifecycle cycles may occur across the project thread lifetime (headless-ready-infra policy).
 - **`current_phase`**: Denormalization of the last lifecycle-phase-transitioning handoff. Fast path for middleware gate dispatch. **Not** an independent source of truth — `handoff_log` with `HandoffRecord.project_phase` remains authoritative. Developer implementation-plan phases are stored separately as `plan_phase_id` and never drive `current_phase`.
 - **`handoff_log`**: Append-only audit trail of all handoffs in the project thread. No cap in v1 — projects have finite handoff counts. HE participation detection (scanning for `source_agent` or `target_agent == "harness_engineer"`) must work correctly regardless of log size.
-- **`acceptance_stamps`**: First-class acceptance-stamp channel. Gate logic for `return_product_to_pm` reads this; never scans `handoff_log`.
+- **`acceptance_stamps`**: First-class stamp channel. Gate logic for
+  `deliver_prd_to_researcher`, `deliver_planning_package_to_planner`, and
+  `return_product_to_pm` reads this through the `pcg_gate_context` projection;
+  it never scans `handoff_log` for stamps.
 
 
 Private per-middleware state (e.g. `StagnationGuardState`'s `_model_call_count`) is carried by the middleware, not in `ProjectCoordinationState`. The middleware's `AgentMiddleware.state_schema` augments the child agent's state, not the PCG's.
@@ -159,11 +176,67 @@ def _merge_stamps(
 ## 5. Key Invariants
 
 1. **`messages` is the user-facing I/O conduit.** PCG `messages` is written only by the PM's terminal `finish_to_user` tool (via `Command(graph=PARENT, goto=END, update={"messages": [AIMessage(...)]})`). Other handoff tools never include `messages` in their update dict. Specialist agents never read it. The `add_messages` reducer is retained because `messages` carries real `BaseMessage` objects — unlike the previous (structurally broken) application of `add_messages` to `handoff_log`.
-2. **Child isolation is structural at the Deep Agent SDK layer.** Every role is a `create_deep_agent()` compiled graph with its own declared `input_schema=_InputAgentState` (messages only; `@/Users/Jason/2026/v4/meta-agent-v5.6.0/.venv/lib/python3.11/site-packages/langchain/agents/middleware/types.py:358-361`) and `output_schema=_OutputAgentState` (messages + optional `structured_response`; `types.py:364-368`). `todos`, `files`, `jump_to`, and all middleware-private state carry `PrivateStateAttr` / `OmitFromOutput` annotations (`types.py:346-347`) and are dropped structurally at the child's compile time. When mounted via `add_node(role, role_graph)`, LangGraph reads the subgraph's declared `input_schema` and only passes the shared `messages` channel (`@/Users/Jason/2026/v4/meta-agent-v5.6.0/.venv/lib/python3.11/site-packages/langgraph/graph/state.py:1306-1314`). **Every role turn must terminate by emitting `Command(graph=PARENT, ...)`**; this prevents the child's in-progress `messages` state from merging into PCG `messages` via subgraph-natural-completion semantics. A thin final-turn-guard middleware re-prompts any role whose last `AIMessage` lacks a handoff-tool or `finish_to_user` call. The dispatcher does **not** invoke role graphs via `.ainvoke()` — that would break `Command.PARENT` bubbling (`@/Users/Jason/2026/v4/meta-agent-v5.6.0/.venv/lib/python3.11/site-packages/langgraph/pregel/_io.py:56-59` raises `InvalidUpdateError` on PARENT commands at top-level).
+2. **Child isolation is structural at the Deep Agent SDK layer.** The base `create_deep_agent()` input schema accepts `messages` (`@/Users/Jason/2026/v4/meta-agent-v5.6.0/.venv/lib/python3.11/site-packages/langchain/agents/middleware/types.py:358-361`) and the output schema exposes `messages` plus optional `structured_response` (`types.py:364-368`). Gated roles deliberately extend their agent state schema with `pcg_gate_context`, annotated as accepted input and omitted output, so role middleware can evaluate PCG-derived gates after LangGraph filters mounted subgraph input. LangChain merges middleware state schemas into the child input schema unless annotated `OmitFromInput` (`@/Users/Jason/2026/v4/meta-agent-v5.6.0/.venv/lib/python3.11/site-packages/langchain/agents/factory.py:402-444`); `OmitFromOutput` keeps the projection from leaking on natural completion (`types.py:340-347`). `todos`, `files`, `jump_to`, and middleware-private state remain private. When mounted via `add_node(role, role_graph)`, LangGraph reads the subgraph's declared `input_schema` (`@/Users/Jason/2026/v4/meta-agent-v5.6.0/.venv/lib/python3.11/site-packages/langgraph/graph/state.py:1306-1314`). **Every role turn must terminate by emitting `Command(graph=PARENT, ...)`**; this prevents the child's in-progress `messages` state from merging into PCG `messages` via subgraph-natural-completion semantics. A thin final-turn-guard middleware re-prompts any role whose last `AIMessage` lacks a handoff-tool or `finish_to_user` call. The dispatcher does **not** invoke role graphs via `.ainvoke()` — that would break `Command.PARENT` bubbling (`@/Users/Jason/2026/v4/meta-agent-v5.6.0/.venv/lib/python3.11/site-packages/langgraph/pregel/_io.py:56-59` raises `InvalidUpdateError` on PARENT commands at top-level).
 3. **`handoff_log` uses a typed append reducer.** `Annotated[list[HandoffRecord], operator.add]`. `add_messages` is not valid here because it coerces inputs through `convert_to_messages` which raises `NotImplementedError` on non-`MessageLikeRepresentation` values (`@/Users/Jason/2026/v4/meta-agent-v5.6.0/.venv/lib/python3.11/site-packages/langchain_core/messages/utils.py:727-730`).
 4. **`current_phase` is a denormalization.** It is updated by handoff tools only when the appended record includes `project_phase`, and it is kept consistent with the most recent `HandoffRecord.project_phase`. Middleware may prefer `current_phase` for fast dispatch. Developer plan-phase identifiers are stored as `plan_phase_id` and must never update `current_phase`.
-5. **`acceptance_stamps` is the gate source of truth.** The acceptance gate on `return_product_to_pm` reads `state["acceptance_stamps"]`. Scanning `handoff_log` for acceptance records is an anti-pattern and must be rejected in review.
+5. **`acceptance_stamps` is the gate source of truth.** User approval gates
+   and the product acceptance gate on `return_product_to_pm` read
+   `request.state["pcg_gate_context"]["acceptance_stamps"]`, which is a
+   dispatcher-created projection of PCG state. Scanning `handoff_log` for stamp
+   records is an anti-pattern and must be rejected in review.
 6. **Each role Deep Agent owns its own conversation history.** Role state lives in the role's checkpoint namespace. LangGraph's mounted-subgraph persistence uses the parent `thread_id` with a stable child `checkpoint_ns` derived from the node name (`project_manager`, `harness_engineer`, etc.). The PCG's `handoff_log` is not conversation history.
+
+### 5.1 Gate Context Projection Bridge
+
+Gate middleware runs inside mounted role Deep Agents, so it cannot read parent
+`ProjectCoordinationState` directly. `dispatch_handoff` MUST build a minimal
+`PCGGateContext` from PCG state before routing to any gated role:
+
+```python
+def _build_pcg_gate_context(state: ProjectCoordinationState) -> PCGGateContext:
+    return {
+        "project_id": state["project_id"],
+        "project_thread_id": state["project_thread_id"],
+        "current_phase": state.get("current_phase"),
+        "current_agent": state.get("current_agent"),
+        "handoff_log": state.get("handoff_log", []),
+        "acceptance_stamps": state.get("acceptance_stamps", {}),
+    }
+```
+
+For gated target roles (`project_manager`, `architect`, `developer`),
+`dispatch_handoff` sends:
+
+```python
+Send(
+    target,
+    {
+        "messages": [handoff_message],
+        "pcg_gate_context": _build_pcg_gate_context(state_after_update),
+    },
+)
+```
+
+`pcg_gate_context` is child-agent state, not a PCG state channel. The gate
+middleware declares a state schema that accepts it as input and omits it from
+output:
+
+```python
+class PhaseGateState(AgentState):
+    pcg_gate_context: NotRequired[Annotated[PCGGateContext, OmitFromOutput]]
+```
+
+Gate functions read `request.state["pcg_gate_context"]`. Missing
+`pcg_gate_context` on a gated tool call is an implementation defect and must
+raise, because returning a recoverable `ToolMessage` would hide a broken runtime
+assembly.
+
+The PM's `request_approval` tool is a special self-reentry path that bypasses
+`dispatch_handoff`; therefore its `Send("project_manager", ...)` payload MUST
+include a refreshed `pcg_gate_context` created by merging the new approval stamp
+into the current projection. Without that refreshed projection, the next PM
+tool call would see stale approval state even though the parent PCG update was
+applied.
 
 **Persistence contract.** The PCG is compiled with a concrete `BaseCheckpointSaver` instance (e.g., `PostgresSaver` in production, `SqliteSaver` in local/dev). Each role Deep Agent is compiled with `checkpointer=None` to inherit the parent's checkpointer. LangGraph's Checkpointer type semantics (types.py:96-102) define `None` as "inherits checkpointer from the parent graph." StateGraph.compile() (state.py:1038-1084) documents that `checkpointer=None` "may inherit the parent graph's checkpointer when used as a subgraph." During task execution, the checkpointer is propagated via `CONFIG_KEY_CHECKPOINTER` config (pregel/_algo.py:715-718): `CONFIG_KEY_CHECKPOINTER: (checkpointer or configurable.get(CONFIG_KEY_CHECKPOINTER))`.
 
@@ -207,7 +280,9 @@ Command(
 - `finish_to_user` is the **only** tool that writes to `messages`. It does NOT append to `handoff_log` — terminal emission is a lifecycle bookend, not an inter-agent handoff.
 - The update dict **never** includes `pending_handoff`. That field no longer exists; the dispatcher reads `handoff_log[-1]`.
 - `current_phase` is set only on lifecycle-phase-transitioning records. Non-transitioning handoffs omit the key.
-- Acceptance tools are the only tools that write to `acceptance_stamps`.
+- Stamp-writing tools are the only tools that write to `acceptance_stamps`:
+  `submit_application_acceptance`, `submit_harness_acceptance`, and PM's
+  `request_approval`.
 - Artifact-manifest updates are `Store` writes (see §7), not state updates.
 
 ### 6.1 Tool-helper-vs-PCG field ownership
@@ -268,7 +343,8 @@ The exact Pydantic / `TypedDict` serialization is left to implementation. The fi
   "created_at": "RFC3339 UTC timestamp (Z suffix)",
   "project_phase": "scoping|research|architecture|planning|development|acceptance|null",
   "plan_phase_id": "string|null",
-  "accepted": "boolean|null"
+  "accepted": "boolean|null",
+  "feedback": "string|null"
 }
 ```
 
@@ -283,7 +359,13 @@ The exact Pydantic / `TypedDict` serialization is left to implementation. The fi
 - **`artifact_paths`** is a list of relative paths from the project root. The PCG does not validate that these paths exist; that is the handoff tool's responsibility.
 - **`project_phase`** (optional) — populated only when the handoff transitions the PCG lifecycle phase. Supports the `current_phase` denormalization.
 - **`plan_phase_id`** (optional) — populated only by Developer phase-review tools. The model-visible tool argument is named `phase`, but the record field is `plan_phase_id` to keep Developer implementation-plan phases distinct from the PCG lifecycle enum.
-- **`accepted`** (optional) — populated only by the two `submit_*_acceptance` tools. Carries the acceptance boolean.
+- **`accepted`** (optional) — populated only by stamp records: the two
+  `submit_*_acceptance` tools and PM's `request_approval` tool. Carries the
+  acceptance or approval boolean.
+- **`feedback`** (optional) — populated by `request_approval` when the approval
+  is rejected. Carries the human-provided rejection feedback for the PM's
+  approval-result re-entry message. `None` for approvals and non-approval
+  handoffs.
 
 ## 8. Durable Cross-Thread Data (`Store` Namespaces)
 
@@ -363,16 +445,20 @@ Not normative code, but the semantic contract every conforming implementation mu
 
 ### 9.1 Routing Primitive
 
-The dispatcher MUST use `Send(target_agent, {"messages": [handoff_message]})` as the `goto` value, not a string. SDK behavior:
+The dispatcher MUST use `Send(target_agent, child_input)` as the `goto` value,
+not a string. `child_input` always includes `messages` and includes
+`pcg_gate_context` for gated roles. SDK behavior:
 - `Send` yields to `TASKS` channel (`.venv/lib/python3.11/site-packages/langgraph/pregel/_io.py:66-67`)
 - `packet.arg` is passed directly as the subgraph's input (`.venv/lib/python3.11/site-packages/langgraph/pregel/_algo.py:1002`)
-- The child's `_InputAgentState` receives only the `messages` key (`.venv/lib/python3.11/site-packages/langchain/agents/middleware/types.py:358-361`)
+- Base Deep Agent input receives `messages`; gated roles receive `messages`
+  plus `pcg_gate_context` through gate middleware state schema
 
 String `goto` (e.g., `Command(goto="project_manager")`) is **forbidden** — it triggers PULL task semantics that read from parent channels, which would incorrectly pass PCG's user-facing `messages` to the child.
 
 ### 9.2 Receiving-Agent Input Payload Shape
 
-The `Send.arg` MUST be a dict with exactly one key:
+The `Send.arg` MUST be a dict with one required key and one optional gated-role
+key:
 
 ```python
 {
@@ -382,7 +468,9 @@ The `Send.arg` MUST be a dict with exactly one key:
             "content": "[[Handoff from {source_agent}]]\n\n{brief}\n\n[[Artifacts]]\n{artifact_list}",
             "name": None,  # Optional: could include handoff_id as metadata
         }
-    ]
+    ],
+    # Present only when target role has phase-gate middleware.
+    "pcg_gate_context": PCGGateContext,
 }
 ```
 
@@ -390,6 +478,8 @@ The `Send.arg` MUST be a dict with exactly one key:
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
+| `messages` | `list[HumanMessage]` | Yes | Exactly one rendered handoff packet for the receiving role |
+| `pcg_gate_context` | `PCGGateContext` | Only for gated roles | Dispatcher-created projection used by phase-gate middleware; not rendered into `messages` and omitted from child output |
 | `role` | `Literal["user"]` | Yes | Fixed as `"user"` — the handoff arrives as a user message from the perspective of the receiving agent |
 | `content` | `str` | Yes | Formatted handoff packet (see §8.3) |
 
@@ -448,8 +538,17 @@ This ensures the initial PM turn receives the stakeholder request as a formatted
 ### 8.6 Reference Implementation
 
 ```python
+from typing import Any
 from langgraph.types import Command, Send
 from langchain_core.messages import HumanMessage
+
+GATED_ROLE_NAMES = {"project_manager", "architect", "developer"}
+
+def _child_input_for(target: AgentName, handoff_message: HumanMessage, state: ProjectCoordinationState) -> dict[str, Any]:
+    child_input: dict[str, Any] = {"messages": [handoff_message]}
+    if target in GATED_ROLE_NAMES:
+        child_input["pcg_gate_context"] = _build_pcg_gate_context(state)
+    return child_input
 
 async def dispatch_handoff(
     state: ProjectCoordinationState,
@@ -494,8 +593,14 @@ async def dispatch_handoff(
     # --- 5. Route via Send (not string goto) -------------------------------------
     if not state["handoff_log"]:
         # First invocation: include initial state updates
+        state_after_update = {
+            **state,
+            "handoff_log": [record],
+            "current_agent": target,
+            "current_phase": record.get("project_phase", "scoping"),
+        }
         return Command(
-            goto=Send(target, {"messages": [handoff_message]}),
+            goto=Send(target, _child_input_for(target, handoff_message, state_after_update)),
             update={
                 "handoff_log": [record],
                 "current_agent": target,
@@ -504,20 +609,21 @@ async def dispatch_handoff(
         )
     else:
         # Re-entry: route to target with handoff message
-        return Command(goto=Send(target, {"messages": [handoff_message]}))
+        return Command(goto=Send(target, _child_input_for(target, handoff_message, state)))
 ```
 
-**How routing actually works.** When `dispatch_handoff` emits `Command(goto=Send("project_manager", {"messages": [handoff_message]}))`, LangGraph's Pregel loop:
+**How routing actually works.** When `dispatch_handoff` emits `Command(goto=Send("project_manager", {"messages": [handoff_message], "pcg_gate_context": gate_context}))`, LangGraph's Pregel loop:
 1. Maps the `Send` to the `TASKS` channel (`.venv/lib/python3.11/site-packages/langgraph/pregel/_io.py:66-67`)
-2. Creates a PUSH task where `packet.arg` (the `{"messages": [...]}` dict) is passed directly as the subgraph's input (`.venv/lib/python3.11/site-packages/langgraph/pregel/_algo.py:1002`)
-3. The mounted Deep Agent subgraph receives the input filtered through its `_InputAgentState` schema — only `messages` is accepted
+2. Creates a PUSH task where `packet.arg` is passed directly as the subgraph's input (`.venv/lib/python3.11/site-packages/langgraph/pregel/_algo.py:1002`)
+3. The mounted Deep Agent subgraph receives the input filtered through its declared input schema. Base roles accept `messages`; gated roles accept `messages` plus `pcg_gate_context` through their gate-middleware state schema.
 4. The subgraph runs until one of its internal nodes emits a Command. If a handoff tool emits `Command(graph=PARENT, goto="dispatch_handoff", update={...})`, the inner Pregel raises `ParentCommand`; the outer Pregel catches it, applies the update to PCG state via reducers, and re-enters `dispatch_handoff`. If `finish_to_user` emits `Command(graph=PARENT, goto=END, update={...})`, the outer Pregel applies the `messages` update and terminates the graph. Natural completion of a role subgraph is not expected and should be prevented by the final-turn-guard middleware.
 
 ## 10. Growth, Cap, and Migration Notes
 
 - `messages` is bounded by natural PM completion frequency. Headless ingress may produce multiple lifecycle cycles; the channel is not artificially capped at 2 entries.
 - `handoff_log` has no cap in v1. Projects have finite handoff counts. HE participation detection (scanning for `source_agent` or `target_agent == "harness_engineer"`) must work correctly regardless of log size. If cap becomes necessary in v2, move to `Store` namespace `("projects", project_id, "handoff_history")` and update gate logic to read from Store, not state.
-- `acceptance_stamps` has a natural bound of 2 entries (one `application`, one `harness`). No cap needed.
+- `acceptance_stamps` has a natural bound of 4 entries (`application`,
+  `harness`, `scoping_to_research`, `architecture_to_planning`). No cap needed.
 - **Store namespaces** grow without state-checkpoint pressure; their retention policy is a deployment concern (local SQLite / Platform managed store / self-hosted Postgres).
 
 ## 11. Conformance Tests (minimum set)
@@ -525,9 +631,9 @@ async def dispatch_handoff(
 Implementation must pass at least these assertions:
 
 1. A `HandoffRecord` appended to `handoff_log` via a `Command.PARENT` update round-trips through checkpoint save/load without type coercion loss (detects accidental reintroduction of `add_messages` on this channel).
-2. `dispatch_handoff` returns a `Command` with `goto` set to one of the 7 role names (for routing) or `END` (on terminal conditions that the dispatcher itself recognizes). It never calls `.ainvoke()` or `.invoke()` on a role graph (static analysis: search for `ROLE_GRAPHS[...].ainvoke` or `.invoke` inside dispatcher source — must have zero matches).
+2. `dispatch_handoff` returns a `Command` with `goto=Send(<role_name>, child_input)` for one of the 7 role names, where `child_input["messages"]` contains the rendered handoff packet and gated-role inputs also include `pcg_gate_context`. It never calls `.ainvoke()` or `.invoke()` on a role graph (static analysis: search for `ROLE_GRAPHS[...].ainvoke` or `.invoke` inside dispatcher source — must have zero matches).
 3. Every role's handoff-tool set and the PM's `finish_to_user` tool together cover the role's possible terminal actions. A final-turn-guard middleware re-prompts any role whose last `AIMessage` lacks a tool call to a handoff tool or `finish_to_user`.
-4. The acceptance gate on `return_product_to_pm` reads `state["acceptance_stamps"]` and not `state["handoff_log"]` (static analysis or unit test).
+4. User approval gates and the acceptance gate on `return_product_to_pm` read `request.state["pcg_gate_context"]["acceptance_stamps"]` and not `handoff_log` for stamp truth (static analysis or unit test).
 5. `current_phase == <most recent non-null HandoffRecord.project_phase> or <previously-set lifecycle phase>` after every handoff (denormalization consistency). `plan_phase_id` must never drive `current_phase`.
 6. `Store` writes to `projects_registry` occur on every handoff (fuzz: random-length handoff chains, verify registry matches last record).
 7. Developer's filesystem permissions do not include read access to `projects/{project_id}/optimization_trendline` (permission-layer unit test).
@@ -539,23 +645,25 @@ Implementation must pass at least these assertions:
 | `messages` | PCG | PM's `finish_to_user` only | External surfaces (TUI, web app, headless) | `add_messages` | Must be `list[AnyMessage]`; never written by handoff tools | Only `finish_to_user` writes; specialist agents never read |
 | `project_id` | PCG | `dispatch_handoff` (initial) | `dispatch_handoff`, middleware, Store writers | overwrite | Must be non-empty string | Immutable after initialization |
 | `project_thread_id` | PCG | `dispatch_handoff` (initial) | `dispatch_handoff`, middleware, Store writers | overwrite | Must be non-empty string | Immutable after initialization |
-| `current_phase` | PCG | Handoff tools (when `project_phase` present) | Phase-gate middleware | overwrite | Must be one of `ProjectPhase` enum values | Matches most recent `HandoffRecord.project_phase` |
+| `current_phase` | PCG | Handoff tools (when `project_phase` present) | `dispatch_handoff` projection into gate middleware | overwrite | Must be one of `ProjectPhase` enum values | Matches most recent `HandoffRecord.project_phase` |
 | `current_agent` | PCG | Handoff tools | `dispatch_handoff`, middleware | overwrite | Must be one of `AgentName` enum values | Matches `handoff_log[-1].target_agent` |
 | `handoff_log` | PCG | Handoff tools | `dispatch_handoff`, HE-participation helper | `operator.add` (list concatenation) | Each record must be valid `HandoffRecord` | Append-only; no cap in v1; HE detection works at any size |
-| `acceptance_stamps` | PCG | `submit_*_acceptance` tools | `return_product_to_pm` gate | merge-dict | Keys must be `StampKey`; values must be `HandoffRecord` with `accepted` field | Gate reads this, never `handoff_log` |
+| `acceptance_stamps` | PCG | `submit_*_acceptance`, `request_approval` tools | `dispatch_handoff` projection into user-approval gates and `return_product_to_pm` gate | merge-dict | Keys must be `StampKey`; values must be `HandoffRecord` with `accepted` field | Gates read this via `pcg_gate_context`, never `handoff_log` |
 | `HandoffRecord.project_id` | PCG | Tool helper | All readers | N/A | Must match PCG `project_id` | Invariant: all records in same log have same `project_id` |
 | `HandoffRecord.source_agent` | PCG | Tool helper | All readers | N/A | Must be one of `AgentName` enum values | Must be valid role name (snake_case) |
 | `HandoffRecord.target_agent` | PCG | Tool helper | All readers | N/A | Must be one of `AgentName` enum values | Must be valid role name (snake_case) |
 | `HandoffRecord.reason` | PCG | Tool helper | All readers | N/A | Must be one of `Reason` enum values | Must be valid reason value |
 | `HandoffRecord.langsmith_run_id` | PCG | Tool helper | All readers | N/A | Must be string or `None` | From `langsmith.get_current_run_tree().id` if tracing enabled |
 | `HandoffRecord.created_at` | PCG | Tool helper | All readers | N/A | Must be RFC3339 UTC with "Z" suffix | Monotonic: each new record >= previous |
-| `HandoffRecord.accepted` | PCG | `submit_*_acceptance` tools | Gate logic | N/A | Must be boolean (only on acceptance stamps) | Gate requires both presence AND `accepted is True` |
+| `HandoffRecord.accepted` | PCG | `submit_*_acceptance`, `request_approval` tools | Gate logic through `pcg_gate_context` | N/A | Must be boolean on stamp records | Gates require both presence AND `accepted is True` |
 8. **Receiving-agent input contains rendered HandoffRecord packet, not raw PCG messages.** Given a mounted role subgraph with a spy node that captures its input, when `dispatch_handoff` routes to that role, the spy receives exactly one `HumanMessage` with:
    - `content` containing the formatted handoff packet per §8.3
    - `role == "user"`
    - The `brief` text from `HandoffRecord` appears verbatim in the content
    - The `artifact_paths` are rendered as a bullet list
-   The raw PCG `messages` channel MUST NOT appear in the child's input (structural assertion via `_InputAgentState` schema filtering).
+   The raw PCG `messages` channel MUST NOT appear in the child's input. Gated
+   roles additionally receive `pcg_gate_context`; non-gated roles do not. The
+   projection is not rendered into messages and is omitted from role output.
 9. **Role graphs are compiled with checkpointer=None.** Static analysis: verify that each `create_<role>_agent()` call in `_build_role_graphs()` passes `checkpointer=None` explicitly. This enables runtime inheritance from the parent PCG's checkpointer per the persistence contract. However, static analysis alone cannot verify actual inheritance — the runtime mechanism is CONFIG_KEY_CHECKPOINTER config propagation during task execution (SDK verification: types.py:96-102 defines None=inherit; _algo.py:715-718 shows CONFIG_KEY_CHECKPOINTER propagation; main.py:1265-1266 shows checkpointer resolution from config). **Runtime verification is provided by tests #10 and #11**, which verify checkpoint namespace persistence under the parent's checkpointer, proving that role subgraphs actually inherit the parent's checkpointer at runtime.
 10. **Repeated role invocation preserves role-local conversation history.** Given a project thread with a PCG compiled with a concrete checkpointer, execute a handoff chain: PM -> Harness Engineer -> PM -> Harness Engineer. After the second Harness Engineer invocation, query the Harness Engineer's checkpoint namespace (via `graph.get_state(config={"configurable": {"thread_id": project_thread_id, "checkpoint_ns": "harness_engineer"}})`). The role's `messages` state must contain messages from both Harness Engineer turns, proving checkpoint resumption from the stable namespace under the same `project_thread_id`. The PCG's `handoff_log` must contain exactly 4 records (PM->HE, HE->PM, PM->HE, HE->PM), proving that role conversation history is not stored in PCG state.
 11. **Different roles do not share conversation history.** Execute a handoff chain: PM -> Harness Engineer -> Researcher -> Harness Engineer. Query the Researcher's checkpoint namespace (`checkpoint_ns="researcher"`). Its `messages` must contain only the Researcher's turn messages, not the Harness Engineer's messages. Query the Harness Engineer's checkpoint namespace (`checkpoint_ns="harness_engineer"`). Its `messages` must contain messages from both Harness Engineer turns, proving namespace isolation.

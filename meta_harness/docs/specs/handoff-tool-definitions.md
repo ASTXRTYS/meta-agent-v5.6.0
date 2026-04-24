@@ -6,20 +6,21 @@ derived_from:
   - AD §4 Command.PARENT Update Contract
   - AD §4 Data Contracts
 status: active
-last_synced: 2026-04-27
+last_synced: 2026-04-24
 owners: ["@Jason"]
 ---
 
 # Handoff Tool Definitions Specification
 
 > **Provenance:** Derived from `AD.md §4 Handoff Protocol` (semantic catalog), `§4 Handoff Tool Use-Case Matrix` (23-tool matrix), `§4 Command.PARENT Update Contract` (state update shape), and `§4 Data Contracts` (HandoffRecord wire format).
-> **Status:** Active · **Last synced with AD:** 2026-04-27 (created for `T-H1` / `OQ-H6`; updated for `OQ-HO` resolution: `acceptance_stamps` channel, `finish_to_user` terminal-emission tool added, `project_phase` / `plan_phase_id` split clarified; **removed status field from hidden runtime fields per Ticket 4**).
+> **Status:** Active · **Last synced with AD:** 2026-04-24 (created for `T-H1` / `OQ-H6`; updated for `OQ-HO` resolution: `acceptance_stamps` channel, `finish_to_user` terminal-emission tool added, `project_phase` / `plan_phase_id` split clarified; **removed status field from hidden runtime fields per Ticket 4**; **restored dispatcher re-entry `goto` for all normal handoff parent commands per Ticket 5 feedback**; **registered PM `request_approval` model-visible tool per Ticket 5 feedback**).
 > **Consumers:** Developer (implementation), code generation tools, Evaluator (conformance checking).
 
 ## 1. Purpose
 
 This spec locks the concrete model-visible API for the 23 Meta Harness handoff
-tools plus PM's terminal `finish_to_user` tool. It composes the sibling specs:
+tools, PM's terminal `finish_to_user` tool, and PM's structured
+`request_approval` tool. It composes the sibling specs:
 
 - `docs/specs/handoff-tools.md` owns the semantic catalog: tool names,
   owners, targets, reasons, gates, artifact flow, and pipeline order.
@@ -27,7 +28,7 @@ tools plus PM's terminal `finish_to_user` tool. It composes the sibling specs:
   `HandoffRecord`, and `Command.PARENT` update shape.
 - This spec owns concrete tool definitions: descriptions, visible parameters,
   hidden runtime inputs, fixed record fields, record assembly, return shape,
-  and role-scoped tool membership.
+  and role-scoped model-visible tool membership.
 
 Implementation must not infer tool semantics from Python function names,
 docstrings, or generated schemas alone. LangChain derives callable schemas from
@@ -41,8 +42,14 @@ The implementation uses normal LangChain/LangGraph tool behavior:
   owning Deep Agent.
 - Every handoff tool accepts a hidden `runtime: ToolRuntime` argument. The
   model cannot supply this value; LangGraph injects it during tool execution.
-- The tool body returns `Command(graph=Command.PARENT, ...)`. Parent commands
-  do not need a matching `ToolMessage` in the current graph's message history.
+- The 23 handoff tool bodies return
+  `Command(graph=Command.PARENT, goto="dispatch_handoff", update=...)`.
+  Parent commands do not need a matching `ToolMessage` in the current graph's
+  message history.
+- PM's `request_approval` tool is model-visible but is not an agent-to-agent
+  handoff. It returns `Command(graph=Command.PARENT,
+  goto=Send("project_manager", {"messages": [...], "pcg_gate_context": ...}),
+  update={"acceptance_stamps": {...}})`.
 - Phase gate middleware uses `AgentMiddleware.wrap_tool_call` /
   `awrap_tool_call` around the handoff tools. Gate failure returns a revision
   `ToolMessage` to the calling agent and emits no parent command. Gate pass
@@ -69,7 +76,7 @@ Local SDK checks supporting this shape:
 
 ## 3. Visible Schema Families
 
-All handoff tools use one of four visible schema families.
+Model-visible tools use one of five visible schema families.
 
 | Family | Model-visible parameters | Used by |
 |---|---|---|
@@ -77,6 +84,7 @@ All handoff tools use one of four visible schema families.
 | `AcceptanceHandoffInput` | `brief: str`, `artifact_paths: list[str]`, `accepted: bool` | 2 acceptance-stamp tools |
 | `PhaseReviewHandoffInput` | `brief: str`, `artifact_paths: list[str]`, `phase: str` | 4 Developer phase-review tools |
 | `TerminalEmissionInput` | `final_response: str` | PM's terminal `finish_to_user` tool |
+| `ApprovalInput` | `package_brief: str`, `artifact_paths: list[str]`, `approval_type: Literal["scoping_to_research", "architecture_to_planning"]` | PM's `request_approval` tool |
 
 Field semantics:
 
@@ -92,6 +100,8 @@ Field semantics:
   `HandoffRecord`.
 - `final_response` is the PM's final user-facing message for the PCG
   `messages` channel.
+- `approval_type` is the gate-specific `StampKey` for PM approval checkpoints.
+  It cannot be reused across gates.
 
 ## 4. Hidden Runtime Contract
 
@@ -109,6 +119,7 @@ The model cannot provide these values:
 - `langsmith_run_id`
 - `created_at`
 - `acceptance_stamps`
+- `pcg_gate_context`
 - `store`
 - PCG state
 
@@ -129,7 +140,9 @@ its `Command.PARENT`. The helper assembles a complete `HandoffRecord` from:
 
 `dispatch_handoff` does not fill record fields after the reducer appends the
 record. It reads `handoff_log[-1]`, upserts the current project registry entry,
-and returns `Command(goto=<target_agent>)`.
+and returns `Command(goto=Send(<target_agent>, child_input))`, where
+`child_input` always includes `{"messages": [handoff_message]}` and includes
+`pcg_gate_context` for gated target roles.
 
 Lifecycle phase split:
 
@@ -182,6 +195,25 @@ Command(
 `finish_to_user` never writes `handoff_log` and never writes
 `acceptance_stamps`.
 
+PM's approval tool returns:
+
+```python
+Command(
+    graph=Command.PARENT,
+    goto=Send(
+        "project_manager",
+        {
+            "messages": [approval_result_message],
+            "pcg_gate_context": refreshed_gate_context,
+        },
+    ),
+    update={"acceptance_stamps": {approval_type: approval_record}},
+)
+```
+
+`request_approval` never writes `handoff_log` and never routes through
+`dispatch_handoff`; it is PM self-reentry after a stamp update.
+
 ## 7. Concrete Tool Definitions
 
 Descriptions below are model-visible. They should be used as the source text
@@ -214,11 +246,13 @@ schema limitation that requires a purely mechanical rephrase.
 | 22 | `ask_pm` | any specialist except `project_manager` | Ask the Project Manager for stakeholder clarification, scope authority, or business-priority guidance. Use only when the question needs PM authority. | Common | `source_agent=<owning runtime role>`; `target_agent=project_manager`; `reason=question`; `project_phase=None` | None | No required Store side effect |
 | 23 | `coordinate_qa` | `harness_engineer`, `evaluator` | Coordinate QA strategy between Harness Engineer and Evaluator. Use to align findings without changing ownership of work. | Common | `source_agent=<harness_engineer or evaluator>`; `target_agent=<the other QA role>`; `reason=coordinate`; `project_phase=None` | None | No required Store side effect |
 | 24 | `finish_to_user` | `project_manager` | Send the final user-facing response and terminate the PCG turn. Use only when PM is ready to close the current user-facing lifecycle. | Terminal | no `HandoffRecord`; no source/target/reason | None | Writes only PCG `messages`; terminal lifecycle event, not a handoff |
+| 25 | `request_approval` | `project_manager` | Present a scoped document package for stakeholder approval of the scoping-to-research or architecture-to-planning gate. Use after PM has assembled the package and before retrying the gated handoff. | Approval | `source_agent=project_manager`; `target_agent=project_manager`; `reason=submit`; `project_phase=None`; stamp key is visible `approval_type` | None; approval checkpoint only | Writes `acceptance_stamps[approval_type]`; re-enters PM with approval-result message and refreshed `pcg_gate_context`; does not append `handoff_log` |
 
 ### 7.1 Exact Return Shapes
 
-Every tool above returns one of these concrete parent commands after its
-record helper has assembled `record`.
+Every model-visible tool above returns one of these concrete parent commands.
+Rows 1-23 use a `HandoffRecord` helper; row 24 emits no record; row 25 creates
+an approval stamp record only for `acceptance_stamps`.
 
 | Row | Parent command |
 |---|---|
@@ -246,6 +280,7 @@ record helper has assembled `record`.
 | 22 | `Command(graph=Command.PARENT, goto="dispatch_handoff", update={"handoff_log": [record], "current_agent": "project_manager"})` |
 | 23 | `Command(graph=Command.PARENT, goto="dispatch_handoff", update={"handoff_log": [record], "current_agent": record.target_agent})` |
 | 24 | `Command(graph=Command.PARENT, goto=END, update={"messages": [AIMessage(final_response)]})` |
+| 25 | `Command(graph=Command.PARENT, goto=Send("project_manager", {"messages": [approval_result_message], "pcg_gate_context": refreshed_gate_context}), update={"acceptance_stamps": {approval_type: record}})` |
 
 ### 7.2 Role Toolsets
 
@@ -253,7 +288,7 @@ Role factories register exactly these tool names:
 
 | Role | Rows from §7 |
 |---|---|
-| `project_manager` | 1, 2, 3, 4, 5, 21, 24 |
+| `project_manager` | 1, 2, 3, 4, 5, 21, 24, 25 |
 | `harness_engineer` | 6, 11, 14, 21, 22, 23 |
 | `researcher` | 7, 22 |
 | `architect` | 8, 13, 21, 22 |
@@ -263,9 +298,12 @@ Role factories register exactly these tool names:
 
 ## 8. Gate Middleware Contract
 
+> Implementation detail (full gate and approval contract): see [`docs/specs/approval-and-gate-contracts.md`](./approval-and-gate-contracts.md).
+
 Gate middleware is installed only on roles that own gated tools. It inspects
 the fixed fields and model-visible arguments before the tool body emits a
-parent command.
+parent command. PCG-derived reads come from the dispatcher-projected
+`pcg_gate_context` child input, not direct parent `ProjectCoordinationState`.
 
 Required behavior:
 
@@ -279,6 +317,13 @@ Required behavior:
 - `accepted=false` writes the stamp record but never satisfies final gates.
 - `phase` in phase-review tools is compared as `plan_phase_id`, not as
   `current_phase`.
+- PM's `request_approval` is not gated, but it must refresh
+  `pcg_gate_context` in its self-reentry `Send` payload after writing the
+  approval stamp.
+
+For exact gate function inputs, pass conditions, failure feedback, autonomous
+mode behavior, user approval tool contract, terminal emission, and final-turn
+guard specifications, see the approval-and-gate-contracts.md spec.
 
 ## 9. Implementation Conformance
 
@@ -289,8 +334,8 @@ Minimum checks for the later implementation:
 2. `runtime`, state, Store, project identity, role names, reasons,
    timestamps, and run IDs are not model-visible.
 3. LLM-supplied injected fields are stripped or ignored.
-4. Every handoff tool returns `Command(graph=Command.PARENT,
-   goto="dispatch_handoff", update=...)`.
+4. Every handoff tool returns
+   `Command(graph=Command.PARENT, goto="dispatch_handoff", update=...)`.
 5. `finish_to_user` returns `Command(graph=Command.PARENT, goto=END,
    update={"messages": [...]})` and does not append to `handoff_log`.
 6. No handoff update writes `messages` or `pending_handoff`.
@@ -298,4 +343,5 @@ Minimum checks for the later implementation:
 8. The model-visible phase-review argument `phase` is stored as
    `plan_phase_id`.
 9. Gate failure returns a `ToolMessage` and produces no parent-state update.
-10. Role factories register only the tools listed for their role in §7.
+10. Role factories register only the tools listed for their role in §7.2,
+    including PM's `request_approval`.

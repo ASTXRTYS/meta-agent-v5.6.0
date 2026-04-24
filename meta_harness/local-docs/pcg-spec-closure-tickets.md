@@ -42,6 +42,7 @@ Execution order:
 4. Ticket 4 — PCG Wire/Data Contract Repair
 5. Ticket 5 — Gate, Approval, and Terminal-Emission Contract
 6. Ticket 6 — Project Data Plane Contract
+7. Follow-up Ticket 7 — PM-Session PCG Envelope Contract
 
 ## Ticket 1 — PCG Routing and Receiving-Agent Input *[Resolved]*
 
@@ -481,6 +482,64 @@ The assignee must study both the local spec intent and upstream primitives:
 - PM-session, web/TUI, and headless ingress use one coherent data-plane
   contract rather than separate ad hoc mechanisms.
 - Retention and schema migration behavior is fully specified.
+
+## Follow-up Ticket 7 — PM-Session PCG Envelope Contract *[deferred P2]*
+
+### Problem
+
+Ticket 5 surfaced a broader topology question: should `pm_session` threads run
+the PM as a standalone Deep Agent or through a thin PCG envelope that mounts the
+same `project_manager` child graph? The envelope direction may be the right
+runtime unification for terminal emission and shared PM identity, but it is not
+owned by Ticket 5's gate, approval, and terminal-emission closure scope.
+
+### Scope
+
+Resolve the `pm_session` runtime topology as its own architecture decision and
+derived runtime spec.
+
+This ticket owns:
+
+- Whether `pm_session` runs standalone PM or PCG session mode.
+- Exact `pm_session` PCG input, context, output, and state shape if session mode
+  is selected.
+- How `finish_to_user` behaves on `pm_session` threads.
+- How PM session tools and project tools are conditionally exposed from
+  `thread_kind`.
+- How `AskUserMiddleware`, approval tools, and terminal emission compose on
+  `pm_session` threads.
+- Whether `ProjectCoordinationState` exists on `pm_session` threads or only on
+  `project` threads.
+- Required conformance tests for both project-mode and session-mode entry.
+
+### Required discovery
+
+- `AD.md §4 Runtime Topology Decision`
+- `AD.md §4 PM Session And Project Entry Model`
+- `docs/specs/pcg-runtime-contract.md`
+- Deep Agents CLI `AskUserMiddleware` and graph assembly:
+  `.reference/libs/cli/deepagents_cli/ask_user.py`
+  and `.reference/libs/cli/deepagents_cli/agent.py`
+- Deep Agents `create_deep_agent()` middleware ordering:
+  `.reference/libs/deepagents/deepagents/graph.py`
+- LangGraph Agent Server thread/run config APIs:
+  `.venv/lib/python3.11/site-packages/langgraph_sdk/_async/threads.py`
+  and `.venv/lib/python3.11/site-packages/langgraph_sdk/_async/runs.py`
+
+### Deliverables
+
+- Update `AD.md` with the resolved `pm_session` topology decision.
+- Update `docs/specs/pcg-runtime-contract.md` if `pm_session` uses PCG session
+  mode.
+- Add or update conformance checks for `pm_session` entry, PM terminal
+  emission, and project creation transition.
+
+### Acceptance criteria
+
+- Ticket 5 no longer has to decide PM-session topology implicitly.
+- The selected topology is SDK-cited and implementable.
+- A developer can implement both `pm_session` and `project` thread entry without
+  inventing input/output shape, state keys, or terminal behavior.
 
 ## Global Completion Criteria
 
