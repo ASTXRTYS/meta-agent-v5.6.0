@@ -43,7 +43,7 @@ Execution order:
 5. Ticket 5 — Gate, Approval, and Terminal-Emission Contract
 6. Ticket 6 — Project Data Plane Contract
 
-## Ticket 1 — PCG Routing and Receiving-Agent Input
+## Ticket 1 — PCG Routing and Receiving-Agent Input *[Resolved]*
 
 ### Problem
 
