@@ -1136,11 +1136,11 @@ The `HandoffRecord` field set and enum values are locked as AD decisions:
 
 - **Core fields:** `project_id`, `project_thread_id`, `handoff_id`,
   `source_agent`, `target_agent`, `reason`, `brief`, `artifact_paths`,
-  `langsmith_run_id`, `status`, `created_at`.
+  `langsmith_run_id`, `created_at`.
 - **Optional fields:** `project_phase` (PCG lifecycle-phase-transitioning
   records only), `plan_phase_id` (Developer plan-phase review records only),
   `accepted` (acceptance-stamp records only).
-- **Enum values:** `source_agent`/`target_agent` (7 role names), `reason` (7 transition types), `status` (4 lifecycle states).
+- **Enum values:** `source_agent`/`target_agent` (7 role names), `reason` (7 transition types).
 - **`target_agent` maps 1:1 to checkpoint namespace** in v1.
 - **`reason` encodes transition type**, not pipeline phase; middleware dispatches on `(source_agent, target_agent, reason)` triple.
 

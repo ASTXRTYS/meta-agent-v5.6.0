@@ -3,17 +3,15 @@ doc_type: spec
 derived_from:
   - AD §4 Handoff Protocol
   - AD §4 Handoff Tool Use-Case Matrix
-  - AD §4 Pipeline Flow Diagram
-  - AD §4 Command.PARENT Update Contract
 status: active
-last_synced: 2026-04-23
+last_synced: 2026-04-27
 owners: ["@Jason"]
 ---
 
 # Handoff Tools Specification
 
-> **Provenance:** Derived from `AD.md §4 Handoff Protocol`, `§4 Handoff Tool Use-Case Matrix`, `§4 Pipeline Flow Diagram`, and `§4 Command.PARENT Update Contract`.  
-> **Status:** Active · **Last synced with AD:** 2026-04-23 (updated for `OQ-HO` resolution: 1 dispatcher + 7 mounted role subgraphs; `acceptance_stamps` channel; `finish_to_user` terminal-emission tool added; clarified sibling relationship with `pcg-data-contracts.md` and concrete definitions spec).
+> **Provenance:** Derived from `AD.md §4 Handoff Protocol` (tool catalog, role-scoped ownership, pipeline order, gate semantics) and `§4 Handoff Tool Use-Case Matrix` (23-tool matrix).
+> **Status:** Active · **Last synced with AD:** 2026-04-27 (updated for `OQ-HO` resolution: 1 dispatcher + 7 mounted role subgraphs; `acceptance_stamps` channel; `finish_to_user` terminal-emission tool added; clarified sibling relationship with `pcg-data-contracts.md` and concrete definitions spec; **clarified acceptance gate truth semantics per Ticket 4: gate requires both stamp presence AND accepted is True**).
 > **Consumers:** Developer (implementation), Evaluator (conformance checking).
 
 ## 1. Purpose
@@ -155,9 +153,12 @@ synchronized.
 **Acceptance gate logic for `return_product_to_pm`.** The middleware gate on
 this tool reads `state["acceptance_stamps"]`:
 
-- `state["acceptance_stamps"]["application"]` must be present (Evaluator
-  stamp; always required).
-- `state["acceptance_stamps"]["harness"]` is required only if the HE
+- `state["acceptance_stamps"]["application"]` must be present AND
+  `state["acceptance_stamps"]["application"]["accepted"] is True` (Evaluator
+  stamp; always required). Presence alone is insufficient; rejected stamps
+  (`accepted is False`) are written for auditability but never satisfy the gate.
+- `state["acceptance_stamps"]["harness"]` must be present AND
+  `state["acceptance_stamps"]["harness"]["accepted"] is True` if the HE
   participated in the project thread. HE participation is derived by
   scanning `state["handoff_log"]` for any record with
   `source_agent == "harness_engineer"` or

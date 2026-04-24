@@ -6,15 +6,15 @@ derived_from:
   - AD §4 Command.PARENT Update Contract
   - AD §4 Data Contracts
 status: active
-last_synced: 2026-04-23
+last_synced: 2026-04-27
 owners: ["@Jason"]
 ---
 
 # Handoff Tool Definitions Specification
 
-> **Provenance:** Derived from `AD.md §4 Handoff Protocol`, `§4 Handoff Tool Use-Case Matrix`, `§4 Command.PARENT Update Contract`, and `§4 Data Contracts`.
-> **Status:** Active · **Last synced with AD:** 2026-04-23.
-> **Consumers:** Developer (implementation and code generation), Evaluator (schema and routing conformance).
+> **Provenance:** Derived from `AD.md §4 Handoff Protocol` (semantic catalog), `§4 Handoff Tool Use-Case Matrix` (23-tool matrix), `§4 Command.PARENT Update Contract` (state update shape), and `§4 Data Contracts` (HandoffRecord wire format).
+> **Status:** Active · **Last synced with AD:** 2026-04-27 (created for `T-H1` / `OQ-H6`; updated for `OQ-HO` resolution: `acceptance_stamps` channel, `finish_to_user` terminal-emission tool added, `project_phase` / `plan_phase_id` split clarified; **removed status field from hidden runtime fields per Ticket 4**).
+> **Consumers:** Developer (implementation), code generation tools, Evaluator (conformance checking).
 
 ## 1. Purpose
 
@@ -107,7 +107,6 @@ The model cannot provide these values:
 - `plan_phase_id`
 - `handoff_id`
 - `langsmith_run_id`
-- `status`
 - `created_at`
 - `acceptance_stamps`
 - `store`
