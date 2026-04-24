@@ -483,7 +483,7 @@ The assignee must study both the local spec intent and upstream primitives:
   contract rather than separate ad hoc mechanisms.
 - Retention and schema migration behavior is fully specified.
 
-## Follow-up Ticket 7 — PM-Session PCG Envelope Contract *[deferred P2]*
+## Follow-up Ticket 7 — PM-Session PCG Envelope Contract *[Resolved]*
 
 ### Problem
 
@@ -541,9 +541,21 @@ This ticket owns:
 - A developer can implement both `pm_session` and `project` thread entry without
   inventing input/output shape, state keys, or terminal behavior.
 
+### Resolution
+
+Resolved in favor of PCG session mode. `pm_session` is a first-class
+`thread_kind` on the same PCG assistant, not a standalone PM assistant. The same
+mounted `project_manager` child graph handles both PM-session and project-mode
+PM turns; runnable config carries `thread_kind` into graph nodes and tool
+middleware. `pm_session` parent PCG state is limited to `messages` and `org_id`;
+project-only channels remain unset or empty until a separate `project` thread is
+created. Normative updates landed in `AD.md`, `docs/specs/pcg-runtime-contract.md`,
+`docs/specs/pcg-data-contracts.md`, `docs/specs/approval-and-gate-contracts.md`,
+and `docs/specs/repo-and-workspace-layout.md`.
+
 ## Global Completion Criteria
 
-The closure pass is complete only when all six tickets have landed and the
+The closure pass is complete only when all seven tickets have landed and the
 following checks pass:
 
 - Every doc under `docs/specs/` has current provenance, AD pointer, and
