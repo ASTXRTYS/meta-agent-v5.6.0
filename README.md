@@ -2,7 +2,7 @@
 
 **Your agent team for building, tuning, and shipping AI applications.**
 
-Meta Harness puts a full team of specialized AI agents at your fingertips — a Project Manager, Harness Engineer, Researcher, Architect, Planner, Developer, and Evaluator — that work together to take your idea from a conversation to a production-ready agent harness. You define what success looks like. They do the engineering.
+Meta Harness puts a full team of specialized AI agents at your fingertips — a Project Manager, Researcher, Architect, Planner, Developer, Harness Engineer, and Evaluator — that work together to take your idea from a conversation to a production-ready agent harness. You define what success looks like. They do the engineering.
 
 ---
 
@@ -24,7 +24,7 @@ Meta Harness changes that.
 
 ## What Meta Harness Does
 
-Meta Harness is an agent harness engineering system. You talk to the Project Manager and describe what you need your agent to do. From there, the agent team runs the full lifecycle:
+Meta Harness is an agents-as-a-service platform. You talk to our Project Manager — through the web app, a terminal, Slack, Discord, email, or any channel where your team already works — and describe what you need your agent to do. From there, our agent team runs the full lifecycle:
 
 ### 1. You Shape the Requirements
 
@@ -49,7 +49,7 @@ This is where Meta Harness does something fundamentally different from tradition
 The Developer works phase by phase through the implementation plan. After each phase, it submits its work to two independent reviewers:
 
 - The **Evaluator** checks whether the code matches the spec and plan — hard pass/fail on compliance
-- The **Harness Engineer** runs the evaluation harness against the current build and returns directional feedback on what's working and what isn't
+- The **Harness Engineer** runs the evaluation harness against the current build and returns an EBDR-1 feedback packet — directional guidance on what's working and what isn't
 
 Here's the critical design constraint: **the Developer never sees the evaluation artifacts**. It doesn't know the rubrics, the judge configurations, or the held-out datasets. It only sees the feedback. This information isolation prevents the optimizer from gaming the evaluator — the same principle that makes scientific peer review work.
 
@@ -57,69 +57,24 @@ The Developer iterates. Each loop tightens the harness. System prompts get refin
 
 ### 5. You See Everything
 
-Every artifact the team produces — PRDs, datasets, eval scorecards, design specs, optimization trendlines — surfaces as a first-class, human-readable object. You don't need to dig through traces or parse nested JSON. You see:
+Every artifact the team produces — PRDs, datasets, eval scorecards, design specs, optimization trendlines — surfaces in the Meta Harness UI as a first-class, human-readable object. You don't need to dig through traces or parse nested JSON. You see:
 
 - The dataset your stakeholders helped shape, rendered at a glance
 - Evaluation scores trending upward (or regressing — and why)
 - Each iteration of the optimization loop with clear before/after signals
 - Direct links to LangSmith when you want the full forensic depth
 
-The interface exists to make invisible work visible. When your team watches an optimization curve bend toward the target, that's not a dashboard metric — that's proof that the harness engineering process is working, backed by real data from real experiments.
+The UI exists to make invisible work visible. When your team watches an optimization curve bend toward the target, that's not a dashboard metric — that's proof that the harness engineering process is working, backed by real data from real experiments.
 
 ---
 
 ## How It Works Under the Hood
 
-Meta Harness is built on [Deep Agents SDK](https://github.com/langchain-ai/deepagents) and [LangGraph](https://github.com/langchain-ai/langgraph). Seven specialized agents run as peer Deep Agent graphs under a thin **Project Coordination Graph (PCG)** — each with its own memory, checkpoint state, tools, and middleware stack.
+Meta Harness is built on LangChain's Deep Agents SDK and orchestrated by LangGraph. Seven specialized agents run as **peer Deep Agent graphs mounted under a thin Project Coordination Graph (PCG)** — each with its own checkpoint namespace, memory, tools, and middleware stack.
 
-### Architecture Overview
+The PCG has exactly two nodes: `process_handoff` and `run_agent`. No LLM calls. No conditional edges. Routing is pure `Command(goto=...)` dispatch. Agents communicate through explicit handoff tools that emit `Command.PARENT` with structured `HandoffRecord` payloads. Phase gates are enforced by middleware hooks on handoff tools, not by the coordination graph.
 
-```
-┌─────────────────────────────────────────────────────────────────────┐
-│                    Project Coordination Graph                       │
-│                   (deterministic orchestration)                      │
-│                                                                     │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐              │
-│  │   Project    │  │   Harness    │  │  Researcher  │              │
-│  │   Manager    │  │   Engineer   │  │              │              │
-│  └──────────────┘  └──────────────┘  └──────────────┘              │
-│                                                                     │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐              │
-│  │   Architect  │  │   Planner    │  │   Developer  │              │
-│  └──────────────┘  └──────────────┘  └──────────────┘              │
-│                                                                     │
-│  ┌──────────────┐                                                  │
-│  │  Evaluator   │                                                  │
-│  └──────────────┘                                                  │
-└─────────────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-                    Project Data Plane
-              (durable project state & artifacts)
-```
-
-### Two Thread Kinds
-
-Meta Harness operates with exactly two thread types:
-
-- **`pm_session`** — Intake and stakeholder conversation threads. The PM answers questions, manages your project portfolio, and spawns new projects.
-- **`project`** — Active project execution threads. All seven agents collaborate within a project thread to build your harness.
-
-A single PM session can spawn multiple projects over its lifetime. Project creation never mutates a session thread into a project thread — it always spawns a new thread.
-
-### Handoff Protocol
-
-Agents communicate through explicit handoff tools that return `Command.PARENT` to the PCG. The coordination layer receives the handoff, records it to the Project Data Plane, and routes to the target agent. Phase gates are enforced by middleware hooks on handoff tools, not by a central router. The PCG is plumbing — the intelligence lives in the agents.
-
-### Terminal-Exit Discipline
-
-Every role turn terminates with `Command.PARENT` — explicit emission, not natural completion. This prevents silent state leakage between parent and child graphs and ensures observability of every agent transition.
-
-### Project Data Plane
-
-Meta Harness owns a **Project Data Plane** for durable cross-thread project facts. The product database is the authoritative substrate for project registry, artifact manifests, optimization trendlines, and project snapshots. Role filesystems and sandboxes remain the content substrate, but the Data Plane is the discovery and permission surface.
-
-Every handoff, every experiment, every evaluation is traced in [LangSmith](https://smith.langchain.com). LangSmith is always one click away for anyone who wants the raw detail.
+Every handoff, every experiment, every evaluation is traced in LangSmith. The web app transforms that data into progress narratives. LangSmith is always one click away for anyone who wants the raw detail.
 
 ### The Agent Team
 
@@ -149,24 +104,24 @@ Developer iterates until both gates pass
     Next phase
 ```
 
-The Developer is blind to evaluation artifacts. It sees only directional feedback. This information asymmetry is what makes the loop scientifically valid — the optimizer cannot overfit to the evaluator.
+The Developer is blind to evaluation artifacts. It sees only directional feedback (EBDR-1 packets). This information asymmetry is what makes the loop scientifically valid — the optimizer cannot overfit to the evaluator.
+
+### Architecture Decisions
+
+- **Peer Deep Agent topology**: Each role is a `create_deep_agent()` graph mounted as a subgraph node. No ephemeral `task` subagents for project roles.
+- **Command.PARENT handoffs**: All agent transitions bubble through the PCG via explicit `Command(graph=PARENT, goto="dispatcher")` emissions.
+- **Thread kinds**: `pm_session` for intake/conversation, `project` for execution. Project threads own project-scoped execution environments.
+- **Headless-first**: PM available via web app, TUI, and API. Same lifecycle across all surfaces.
 
 ---
 
-## Headless-First Architecture
+## Headless-First
 
-Meta Harness is designed as a headless agent system first, with surfaces layered on top. The core project lifecycle, execution environment, repository binding, and contribution policy stay the same across all entry points.
+Meta Harness goes where your team already works. The PM is available through the web app, a terminal TUI, and API — with the same lifecycle and artifact visibility across all surfaces. A solo founder can scope a project from the command line; a team can collaborate through the web interface. All entry points share the same project state and artifact browser.
 
-### Surfaces
+The web app is intentionally minimal — a chat interface for direct PM interaction, flanked by an artifact browser that surfaces PRDs, datasets, eval scorecards, and optimization trendlines. It's the single place where progress and ROI become visible, regardless of which surface the work originated from.
 
-| Surface | Status | Description |
-|---------|--------|-------------|
-| **Web App** | In progress | Chat interface for direct PM interaction, artifact browser for PRDs, datasets, eval scorecards, and optimization trendlines. |
-| **API** | Planned | Programmatic access to the full agent team. |
-| **Terminal UI** | Planned | Local-first terminal interface for solo development. |
-| **Slack / Discord / Email** | Future | Channel-native PM presence for teams already working there. |
-
-Every project maintains state across all entry points. The same artifacts appear in the same artifact browser regardless of which channel the work happened in.
+Every project maintains state across all entry points. The same artifacts appear in the same artifact browser whether you scoped the project in the TUI or the web app.
 
 ---
 
@@ -178,11 +133,11 @@ For existing codebases, the agent clones your repo, creates a working branch, im
 
 Three execution modes serve different needs:
 
-- **Managed sandbox** — Meta Harness provisions and manages the environment. Default for production. Daytona is the v1 default provider.
+- **Managed sandbox** — Meta Harness provisions and manages the environment. Default for production and headless work.
 - **External devbox** — Your organization brings its own sandbox provider, image, and security policy. Same capabilities, your governance.
-- **Local workspace** — The agent operates on your machine. Opt-in, with guarded shell access. Good for trusted solo development.
+- **Local workspace** — The agent operates on your machine, from the TUI. Opt-in, with guarded shell access. Good for trusted solo development.
 
-All surfaces connect to the same project environment. File trees, diffs, command logs, PR status — all visible from wherever you're working.
+The web app, TUI, and API all connect to the same project environment. File trees, diffs, command logs, PR status — all visible from wherever you're working.
 
 ---
 
@@ -194,7 +149,7 @@ We make it participatory:
 
 - **You define what good looks like.** Your domain expertise, your success criteria, your ground truth data. The PM helps you articulate it; the Harness Engineer turns it into science.
 - **You watch it happen.** Every iteration, every experiment, every trend line is visible. Not as raw traces — as human-readable artifacts that tell the story of your agent getting better.
-- **You weigh in when it matters.** Human-in-the-loop at key decision points: PRD review (scoping→research transition) and architecture review (architecture→planning transition). Your judgment shapes the outcome.
+- **You weigh in when it matters.** Human-in-the-loop at key decision points: dataset approval, architecture review, eval criteria sign-off, taste calibration during development. Your judgment shapes the outcome.
 - **You get proof, not promises.** Optimization curves backed by real evaluation data. Calibrated judges scoring against your criteria. Held-out test sets that prove generalization, not memorization.
 
 The art of harness engineering — now open to everyone with a problem to solve.
@@ -216,28 +171,33 @@ The art of harness engineering — now open to everyone with a problem to solve.
 
 ---
 
-## Documentation
+## Repository Navigation
 
-| Document | Purpose |
-|----------|---------|
-| [`meta_harness/AD.md`](./meta_harness/AD.md) | Architecture decisions, thread identity model, and open questions. The active design baseline. |
-| [`meta_harness/AGENTS.md`](./meta_harness/AGENTS.md) | Coding conventions, SDK references, and review standards for contributors. |
-| [`meta_harness/docs/specs/`](./meta_harness/docs/specs/) | Implementation specs derived from AD decisions — PCG data contracts, handoff tools, runtime contracts, project data plane. |
+### SME/ — Subject Matter Expert Input
+
+The `SME/` folder contains primary source material that heavily influenced Meta Harness's design philosophy. This is not documentation — it's the raw intellectual substrate.
+
+**`SME/Vivek-Langchain/`** — Essays, threads, and articles from @Vtrivedy10 (Viv), Agents & Evals at LangChain. This is the single highest-signal external input for harness engineering mental models.
+
+| Path | What You'll Find |
+|------|------------------|
+| `Vivek-Langchain/Readme.md` | Onboarding guide to Viv's core mental models: the Model-Harness Training Loop, "no general-purpose harness" principle, evals-as-training-data, and the GEPA hill-climbing lineage |
+| `Vivek-Langchain/Twitter-Articles/` | Long-form articles derived from Twitter threads: eval recipes for Deep Agents, harness engineering anatomy, iterative improvement patterns |
+| `Vivek-Langchain/blogs/` | Blog posts on trace-driven agent improvement |
+| `Vivek-Langchain/Tweets_*` | Raw tweet and reply extracts (preserved for verbatim citation) |
+
+**How to use this material:**
+
+1. **For harness design decisions** — Start with `Readme.md` "Core Mental Models" section. These principles constrain/validate design choices.
+2. **For eval design specifics** — See `Twitter-Articles/"How-we-build-evals-for-deep-agents".md` for concrete LangChain recipes, CI integration patterns, and LangSmith-at-scale practices.
+3. **For verbatim attribution** — Use the `Tweets_*` extracts for direct quotes with original context preserved.
 
 ---
 
 ## Project Status
 
-Meta Harness is in active development. The core architecture is locked:
-
-- Peer Deep Agent topology with Project Coordination Graph envelope
-- Middleware-enforced phase gates
-- Project-scoped execution environments
-- Terminal-exit discipline for all agent transitions
-- Project Data Plane as source of truth
-
-See [`meta_harness/AD.md`](./meta_harness/AD.md) §2 for open questions and decision status.
+Meta Harness is in active development. The architecture is locked — peer Deep Agent topology, middleware-enforced phase gates, project-scoped execution environments, and headless-first delivery. Implementation is underway.
 
 ---
 
-*Built with [Deep Agents SDK](https://github.com/langchain-ai/deepagents) · Orchestrated by [LangGraph](https://github.com/langchain-ai/langgraph) · Traced by [LangSmith](https://smith.langchain.com)*
+*Built with [Deep Agents SDK](https://pypi.org/project/deepagents/) · Orchestrated by [LangGraph](https://github.com/langchain-ai/langgraph) · Traced by [LangSmith*](https://smith.langchain.com)
