@@ -6,29 +6,37 @@ derived_from:
   - AD §4 Project-Scoped Execution Environment
   - AD §6 Observability & Evaluation
   - AD §8 Security / Privacy / Compliance
+  - docs/adrs/replace-optimization-trendline-with-evaluation-analytics-views.md
+  - docs/specs/harness-engineer-evaluation-analytics.md
+  - docs/specs/evaluation-analytics-chart-schemas.md
 status: active
-last_synced: 2026-04-24
+last_synced: 2026-04-25
 owners: ["@Jason"]
 ---
 
 # Project Data Plane Specification
 
-> **Provenance:** Derived from `AD.md §4 PM Session And Project Entry Model`, `§4 LangGraph Project Coordination Graph`, `§4 Project-Scoped Execution Environment`, `§6 Observability & Evaluation`, and `§8 Security / Privacy / Compliance`.
-> **Status:** Active · **Last synced with AD:** 2026-04-24 (created for Ticket 6 / `OQ-H5` closure).
-> **Consumers:** Developer (backend/data-access implementation), PM session tools, web/TUI/headless surfaces, Evaluator (conformance checking).
+> **Provenance:** Derived from `AD.md §4 PM Session And Project Entry Model`, `§4 LangGraph Project Coordination Graph`, `§4 Project-Scoped Execution Environment`, `§6 Observability & Evaluation`, `§8 Security / Privacy / Compliance`, and the Evaluation Analytics architecture/spec family.
+> **Status:** Active · **Last synced with AD:** 2026-04-25 (repaired for `TICKET-002` / evaluation analytics migration).
+> **Consumers:** Developer (backend/data-access implementation), PM session tools, web/TUI/headless surfaces, Harness Engineer, Evaluator, UI analytics renderer, access-policy conformance tests.
 
 ## 1. Purpose
 
 The Project Data Plane is the product-owned contract for durable project facts
 that must be visible across `pm_session` threads, project threads, the web app,
 TUI, and headless ingress adapters. It owns the project registry, artifact
-manifest, sanitized optimization trendline, access audit trail, and read-only
-snapshot records.
+manifest, UI-renderable evaluation analytics views, access audit trail, and
+read-only snapshot records.
 
 This spec replaces the earlier LangGraph `Store` namespaces previously listed
 in `docs/specs/pcg-data-contracts.md`. PCG state still owns deterministic
 routing state (`handoff_log`, `current_agent`, `current_phase`,
 `acceptance_stamps`). The Project Data Plane owns cross-surface product records.
+
+`evaluation_analytics_views` is the canonical product record family for
+published evaluation analytics surfaces. `optimization_timeline` is supported
+only as an `analytics_kind` inside this record family; it is not a standalone
+Product Data Plane primitive.
 
 ## 2. SDK Alignment
 
@@ -60,7 +68,7 @@ it is not the authoritative project data plane:
 | Project registry | Product database table `project_registry` | LangGraph thread metadata, LangGraph Store cache |
 | Artifact manifest metadata | Product database table `artifact_manifest` | Role filesystem directory listings, LangGraph Store cache |
 | Artifact bytes/content | Role filesystem, sandbox/devbox filesystem, object storage, or external URL named by manifest `content_ref` | Manifest metadata |
-| Optimization trendline | Product database table `optimization_trendline` | UI summaries, LangGraph Store cache |
+| Evaluation analytics views | Product database table `evaluation_analytics_views` | UI cache, LangGraph Store cache, rendered snapshot artifacts |
 | Data-plane access audit | Product database table `project_data_events` | LangSmith metadata |
 | Read-only live snapshots | Product database table `project_snapshots` plus generated artifact rows | Sandbox/devbox filesystem at capture time |
 
@@ -143,14 +151,29 @@ class ArtifactManifestRecord(DataPlaneBase):
         "final_product",
         "dataset",
         "rubric",
-        "trendline_snapshot",
+        "analytics_source_data",
+        "evaluation_analytics_snapshot",
+        "experiment_summary",
+        "run_index",
+        "filtered_run_index",
+        "trace_bundle",
+        "trace_summary_bundle",
+        "failure_cluster_report",
+        "candidate_comparison_report",
         "live_snapshot",
         "repo_evidence",
         "check_log",
     ]
     title: str
     owner_agent: AgentName
-    visibility: Literal["stakeholder_visible", "internal", "role_private", "he_private", "evaluator_private"]
+    visibility: Literal[
+        "stakeholder_visible",
+        "developer_safe",
+        "internal",
+        "role_private",
+        "he_private",
+        "evaluator_private",
+    ]
     content_ref: str
     content_ref_kind: Literal["role_filesystem_path", "sandbox_path", "object_store_key", "external_url"]
     content_status: Literal["available", "unavailable", "deleted"]
@@ -177,52 +200,121 @@ marks `content_status="unavailable"`, records a `project_data_events` row, and
 returns a recoverable "artifact unavailable" response rather than silently
 dropping the artifact.
 
-### 5.3 `optimization_trendline`
+Analytics source JSON is stored as an artifact with
+`kind="analytics_source_data"`. Rendered chart/table snapshots are stored as
+artifacts with `kind="evaluation_analytics_snapshot"`. A legacy
+`trendline_snapshot` artifact kind must be migrated to
+`evaluation_analytics_snapshot` with `analytics_kind="optimization_timeline"`
+in the associated analytics view.
 
-Primary key: `(org_id, project_id, trendline_point_id)`.
+### 5.3 `evaluation_analytics_views`
+
+Primary key: `(org_id, project_id, analytics_view_id)`.
 
 ```python
-class OptimizationTrendlinePoint(DataPlaneBase):
-    trendline_point_id: str
-    iteration_id: str
-    plan_phase_id: str | None
-    metric_key: Literal[
-        "harness_pass_rate",
-        "application_pass_rate",
-        "latency_p95",
-        "cost_per_run",
-        "coverage",
-        "regression_count",
+class EvaluationAnalyticsView(DataPlaneBase):
+    analytics_view_id: str
+    owner_agent: Literal["harness_engineer", "evaluator", "system"]
+
+    phase: Literal[
+        "scoping",
+        "research",
+        "architecture",
+        "planning",
+        "development",
+        "acceptance",
     ]
-    value: float
-    direction: Literal["higher_is_better", "lower_is_better"]
-    change: Literal["improved", "regressed", "flat", "unknown"]
-    source_kind: Literal["public_eval", "aggregate_private_eval", "manual_he_assessment"]
-    summary_signal: Literal[
-        "pass_rate_changed",
-        "latency_changed",
-        "cost_changed",
-        "coverage_changed",
-        "regression_detected",
-        "quality_gate_changed",
+
+    analytics_kind: Literal[
+        "success_criteria_profile",
+        "eval_coverage_matrix",
+        "rubric_weight_distribution",
+        "dataset_composition",
+        "judge_profile_matrix",
+        "risk_map",
+        "eval_readiness_scorecard",
+        "candidate_scorecard",
+        "optimization_timeline",
+        "capability_actual_vs_target",
+        "failure_cluster_summary",
+        "cost_latency_tradeoff",
+        "regression_report",
     ]
-    summary_value: str
-    he_private_source_ref: str | None
+
+    recommended_view_type: Literal[
+        "radar_chart",
+        "line_chart",
+        "bar_chart",
+        "stacked_bar_chart",
+        "scatter_plot",
+        "bubble_chart",
+        "heatmap",
+        "scorecard",
+        "matrix",
+        "table",
+    ]
+
+    visibility: Literal[
+        "he_private",
+        "evaluator_private",
+        "internal",
+        "developer_safe",
+        "stakeholder_visible",
+    ]
+
+    title: str
+    summary: str
+
+    data_ref: str
+    data_ref_kind: Literal[
+        "artifact_id",
+        "object_store_key",
+        "filesystem_path",
+    ]
+
+    source_artifact_ids: list[str]
+
+    langsmith_dataset_id: str | None
+    langsmith_experiment_id: str | None
+    langsmith_project_name: str | None
     langsmith_run_id: str | None
+    langsmith_trace_url: str | None
+
     handoff_id: str | None
+
+    render_status: Literal[
+        "valid",
+        "invalid",
+        "unsupported",
+        "stale",
+    ]
 ```
 
 Indexes:
 
-- `(org_id, project_id, metric_key, updated_at desc)`
-- `(org_id, project_id, iteration_id)`
-- `(org_id, project_id, plan_phase_id)`
+- `(org_id, project_id, analytics_kind, updated_at desc)`
+- `(org_id, project_id, owner_agent, updated_at desc)`
+- `(org_id, project_id, visibility, updated_at desc)`
+- `(org_id, project_id, phase, updated_at desc)`
+- `(org_id, project_id, langsmith_experiment_id)`
+- `(org_id, project_id, handoff_id)`
 
-Free-form `notes` are forbidden. `summary_signal` is an enum and
-`summary_value` is generated from a bounded formatter. `summary_value` must not
-contain rubric text, judge prompts, held-out examples, dataset row contents, or
-private evaluation instructions. `he_private_source_ref` may point to HE-owned
-private evidence; it is never returned to Developer-role reads.
+`evaluation_analytics_views` contains the canonical product record for a
+published analytics surface. It does not contain arbitrary chart code and does
+not contain raw private eval evidence. The `data_ref` points to schema-validated
+chart/table source data, normally an `artifact_manifest` row with
+`kind="analytics_source_data"`.
+
+The backend must validate that `recommended_view_type` is supported for the
+referenced source data schema before setting `render_status="valid"`. Unsupported
+or invalid analytics data must be rejected at publication time or marked with
+`render_status="invalid"` / `"unsupported"` and excluded from default UI views.
+
+`visibility="developer_safe"` means the analytics view may be exposed to the
+Developer only after both the view summary and referenced source data pass the
+Developer-safe boundary checks. Developer-safe analytics must not include hidden
+rubrics, judge prompts, held-out examples, private dataset rows, private eval
+instructions, raw private trace content, or HE/evaluator-private reasoning.
 
 ### 5.4 `project_snapshots`
 
@@ -256,11 +348,26 @@ Primary key: `(org_id, event_id)`.
 ```python
 class ProjectDataEvent(DataPlaneBase):
     event_id: str
-    operation: str
+    operation: Literal[
+        "create_project_registry",
+        "update_project_progress",
+        "register_artifact",
+        "mark_artifact_unavailable",
+        "publish_analytics_view",
+        "update_analytics_view",
+        "list_evaluation_analytics_views",
+        "get_evaluation_analytics_view",
+        "get_analytics_source_data",
+        "render_analytics_snapshot",
+        "mark_analytics_view_stale",
+        "capture_project_snapshot",
+        "archive_project",
+        "delete_project",
+    ]
     record_family: Literal[
         "project_registry",
         "artifact_manifest",
-        "optimization_trendline",
+        "evaluation_analytics_views",
         "project_snapshots",
     ]
     record_id: str
@@ -291,9 +398,12 @@ database clients directly from model-visible tools.
 | `update_project_progress(input)` | `dispatch_handoff`, `finish_to_user` hook | Updates `current_phase`, `current_agent`, last handoff fields, `artifact_count`, and `status` |
 | `register_artifact(input)` | System-owned handoff/artifact helper | Validates content reference and inserts or versions `artifact_manifest` |
 | `mark_artifact_unavailable(input)` | Artifact read path | Marks a dangling reference unavailable and records the failed read |
-| `record_trendline_point(input)` | Harness Engineer tool helper only | Sanitizes and writes `optimization_trendline` |
+| `publish_analytics_view(input)` | Harness Engineer, Evaluator, system analytics helper | Validates schema-compatible source data, inserts `evaluation_analytics_views`, and records source artifact/LangSmith provenance |
+| `update_analytics_view(input)` | Owning analytics role or system | Updates title, summary, visibility, source refs, or render status subject to role policy and Developer-safe boundary checks |
+| `mark_analytics_view_stale(input)` | System, Harness Engineer, Evaluator | Marks a view stale when source artifacts, LangSmith experiment refs, or schema versions drift |
+| `render_analytics_snapshot(input)` | System analytics renderer | Renders a deterministic snapshot artifact from a valid analytics view and registers `kind="evaluation_analytics_snapshot"` |
 | `capture_project_snapshot(input)` | PM session tool, web/TUI/headless backend | Creates a read-only snapshot artifact for allowed execution modes |
-| `archive_project(input)` | PM/user/system policy | Sets registry `status="archived"` and hides project from active views while retaining manifest, trendline, snapshot, and access-event history |
+| `archive_project(input)` | PM/user/system policy | Sets registry `status="archived"` and hides project from active views while retaining manifest, analytics views, snapshot, and access-event history |
 | `delete_project(input)` | authorized user/system policy | Sets registry `status="deleted"`, marks manifest/snapshot content deleted, removes records from normal reads, and schedules hard deletion after retention |
 
 `register_artifact` is structurally paired with artifact publication. A handoff
@@ -301,6 +411,11 @@ or artifact-producing tool that claims a new visible artifact must not return a
 successful `Command.PARENT` until the artifact has either been registered or the
 tool has returned recoverable feedback to the agent explaining why registration
 failed.
+
+`publish_analytics_view` is structurally paired with analytics source data. A
+Harness Engineer or Evaluator cannot publish a valid analytics view unless the
+referenced source data exists, resolves, validates against the analytics chart
+schema family, and satisfies the requested visibility policy.
 
 ## 7. Read APIs
 
@@ -312,7 +427,9 @@ All consumers use the same backend-owned read operations.
 | `get_project_status(org_id, project_id)` | PM session, web, TUI, headless | No |
 | `list_project_artifacts(org_id, project_id, filters)` | PM session, web, TUI, headless, project roles | Yes, excluding non-developer-visible records |
 | `get_project_artifact(org_id, project_id, artifact_id, version=None)` | PM session, web, TUI, headless, project roles | Yes, excluding non-developer-visible records |
-| `get_optimization_trendline(org_id, project_id, filters)` | PM session, web, TUI, headless, Harness Engineer | No |
+| `list_evaluation_analytics_views(org_id, project_id, filters)` | PM session, web, TUI, headless, Harness Engineer, Evaluator | Yes, only when `visibility="developer_safe"` and explicitly exposed |
+| `get_evaluation_analytics_view(org_id, project_id, analytics_view_id)` | PM session, web, TUI, headless, Harness Engineer, Evaluator | Yes, only when `visibility="developer_safe"` and explicitly exposed |
+| `get_analytics_source_data(org_id, project_id, analytics_view_id)` | PM session, web, TUI, headless, Harness Engineer, Evaluator | Yes, only through Developer-safe policy and source-data redaction checks |
 | `capture_project_snapshot(...)` | PM session, web, TUI, headless | No |
 
 PM session tools are thin wrappers around these operations. The web app, TUI,
@@ -332,38 +449,70 @@ Authorization is structural:
   `org_id`, `project_id`, `thread_id`, `project_thread_id`, and `role_name`.
   The data-access layer rejects role/operation combinations outside the matrix
   below before touching the database.
-- Developer-role runtime does not receive `get_optimization_trendline`,
-  `capture_project_snapshot`, or HE/evaluator-private artifact read tools.
-  Backend data-access policy also rejects those operations for
-  `role_name="developer"` before any database read.
+- Developer-role runtime does not receive private analytics views,
+  `capture_project_snapshot`, HE/evaluator-private artifact read tools, or raw
+  analytics source data unless the view and source artifact are explicitly
+  `developer_safe`.
 - HE-private and Evaluator-private artifacts are surfaced only to owning roles,
   PM session, and authorized first-party surfaces. They are never copied into
   Developer-visible packages.
+- `stakeholder_visible` analytics may be shown in product/UI surfaces for the
+  owning org. `developer_safe` analytics may be exposed to Developer-role agents
+  for optimization guidance. These are separate policies.
 
-| Role/surface | Registry | Artifact manifest | Trendline | Live snapshot |
+| Role/surface | Registry | Artifact manifest | Evaluation analytics views | Live snapshot |
 |---|---|---|---|---|
-| PM session | Read | Read visible + private summaries | Read sanitized | Capture/read |
-| Web/TUI/headless surface | Read by org membership | Read by org membership and visibility | Read sanitized | Capture/read |
-| Harness Engineer | Read own project | Read/write HE-owned artifacts | Write/read | No |
-| Evaluator | Read own project | Read/write evaluator-owned artifacts | No | No |
-| Developer | No portfolio reads | Read developer-visible artifacts only | No | No |
+| PM session | Read | Read visible + private summaries | Read internal/stakeholder-visible/sanitized private summaries; promote visibility only if authorized | Capture/read |
+| Web/TUI/headless surface | Read by org membership | Read by org membership and visibility | Read by org membership and visibility | Capture/read |
+| Harness Engineer | Read own project | Read/write HE-owned artifacts | Read/write HE-owned analytics | No |
+| Evaluator | Read own project | Read/write evaluator-owned artifacts | Read/write evaluator-owned analytics, future/conditional | No |
+| Developer | No portfolio reads | Read developer-visible artifacts only | Read only `developer_safe` analytics explicitly exposed to Developer | No |
 | `dispatch_handoff` | Write progress only | No | No | No |
+| System | Read/write derived state | Read/write derived artifact rows | Read/write render/stale status and generated snapshots | Capture/read by policy |
 
 ## 9. Retention, Archival, Deletion, And Migration
 
 - `status="completed"` keeps the project visible in completed-project views.
 - `status="archived"` removes the project from active views but keeps registry,
-  manifest, trendline, and access events.
+  manifest, analytics views, snapshots, and access events.
 - `status="deleted"` soft-deletes project records immediately from normal reads.
   Hard deletion removes content backends and database rows after the deployment's
   configured retention window. Local-dev retention is user-managed.
 - Artifact deletion sets `content_status="deleted"` and `deleted_at`; readers
   return a deleted-artifact response instead of falling back to filesystem scans.
-- Trendline history is append-only until project archive or deletion. Pruning
-  requires a new migration that preserves aggregate scorecard rows.
+- Evaluation analytics views remain queryable until project archive or deletion.
+  Source artifacts may be versioned independently; a view must be marked stale
+  when its referenced source artifact, schema version, or LangSmith provenance is
+  no longer current.
 - Schema changes add a new `schema_version` and a migration. Readers must reject
   rows with unknown future versions and must support the current version during
   a rolling deploy.
+
+### 9.1 Legacy Optimization Trendline Migration
+
+The prior top-level trendline primitive is deprecated. Migration must preserve
+historical intent without preserving the old substrate:
+
+```txt
+legacy top-level trendline table
+  -> evaluation_analytics_views row
+     analytics_kind = "optimization_timeline"
+     recommended_view_type = "line_chart"
+     visibility = previous sanitized visibility policy
+     data_ref = artifact containing migrated line-chart source JSON
+```
+
+Legacy trendline snapshot artifacts migrate as:
+
+```txt
+legacy trendline_snapshot artifact
+  -> artifact_manifest.kind = "evaluation_analytics_snapshot"
+  -> associated evaluation_analytics_views.analytics_kind = "optimization_timeline"
+```
+
+No new code should write legacy trendline records. Any compatibility reader must
+be migration-only and must emit deprecation telemetry through
+`project_data_events`.
 
 ## 10. Trace Correlation
 
@@ -387,6 +536,12 @@ stable identifiers to the current LangSmith run metadata when a run is active.
 If LangSmith tracing is disabled, `langsmith_run_id` is `None` and the access
 event still records the local run/thread identifiers.
 
+Evaluation analytics operations must attach LangSmith provenance when available:
+`langsmith_dataset_id`, `langsmith_experiment_id`, `langsmith_project_name`,
+`langsmith_run_id`, and/or `langsmith_trace_url`. These references are
+provenance pointers only; private LangSmith evidence is not copied into
+Developer-visible analytics unless explicitly sanitized into source artifacts.
+
 ## 11. Conformance Tests
 
 Minimum checks for implementation:
@@ -400,18 +555,31 @@ Minimum checks for implementation:
 4. `register_artifact` validates `content_ref`; a missing path fails the write.
 5. A dangling artifact read marks `content_status="unavailable"` and records a
    denied/failed access event.
-6. Developer-role reads cannot fetch `optimization_trendline`, HE-private
-   artifacts, Evaluator-private artifacts, or live snapshots.
-7. Harness Engineer can write sanitized trendline points; free-form notes,
-   rubric text, judge prompts, and held-out examples are rejected.
-8. PM session, web, TUI, and headless adapters all read through the same backend
-   operations for registry, artifact manifest, and trendline.
-9. `capture_project_snapshot` succeeds for allowed `managed_sandbox` and
-   `external_devbox` projects, rejects `local_workspace` without explicit
-   opt-in, writes a `project_snapshots` row, and registers a `live_snapshot`
-   artifact.
-10. Every read/write creates a `project_data_events` row with `org_id`,
+6. Developer-role reads cannot fetch HE-private artifacts, Evaluator-private
+   artifacts, live snapshots, private analytics views, or non-redacted analytics
+   source data.
+7. Harness Engineer can publish schema-valid analytics views only when the
+   referenced analytics source data exists and validates against the supported
+   chart/table schema family.
+8. `optimization_timeline` is accepted only as
+   `evaluation_analytics_views.analytics_kind`, never as a top-level record
+   family.
+9. Developer-safe analytics reject hidden rubrics, judge prompts, held-out
+   examples, private dataset row contents, raw private trace content, private HE
+   reasoning, and private evaluation instructions.
+10. PM session, web, TUI, and headless adapters all read through the same backend
+    operations for registry, artifact manifest, and evaluation analytics views.
+11. `render_analytics_snapshot` creates an `evaluation_analytics_snapshot`
+    artifact from a valid analytics view and records the operation in
+    `project_data_events`.
+12. `mark_analytics_view_stale` flips `render_status="stale"` when source data,
+    schema version, or LangSmith provenance changes.
+13. `capture_project_snapshot` succeeds for allowed `managed_sandbox` and
+    `external_devbox` projects, rejects `local_workspace` without explicit
+    opt-in, writes a `project_snapshots` row, and registers a `live_snapshot`
+    artifact.
+14. Every read/write creates a `project_data_events` row with `org_id`,
     `project_id`, operation name, outcome, and trace context.
-11. LangGraph Store cache entries are invalidated or refreshed after product DB
+15. LangGraph Store cache entries are invalidated or refreshed after product DB
     writes; direct Store reads are not accepted as source-of-truth reads in
     product code.
