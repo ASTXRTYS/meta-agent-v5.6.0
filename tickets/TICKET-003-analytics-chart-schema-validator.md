@@ -14,8 +14,8 @@ Developer + Evaluator
 
 ## Depends On
 
-- `docs/specs/evaluation-analytics-chart-schemas.md`
-- `docs/specs/harness-engineer-evaluation-analytics.md`
+- `meta_harness/docs/specs/evaluation-analytics-chart-schemas.md`
+- `meta_harness/docs/specs/harness-engineer-evaluation-analytics.md`
 - TICKET-002 Project Data Plane migration
 
 ## Blocks

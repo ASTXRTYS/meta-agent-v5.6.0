@@ -1,12 +1,9 @@
 # TICKET-001 — Source-Audit LangSmith CLI/SDK Capabilities For Evaluation Evidence Workbench
 
 ## Status
+PENDING
 
-Proposed
 
-## Priority
-
-P0 — blocking research/spec ticket
 
 ## Owner
 
@@ -14,8 +11,8 @@ Researcher + Harness Engineer
 
 ## Depends On
 
-- `docs/specs/evaluation-evidence-workbench.md`
-- `docs/specs/langsmith-capability-audit-plan.md`
+- `meta_harness/docs/specs/evaluation-evidence-workbench.md`
+- `meta_harness/local-docs/langsmith-capability-audit-plan.md`
 - Current LangSmith official docs / SDK source / CLI source
 
 ## Blocks
@@ -217,3 +214,5 @@ Expected likely outcome: **C**, but this must be source-verified.
 - [ ] Privacy/redaction risks are listed.
 - [ ] Recommended Evidence Workbench access pattern is stated.
 - [ ] No wrapper tools are finalized without evidence.
+
+!FOR ALL CPABILITIES AND DISCOVERD FUNCIONALITY YOU MUST CITE LINE NUMBERS FROM SDK SOURCE AND NOT ONLY STATE THE WHAT IS CAPABLE BUT ALSO HOW!

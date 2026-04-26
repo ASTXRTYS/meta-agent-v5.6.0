@@ -6,18 +6,15 @@ derived_from:
   - AD §4 Project-Scoped Execution Environment
   - AD §6 Observability & Evaluation
   - AD §8 Security / Privacy / Compliance
-  - docs/adrs/replace-optimization-trendline-with-evaluation-analytics-views.md
-  - docs/specs/harness-engineer-evaluation-analytics.md
-  - docs/specs/evaluation-analytics-chart-schemas.md
 status: active
-last_synced: 2026-04-25
+last_synced: 2026-04-26
 owners: ["@Jason"]
 ---
 
 # Project Data Plane Specification
 
-> **Provenance:** Derived from `AD.md §4 PM Session And Project Entry Model`, `§4 LangGraph Project Coordination Graph`, `§4 Project-Scoped Execution Environment`, `§6 Observability & Evaluation`, `§8 Security / Privacy / Compliance`, and the Evaluation Analytics architecture/spec family.
-> **Status:** Active · **Last synced with AD:** 2026-04-25 (repaired for `TICKET-002` / evaluation analytics migration).
+> **Provenance:** Derived from `AD.md §4 PM Session And Project Entry Model`, `§4 LangGraph Project Coordination Graph`, `§4 Project-Scoped Execution Environment`, `§6 Observability & Evaluation`, and `§8 Security / Privacy / Compliance`.
+> **Status:** Active · **Last synced with AD:** 2026-04-26 (repaired for `TICKET-002` / evaluation analytics migration and root-doc governance).
 > **Consumers:** Developer (backend/data-access implementation), PM session tools, web/TUI/headless surfaces, Harness Engineer, Evaluator, UI analytics renderer, access-policy conformance tests.
 
 ## 1. Purpose

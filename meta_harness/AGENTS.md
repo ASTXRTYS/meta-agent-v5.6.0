@@ -120,6 +120,9 @@ for the full path index and specific line-range references.
 PCG state schema clean-slate rewrite resolving `OQ-HO` / `OQ-H2` / `OQ-H4`
 (folding in `OQ-H1` / `OQ-H3`). Temporary; archive or delete once the Phase 2
 AD + spec pass lands.
+- `local-docs/langsmith-capability-audit-plan.md` — coding-agent research plan
+for source-auditing LangSmith CLI/SDK capabilities before finalizing Evidence
+Workbench tools. Read before creating or accepting LangSmith wrapper-tool specs.
 
 ## Local Workflows And Commands
 

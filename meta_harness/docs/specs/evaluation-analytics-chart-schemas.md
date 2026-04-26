@@ -1,3 +1,19 @@
+---
+doc_type: spec
+derived_from:
+  - AD §6 Observability & Evaluation
+  - AD §4 Project-Scoped Execution Environment
+status: draft
+last_synced: 2026-04-26
+owners: ["@Jason"]
+---
+
+# Evaluation Analytics Chart Schemas
+
+> **Provenance:** Derived from `AD.md §6 Observability & Evaluation` and `§4 Project-Scoped Execution Environment`.
+> **Status:** Draft · **Last synced with AD:** 2026-04-26.
+> **Consumers:** UI renderer, analytics schema validator, Harness Engineer analytics publication tools, Project Data Plane implementation.
+
 ## 1. Purpose
 
 This document defines supported chart-family schemas for `evaluation_analytics_views`.

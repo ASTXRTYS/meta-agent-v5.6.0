@@ -16,7 +16,7 @@ Harness Engineer + Developer
 
 - TICKET-002 Project Data Plane migration
 - TICKET-003 chart schema validation contract
-- `docs/specs/harness-engineer-evaluation-analytics.md`
+- `meta_harness/docs/specs/harness-engineer-evaluation-analytics.md`
 
 ## Blocks
 

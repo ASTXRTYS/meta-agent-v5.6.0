@@ -1221,6 +1221,10 @@ there is no predetermined spec-document count or order.
 - LangSmith thread/run links exposed in the UI when tracing is configured.
 - Evaluation feedback from Harness Engineer and Evaluator kept separate by owner and gate type.
 
+> Implementation detail (LangSmith evidence ingestion, local mirrors, trace-bundle analysis): see [`docs/specs/evaluation-evidence-workbench.md`](./docs/specs/evaluation-evidence-workbench.md).
+> Implementation detail (Harness Engineer analytics publication model): see [`docs/specs/harness-engineer-evaluation-analytics.md`](./docs/specs/harness-engineer-evaluation-analytics.md).
+> Implementation detail (UI-renderable analytics payload schemas): see [`docs/specs/evaluation-analytics-chart-schemas.md`](./docs/specs/evaluation-analytics-chart-schemas.md).
+
 ### Success Criteria
 
 | Metric | Baseline | Target | Window |

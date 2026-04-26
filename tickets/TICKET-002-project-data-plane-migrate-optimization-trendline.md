@@ -2,10 +2,7 @@
 
 ## Status
 
-Proposed
-
-## Priority
-
+PENDING
 P0 — architecture consistency / schema repair
 
 ## Owner
@@ -14,9 +11,9 @@ Architect + Developer
 
 ## Depends On
 
-- `docs/adrs/replace-optimization-trendline-with-evaluation-analytics-views.md`
-- `docs/specs/harness-engineer-evaluation-analytics.md`
-- `docs/specs/evaluation-analytics-chart-schemas.md`
+- `meta_harness/docs/archive/replace-optimization-trendline-with-evaluation-analytics-views.md` (historical rationale only)
+- `meta_harness/docs/specs/harness-engineer-evaluation-analytics.md`
+- `meta_harness/docs/specs/evaluation-analytics-chart-schemas.md`
 
 ## Blocks
 
