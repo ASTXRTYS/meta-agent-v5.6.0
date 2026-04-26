@@ -1,7 +1,7 @@
 # PCG Spec Closure Tickets
 
 > **Purpose:** Execution tickets for closing all known underspecified or blocking
-> PCG / handoff / project-data-plane spec gaps before implementation begins.
+> PCG / handoff / project-data-contracts spec gaps before implementation begins.
 > This is a local planning document, not a shipped product spec. Each ticket
 > must land its normative decisions in `AD.md` and the appropriate
 > `docs/specs/*.md` files under the governance rules in `AGENTS.md`.
@@ -23,9 +23,9 @@ land in `AD.md` first, then flow into the derived specs under `docs/specs/`.
 
 This closure pass creates three new specs:
 
-- `docs/specs/pcg-runtime-contract.md`
+- `docs/specs/pcg-server-contract.md`
 - `docs/specs/approval-and-gate-contracts.md`
-- `docs/specs/project-data-plane.md`
+- `docs/specs/project-data-contracts.md`
 
 It also repairs these existing specs:
 
@@ -161,10 +161,10 @@ before finalizing payload shapes:
 
 ### Deliverables
 
-- Create `docs/specs/pcg-runtime-contract.md`.
+- Create `docs/specs/pcg-server-contract.md`.
 - Keep `docs/specs/pcg-data-contracts.md` focused on state channels, reducers,
   `HandoffRecord`, and parent update shapes; point runtime bootstrap readers to
-  `pcg-runtime-contract.md`.
+  `pcg-server-contract.md`.
 - Update `AD.md §9 Derived Specs`.
 - Add parent AD pointers for every new spec.
 - Define concrete `TypedDict` or Pydantic-style field tables for input, context,
@@ -458,9 +458,9 @@ The assignee must study both the local spec intent and upstream primitives:
 
 ### Deliverables
 
-- Create `docs/specs/project-data-plane.md`.
+- Create `docs/specs/project-data-contracts.md`.
 - Replace `pcg-data-contracts.md §7` with a short pointer to
-  `project-data-plane.md` plus only the PCG-owned cross-reference.
+  `project-data-contracts.md` plus only the PCG-owned cross-reference.
 - Update `AD.md OQ-H5` from open question to resolved decision text.
 - Update `AD.md §9 Derived Specs` and all parent AD pointers.
 - Define all data-plane schemas with version fields, indexes, ownership,
@@ -516,7 +516,7 @@ This ticket owns:
 
 - `AD.md §4 Runtime Topology Decision`
 - `AD.md §4 PM Session And Project Entry Model`
-- `docs/specs/pcg-runtime-contract.md`
+- `docs/specs/pcg-server-contract.md`
 - Deep Agents CLI `AskUserMiddleware` and graph assembly:
   `.reference/libs/cli/deepagents_cli/ask_user.py`
   and `.reference/libs/cli/deepagents_cli/agent.py`
@@ -529,7 +529,7 @@ This ticket owns:
 ### Deliverables
 
 - Update `AD.md` with the resolved `pm_session` topology decision.
-- Update `docs/specs/pcg-runtime-contract.md` if `pm_session` uses PCG session
+- Update `docs/specs/pcg-server-contract.md` if `pm_session` uses PCG session
   mode.
 - Add or update conformance checks for `pm_session` entry, PM terminal
   emission, and project creation transition.
@@ -549,7 +549,7 @@ mounted `project_manager` child graph handles both PM-session and project-mode
 PM turns; runnable config carries `thread_kind` into graph nodes and tool
 middleware. `pm_session` parent PCG state is limited to `messages` and `org_id`;
 project-only channels remain unset or empty until a separate `project` thread is
-created. Normative updates landed in `AD.md`, `docs/specs/pcg-runtime-contract.md`,
+created. Normative updates landed in `AD.md`, `docs/specs/pcg-server-contract.md`,
 `docs/specs/pcg-data-contracts.md`, `docs/specs/approval-and-gate-contracts.md`,
 and `docs/specs/repo-and-workspace-layout.md`.
 

@@ -651,7 +651,7 @@ When `autonomous_mode` is `False` or absent from runtime config:
 #### 6.3.2 Autonomous Mode
 
 When `autonomous_mode=True` in runtime config (bridged by
-`pcg-runtime-contract.md §6.1`):
+`pcg-server-contract.md §6.1`):
 
 1. PM calls `request_approval(package_brief, artifact_paths, approval_type)`
 2. Tool body bypasses human interrupt entirely
@@ -1062,7 +1062,7 @@ autonomous_mode = configurable.get("autonomous_mode", False)
 ```
 
 Configured at thread creation time via Agent Server thread metadata or project context.
-`pcg-runtime-contract.md §6.1` owns the exact bridge from
+`pcg-server-contract.md §6.1` owns the exact bridge from
 `ProjectCoordinationInput.autonomous_mode_config.enabled` and optional thread
 metadata into this runnable config key. Gate and approval code MUST NOT read the
 input payload or thread metadata directly.
@@ -1334,7 +1334,7 @@ User sends PM-session turn
 model-visible on `pm_session` threads because session mode has no project
 handoff topology, no `pcg_gate_context`, and no `acceptance_stamps` parent state.
 `ask_user` and `finish_to_user` remain available to the PM in both modes. See
-`pcg-runtime-contract.md §7.5` for the session input/state contract.
+`pcg-server-contract.md §7.5` for the session input/state contract.
 
 ### 12.5 Separation of Concerns
 

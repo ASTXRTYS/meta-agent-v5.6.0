@@ -122,7 +122,7 @@ Vision.md promises optimization tuning and taste calibration during development,
 
 **Decision.** Meta Harness owns a Project Data Plane for durable cross-thread
 project facts. The product database is the authoritative substrate for
-`project_registry`, `artifact_manifest`, `optimization_trendline`,
+`project_registry`, `artifact_manifest`, `evaluation_analytics_views`,
 `project_data_events`, and `project_snapshots`. Role filesystems, sandboxes,
 object storage, and external URLs remain the content substrate named by
 `artifact_manifest.content_ref`; they are not the discovery or permission
@@ -143,18 +143,18 @@ bounded runtime coordination than for product-wide source-of-truth data.
 project roles all use the same backend-owned data-plane operations. Project
 status and portfolio reads go through `list_projects` and
 `get_project_status`; artifact reads go through `list_project_artifacts` and
-`get_project_artifact`; sanitized trendline reads go through
-`get_optimization_trendline`; live project inspection goes through
+`get_project_artifact`; evaluation analytics reads go through
+`list_evaluation_analytics_views` and `get_evaluation_analytics_view`; live project inspection goes through
 `capture_project_snapshot`. Handoff/artifact helpers write
 `register_artifact`; `dispatch_handoff` writes `update_project_progress`;
-Harness Engineer trendline helpers write `record_trendline_point`.
+Harness Engineer analytics helpers write `publish_analytics_view` and `update_analytics_view`.
 
 **Security and tenant boundary.** Every data-plane row carries `org_id` and
 `project_id`; first-party user reads are filtered by organization membership;
 agent writes carry `thread_id`, `project_thread_id`, `role_name`, and trace
-context. Developer-role runtime does not receive private trendline, HE-private,
+context. Developer-role runtime does not receive private analytics views, HE-private,
 Evaluator-private, or live-snapshot read tools, and backend data-access policy
-also rejects those reads for `role_name="developer"`. Trendline summaries are
+also rejects those reads for `role_name="developer"`. Analytics view summaries are
 structured enums plus bounded generated values; free-form notes are forbidden.
 
 **Live file boundary.** PM sessions, web, TUI, and headless adapters never read
@@ -165,7 +165,7 @@ snapshot capture is rejected unless the project has explicit opt-in.
 
 > Implementation detail (schemas, indexes, operations, auth/tenant rules,
 > retention, trace metadata, and conformance tests): see
-> [`docs/specs/project-data-plane.md`](./docs/specs/project-data-plane.md).
+> [`docs/specs/project-data-contracts.md`](./docs/specs/project-data-contracts.md).
 
 ### OQ-PM1 (High Priority): Project-scoped memory injection into pm_session context
 
@@ -189,14 +189,14 @@ snapshot capture is rejected unless the project has explicit opt-in.
 
 ### OQ-PM2 (High Priority): pm_session observability mechanism for Project Data Plane reads
 
-**Problem.** `OQ-H5` resolved the Project Data Plane substrate and the backend read APIs for `project_registry`, `artifact_manifest`, and `optimization_trendline`, but the PM-on-`pm_session` ergonomic mechanism still needs to be chosen. Being a "helpful product manager" depends on being able to answer *"which projects are active?"*, *"what phase is project X in?"*, *"what artifacts has the Harness Engineer produced for project Y?"*, *"how has the optimization trendline moved on project Z this week?"* — all without the PM having to context-switch to a project thread.
+**Problem.** `OQ-H5` resolved the Project Data Plane substrate and the backend read APIs for `project_registry`, `artifact_manifest`, and `evaluation_analytics_views`, but the PM-on-`pm_session` ergonomic mechanism still needs to be chosen. Being a "helpful product manager" depends on being able to answer *"which projects are active?"*, *"what phase is project X in?"*, *"what artifacts has the Harness Engineer produced for project Y?"*, *"what do the evaluation analytics show for project Z this week?"* — all without the PM having to context-switch to a project thread.
 
 **Decision space.**
 
 - **(a) Pure tool-based.** Dedicated session tools: `list_projects()`, `get_project_status(project_id)`, `list_artifacts(project_id, type=None)`, `get_trendline(project_id, metric=None)`. Explicit, bounded, token-visible. Tradeoffs: PM must remember to call them; requires system prompt conditioning to prime "always check registry when user mentions a project."
 - **(b) Middleware-injected context.** A `before_model` hook queries Project Data Plane `project_registry` each turn and injects a compact summary (active projects, current phases, last-handoff timestamps) as a system message. Tradeoffs: context bloat; stale if not refreshed; no on-demand deep query for specific artifacts.
-- **(c) Registry-as-file pattern.** Surface Project Data Plane projections of `project_registry` (and optionally scoped slices of `artifact_manifest` and `optimization_trendline`) as live-refreshing virtual files in the PM's filesystem on `pm_session` threads. PM reads on demand via standard tools.
-- **(d) Hybrid.** Always-injected compact registry summary (top N active projects, current phase, last activity) + on-demand tools for deep queries (artifact listing, trendline details).
+- **(c) Registry-as-file pattern.** Surface Project Data Plane projections of `project_registry` (and optionally scoped slices of `artifact_manifest` and `evaluation_analytics_views`) as live-refreshing virtual files in the PM's filesystem on `pm_session` threads. PM reads on demand via standard tools.
+- **(d) Hybrid.** Always-injected compact registry summary (top N active projects, current phase, last activity) + on-demand tools for deep queries (artifact listing, analytics view details).
 
 **Constraints.**
 
@@ -215,7 +215,7 @@ The tension: pm_session is architecturally **not** a participant in the target p
 
 **Decision space.**
 
-- **(a) No live access.** `pm_session` can only read Project Data Plane artifacts (`artifact_manifest`, `optimization_trendline`, `project_registry`) and project-scoped memory indexed at the last checkpoint. Strictest information isolation. PM replies *"I can see committed artifacts and checkpointed memory; check the project thread UI for live sandbox state."* Simplest to implement; preserves clean thread-boundary invariants.
+- **(a) No live access.** `pm_session` can only read Project Data Plane artifacts (`artifact_manifest`, `evaluation_analytics_views`, `project_registry`) and project-scoped memory indexed at the last checkpoint. Strictest information isolation. PM replies *"I can see committed artifacts and checkpointed memory; check the project thread UI for live sandbox state."* Simplest to implement; preserves clean thread-boundary invariants.
 - **(b) Explicit snapshot tool.** `pm_session` gets a `capture_project_snapshot(project_id, path, snapshot_kind)` session tool backed by the Project Data Plane operation of the same name. It validates execution mode, captures a read-only artifact, and returns the artifact reference.
 - **(c) Snapshot history surface.** PM session, web, TUI, and headless adapters can list recent `project_snapshots`/`live_snapshot` artifacts when monitoring long-running projects.
 - **(d) Hybrid.** (a) as the default for project-memory questions; (b) for explicitly named "live status" requests; (c) for autonomous monitoring where historical snapshots are valuable evidence.
@@ -375,7 +375,7 @@ supported:
 Both paths converge on the same primitive: the Agent Server
 `threads.create(...)` API with `thread_kind = "project"` metadata and a
 pre-seeded initial state. Exact SDK call, pre-seed payload shape, and
-idempotency guards are spec territory (see `docs/specs/pcg-runtime-contract.md`
+idempotency guards are spec territory (see `docs/specs/pcg-server-contract.md`
 for input/context/output schemas and bootstrap behavior; see
 `docs/specs/pcg-data-contracts.md` for internal state contracts).
 
@@ -406,7 +406,7 @@ indexes, and (future) project-thread run submissions — never by merging checkp
 PM session threads and project threads are fully independent LangGraph
 threads; they do not share a Pregel namespace hierarchy.
 
-> Implementation detail (thread identity linkage and `pm_session_thread_id` storage): see [`docs/specs/pcg-runtime-contract.md`](./docs/specs/pcg-runtime-contract.md) and [`docs/specs/project-data-plane.md`](./docs/specs/project-data-plane.md).
+> Implementation detail (thread identity linkage and `pm_session_thread_id` storage): see [`docs/specs/pcg-server-contract.md`](./docs/specs/pcg-server-contract.md) and [`docs/specs/project-data-contracts.md`](./docs/specs/project-data-contracts.md).
 
 ### Headless Ingress vs Source Presence
 
@@ -514,7 +514,7 @@ the Project Data Plane, not in PCG state.
 - Each role Deep Agent owns its own conversation history in its checkpoint namespace
 - Durable cross-thread product data lives in the Project Data Plane, not PCG state
 
-> Implementation detail (full field table, reducer semantics, all PCG-owned invariants with rationale): see [`docs/specs/pcg-data-contracts.md`](./docs/specs/pcg-data-contracts.md). Project Data Plane schemas and APIs live in [`docs/specs/project-data-plane.md`](./docs/specs/project-data-plane.md).
+> Implementation detail (full field table, reducer semantics, all PCG-owned invariants with rationale): see [`docs/specs/pcg-data-contracts.md`](./docs/specs/pcg-data-contracts.md). Project Data Contracts schemas and APIs live in [`docs/specs/project-data-contracts.md`](./docs/specs/project-data-contracts.md).
 
 The topology is 1 coordination node + 7 mounted role subgraph nodes. All
 routing is driven by `Command(goto=...)` emissions; there are zero static
@@ -1038,7 +1038,7 @@ Phase gate enforcement, HITL question surfacing, and routing intelligence
 are NOT PCG responsibilities. The PCG must not implement research,
 architecture, planning, development, eval-science, prompt composition,
 
-> Implementation detail (input/context/output schemas, thread metadata, bootstrap behavior): see [`docs/specs/pcg-runtime-contract.md`](./docs/specs/pcg-runtime-contract.md).
+> Implementation detail (input/context/output schemas, thread metadata, bootstrap behavior): see [`docs/specs/pcg-server-contract.md`](./docs/specs/pcg-server-contract.md).
 > Implementation detail (internal state schema, reducers, `HandoffRecord`, `Command.PARENT` update contract): see [`docs/specs/pcg-data-contracts.md`](./docs/specs/pcg-data-contracts.md).
 phase gate logic, or provider/model request policy. Those remain in peer
 Deep Agent factories, SDK configuration calls, tool/prompt contracts, and
@@ -1089,7 +1089,7 @@ flowchart LR
     HE -->|"submit_harness_acceptance"| PCG
 
     PCG --> FS["Role Filesystems\nartifacts per namespace"]
-    PCG --> PDP["Project Data Plane\nproject_registry\nartifact_manifest\noptimization_trendline"]
+    PCG --> PDP["Project Data Plane\nproject_registry\nartifact_manifest\nevaluation_analytics_views"]
     PCG --> LG["LangGraph Dev Server\nlanggraph.json graph ID"]
     LG --> STUDIO["LangGraph Studio\nlocal dev inspection"]
     PCG --> OBS["LangSmith\ntraces, run/thread links, evals"]
@@ -1334,8 +1334,8 @@ Implementation contracts extracted from AD decisions under `docs/specs/`. See
 | [`docs/specs/handoff-tools.md`](./docs/specs/handoff-tools.md) | §4 Handoff Protocol, §4 Handoff Tool Use-Case Matrix, §4 Pipeline Flow Diagram | Active (rewritten 2026-04-22 for `OQ-HO`; sibling-spec relationship clarified 2026-04-23; sync metadata corrected 2026-04-24) | 2026-04-24 |
 | [`docs/specs/handoff-tool-definitions.md`](./docs/specs/handoff-tool-definitions.md) | §4 Handoff Protocol, §4 Handoff Tool Use-Case Matrix, §4 Command.PARENT Update Contract, §4 Data Contracts | Active (created 2026-04-23 for `T-H1` / `OQ-H6`; Ticket 5 parent-routing contract restored 2026-04-24) | 2026-04-24 |
 | [`docs/specs/pcg-data-contracts.md`](./docs/specs/pcg-data-contracts.md) | §4 LangGraph Project Coordination Graph (State Schema), §4 Handoff Protocol (Command.PARENT Update Contract), §4 Data Contracts, §4 PM Session And Project Entry Model (Identity Linkage) | Active (rewritten 2026-04-22 for `OQ-HO`; identity naming harmonised 2026-04-22b; sibling-spec relationship clarified 2026-04-23; runtime contract sibling added 2026-04-24; Ticket 5 approval-stamp ownership synced 2026-04-24; Ticket 6 product data-plane ownership split synced 2026-04-24; Ticket 7 PM-session state projection synced 2026-04-24) | 2026-04-24 |
-| [`docs/specs/pcg-runtime-contract.md`](./docs/specs/pcg-runtime-contract.md) | §4 PM Session And Project Entry Model, §4 Identity Linkage and Cardinality, §4 LangGraph Project Coordination Graph Factory Contract | Active (created 2026-04-24 for Ticket 2; org identity bridge synced for Ticket 6; PM-session PCG envelope synced for Ticket 7) | 2026-04-24 |
-| [`docs/specs/project-data-plane.md`](./docs/specs/project-data-plane.md) | §4 PM Session And Project Entry Model, §4 LangGraph Project Coordination Graph, §4 Project-Scoped Execution Environment, §6 Observability & Evaluation, §8 Security / Privacy / Compliance | Active (created 2026-04-24 for Ticket 6 / `OQ-H5` closure) | 2026-04-24 |
+| [`docs/specs/pcg-server-contract.md`](./docs/specs/pcg-server-contract.md) | §4 PM Session And Project Entry Model, §4 Identity Linkage and Cardinality, §4 LangGraph Project Coordination Graph Factory Contract | Active (created 2026-04-24 for Ticket 2; org identity bridge synced for Ticket 6; PM-session PCG envelope synced for Ticket 7; renamed from pcg-runtime-contract 2026-04-26) | 2026-04-24 |
+| [`docs/specs/project-data-contracts.md`](./docs/specs/project-data-contracts.md) | §4 PM Session And Project Entry Model, §4 LangGraph Project Coordination Graph, §4 Project-Scoped Execution Environment, §6 Observability & Evaluation, §8 Security / Privacy / Compliance | Active (created 2026-04-24 for Ticket 6 / `OQ-H5` closure; renamed from project-data-plane 2026-04-26) | 2026-04-26 |
 | [`docs/specs/approval-and-gate-contracts.md`](./docs/specs/approval-and-gate-contracts.md) | §4 Phase Gate Middleware, §4 Handoff Protocol, §4 Handoff Tool Use-Case Matrix, §4 Command.PARENT Update Contract | Draft (created 2026-04-23 for Ticket 5; updated 2026-04-24 per EBDR-1 feedback; PM-session composition clarified for Ticket 7) | 2026-04-24 |
 | [`docs/specs/repo-and-workspace-layout.md`](./docs/specs/repo-and-workspace-layout.md) | §4 Repo and Workspace Layout, §4 LangGraph Project Coordination Graph Factory Contract, §4 Project Workspace and Memory Structure | Active (updated 2026-04-22 for `OQ-HO`; sync metadata corrected 2026-04-24; dispatcher input note synced for Ticket 7) | 2026-04-24 |
 

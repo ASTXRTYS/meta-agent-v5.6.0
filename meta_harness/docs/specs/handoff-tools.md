@@ -77,10 +77,10 @@ filesystems. A handoff or artifact-producing helper must not return a successful
 `Command.PARENT` for a newly visible artifact until registration succeeds or the
 agent receives recoverable feedback.
 
-The Harness Engineer's trendline-producing helper additionally calls
-`record_trendline_point`. Developer info isolation is enforced by tool
-availability and Project Data Plane data-access policy, not by filesystem
-permissions over LangGraph Store. See `docs/specs/project-data-plane.md`.
+The Harness Engineer's analytics-producing helper additionally calls
+`publish_analytics_view`. Developer info isolation is enforced by tool
+availability and Project Data Contracts data-access policy, not by filesystem
+permissions over LangGraph Store. See `docs/specs/project-data-contracts.md`.
 
 ## 1.3 Every Turn Terminates with `Command.PARENT`
 
