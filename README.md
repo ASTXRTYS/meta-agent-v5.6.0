@@ -53,18 +53,18 @@ The Developer works phase by phase through the implementation plan. After each p
 
 Here's the critical design constraint: **the Developer never sees the evaluation artifacts**. It doesn't know the rubrics, the judge configurations, or the held-out datasets. It only sees the feedback. This information isolation prevents the optimizer from gaming the evaluator — the same principle that makes scientific peer review work.
 
-The Developer iterates. Each loop tightens the harness. System prompts get refined. Tool descriptions get sharper. Orchestration logic gets tuned. And with every iteration, the evaluation scores trend — visibly, measurably — toward your success criteria.
+The Developer iterates. Each loop tightens the harness. System prompts get refined. Tool descriptions get sharper. Orchestration logic gets tuned. And with every iteration, the Harness Engineer publishes evaluation analytics — graphs, metrics, and scorecards that show whether the target harness is moving toward the success criteria you established with the PM and refined through the evaluation process.
 
 ### 5. You See Everything
 
-Every artifact the team produces — PRDs, datasets, eval scorecards, design specs, optimization trendlines — surfaces in the Meta Harness UI as a first-class, human-readable object. You don't need to dig through traces or parse nested JSON. You see:
+Every artifact the team produces — PRDs, datasets, eval scorecards, design specs, and Harness Engineer analytics — surfaces in the Meta Harness UI as a first-class, human-readable object. You don't need to dig through traces or parse nested JSON. You see:
 
 - The dataset your stakeholders helped shape, rendered at a glance
-- Evaluation scores trending upward (or regressing — and why)
-- Each iteration of the optimization loop with clear before/after signals
+- Evaluation graphs and metrics showing progress toward your stated success criteria
+- Each iteration of the build-and-evaluation loop with clear before/after signals
 - Direct links to LangSmith when you want the full forensic depth
 
-The UI exists to make invisible work visible. When your team watches an optimization curve bend toward the target, that's not a dashboard metric — that's proof that the harness engineering process is working, backed by real data from real experiments.
+The UI exists to make invisible work visible. When your team sees the target harness move closer to the criteria they helped define, that is not a vanity dashboard — it is product evidence that the harness engineering process is working, backed by real data from real experiments.
 
 ---
 
@@ -119,7 +119,7 @@ The Developer is blind to evaluation artifacts. It sees only directional feedbac
 
 Meta Harness goes where your team already works. The PM is available through the web app, a terminal TUI, and API — with the same lifecycle and artifact visibility across all surfaces. A solo founder can scope a project from the command line; a team can collaborate through the web interface. All entry points share the same project state and artifact browser.
 
-The web app is intentionally minimal — a chat interface for direct PM interaction, flanked by an artifact browser that surfaces PRDs, datasets, eval scorecards, and optimization trendlines. It's the single place where progress and ROI become visible, regardless of which surface the work originated from.
+The web app is intentionally minimal — a chat interface for direct PM interaction, flanked by an artifact browser that surfaces PRDs, datasets, eval scorecards, and Harness Engineer-published analytics views. It's the single place where progress and ROI become visible, regardless of which surface the work originated from.
 
 Every project maintains state across all entry points. The same artifacts appear in the same artifact browser whether you scoped the project in the TUI or the web app.
 
@@ -148,9 +148,9 @@ Meta Harness democratizes harness engineering. The practice of scientifically tu
 We make it participatory:
 
 - **You define what good looks like.** Your domain expertise, your success criteria, your ground truth data. The PM helps you articulate it; the Harness Engineer turns it into science.
-- **You watch it happen.** Every iteration, every experiment, every trend line is visible. Not as raw traces — as human-readable artifacts that tell the story of your agent getting better.
+- **You watch it happen.** Every iteration and experiment is visible through human-readable artifacts, graphs, and metrics that tell the story of your target harness getting better.
 - **You weigh in when it matters.** Human-in-the-loop at key decision points: dataset approval, architecture review, eval criteria sign-off, taste calibration during development. Your judgment shapes the outcome.
-- **You get proof, not promises.** Optimization curves backed by real evaluation data. Calibrated judges scoring against your criteria. Held-out test sets that prove generalization, not memorization.
+- **You get proof, not promises.** Harness Engineer analytics backed by real evaluation data. Calibrated judges scoring against your criteria. Held-out test sets that prove generalization, not memorization.
 
 The art of harness engineering — now open to everyone with a problem to solve.
 

@@ -21,7 +21,7 @@
 
 Even in a headless world where users primarily interact via Slack, Discord, or custom channels, **we still need a place to emit the actual progress and legitimate ROI our agents deliver**. The UI is that place.
 
-By being headless-first, we focus our engineering on the harnesses and agent orchestration. The UI becomes minimal by design: a chat interface (via LangChain primitives) where users can scope projects and weigh in on decisions, flanked by side rails that provide via 1 or 2 clicks away a display of the highest-signal artifacts—PRDs, datasets, eval scorecards, optimization trendlines. Whether users engage headlessly through Slack with 5 business decision-makers, or pull up the web chat for direct scoping, or mix modalities (chat while instructing the agent to gather context from Slack), the artifacts surface the same way. The agents output everything to their composite backend filesystem; the UI simply makes it legible and emotionally resonant.
+By being headless-first, we focus our engineering on the harnesses and agent orchestration. The UI becomes minimal by design: a chat interface (via LangChain primitives) where users can scope projects and weigh in on decisions, flanked by side rails that provide via 1 or 2 clicks away a display of the highest-signal artifacts—PRDs, datasets, eval scorecards, and Harness Engineer analytics showing progress toward agreed success criteria. Whether users engage headlessly through Slack with 5 business decision-makers, or pull up the web chat for direct scoping, or mix modalities (chat while instructing the agent to gather context from Slack), the artifacts surface the same way. The agents output everything to their composite backend filesystem; the UI simply makes it legible and emotionally resonant.
 
 - The "leader" of our first agent team is the Product manager who serves as the main poc for users to communicate with the team. other agents have the ability to ask questions but ultimatley the PM is the direct poc
 
@@ -33,7 +33,7 @@ By being headless-first, we focus our engineering on the harnesses and agent orc
 
 **Artifact surfacing as emotional signal:** When the PM or Harness Engineer accepts a dataset, it surfaces in the web app as a first-class artifact—easy to see, read, and understand. This transparency creates emotional resonance: users *feel* the progress when they see actual artifacts emitted, knowing each one plays a key role in creating the target harness. Whether they engaged via Slack with colleagues, direct chat with the PM, or a mixed modality (chat + Slack context gathering), the same artifacts appear in the same artifact browser. The UI is the single source of truth for progress and ROI, regardless of how the scoping happened.
 
-**Optimization loop visualization:** When the Developer Agent runs experiments in an optimization loop, users see visualizations of each iteration trending toward, or maybe even regressing against, the desired behavior and capabilities. These insights are emitted in a manner appropriate to the product's visual design language.
+**Harness Engineer analytics:** When the Developer Agent runs experiments, the Harness Engineer surfaces analytical graphs, metrics, and scorecards that show whether the target harness is progressing toward the success criteria established early with the PM and refined through evaluation design. Users can see improvement, regression, and evidence-backed movement toward the desired behavior and capabilities in a manner appropriate to the product's visual design language.
 
 **Conclusion:** A purely headless approach forfeits these opportunities to make invisible work visible and compelling. 
 
@@ -59,12 +59,12 @@ An excellent article on the basics of harness engineering where much of the insp
 
 **Catchphrase:** *"We make the same data irresistibly readable. When you're ready to go deeper, LangSmith is one click away."*  
 
-**Rationale:** LangSmith captures everything—but presents it for engineers. We take the same underlying datasets, evaluations, and traces and transform them into progress narratives that users actually want to consume. The magic is not different data; it's *better* data design. Users feel momentum when they can read a dataset at a glance, track an experiment's trajectory without drilling through nested menus, or watch optimization curves trend toward targets. This human-centric curation is our UX moat: we make agent work legible to the people paying for it, while LangSmith serves the people building it.
+**Rationale:** LangSmith captures everything—but presents it for engineers. We take the same underlying datasets, evaluations, and traces and transform them into progress narratives that users actually want to consume. The magic is not different data; it's *better* data design. Users feel momentum when they can read a dataset at a glance, track an experiment's trajectory without drilling through nested menus, or see Harness Engineer analytics showing evidence-backed progress toward agreed targets. This human-centric curation is our UX moat: we make agent work legible to the people paying for it, while LangSmith serves the people building it.
 
 **Scope clarification:** 
 
 - **We do not reimplement:** LangSmith's trace viewer, thread inspectors, or trajectory-level debugging UI.
-- **We do surface:** eval scorecards, artifact browsers (PRDs, datasets, Specs & rubrics), and optimization loop visualizations.
+- **We do surface:** eval scorecards, artifact browsers (PRDs, datasets, Specs & rubrics), and Harness Engineer analytics that visualize progress toward agreed success criteria.
 - **We connect:** Deep links to LangSmith for users who need to drop from business narrative to technical forensics.
 
 This mirrors the pattern of dashboards that distill signal while preserving access to underlying telemetry for users who need it.
