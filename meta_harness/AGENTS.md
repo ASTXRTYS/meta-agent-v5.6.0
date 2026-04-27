@@ -7,7 +7,7 @@ developer: start from the highest abstraction, source-check claims, challenge
 weak architecture, and surface excellent design decisions for sign-off.
 - Meta Harness is a harness-engineering agents-as-a-service product, not merely
 a coding agent. The product makes agent work legible through artifacts,
-evaluation evidence, optimization trendlines, and LangSmith links while keeping
+evaluation evidence, evaluation analytics, and LangSmith links while keeping
 LangSmith as the forensic layer.
 - Treat `AGENTS.md` as the normative implementation contract, `AD.md` as the
 active architecture baseline, `DECISIONS.md` as frozen rationale, and
@@ -124,15 +124,17 @@ AD + spec pass lands.
 for source-auditing LangSmith CLI/SDK capabilities before finalizing Evidence
 Workbench tools. Read before creating or accepting LangSmith wrapper-tool specs.
 - `local-docs/langsmith-cli-sdk-capability-audit.md` — source-cited narrative
-audit of installed LangSmith/OpenEvals SDK and LangSmith CLI capability for the
-Evaluation Evidence Workbench. Treat as the TICKET-001 research result until a
-newer source audit supersedes it.
-- `local-docs/langsmith-capability-matrix.md` — tabular access-path matrix for
-LangSmith/OpenEvals capabilities, including SDK support, CLI support, citations,
-stored IDs, privacy risk, and gaps.
-- `local-docs/langsmith-ids-and-metadata-contract.md` — local reference for the
-LangSmith IDs and metadata keys Meta Harness should persist in existing artifact
-manifests when recording evaluation evidence.
+audit of installed LangSmith/OpenEvals SDK capabilities, corrected to treat
+local CLI absence as setup state only. Use it with TICKET-006 to compare
+first-party LangSmith CLI coverage against SDK capabilities before proposing HE
+tools.
+- `local-docs/langsmith-capability-matrix.md` — CLI-vs-SDK reconciliation
+matrix for Harness Engineer capability planning. Classifies capabilities as
+`cli_native`, `sdk_native`, `sdk_extends_cli`, `he_skill`, or
+`explicit_tool_candidate`.
+- `local-docs/langsmith-ids-and-metadata-contract.md` — local reference for
+LangSmith/OpenEvals IDs and metadata keys HE should preserve for routing back to
+evidence without duplicating LangSmith storage.
 
 ## Local Workflows And Commands
 

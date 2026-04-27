@@ -1,222 +1,228 @@
-# TICKET-006 — Design Evaluation Evidence Workbench Tools After LangSmith Audit
+# TICKET-006 — Reconcile LangSmith CLI vs SDK Capabilities For Harness Engineer
 
 ## Status
 
-READY FOR POST-AUDIT RECONCILIATION
+COMPLETED — NO WORKBENCH TOOL SPEC NEEDED
 
 ## Priority
 
-P2 — follow-up design ticket after source audit
+P1 — reconciliation ticket before any Evidence Workbench tool design or implementation
 
 ## Owner
 
-Harness Engineer + Architect + Developer
+Harness Engineer + Architect
+
+## Completed On
+
+2026-04-27
 
 ## Depends On
 
-- TICKET-001 LangSmith CLI/SDK capability audit
+- TICKET-001 LangSmith CLI/SDK capability audit, completed with the CLI conclusion corrected
+- `meta_harness/local-docs/langsmith-capability-matrix.md`
+- `meta_harness/local-docs/langsmith-cli-sdk-capability-audit.md`
+- `meta_harness/local-docs/langsmith-ids-and-metadata-contract.md`
 - `meta_harness/docs/specs/evaluation-evidence-workbench.md`
-
-## Blocks
-
-- Evidence Workbench implementation
-- HE subagent trace-bundle analysis workflows
-- Post-eval analytics generation from LangSmith evidence
-- Developer-safe failure cluster packet generation
+- `.agents/skills/langsmith-evaluator-feedback/SKILL.md`
 
 ## Problem
 
-The Evaluation Evidence Workbench is conceptually scoped, and TICKET-001 has now source-audited the installed LangSmith SDK, OpenEvals package, and local CLI availability.
+The Evidence Workbench docs previously drifted from the original audit intent.
+They treated local absence of a `langsmith` console script in this repo’s
+`.venv` as if LangSmith CLI workflows were out of scope, then replaced the
+missing CLI/SDK comparison with an over-broad Meta Harness evidence platform.
 
-We now need to translate verified LangSmith capabilities into the minimal deterministic harness HE needs without creating raw wrapper tools around SDK operations that LangSmith already owns.
+TICKET-001 corrected that premise. It audited the HE-facing LangSmith CLI
+workflows from local LangSmith skills, preserved the useful SDK/OpenEvals source
+findings, and produced the initial CLI-vs-SDK matrix this ticket consumes.
+
+The Harness Engineer must ship with strong LangSmith CLI and SDK expertise. The
+reason to audit LangSmith was to answer:
+
+```txt
+1. What does LangSmith CLI provide natively?
+2. What does the LangSmith SDK provide beyond the CLI?
+3. Which SDK-only or high-friction capabilities does HE need to do the job well?
+4. Which of those, if any, deserve explicit HE tools so the agent does not have
+   to write SDK code repeatedly?
+```
+
+This ticket reconciles the completed TICKET-001 outputs before implementation.
 
 ## Goal
 
-Design the minimal Evidence Workbench access pattern, deciding which operations are:
+Produce a CLI-vs-SDK capability reconciliation for the Harness Engineer.
+
+Every candidate operation is classified as one of:
 
 ```txt
-sdk_direct calls from HE-owned scripts or backend code
-policy_tool operations with Meta Harness provenance/redaction/artifact/audit policy
-skill_or_script procedural workflows
-subagent task patterns
-not supported in v1
+cli_native                 # first-party LangSmith CLI should cover the HE workflow
+sdk_native                 # SDK covers it; use SDK in HE scripts/code
+sdk_extends_cli            # SDK adds precision/composition beyond CLI
+he_skill                   # teach the workflow; no product tool
+explicit_tool_candidate    # consider only for SDK-only/high-friction HE work
 ```
 
-## Inputs
+## Corrected Source Premise
 
-From completed TICKET-001:
+TICKET-001 is the baseline source for this ticket. Its corrected premise is that
+local absence of a `langsmith` console script is setup state only, not a
+product-capability conclusion.
+
+Correct premise:
 
 ```txt
-meta_harness/local-docs/langsmith-cli-sdk-capability-audit.md
-meta_harness/local-docs/langsmith-capability-matrix.md
-meta_harness/local-docs/langsmith-ids-and-metadata-contract.md
+LangSmith CLI is a core HE expertise surface.
+LangSmith SDK is the programmatic extension surface.
+Meta Harness explicit tools are exceptional ergonomic aids for SDK-only or
+high-friction HE workflows.
 ```
 
-Key audit conclusions:
+## Reconciliation Matrix
+
+TICKET-006 starts from the completed TICKET-001 matrix and local-doc outputs.
+No capability below survives as an approved explicit tool candidate.
+
+| Capability probe | CLI-native support | SDK support beyond CLI | HE job relevance | Classification | Explicit tool candidate? |
+|---|---|---|---|---|---|
+| List experiment runs | `langsmith experiment list --dataset <name>` and `langsmith experiment get <name>` cover experiment inspection. `langsmith run list` covers flat run listing with project, time, error, name, token, tag, trace ID, and raw filter flags. | `Client.list_runs(...)` adds `select`, `trace_filter`, `tree_filter`, root/parent constraints, reference-example filters, cursor pagination, and programmatic composition. | Needed for locating candidate evidence, focused diagnostics, and evaluator debugging. | `cli_native` for common inspection; `sdk_extends_cli` for selected-field indexes and structured filters. | No approved tool. Revisit only if repeated selected-field or structured-filter indexes become high-friction in real HE work. |
+| Read run trace / tree | `langsmith trace get <trace-id>` and `langsmith trace export <dir>` cover complete execution tree inspection/export. Trace export writes JSONL per trace with one run per line. | `Client.read_run(load_child_runs=True)` hydrates child runs; SDK scripts can serialize selected fields and control tree shape. | Needed for trace inspection and trajectory debugging. | `cli_native` for routine trace inspection/export; `sdk_extends_cli` for precision tree hydration and custom serialization. | No approved tool. Revisit only for a repeated selected-field trace-tree extraction workflow not comfortably handled through CLI or short SDK scripts. |
+| List run feedback | Local LangSmith skills do not define direct feedback lifecycle CLI commands. Trace/run filtering can query feedback-like predicates through raw filters in some cases. | `Client.list_feedback(...)`, `Client.create_feedback(...)`, feedback configs, source metadata, comparative experiment IDs, feedback group IDs, and presigned feedback token APIs are SDK-extension territory. | Needed for score/comment analysis, comparative feedback, evaluator result routing, and feedback visibility review. | `sdk_extends_cli` | No approved tool now. This is the strongest possible later candidate, but only after real HE workflows prove direct feedback inspection/write is frequent and too error-prone as SDK code. |
+| Get dataset information | `langsmith dataset list/get/export/upload` and `langsmith example list/create/delete` cover routine dataset/example lifecycle. | `read_dataset`, `list_examples(as_of=...)`, deterministic IDs, bulk create/update, splits, attachments, source-run linkage, dataset version diff, and tag movement add precision beyond CLI. | Needed for eval program understanding, optimization/holdout split hygiene, and trace-to-dataset provenance. | `cli_native` for routine lifecycle; `sdk_extends_cli` for reproducible row/version/split workflows. | No approved tool. Revisit only for repeated deterministic bulk example or dataset-version/tag operations. |
+| Query runs by filter | `langsmith trace list` and `langsmith run list` expose common filters plus raw `--filter`; trace filters apply to root runs and run filters can match flat spans. | SDK adds typed composition around `filter`, `trace_filter`, `tree_filter`, `select`, root/parent/reference-example constraints, and cursor pagination. | Needed for focused investigation, performance/cost analysis, and slice-specific trace retrieval. | `cli_native` for common filters; `sdk_extends_cli` for precise programmatic query construction. | No approved tool. Revisit only if structured filter construction repeatedly causes reliability problems. |
+| Get experiment summary | `langsmith experiment get <name>` covers inspection in the skill-grounded CLI surface. | `get_experiment_results(...)` adds preview mode, feedback stats, run stats, example-with-runs iteration, comparative IDs, and comparison URL workflows. | Needed for candidate comparison, regression analysis, and aggregate experiment review. | `cli_native` for inspection; `sdk_native` / `sdk_extends_cli` for programmatic summaries and comparisons. | No approved tool. Revisit only for a repeated standard comparison workflow where direct SDK invocation is boilerplate-heavy. |
+
+## SDK Capabilities That Genuinely Extend CLI Capability
+
+- **Dataset/example precision:** deterministic and bulk example IDs, splits,
+  attachments, source-run linkage, immutable `as_of` reads, dataset version diff,
+  dataset tag movement, and schema/metadata control.
+- **Experiment execution and comparison:** `evaluate()`, `aevaluate()`,
+  `evaluate_comparative()`, `get_experiment_results(...)`, preview summaries,
+  comparison URLs, concurrency, repetitions, metadata binding, and programmable
+  result iteration.
+- **Run and trace precision:** selected fields, structured filters,
+  `trace_filter`, `tree_filter`, root/parent/reference-example constraints,
+  cursor pagination, and SDK-controlled child-run hydration.
+- **Feedback APIs:** feedback creation, direct listing, feedback configs,
+  source-run metadata, comparative experiment IDs, feedback group IDs, and
+  presigned feedback token workflows.
+- **Privacy configuration:** SDK ingestion-time anonymizer and input/output/
+  metadata hiding controls.
+- **Evaluator construction:** OpenEvals exact, JSON, LLM-as-judge, code, and
+  trajectory evaluator primitives plus local evaluator debugging.
+
+## HE Workflows To Teach As Skills
+
+- **Trace-first forensic workflow:** use `langsmith trace list/get/export` for
+  trajectory inspection before reaching for SDK code.
+- **Run-level focused query workflow:** use `langsmith run list/get/export` for
+  span-level debugging, cost/latency filters, tags, errors, and project-scoped
+  slices.
+- **Dataset/example lifecycle workflow:** use CLI for routine list/get/create/
+  delete/export/upload and example list/create/delete.
+- **Dataset-from-traces workflow:** export traces, process JSONL locally, then
+  upload examples, escalating to SDK only for deterministic provenance.
+- **Evaluator upload workflow:** use CLI for code evaluator list/upload/delete
+  and SDK/OpenEvals for local or LLM-as-judge evaluators.
+- **EBDR-1 workflow:** use `.agents/skills/langsmith-evaluator-feedback/SKILL.md`
+  for evaluator-to-optimizer feedback. LangSmith locators can feed the skill,
+  but this ticket does not define a separate feedback tool family.
+
+## SDK-Only Or High-Friction Workflows
+
+These are extension areas, not approved tools:
+
+| Workflow | Why SDK matters | Decision |
+|---|---|---|
+| Direct feedback inspection/write/configuration | Local skills do not define direct feedback lifecycle CLI commands; SDK exposes feedback list/create/config/source/comparative/group APIs. | Possible later candidate only after repeated HE usage proves high friction. |
+| Selected-field trace-tree extraction | CLI exports full trace trees; SDK can hydrate child runs and serialize only selected fields. | Keep as SDK competence for now. |
+| Structured run filter indexes | CLI exposes common flags and raw filter; SDK composes filters with selected fields, pagination, root/parent/reference-example constraints. | Keep as SDK competence for now. |
+| Deterministic trace-to-dataset compilation | SDK supports deterministic IDs, source-run linkage, splits, attachments, and immutable version references. | Teach CLI+SDK workflow; no product tool yet. |
+| Programmatic experiment comparison summaries | SDK exposes preview summaries, feedback/run stats, comparison URLs, and comparative experiment IDs. | Keep as SDK competence unless a repeated standard comparison workflow emerges. |
+| SDK redaction/anonymizer profile setup | SDK owns ingestion-time privacy hooks. | Teach as SDK setup skill; no product tool yet. |
+
+## Tool-Creation Rule
+
+An explicit HE tool is justified only when all of these are true:
+
+1. The capability is not comfortably available through first-party LangSmith
+   CLI.
+2. The LangSmith SDK provides the needed capability or precision.
+3. The Harness Engineer needs the capability repeatedly in normal work.
+4. Requiring HE to write SDK code each time would materially reduce reliability
+   or speed.
+5. The tool name maps directly to the LangSmith capability it exposes; do not
+   invent a parallel Meta Harness evidence-platform vocabulary.
+
+If a capability is CLI-native, teach it as HE LangSmith CLI competence. If it is
+SDK-native but rare, keep it as HE script/code competence. If it is SDK-native,
+frequent, and high-friction, then consider a tool.
+
+Do not reclassify CLI-native workflows as tool candidates unless this ticket
+identifies a concrete SDK-only extension that is frequent, high-friction, and
+not comfortably handled by HE skill or direct SDK code.
+
+This ticket does not implement tools, create schemas, or introduce a new
+Evidence Workbench tool family.
+
+## EBDR Boundary
+
+Do not design a new Developer-safe Evidence Workbench packet tool in this
+ticket. EBDR-1 is already a skill:
 
 ```txt
-Use sdk_direct for HE-owned scripts/backend code that call LangSmith SDK or OpenEvals primitives.
-Use policy_tool only when Meta Harness adds provenance, visibility/redaction, artifact registration, analytics validation, bounded export, or audit logging.
-Treat LangSmith CLI workflows as not_supported_v1 in this environment: installed langsmith==0.7.37 exposes no langsmith console script.
-Do not introduce raw LangSmith wrapper tools merely because an SDK method exists.
-Raw traces, full run trees, hidden examples, judge prompts/rubrics, evaluator reasoning/comments, attachments, and full dumps default he_private.
+.agents/skills/langsmith-evaluator-feedback/SKILL.md
 ```
 
-## Required Decisions (CANDIDATE ONLY)
+Use that skill for evaluator-to-optimizer feedback. TICKET-006 may identify
+LangSmith trace/score identifiers that feed the skill, but it must not recreate
+EBDR as a Workbench tool family.
 
-The sections below are candidate design notes, not implementation authority. They must be reconciled with the completed TICKET-001 audit and with `meta_harness/docs/specs/evaluation-evidence-workbench.md`, which rejects model-visible tools that merely duplicate LangSmith SDK/CLI operations without adding Meta Harness provenance, visibility, redaction, artifact registration, analytics-schema validation, or audit policy.
+## Recommendation
 
-### 1. Tool vs Skill Split (CANDIDATE)
+No new Workbench tools spec is needed now.
 
-**Decision status:** Candidate; must now be reconciled against the completed TICKET-001 audit and may shrink substantially before any formal spec or implementation.
+The right next step is operational skill hardening:
 
-| Capability | Implementation | Decision Rationale |
-|------------|---------------|-------------------|
-| SDK queries | **Backend tools only if policy-bearing** | Direct API access alone is not enough; tools must add project provenance, visibility, redaction, artifact registration, or audit policy |
-| Filesystem mirror | **Backend tools only if policy-bearing** | File I/O and local persistence must create bounded evidence bundles with explicit inclusion/exclusion policy |
-| Local analysis | **Scripts, skills, or backend tools depending on proof** | Structured computation should start in HE-owned scripts/skills unless deterministic backend policy is required |
-| Subagent spawning | **Skill guidance** | Deep Agents SDK provides `task` tool natively |
-| Filter syntax | **Backend helper** | Convert dict → LangSmith filter string |
-| Redaction | **Backend tool** + SDK config | Multi-level redaction support |
-| HE workflow | **Skill guidance** | Procedural knowledge for HE agent |
-
-**Source-verification result:** TICKET-001 confirmed installed LangSmith/OpenEvals package capabilities against `.venv/lib/python3.12/site-packages/...` and found no usable installed LangSmith CLI console script for v1 product contracts.
-
-### 2. Evidence Query Tools (CANDIDATE)
-
-**Decision status:** Candidate operations for audit comparison, not an accepted 6-tool family. Each operation must be rejected unless it adds Meta Harness-specific policy/value beyond a raw SDK method call.
-
-| Tool | SDK Method | Source |
-|------|-----------|--------|
-| `get_experiment_summary` | `get_experiment_results()` | `client.py:9750-9843` |
-| `list_experiment_runs` | `list_runs(project_id=...)` | `client.py:3678-3870` |
-| `read_run_trace` | `read_run(load_child_runs=True)` | `client.py:3583-3620` |
-| `list_run_feedback` | `list_feedback(run_ids=...)` | `client.py:7518-7559` |
-| `query_runs_by_filter` | `list_runs(filter=...)` | `client.py:3678-3870` |
-| `get_dataset_info` | `read_dataset()` + `list_examples()` | `client.py:4925-4970`, `client.py:6384-6507` |
-
-The source line references above are historical candidate anchors. The reconciliation pass must use the completed TICKET-001 audit artifacts as the current source of truth, especially where Python 3.11 path anchors have been superseded by Python 3.12 installed-source citations.
-
-**Exact schemas:** Deferred. Do not create model-visible schemas until TICKET-001 proves the operation needs a policy-bearing product tool.
-
-### 3. Local Mirror Tools (CANDIDATE)
-
-**Decision status:** Candidate mirror operations, not an accepted 5-tool family. Local mirrors should be introduced only as bounded evidence-bundle operations with recorded source refs, selection criteria, included/excluded fields, visibility, and retention expectations.
-
-| Tool | Purpose |
-|------|---------|
-| `mirror_experiment_runs` | Mirror all runs to JSONL |
-| `mirror_failed_runs` | Filtered mirror (`neq(error, null)`) |
-| `mirror_trace_bundle` | Full trace trees for specified runs |
-| `export_experiment_summary` | Export summary (JSON + optional CSV) |
-| `load_mirrored_evidence` | Load previously mirrored evidence |
-
-**Candidate file layout for future bounded evidence bundles:**
-
-```
-/langsmith_mirror/experiments/{experiment_id}/
-  experiment_summary.json
-  runs_index.jsonl
-  feedback_index.jsonl
-  filtered/failed_runs.jsonl
-  traces/{run_id}.json
-  summaries/{run_id}.summary.md
-```
-
-### 4. Subagent Analysis Pattern (CANDIDATE)
-
-**Decision status:** Candidate skill guidance, not a new tool surface.
-
-**Rationale:** Deep Agents SDK provides `task` tool for subagent spawning. No wrapper needed.
-
-**Pattern:**
-```
-1. HE mirrors evidence locally
-2. HE bounds bundle (select specific trace files)
-3. HE spawns subagent via task tool with explicit constraints
-4. Subagent writes intermediate artifacts (summaries/)
-5. HE synthesizes and redacts before publication
-```
-
-**Subagent output types:**
-- `trace_summary_bundle` → `summaries/{run_id}.summary.md`
-- `failure_cluster_report` → `clusters/failure_cluster_report.md`
-- `candidate_comparison_report` → `comparison_report.md`
-- `regression_report` → `filtered/regressed_runs.jsonl`
-
-**Critical:** Subagents must NOT publish final analytics directly.
-
-### 5. Redaction Boundary (CANDIDATE)
-
-**Decision status:** Candidate redaction model. Must be verified against LangSmith SDK redaction/anonymizer behavior and Meta Harness Developer-safe policy before formalization.
-
-| Level | Redacted Fields | Use Case |
-|-------|-----------------|----------|
-| `internal` | None | HE-private analysis |
-| `stakeholder_visible` | `inputs` (PII policy), full `events` | Product analytics |
-| `developer_safe` | `inputs`, `outputs`, `serialized`, `extra`, stack traces | Developer feedback (EBDR-1) |
-
-**Implementation:**
-- SDK client config: `hide_inputs`, `hide_outputs`, `anonymizer` (`client.py:748-755`)
-- Per-tool redaction: `produce_developer_safe_summary` tool (spec §6.4)
-- Output format: EBDR-1 packet structure
-
-**Developer-safe fields preserved:**
-- Feedback scores (metrics)
-- Latency/cost (efficiency)
-- Run IDs, Example IDs (routing/localization)
-- Tool call names (behavior analysis)
-
-## File Layout For Mirrored Evidence (CANDIDATE)
-
-**Candidate layout** for future bounded evidence bundles:
-
-```txt
-/langsmith_mirror/
-  experiments/
-    {experiment_id}/
-      experiment_summary.json          # Aggregated stats
-      runs_index.jsonl                 # Streaming run list
-      feedback_index.jsonl             # Streaming feedback list
-      filtered/
-        failed_runs.jsonl              # Error-filtered runs
-        regressed_runs.jsonl           # Regression-flagged runs
-      traces/
-        {run_id}.json                  # Full trace trees
-      summaries/
-        {run_id}.summary.md            # Subagent-generated summaries
-      clusters/
-        failure_cluster_report.md      # HE-synthesized analysis
-```
-
-**Format notes:**
-- JSONL for streaming collections (runs, feedback) — appendable, grep-friendly
-- JSON for structured objects (summary, traces) — random access
-- Markdown for narrative analysis (summaries, clusters) — human-readable
-
-## Acceptance Criteria
-
-- [x] TICKET-001 source audit is complete with SDK/CLI/OpenEvals line-number citations.
-- [ ] Raw LangSmith wrapper operations are rejected unless they add Meta Harness provenance, visibility, redaction, artifact registration, analytics-schema validation, or audit policy.
-- [ ] Tool-vs-skill split is minimized and documented after audit.
-- [ ] Any local mirror file layout is documented as a bounded evidence-bundle layout, not a default full export path.
-- [ ] Full-dump policy is documented in the formal spec.
-- [ ] Filtered-export policy is documented in the formal spec.
-- [ ] Subagent analysis pattern is operationalized without granting subagents publication authority.
-- [ ] Redaction policy is integrated and verified against LangSmith SDK behavior.
-- [ ] Developer-safe output boundary is preserved.
-- [ ] Deferred capabilities are identified.
+1. Teach HE the LangSmith CLI workflows documented by `langsmith-dataset`,
+   `langsmith-trace`, and `langsmith-evaluator`.
+2. Teach HE the SDK/OpenEvals extension workflows documented in
+   `meta_harness/local-docs/langsmith-cli-sdk-capability-audit.md`.
+3. Track real HE friction around feedback APIs, selected-field trace extraction,
+   structured run filters, deterministic trace-to-dataset compilation, and
+   experiment comparison summaries.
+4. Create future implementation tickets only for concrete workflows that satisfy
+   the five-part tool-creation rule above.
 
 ## Deliverables
 
-1. **Updated Ticket** (this file) — Status: ready for post-audit reconciliation.
-2. **Post-audit recommendation** — decide whether `meta_harness/docs/specs/evidence-workbench-tools-spec.md` is necessary or whether existing Workbench + analytics specs are sufficient.
-3. **Survivor list** — name only the policy-bearing tools, scripts, or skills that survive the audit reconciliation, with access path classification for each.
+1. Corrected CLI-vs-SDK matrix using the ticket taxonomy: complete.
+2. List of SDK capabilities that genuinely extend or exceed CLI capability:
+   complete.
+3. List of HE workflows that should be taught as CLI skills: complete.
+4. List of SDK-only/high-friction workflows, if any, that are explicit tool
+   candidates: complete; none approved now.
+5. Recommendation on whether a new Workbench tools spec is needed: complete; no
+   new Workbench tools spec is needed.
 
-## Next Steps
+## Acceptance Criteria
 
-1. Reconcile this candidate tool list against the TICKET-001 audit and the minimal-tooling stance in `evaluation-evidence-workbench.md`.
-2. Classify every candidate operation as `sdk_direct`, `policy_tool`, `skill_or_script`, or `not_supported_v1`.
-3. Decide whether a formal `evidence-workbench-tools-spec.md` is warranted.
-4. If warranted, add AD §9 registration and parent AD pointer before implementation.
-5. Create separate implementation tickets only for policy-bearing tools that survive review.
+- [x] TICKET-001’s corrected CLI audit outputs are used as the baseline.
+- [x] LangSmith CLI is treated as required HE expertise, not optional or future.
+- [x] Local CLI installation absence is recorded only as setup state.
+- [x] Every candidate operation is classified by CLI support, SDK support, HE
+      job relevance, and tool-candidate rationale.
+- [x] Superseded access-category framing is absent from the reconciliation.
+- [x] EBDR remains delegated to the existing skill.
+- [x] No new Product Data Plane concepts, artifact families, or audit/event
+      subsystems are introduced by this ticket.
+
+## Follow-Up Tickets
+
+No implementation ticket is created from TICKET-006.
+
+Future tickets may be opened only after HE work produces concrete evidence that
+one of the SDK-extension workflows is repeated, high-friction, and not
+comfortably handled through LangSmith CLI, direct SDK code, or HE skill
+guidance.

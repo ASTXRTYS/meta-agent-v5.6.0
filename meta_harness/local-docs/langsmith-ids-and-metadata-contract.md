@@ -1,10 +1,13 @@
 # LangSmith IDs And Metadata Contract For Evaluation Evidence Workbench
 
-Source-audited for `TICKET-001` on 2026-04-26. This is a `local-docs/` research artifact, not a product spec and not a new Project Data Plane record family.
+Source-audited for `TICKET-001` on 2026-04-26 and corrected for the CLI-vs-SDK framing on 2026-04-27. This is a `local-docs/` research artifact, not a product spec and not a new Project Data Plane record family.
 
 ## Purpose
 
-This document states which LangSmith/OpenEvals identifiers Meta Harness should persist when the Evidence Workbench uses LangSmith as the forensic substrate. It also recommends metadata keys to attach to LangSmith datasets, experiments/sessions, runs, feedback, and local evidence bundles so Evidence Workbench outputs can be traced back to Project Data Plane artifacts without duplicating LangSmith storage.
+This document states which LangSmith/OpenEvals identifiers HE should preserve
+when using LangSmith as the forensic substrate. It also recommends metadata keys
+to attach to LangSmith datasets, experiments/sessions, runs, and feedback so HE
+can route back to the right evidence without duplicating LangSmith storage.
 
 ## Source basis
 
@@ -43,7 +46,7 @@ Persist these for row-level evidence:
 | `langsmith_dataset_id` | Yes | `ExampleBase.dataset_id` (`schemas.py:81-88`). | Required to locate row. |
 | `langsmith_example_split` | Recommended | Create/list APIs support `split` / `splits` (`client.py:6194-6199`, `client.py:6551-6553`). | Needed for optimization/holdout isolation. |
 | `langsmith_source_run_id` | Required when derived from trace | Create APIs support `source_run_id` / `source_run_ids` (`client.py:6194-6199`, `client.py:6412-6415`). | Tracks production-trace-to-example provenance. |
-| `langsmith_example_as_of` | Required for immutable row sets | `list_examples(as_of=...)` returns examples present at a version (`client.py:6567-6571`). | Store with eval runs and exported bundles. |
+| `langsmith_example_as_of` | Required for immutable row sets | `list_examples(as_of=...)` returns examples present at a version (`client.py:6567-6571`). | Store with eval runs and local analysis files. |
 | `langsmith_example_metadata` | HE-private or internal | Example metadata is first-class (`schemas.py:81-88`, `schemas.py:102-115`). | Redact before Developer-safe output. |
 
 ### Experiment / session identifiers
@@ -73,9 +76,9 @@ Persist these for run indexes and trace bundles:
 | `langsmith_reference_example_id` | Required for eval runs | `RunBase.reference_example_id`; list default includes it (`schemas.py:350-351`, `client.py:3962-3990`). | Links run to dataset row. |
 | `langsmith_thread_id` | Recommended if present | `read_thread` builds `eq(thread_id, ...)` filters (`client.py:3784-3838`). | Useful for online eval / multi-turn traces. |
 | `langsmith_run_url` | Recommended for allowed viewers | `get_run_url` constructs UI URL from run/project (`client.py:4246-4282`). | Visibility-gated reference. |
-| `langsmith_child_run_ids` | Required for trace bundles | `Run.child_runs` loads only when instructed (`schemas.py:393-403`, `client.py:3780-3781`). | Do not imply children are present in shallow indexes. |
+| `langsmith_child_run_ids` | Required when analyzing full trace trees | `Run.child_runs` loads only when instructed (`schemas.py:393-403`, `client.py:3780-3781`). | Do not imply children are present in shallow indexes. |
 | `langsmith_run_select_fields` | Required for exports/indexes | `list_runs` supports `select`; default select includes sensitive fields (`client.py:3840-3860`, `client.py:3962-3992`). | Records what was included/excluded. |
-| `langsmith_run_query` / `filter` / `trace_filter` / `tree_filter` | Required for filtered artifacts | `list_runs` supports structured filters (`client.py:3848-3851`, `client.py:3924-3948`). | Store exact source query for evidence reproducibility. |
+| `langsmith_run_query` / `filter` / `trace_filter` / `tree_filter` | Required for filtered analysis | `list_runs` supports structured filters (`client.py:3848-3851`, `client.py:3924-3948`). | Store exact source query for evidence reproducibility. |
 
 ### Feedback / score identifiers
 
@@ -170,9 +173,11 @@ meta_harness.evaluator_source      # openevals | custom_code | human | langsmith
 meta_harness.evaluator_result_key
 ```
 
-## Mapping to existing Project Data Plane artifacts
+## Optional mapping to existing product outputs
 
-This audit does not add a new Product Data Plane record family. Store LangSmith references inside existing artifact manifests and analytics source artifacts.
+This audit does not add a new Product Data Plane record family. When a separate
+product workflow already produces reports, artifacts, or analytics, it should
+store LangSmith references rather than copying raw LangSmith data.
 
 | Project Data Plane artifact kind | LangSmith references to store | Visibility default | Notes |
 |---|---|---|---|
@@ -182,7 +187,7 @@ This audit does not add a new Product Data Plane record family. Store LangSmith 
 | `experiment_summary` | Experiment ID/name/url, comparison URL, run stats, feedback stats | `internal` | Stakeholder-visible only after analytics validation. |
 | `run_index` | Query/filter, selected fields, run IDs, trace IDs, example IDs, aggregate metrics | `he_private` by default | Can become internal if inputs/outputs/comments omitted. |
 | `filtered_run_index` | Source query + local post-filter, selected run IDs, criteria, visibility | `he_private` | Must record source query and post-filter. |
-| `trace_bundle` | Root run IDs, trace IDs, child run IDs, selected fields, source query | `he_private` | Raw trees are never Developer-visible. |
+| `trace_bundle` | Root run IDs, trace IDs, child run IDs, selected fields, source query | `he_private` | Raw trees are never Developer-visible. Existing kind only; this doc does not create a tool. |
 | `trace_summary_bundle` | Trace refs, summary files, redaction profile, evidence refs | `internal` or `he_private` | Developer-safe only after EBDR redaction. |
 | `failure_cluster_report` | Run refs, feedback keys, cluster IDs, redaction report | `internal`; optional `developer_safe` | No hidden examples/rubrics/judge prompts. |
 | `candidate_comparison_report` | Experiment IDs, comparative experiment ID, comparison URL, allowed deltas | `internal`; optional `developer_safe` | Preserve candidate/run/experiment provenance. |
@@ -226,12 +231,12 @@ Developer-safe artifacts must exclude hidden rubrics, judge prompts, held-out ex
 
 Stakeholder-visible analytics should contain only chart/table-ready aggregate source data and links approved for the audience. They should point back to evidence artifacts rather than embedding raw evidence.
 
-## Required metadata on evidence bundles
+## Reproducibility metadata for HE local analysis files
 
-Every durable local evidence bundle should include a manifest with:
+When HE creates local analysis files from CLI or SDK output, include enough
+metadata to reproduce the evidence source:
 
 ```txt
-bundle_id
 created_at
 created_by_agent
 purpose
@@ -246,17 +251,16 @@ local_post_filter
 included_run_ids
 included_trace_ids
 included_example_ids
-visibility
-redaction_profile
 included_fields
 excluded_fields
-artifact_id
-retention_expectation
-audit_event_id
 ```
 
 ## Access-path implications
 
-- Persisting references and running SDK calls is `sdk_direct`.
-- Creating a durable bundle, artifact, analytics view, Developer-safe report, or stakeholder-visible package is `policy_tool` because the value is the Meta Harness policy envelope, not the raw SDK call.
-- LangSmith CLI is `not_supported_v1` in this environment because no installed console script exists.
+- Use first-party LangSmith CLI when it covers the HE workflow.
+- Use LangSmith SDK/OpenEvals directly when CLI lacks the needed capability,
+  precision, or programmatic composition.
+- Consider explicit HE tools only for SDK-only, repeated, high-friction
+  workflows identified by TICKET-006.
+- Local absence of a `langsmith` console script is setup state only; it is not a
+  product-capability conclusion.

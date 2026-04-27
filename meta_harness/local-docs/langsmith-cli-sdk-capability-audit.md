@@ -2,7 +2,8 @@
 
 ## Status
 
-Source-audited for `TICKET-001` on 2026-04-26.
+Source-audited for SDK/OpenEvals on 2026-04-26 and updated from local
+LangSmith skills for CLI coverage on 2026-04-27.
 
 This is a `local-docs/` research artifact, not a product spec and not an implementation plan.
 
@@ -16,6 +17,11 @@ This is a `local-docs/` research artifact, not a product spec and not an impleme
 - **Installed OpenEvals:** `openevals==0.2.0` (`.venv/lib/python3.12/site-packages/openevals-0.2.0.dist-info/METADATA:2-4`).
 - **Installed AgentEvals:** `agentevals==0.0.9`, present but not the primary target of this ticket (`.venv/lib/python3.12/site-packages/agentevals-0.0.9.dist-info/METADATA:2-4`).
 - **Local reference repos:** no local `.reference` LangSmith SDK or OpenEvals repo was present in this checkout; implementation-facing claims below therefore prioritize installed `.venv` package source.
+- **Local LangSmith skills:** `langsmith-dataset`
+  (`/Users/Jason/.claude/skills/langsmith-dataset`), `langsmith-trace`
+  (`/Users/Jason/.claude/skills/langsmith-trace`), and `langsmith-evaluator`
+  (`/Users/Jason/.claude/skills/langsmith-evaluator`) define the HE-facing CLI
+  workflows audited on 2026-04-27.
 - **Auggie:** resource listing was unavailable for the `auggie` MCP server, so Auggie was not used as authority. This audit uses local package source plus official docs entry pages as secondary intent.
 
 ### Official docs intent check
@@ -24,12 +30,30 @@ The LangSmith evaluation entry page frames the intended product workflow as: cre
 
 ## Executive conclusion
 
-The correct Evidence Workbench access pattern is **hybrid, but not CLI-heavy**:
+The corrected Evidence Workbench access pattern is **CLI-first where native,
+SDK-direct where programmatic precision is needed, and explicit HE tools only
+for SDK-only or high-friction recurring work**:
 
-1. **Use `sdk_direct` for HE-owned scripts and backend code** that call stable LangSmith SDK and OpenEvals primitives: datasets, examples, experiments, runs, run trees, feedback, summaries, comparison URLs, and evaluator constructors.
-2. **Use `policy_tool` only for Meta Harness policy envelopes**: bounded evidence bundles, artifact registration, Developer-safe redaction, visibility checks, source-query provenance, analytics-schema validation, and auditable access events.
-3. **Do not rely on LangSmith CLI for v1 product correctness.** The installed `langsmith==0.7.37` distribution exposes only a pytest plugin entry point, not a `langsmith` console script (`.venv/lib/python3.12/site-packages/langsmith-0.7.37.dist-info/entry_points.txt:1-2`). The local `.venv/bin/langsmith` binary is absent. Therefore CLI guidance is `not_supported_v1` in this environment except as a future/operator-specific note if a separate upstream CLI appears.
-4. **Do not introduce raw wrapper tools** such as “list runs” or “create dataset.” The SDK already owns those operations. A Meta Harness tool is justified only when the operation adds project provenance, visibility/redaction enforcement, artifact registration, analytics validation, bounded export policy, or audit logging.
+1. **LangSmith CLI is required HE expertise.** The local `.venv` did not expose
+   a `langsmith` console script, but that is a setup fact, not proof that
+   LangSmith CLI workflows are out of scope. The local `langsmith-dataset`,
+   `langsmith-trace`, and `langsmith-evaluator` skills define broad
+   CLI-native coverage for routine HE workflows.
+2. **Use the LangSmith SDK directly** when CLI coverage is missing, too coarse,
+   or when HE needs programmatic composition: datasets, examples, experiments,
+   runs, run trees, feedback, summaries, comparison URLs, and evaluator
+   constructors.
+3. **Use OpenEvals directly** before inventing evaluator logic.
+4. **Introduce explicit HE tools only after CLI-vs-SDK comparison.** A tool is
+   justified when a needed capability is not comfortably available through CLI,
+   the SDK provides it, HE needs it repeatedly, and writing SDK code each time
+   would materially reduce reliability or speed.
+5. **Do not introduce raw wrapper tools** merely to rename LangSmith operations.
+   Tool candidates must map to specific SDK-only or high-friction HE workflows,
+   not to a parallel Meta Harness evidence-platform vocabulary.
+6. **TICKET-001 approves no explicit HE tools.** Its output is evidence for
+   TICKET-006, which may decide whether any SDK-only/high-friction workflow
+   justifies a tool.
 
 ## Capability audit
 
@@ -71,8 +95,13 @@ Examples support bulk, single-row, deterministic IDs, splits, metadata, source-r
 
 #### Recommended access path
 
-- Raw dataset/example CRUD: `sdk_direct`.
-- Registering datasets as Project Data Plane artifacts or exposing examples across visibility boundaries: `policy_tool`.
+- Routine dataset/example work: use LangSmith CLI when first-party CLI coverage
+  is sufficient.
+- SDK extension path: use the SDK for deterministic IDs, splits, attachments,
+  source-run linkage, version/tag workflows, and other precision the CLI does
+  not expose comfortably.
+- Explicit tool candidate only if HE repeatedly needs one of those SDK-only
+  workflows and direct SDK code is too error-prone or slow.
 
 ### 2. Experiments / sessions / evaluation execution
 
@@ -111,8 +140,12 @@ Persist at minimum:
 
 #### Recommended access path
 
-- Running evaluations and reading experiment summaries for HE/private analysis: `sdk_direct`.
-- Publishing experiment summaries, candidate comparison reports, scorecards, or analytics source data: `policy_tool`.
+- Use CLI for routine experiment inspection if first-party CLI coverage is
+  sufficient.
+- Use SDK/OpenEvals code for evaluation execution, comparative experiments,
+  metadata binding, preview summaries, and programmatic comparison workflows.
+- Explicit tool candidate only for a repeated standard evaluation or comparison
+  workflow that is SDK-only and high-friction.
 
 ### 3. Runs / traces / run trees
 
@@ -145,12 +178,16 @@ This list is source-defined at `client.py:3962-3990`. `child_runs` are not popul
 
 #### Privacy
 
-Raw runs can contain user inputs, model outputs, tool call arguments/results, serialized objects, metadata, events, errors, stack traces, attachments, feedback stats, and reference example IDs. Raw traces and full trees are `he_private` by default; Developer-safe packets must route only redacted references and permitted metrics.
+Raw runs can contain user inputs, model outputs, tool call arguments/results, serialized objects, metadata, events, errors, stack traces, attachments, feedback stats, and reference example IDs. Raw traces and full trees are `he_private` by default. EBDR-1 feedback should route only allowed references and permitted metrics.
 
 #### Recommended access path
 
-- Raw querying/inspection by HE scripts: `sdk_direct`.
-- Bounded trace bundles, filtered run indexes, and full dump requests with visibility/retention/audit metadata: `policy_tool`.
+- Use CLI for routine run/trace listing, inspection, and export when first-party
+  CLI coverage is sufficient.
+- Use SDK code for selected fields, structured filters, cursor pagination,
+  custom serialization, or child-run hydration beyond CLI coverage.
+- Explicit tool candidate only for repeated SDK-only filtering or trace-tree
+  workflows that HE needs often and that are cumbersome to write each time.
 
 ### 4. Feedback / scores / evaluator outputs
 
@@ -173,36 +210,71 @@ Raw runs can contain user inputs, model outputs, tool call arguments/results, se
 
 #### Recommended access path
 
-- Reading/writing feedback in HE-owned evaluation scripts: `sdk_direct`.
-- Converting raw feedback/evaluator outputs into Developer-safe EBDR-1 packets or stakeholder-visible analytics: `policy_tool`.
+- Use CLI for feedback inspection if first-party CLI coverage exists.
+- Use SDK code for feedback writes, configs, source metadata, comparative/group
+  IDs, and score/comment queries not comfortably exposed by CLI.
+- Use `.agents/skills/langsmith-evaluator-feedback/SKILL.md` for EBDR-1
+  evaluator-to-optimizer feedback. Do not recreate EBDR as a Workbench tool.
+- Explicit tool candidate only if feedback inspection/write workflows are
+  SDK-only, frequent, and materially helped by a direct HE tool.
 
-### 5. CLI capability audit
+### 5. CLI capability correction
 
 #### What exists
 
-In this installed environment, LangSmith does **not** expose a general-purpose CLI:
+In the installed Python SDK environment inspected by TICKET-001, the
+`langsmith==0.7.37` package did **not** expose a local `langsmith` console
+script:
 
 - The installed LangSmith distribution metadata identifies the package as the client library (`METADATA:2-4`).
 - Its entry points file contains only `[pytest11] langsmith_plugin = langsmith.pytest_plugin` (`entry_points.txt:1-2`). There is no `[console_scripts]` group and no `langsmith` CLI entry point.
 - `.venv/bin/langsmith` is absent in the checked environment.
 
-#### Answer to CLI questions
+That finding only describes this repo’s local Python package setup. It does not
+answer what first-party LangSmith CLI tooling provides, and it must not be used
+to classify CLI workflows as out of scope.
 
-- **Create/list datasets:** not available via installed LangSmith CLI.
-- **Run/inspect experiments:** not available via installed LangSmith CLI.
-- **Export traces/datasets/run trees:** not available via installed LangSmith CLI.
-- **Filter runs non-interactively:** not available via installed LangSmith CLI.
-- **Agent/operator ergonomics:** no installed command surface to teach.
+#### Skill-grounded CLI coverage
+
+The local LangSmith skills define the practical first-party CLI workflows HE is
+expected to know:
+
+- `langsmith-dataset` covers dataset list/get/create/delete/export/upload,
+  example list/create/delete, experiment list/get, dataset upload/export JSON
+  shape, `--limit`, `--yes`, and destructive-operation confirmation behavior.
+- `langsmith-trace` covers trace list/get/export, run list/get/export,
+  thread list/get, project list, trace-vs-run semantics, hierarchy behavior,
+  JSONL export shape, root-vs-flat filtering, and common filters such as
+  `--project`, `--limit`, `--include-metadata`, `--include-io`, `--full`,
+  `--show-hierarchy`, `--run-type`, `--trace-ids`, `--last-n-minutes`,
+  `--since`, `--error`, `--no-error`, `--name`, latency/token filters,
+  `--tags`, and raw `--filter`.
+- `langsmith-evaluator` covers evaluator list/upload/delete, offline evaluator
+  upload with `--dataset`, online evaluator upload with `--project`, code-only
+  CLI upload, sandbox limits, one-metric-per-evaluator behavior, local
+  `evaluate()` preference for LLM-as-judge, and the rule to never use `--yes`
+  unless explicitly requested.
+
+No local skill describes direct `langsmith feedback ...` lifecycle commands.
+Feedback can be queried indirectly through trace/run filters in some cases, but
+feedback creation, list APIs, configs, source metadata, comparative IDs, and
+presigned feedback token workflows remain SDK-extension territory based on this
+audit.
 
 #### Recommended access path
 
-`not_supported_v1` for LangSmith CLI-dependent workflows. If a future separate CLI appears, re-audit its source/entry points before recommending `cli_skill`.
+Treat LangSmith CLI as required Harness Engineer operational expertise. The
+skill-grounded CLI coverage above is enough for TICKET-006 to compare routine
+command workflows against SDK extension points. Do not approve explicit tools
+from this ticket.
 
-### 6. Export / local mirror
+### 6. Export / local working files
 
 #### What exists
 
-LangSmith does not need a separate export abstraction for v1 raw capability: SDK-returned Pydantic objects and typed dicts can be serialized by HE scripts, but policy determines what should be mirrored.
+LangSmith export and inspection should be approached as a CLI-vs-SDK capability
+question, not as a new product abstraction. SDK-returned Pydantic objects and
+typed dicts can be serialized by HE scripts when code is the right medium.
 
 - Runs/examples/datasets are Pydantic models or typed dicts returned by SDK methods shown above.
 - `list_runs(select=[...])` supports field narrowing (`client.py:3840-3860`, `client.py:3912-3915`, `client.py:3962-3992`).
@@ -210,21 +282,27 @@ LangSmith does not need a separate export abstraction for v1 raw capability: SDK
 - `get_experiment_results(preview=True)` supports preview-mode summaries that avoid full input/output S3 fetches (`client.py:10241-10259`).
 - `get_test_results(...)` can materialize record-level experiment information as a Pandas DataFrame, but source warns it is beta and DB results may lag evaluation completion (`client.py:4772-4797`). It flattens rows through `pd.json_normalize` (`client.py:4881-4884`).
 
-#### Recommended mirror format
+#### Practical local formats
 
-For HE-private local evidence bundles:
+For HE-private local analysis files:
 
 - JSONL for streaming collections: run index, feedback index, example index.
 - JSON for structured summaries: experiment summary, selected trace tree.
 - Markdown only for human/subagent-generated analysis summaries.
-- Every bundle must record source query, selected fields, local post-filter if any, visibility, included/excluded fields, created timestamp, source package version, and object IDs.
+- When local files are produced, include enough context for HE to reproduce the
+  query: source command or SDK call, selected fields, local post-filter if any,
+  created timestamp, source package version, and object IDs.
 
-Do **not** mirror raw full experiments by default. Full dumps require explicit HE-private intent.
+Do **not** auto-load raw full experiments into model context. Full exports are
+for explicit HE forensic/debug work.
 
 #### Recommended access path
 
-- Ad hoc HE-private serialization from scripts: `sdk_direct`.
-- Any durable bounded evidence bundle operation: `policy_tool`.
+- Prefer CLI export when first-party CLI output is sufficient.
+- Use SDK serialization when HE needs selected fields, custom filters, or
+  programmatic composition beyond CLI.
+- Consider an explicit HE tool only if the SDK workflow is repeated,
+  high-friction, and not comfortably covered by CLI.
 
 ### 7. Security / privacy / redaction
 
@@ -259,8 +337,10 @@ Raw evidence-bearing outputs may include:
 
 #### Recommended access path
 
-- Ingestion-time privacy hooks: `sdk_direct` configuration.
-- Developer-safe / stakeholder-visible redaction gates and audit events: `policy_tool`.
+- Ingestion-time privacy hooks are SDK configuration.
+- EBDR-1 feedback shaping belongs to `.agents/skills/langsmith-evaluator-feedback/SKILL.md`.
+- A helper tool is only a candidate if HE repeatedly needs a narrow SDK
+  configuration workflow and direct SDK code is too error-prone.
 
 ### 8. OpenEvals primitives
 
@@ -277,35 +357,40 @@ OpenEvals is installed and provides reusable evaluator primitives:
 
 #### Recommended access path
 
-`OpenEvals` evaluator construction is `sdk_direct`. Meta Harness policy applies when evaluator outputs are published, redacted, or converted to Project Data Plane artifacts.
+OpenEvals evaluator construction is `sdk_native` / `he_skill`. Prefer these
+primitives before custom evaluator logic. Only consider an explicit HE tool for
+repeated evaluator-construction boilerplate that is materially safer or faster
+as a direct tool.
 
 ## Final access-path recommendation
 
-Use a **nuanced hybrid matrix**:
+Use a **CLI-vs-SDK HE capability matrix**:
 
 ```txt
-SDK/OpenEvals direct:
-  dataset/example CRUD
-  evaluate()/aevaluate()
-  get_experiment_results()
-  list_runs()/read_run()
-  list_feedback()/create_feedback()
-  OpenEvals evaluator constructors
-  comparison URL extraction
+cli_native:
+  first-party LangSmith CLI covers the workflow; teach HE the command workflow
 
-Policy-bearing Meta Harness layer:
-  artifact registration
-  evidence bundle creation
-  filtered export with recorded source query and visibility
-  full dump approval/audit
-  Developer-safe redaction and EBDR-1 packet generation
-  stakeholder-visible analytics-source validation
+sdk_native:
+  SDK/OpenEvals code is the natural medium for evaluator execution,
+  programmatic composition, or API precision
 
-CLI skill:
-  not available in this installed environment; do not depend on it for v1
+sdk_extends_cli:
+  SDK provides capability or precision beyond CLI; evaluate HE frequency and
+  friction
+
+he_skill:
+  teach the workflow in skills/prompts/docs; no product tool
+
+explicit_tool_candidate:
+  SDK-only/high-friction HE workflow that is repeated often enough to justify a
+  direct tool
 ```
 
-This confirms Jason’s initial hybrid bias with one correction: **the useful hybrid is SDK-direct plus policy-bearing Meta Harness operations, not SDK plus LangSmith CLI.**
+This corrects the earlier conclusion. The useful hybrid is **LangSmith CLI +
+LangSmith SDK/OpenEvals expertise**, with explicit HE tools only for carefully
+identified SDK-only or high-friction gaps. TICKET-001 identifies no approved
+explicit tool candidates; it forwards possible SDK-extension areas to
+TICKET-006 for reconciliation.
 
 ## Follow-up validation steps
 
