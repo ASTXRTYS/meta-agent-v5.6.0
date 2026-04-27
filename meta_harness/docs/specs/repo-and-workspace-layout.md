@@ -29,7 +29,6 @@ scaffold against.
 
 ```txt
 meta-harness/
-├── pyproject.toml
 ├── README.md
 ├── AGENTS.md
 ├── AD.md

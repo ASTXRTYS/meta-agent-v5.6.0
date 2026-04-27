@@ -18,9 +18,10 @@ When a correction is transient or task-specific, surface it to Jason and either
 address it immediately or promote it to a high-priority item here; do not turn
 transient findings into generic best-practice memory.
 - Use Auggie MCP as the first-pass semantic retrieval layer for LangChain
-ecosystem research. Treat it as fast discovery*Extremely valuable for gathering source information, best practices, abstractions, and patterns; ASTxRTYS/docs is the real docs for the full stack of LangChain*, always assert against final authority: verify
-exact SDK behavior against local `.reference/` or `.venv/` source before
-writing specs or code.
+ecosystem research. Treat it as fast discovery: extremely valuable for gathering
+source information, best practices, abstractions, and patterns. Always assert
+against final authority by verifying exact SDK behavior against local
+`.reference/` or `.venv/` source before writing specs or code.
 - Use Auggie MCP as a semantic discovery amplifier for agent engineering. When working on LangChain, LangGraph, Deep Agents, LangSmith, evals, sandboxes, coding agents, or production agent architecture, query Jason’s indexed reference repos early to find how the ecosystem itself solves similar problems.
 - Treat Auggie as fast pattern discovery, not final authority. The right workflow is: retrieve relevant docs/examples by concept, compare across layers, then verify exact SDK behavior against official docs, local source, or installed package source before designing specs or writing code.
 

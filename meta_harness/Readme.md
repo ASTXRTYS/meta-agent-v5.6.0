@@ -489,7 +489,6 @@ LANGCHAIN_CALLBACKS_BACKGROUND=false
 
 ```
 meta-harness/
-├── pyproject.toml
 ├── README.md
 ├── AGENTS.md
 ├── AD.md
