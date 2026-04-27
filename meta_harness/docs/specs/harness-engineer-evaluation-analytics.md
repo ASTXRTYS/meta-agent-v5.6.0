@@ -3,15 +3,15 @@ doc_type: spec
 derived_from:
   - AD §6 Observability & Evaluation
   - AD §4 Project-Scoped Execution Environment
-status: draft
-last_synced: 2026-04-26
+status: active
+last_synced: 2026-04-27
 owners: ["@Jason"]
 ---
 
 # Harness Engineer Evaluation Analytics Specification
 
 > **Provenance:** Derived from `AD.md §6 Observability & Evaluation` and `§4 Project-Scoped Execution Environment`.
-> **Status:** Draft · **Last synced with AD:** 2026-04-26.
+> **Status:** Active · **Last synced with AD:** 2026-04-27.
 > **Consumers:** Harness Engineer, PM surface, UI analytics renderer, Project Data Plane implementation, Developer-safe feedback pipeline.
 
 ## 1. Purpose
@@ -92,22 +92,7 @@ table
 
 No arbitrary custom chart code is accepted as a canonical UI output.
 
-The UI may progressively implement renderers. Schema support may exist before all renderers are visually polished.
-
-Recommended v1 UI implementation priority:
-
-```txt
-1. radar_chart
-2. line_chart
-3. heatmap
-4. scorecard
-5. table
-6. bar_chart
-7. stacked_bar_chart
-8. matrix
-9. scatter_plot
-10. bubble_chart
-```
+The UI may progressively implement renderers. Schema support may exist before all renderers are visually polished. Renderer implementation priority and fallback behavior are owned by `docs/specs/evaluation-analytics-renderer-contract.md`.
 
 ## 6. Storage Model
 
@@ -205,52 +190,143 @@ class EvaluationAnalyticsView(DataPlaneBase):
     ]
 ```
 
-## 8. Tooling
+## 8. Product Operation Contracts
 
-### 8.1 Canonical Tool: `publish_analytics_view`
+The canonical analytics operations are backend-owned product operations. Future model-visible tools may expose these operations to Harness Engineer or Evaluator agents, but agents do not write product database rows directly and do not bypass schema validation.
+
+### 8.1 `publish_analytics_view`
 
 The Harness Engineer publishes a view after creating and registering analytics source data.
 
+Model-visible input must be equivalent to:
+
 ```python
-publish_analytics_view(
-    title: str,
-    phase: ProjectPhase,
-    analytics_kind: AnalyticsKind,
-    recommended_view_type: SupportedViewType,
-    visibility: AnalyticsVisibility,
-    data_ref: str,
-    data_ref_kind: Literal["artifact_id", "object_store_key", "filesystem_path"],
-    source_artifact_ids: list[str],
-    langsmith_refs: LangSmithRefs | None,
-    summary: str,
-)
+class PublishAnalyticsViewInput(TypedDict):
+    title: str
+    phase: ProjectPhase
+    analytics_kind: AnalyticsKind
+    recommended_view_type: SupportedViewType
+    visibility: AnalyticsVisibility
+    data_ref: str
+    data_ref_kind: Literal["artifact_id", "object_store_key", "filesystem_path"]
+    source_artifact_ids: list[str]
+    summary: str
+    langsmith_dataset_id: str | None
+    langsmith_experiment_id: str | None
+    langsmith_project_name: str | None
+    langsmith_run_id: str | None
+    langsmith_trace_url: str | None
+```
+
+The backend owns:
+
+```txt
+org_id
+project_id
+analytics_view_id
+owner_agent
+handoff_id
+created_at
+updated_at
+schema_version
+render_status
+trace_context
 ```
 
 The backend must:
 
 ```txt
-1. Validate caller role and ownership.
-2. Validate visibility policy.
-3. Validate source artifacts exist.
-4. Validate data_ref resolves.
-5. Validate analytics source data against chart schema.
-6. Validate LangSmith refs when provided.
-7. Write evaluation_analytics_views record.
-8. Write project_data_events audit row.
-9. Return analytics_view_id and render_status.
+1. Resolve org_id, project_id, thread identity, role_name, and trace_context from runtime context.
+2. Validate caller is Harness Engineer, Evaluator, or an authorized system analytics helper.
+3. Resolve data_ref through the Product Data Plane or approved object/filesystem adapter.
+4. Validate every source_artifact_id exists and is allowed for the caller.
+5. Load analytics source JSON.
+6. Validate source JSON against evaluation-analytics-chart-schemas.md.
+7. Validate recommended_view_type matches source_data.view_type.
+8. Validate analytics_kind matches source_data.analytics_kind.
+9. Validate visibility policy, including Developer-safe leakage marker checks when applicable.
+10. Validate LangSmith refs when present and preserve them as locators.
+11. Insert evaluation_analytics_views.
+12. Write a project_data_events audit row.
+13. Return analytics_view_id, render_status, and structured warnings.
 ```
 
-### 8.2 Canonical Tool: `update_analytics_view`
+`publish_analytics_view` must not set `render_status="valid"` unless source data resolves, validates, and satisfies the requested visibility policy.
+
+### 8.2 `update_analytics_view`
 
 Updates a previously published analytics view by pointing it to a new source data artifact or by changing supported metadata.
 
-Updates should preserve history by versioning the source artifact. The product record may point to the latest version while historical versions remain available through artifact history.
+Model-visible input must be equivalent to:
 
-### 8.3 Optional Tool: `render_analytics_snapshot`
+```python
+class UpdateAnalyticsViewInput(TypedDict):
+    analytics_view_id: str
+    title: str | None
+    visibility: AnalyticsVisibility | None
+    data_ref: str | None
+    data_ref_kind: Literal["artifact_id", "object_store_key", "filesystem_path"] | None
+    source_artifact_ids: list[str] | None
+    summary: str | None
+    langsmith_dataset_id: str | None
+    langsmith_experiment_id: str | None
+    langsmith_project_name: str | None
+    langsmith_run_id: str | None
+    langsmith_trace_url: str | None
+```
+
+Rules:
+
+```txt
+owner_agent cannot be changed
+analytics_kind cannot be changed in v1
+recommended_view_type cannot be changed in v1 unless a later contract explicitly allows it
+source data must be revalidated when data_ref or source_artifact_ids change
+visibility promotion must re-run visibility policy and leakage checks
+historical source artifacts remain available through artifact history
+updates write project_data_events audit rows
+```
+
+### 8.3 `render_analytics_snapshot`
 
 Creates a static snapshot artifact for reports, delivery packages, or stakeholder updates.
 
-This should not replace the canonical product record. It is a render/export operation.
+Model-visible input must be equivalent to:
+
+```python
+class RenderAnalyticsSnapshotInput(TypedDict):
+    analytics_view_id: str
+    snapshot_title: str | None
+    visibility: AnalyticsVisibility
+    format: Literal["json", "markdown", "png", "svg"]
+```
+
+Rules:
+
+```txt
+snapshot does not replace canonical analytics view
+source analytics view must be readable by the caller
+source analytics view must be valid or the snapshot must explicitly encode invalid/stale status
+snapshot is registered as artifact_manifest.kind = "evaluation_analytics_snapshot"
+snapshot references analytics_view_id
+snapshot visibility cannot exceed source view visibility without PM/admin promotion
+snapshot generation writes a project_data_events audit row
+```
+
+Renderer behavior for live UI surfaces and fallback display is specified in `docs/specs/evaluation-analytics-renderer-contract.md`.
+
+### 8.4 `mark_analytics_view_stale`
+
+System, Harness Engineer, or Evaluator callers may mark a view stale when the source artifact, schema version, LangSmith experiment reference, or source analysis becomes outdated.
+
+Rules:
+
+```txt
+stale status preserves the analytics_view_id
+stale status does not delete source artifacts
+stale views are excluded from default dashboard views unless explicitly requested
+stale status changes write project_data_events audit rows
+```
 
 ## 9. Python Transform Policy
 

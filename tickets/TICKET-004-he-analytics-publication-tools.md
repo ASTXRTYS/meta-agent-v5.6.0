@@ -1,12 +1,12 @@
-# TICKET-004 — Specify Harness Engineer Analytics Publication Tools
+# TICKET-004 — Define Harness Engineer Analytics Publication Tool Contract
 
 ## Status
 
-Proposed
+Completed — docs-phase contract
 
 ## Priority
 
-P1 — tool contract / HE capability
+P1 — product operation contract / HE capability
 
 ## Owner
 
@@ -17,12 +17,14 @@ Harness Engineer + Developer
 - TICKET-002 Project Data Plane migration
 - TICKET-003 chart schema validation contract
 - `meta_harness/docs/specs/harness-engineer-evaluation-analytics.md`
+- `meta_harness/docs/specs/project-data-contracts.md`
 
 ## Blocks
 
 - Harness Engineer prompt/skill authoring for analytics publication
 - UI dashboard population through HE-published analytics
-- Developer-safe feedback packet derivation from analytics evidence
+- EBDR-compatible optimizer feedback that may cite published analytics
+- Future implementation tickets for analytics publication operations
 
 ## Problem
 
@@ -32,13 +34,26 @@ The HE should not publish arbitrary chart code. HE should publish structured ana
 
 ## Goal
 
-Define concrete model-visible and backend-owned tool contracts for:
+Define the model-visible and backend-owned operation contracts for:
 
 ```txt
 publish_analytics_view
 update_analytics_view
 render_analytics_snapshot
 ```
+
+## Docs-Phase Boundary
+
+This ticket is a specification ticket, not an application-code implementation
+ticket.
+
+Do not create Python modules, tool registrations, database code, UI code, or
+tests in this phase. Define the product operation boundaries, model-visible
+inputs, system-owned fields, backend responsibilities, and acceptance criteria
+that future development work must satisfy.
+
+The concrete module layout, function/class names, persistence implementation,
+and tool-registration mechanism are future development decisions.
 
 ## Tool 1: `publish_analytics_view`
 
@@ -47,6 +62,8 @@ render_analytics_snapshot
 Publish a new UI-renderable evaluation analytics surface.
 
 ### Model-Visible Input
+
+The eventual model-visible input should be equivalent to:
 
 ```python
 class PublishAnalyticsViewInput(TypedDict):
@@ -68,7 +85,7 @@ class PublishAnalyticsViewInput(TypedDict):
 
 ### System-Owned Fields
 
-Tool helper populates:
+The backend, not the model, owns:
 
 ```txt
 org_id
@@ -84,6 +101,8 @@ trace_context
 ```
 
 ### Backend Steps
+
+Future implementation must perform the equivalent of:
 
 ```txt
 1. Resolve org_id/project_id from runtime context.
@@ -106,6 +125,8 @@ trace_context
 Update an existing analytics view, usually after new eval results or candidate comparisons.
 
 ### Model-Visible Input
+
+The eventual model-visible input should be equivalent to:
 
 ```python
 class UpdateAnalyticsViewInput(TypedDict):
@@ -137,9 +158,12 @@ historical source artifacts remain in artifact history
 
 ### Purpose
 
-Create a static artifact snapshot of an analytics view for reports, delivery packets, or stakeholder summaries.
+Create a static artifact snapshot of an analytics view for reports, delivery
+packages, or stakeholder summaries.
 
 ### Model-Visible Input
+
+The eventual model-visible input should be equivalent to:
 
 ```python
 class RenderAnalyticsSnapshotInput(TypedDict):
@@ -171,12 +195,18 @@ developer_safe requires leakage validation.
 
 ## Acceptance Criteria
 
-- [ ] Tool contracts are written into specs.
-- [ ] Model-visible fields and system-owned fields are separated.
-- [ ] Backend validation steps are specified.
-- [ ] Visibility escalation policy is specified.
-- [ ] LangSmith refs are optional but supported.
-- [ ] `publish_analytics_view` requires valid analytics source data.
-- [ ] `update_analytics_view` preserves history.
-- [ ] `render_analytics_snapshot` registers artifact snapshot.
-- [ ] Developer-safe boundary is preserved.
+- [x] Publication operation contracts are written into specs.
+- [x] Model-visible fields and system-owned fields are separated.
+- [x] Backend validation steps are specified.
+- [x] Visibility escalation policy is specified.
+- [x] LangSmith refs are optional but supported.
+- [x] `publish_analytics_view` requires valid analytics source data.
+- [x] `update_analytics_view` preserves history.
+- [x] `render_analytics_snapshot` registers artifact snapshot.
+- [x] Developer-safe boundary is preserved.
+- [x] Application code, tool registrations, database code, UI code, and tests are
+      left out of scope for this docs phase.
+
+## Completion Notes
+
+Completed in `meta_harness/docs/specs/harness-engineer-evaluation-analytics.md` by replacing the loose tooling section with backend-owned product operation contracts for `publish_analytics_view`, `update_analytics_view`, `render_analytics_snapshot`, and `mark_analytics_view_stale`. The spec now separates model-visible input from system-owned fields, requires schema/visibility/LangSmith validation before publication, preserves artifact history on update, and points live rendering behavior to `evaluation-analytics-renderer-contract.md`.

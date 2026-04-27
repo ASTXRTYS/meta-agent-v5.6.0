@@ -7,14 +7,14 @@ derived_from:
   - AD §6 Observability & Evaluation
   - AD §8 Security / Privacy / Compliance
 status: active
-last_synced: 2026-04-26
+last_synced: 2026-04-27
 owners: ["@Jason"]
 ---
 
 # Project Data Plane Specification
 
 > **Provenance:** Derived from `AD.md §4 PM Session And Project Entry Model`, `§4 LangGraph Project Coordination Graph`, `§4 Project-Scoped Execution Environment`, `§6 Observability & Evaluation`, and `§8 Security / Privacy / Compliance`.
-> **Status:** Active · **Last synced with AD:** 2026-04-26 (repaired for `TICKET-002` / evaluation analytics migration and root-doc governance).
+> **Status:** Active · **Last synced with AD:** 2026-04-27 (created for Ticket 6 / `OQ-H5` closure; renamed from project-data-plane 2026-04-26; synced analytics validation/publication/renderer spec links 2026-04-27).
 > **Consumers:** Developer (backend/data-access implementation), PM session tools, web/TUI/headless surfaces, Harness Engineer, Evaluator, UI analytics renderer, access-policy conformance tests.
 
 ## 1. Purpose
@@ -306,6 +306,9 @@ The backend must validate that `recommended_view_type` is supported for the
 referenced source data schema before setting `render_status="valid"`. Unsupported
 or invalid analytics data must be rejected at publication time or marked with
 `render_status="invalid"` / `"unsupported"` and excluded from default UI views.
+The chart-family source-data schema and validation result contract are owned by
+`evaluation-analytics-chart-schemas.md`; Harness Engineer publication/update
+operation contracts are owned by `harness-engineer-evaluation-analytics.md`.
 
 `visibility="developer_safe"` means the analytics view may be exposed to the
 Developer only after both the view summary and referenced source data pass the
@@ -433,6 +436,8 @@ PM session tools are thin wrappers around these operations. The web app, TUI,
 and headless adapters call the same backend operations; they do not read
 LangGraph Store directly. LangGraph Studio is an inspection surface
 for graph state and traces, not a supported product data-plane reader.
+First-party renderer behavior for these reads is specified in
+`evaluation-analytics-renderer-contract.md`.
 
 ## 8. Auth, Tenant, And Role Boundaries
 
