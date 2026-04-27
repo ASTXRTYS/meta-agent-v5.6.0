@@ -21,7 +21,7 @@ owners: ["@Jason"]
 This spec defines the full runtime contract for gate middleware, user approval tools, autonomous mode behavior, and terminal emission in Meta Harness. It specifies:
 
 - Gate middleware API surface and installation points
-- Exact gate function inputs, pass conditions, failure feedback, and state/data-plane reads for every gated tool
+- Exact gate function inputs, pass conditions, failure feedback, and state/Project Records Layer reads for every gated tool
 - ToolMessage content requirements for recoverable gate failures
 - Which failures raise exceptions and which return model feedback
 - User approval package tool contract and artifact/package schemas
@@ -185,7 +185,7 @@ Gate functions never raise exceptions for recoverable failures. They return `(Fa
 - `tool_args.artifact_paths` is non-empty
 - At least one path in `artifact_paths` has a `.md` or `.txt` extension (PRD artifact)
 
-**State/data-plane reads:**
+**State/Project Records Layer reads:**
 - None (only tool_args validation)
 
 **Failure feedback:**
@@ -216,7 +216,7 @@ Expected: artifact_paths non-empty with at least one .md or .txt file.
 - Prerequisite: `(source_agent="harness_engineer", target_agent="project_manager", reason="return")` exists in `gate_context.handoff_log`
 - User approval: `gate_context.acceptance_stamps["scoping_to_research"]` exists AND `gate_context.acceptance_stamps["scoping_to_research"]["accepted"] is True`
 
-**State/data-plane reads:**
+**State/Project Records Layer reads:**
 - `gate_context.handoff_log`: scan for HE return record
 - `gate_context.acceptance_stamps["scoping_to_research"]`: read gate-specific PM approval stamp
 
@@ -260,7 +260,7 @@ Review the approval feedback, revise the package, and request approval again.
 **Pass condition:**
 - `(source_agent="researcher", target_agent="project_manager", reason="return")` exists in `gate_context.handoff_log`
 
-**State/data-plane reads:**
+**State/Project Records Layer reads:**
 - `gate_context.handoff_log`: scan for Researcher return record
 
 **Failure feedback:**
@@ -292,7 +292,7 @@ Current handoff_log does not contain (source="researcher", target="project_manag
 - Prerequisite B: `(source_agent="architect", target_agent="project_manager", reason="return")` exists in `gate_context.handoff_log` (Architect returned final design package)
 - User approval: `gate_context.acceptance_stamps["architecture_to_planning"]` exists AND `gate_context.acceptance_stamps["architecture_to_planning"]["accepted"] is True`
 
-**State/data-plane reads:**
+**State/Project Records Layer reads:**
 - `gate_context.handoff_log`: scan for HE Stage 2 return record and Architect return record
 - `gate_context.acceptance_stamps["architecture_to_planning"]`: read gate-specific PM approval stamp
 
@@ -343,7 +343,7 @@ Review the approval feedback, revise the package, and request approval again.
 **Pass condition:**
 - `(source_agent="planner", target_agent="project_manager", reason="return")` exists in `gate_context.handoff_log`
 
-**State/data-plane reads:**
+**State/Project Records Layer reads:**
 - `gate_context.handoff_log`: scan for Planner return record
 
 **Failure feedback:**
@@ -375,7 +375,7 @@ Current handoff_log does not contain (source="planner", target="project_manager"
 - `tool_args.artifact_paths` is non-empty
 - At least one path has a `.md` or `.txt` extension (design spec artifact)
 
-**State/data-plane reads:**
+**State/Project Records Layer reads:**
 - None (only tool_args validation)
 
 **Failure feedback:**
@@ -410,7 +410,7 @@ Expected: artifact_paths non-empty with at least one .md or .txt file.
   - If HE participated: `gate_context.acceptance_stamps["harness"]` must exist AND `gate_context.acceptance_stamps["harness"]["accepted"] is True`
   - If HE did not participate: skip HE stamp check
 
-**State/data-plane reads:**
+**State/Project Records Layer reads:**
 - `gate_context.acceptance_stamps["application"]`: read Evaluator stamp
 - `gate_context.acceptance_stamps["harness"]`: read HE stamp (conditional)
 - `gate_context.handoff_log`: scan for HE participation (conditional, used only for determining if HE stamp is required)
@@ -465,7 +465,7 @@ Review HE feedback, fix eval science issues, and request re-evaluation.
 - A matching announcement exists: `(source_agent="developer", target_agent="evaluator", reason="announce", plan_phase_id=<tool_args.phase>)` in `gate_context.handoff_log`
 - `tool_args.artifact_paths` is non-empty (phase deliverables must exist)
 
-**State/data-plane reads:**
+**State/Project Records Layer reads:**
 - `gate_context.handoff_log`: scan for matching announcement record with matching `plan_phase_id`
 
 **Failure feedback (no announcement):**
@@ -725,7 +725,7 @@ def finish_to_user(final_response: str) -> Command:
     )
 ```
 
-No state reads, no data-plane writes, no Store operations. The tool is a pure graph termination primitive.
+No state reads, no Project Records Layer writes, no Store operations. The tool is a pure graph termination primitive.
 
 ### 7.3 Graph Termination Semantics
 
@@ -1037,7 +1037,7 @@ Gate functions should raise exceptions only for implementation defects:
 - Artifact paths empty or wrong file type
 - Phase announcement not found
 
-### 9.4 State/Data-Plane Read Isolation
+### 9.4 State/Project Records Layer Read Isolation
 
 Gate functions read from:
 
@@ -1045,7 +1045,7 @@ Gate functions read from:
 - Runtime context: `runtime.config` (for autonomous mode detection in approval tool)
 - Tool arguments: `tool_args` (model-visible inputs)
 
-Gate functions do NOT write to state or data-plane. Writes happen only in:
+Gate functions do NOT write to state or Project Records Layer. Writes happen only in:
 - Tool body (creates `HandoffRecord`, writes to Store)
 - Approval tool (creates stamp in `acceptance_stamps`)
 - Middleware side-effect hooks (not used for gates)

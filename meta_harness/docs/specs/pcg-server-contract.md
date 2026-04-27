@@ -32,7 +32,7 @@ The parent AD names `ProjectCoordinationInput`, `ProjectCoordinationContext`, an
 **Key invariants from AD:**
 - `project_thread_id` may equal `project_id` in local/dev by convention, but that is not the definition of `project_id`.
 - `pm_session` is not a second PM identity and not a `ProjectCoordinationState` key. It is a LangGraph thread with metadata `thread_kind = "pm_session"`.
-- The link from a project back to its originating `pm_session` (if any) lives in the Project Data Plane `project_registry` record as a nullable `pm_session_thread_id` field. `null` denotes UI-onboarding path (no originating session).
+- The link from a project back to its originating `pm_session` (if any) lives in the Project Records Layer `project_registry` record as a nullable `pm_session_thread_id` field. `null` denotes UI-onboarding path (no originating session).
 - A single `pm_session` thread may spawn multiple `project` threads over its lifetime (one-to-many, append never overwrite).
 - PM session threads and project threads are fully independent LangGraph threads; they do not share a Pregel namespace hierarchy.
 
@@ -86,9 +86,9 @@ class ProjectCoordinationInput(TypedDict, total=False):
 
 | Field | Type | Required | Source | Purpose |
 |-------|------|----------|--------|---------|
-| `org_id` | `str` | Yes for both modes | Authenticated surface/backend, PM tool, or headless ingress adapter | Tenant identity used by Project Data Plane rows and authorization. Must match thread metadata `org_id`. |
+| `org_id` | `str` | Yes for both modes | Authenticated surface/backend, PM tool, or headless ingress adapter | Tenant identity used by Project Records Layer rows and authorization. Must match thread metadata `org_id`. |
 | `session_user_input` | `str` | Yes for `pm_session`; forbidden for `project` | First-party or headless session surface | Current PM-session user turn. `dispatch_handoff` wraps it as a `HumanMessage` and sends it to the mounted PM child graph. It is transient input and is never written into parent PCG `messages`. |
-| `project_id` | `str` | Yes for `project`; forbidden for `pm_session` | Caller (web app, headless ingress, PM tool) or system-generated (UI-onboarding) | Durable Meta Harness project identity. Used as the primary key in Project Data Plane records (`project_registry`, `artifact_manifest`, `evaluation_analytics_views`). |
+| `project_id` | `str` | Yes for `project`; forbidden for `pm_session` | Caller (web app, headless ingress, PM tool) or system-generated (UI-onboarding) | Durable Meta Harness project identity. Used as the primary key in Project Records Layer records (`project_registry`, `artifact_manifest`, `evaluation_analytics_views`). |
 | `project_thread_id` | `str \| None` | Optional for `project`; forbidden for `pm_session` | Caller (web app, headless ingress, PM tool) or LangGraph Agent Server (if omitted, SDK generates UUID) | Canonical LangGraph thread for project execution. If omitted, the Agent Server generates a UUID. Must equal the `thread_id` of the LangGraph thread on which the PCG runs. |
 | `pm_session_thread_id` | `str \| None` | Optional for `project`; forbidden for `pm_session` | Caller (web app onboarding flow) or PM tool (chat-driven path) | Link back to originating `pm_session` thread. `null` denotes UI-onboarding path (no originating session). Stored in `project_registry.pm_session_thread_id`. |
 | `initial_stakeholder_input` | `str` | Yes for `project`; forbidden for `pm_session` | Caller (web app onboarding form, headless ingress payload, PM tool synthesis) | The initial stakeholder request that becomes the first project-mode PM turn. Synthesized by `dispatch_handoff` into the initial `HandoffRecord` with `source_agent="system"`, `target_agent="project_manager"`, `reason="coordinate"`. |
@@ -118,7 +118,7 @@ Mode validation happens before routing:
 
 Repeated project-spawn attempts with the same `project_id`:
 - **If `project_thread_id` is provided:** The caller asserts a specific thread identity. If a thread with that `thread_id` already exists, the behavior depends on the LangGraph SDK `if_exists` parameter passed to `threads.create()`. Meta Harness callers MUST use `if_exists="do_nothing"` and validate that the existing thread's `thread_kind="project"` metadata matches expectations before proceeding.
-- **If `project_thread_id` is omitted:** The Agent Server generates a new UUID on each call. Multiple calls with the same `project_id` but omitted `project_thread_id` create multiple distinct threads — this is a caller error. The Project Data Plane enforces `(org_id, project_id)` uniqueness and rejects conflicting `project_thread_id` values.
+- **If `project_thread_id` is omitted:** The Agent Server generates a new UUID on each call. Multiple calls with the same `project_id` but omitted `project_thread_id` create multiple distinct threads — this is a caller error. The Project Records Layer enforces `(org_id, project_id)` uniqueness and rejects conflicting `project_thread_id` values.
 
 ## 4. `ProjectCoordinationContext` Schema
 
@@ -181,21 +181,21 @@ class ProjectCoordinationOutput(TypedDict, total=False):
 | Field | Type | Required | Source | Purpose |
 |-------|------|----------|--------|---------|
 | `messages` | `list[AnyMessage]` | Yes for both modes | PCG state `messages` channel (PM's `finish_to_user` tool) | User-facing output. Written only by the PM's terminal `finish_to_user` tool via `Command(graph=PARENT, goto=END, update={"messages": [AIMessage(...)]})`. |
-| `org_id` | `str` | Yes for both modes | PCG state `org_id` channel or runnable config | Tenant identity echoed back to caller for confirmation and data-plane correlation. |
+| `org_id` | `str` | Yes for both modes | PCG state `org_id` channel or runnable config | Tenant identity echoed back to caller for confirmation and project-record correlation. |
 | `thread_kind` | `Literal["pm_session", "project"]` | Yes for both modes | Runnable config `configurable.thread_kind` | Echo of the active runtime mode. |
 | `pm_session_thread_id` | `str \| None` | Yes for `pm_session`; optional for `project` | LangGraph thread identity or project registry linkage | For `pm_session`, equals current LangGraph `thread_id`. For `project`, equals the nullable originating PM-session link. |
 | `project_id` | `str` | Yes for `project`; omitted for `pm_session` | PCG state `project_id` channel | Durable project identity, echoed back to caller for confirmation. |
 | `project_thread_id` | `str` | Yes for `project`; omitted for `pm_session` | PCG state `project_thread_id` channel | Canonical execution thread identity, echoed back to caller. |
 | `current_phase` | `str` | Yes for `project`; omitted for `pm_session` | PCG state `current_phase` channel | Lifecycle phase at graph completion. |
 | `current_agent` | `str \| None` | Optional for `project`; omitted for `pm_session` | PCG state `current_agent` channel | Which agent was active when the graph completed. `None` if graph terminated without an active agent (e.g. terminal emission). |
-| `status` | `Literal["active", "paused", "completed", "failed"]` | Yes for both modes | Project Data Plane status, interrupt, or termination condition | For `project`, project status at graph completion. For `pm_session`, `"completed"` means the current session turn terminated via `finish_to_user`; it does not mark the PM session closed forever. |
+| `status` | `Literal["active", "paused", "completed", "failed"]` | Yes for both modes | Project Records Layer status, interrupt, or termination condition | For `project`, project status at graph completion. For `pm_session`, `"completed"` means the current session turn terminated via `finish_to_user`; it does not mark the PM session closed forever. |
 
 ### Output on resume
 
 When resuming a project thread (subsequent run on the same `project_thread_id`):
 - `messages` contains only the NEW messages written since the last checkpoint (the `add_messages` reducer appends).
 - Other fields reflect the current PCG state at resumption time.
-- The caller should distinguish "initial bootstrap output" (first run, `handoff_log` empty) from "resumption output" (subsequent run, `handoff_log` non-empty) by checking the run history or the Project Data Plane `project_registry.last_handoff_at` timestamp.
+- The caller should distinguish "initial bootstrap output" (first run, `handoff_log` empty) from "resumption output" (subsequent run, `handoff_log` non-empty) by checking the run history or the Project Records Layer `project_registry.last_handoff_at` timestamp.
 
 ## 6. Thread Metadata Contract
 
@@ -536,13 +536,13 @@ Implementation must pass at least these assertions:
 1. **Thread metadata completeness.** Given a thread created by the web app backend or PM session tool, the thread's metadata dict contains keys `thread_kind`, `org_id`, `project_id` (for `project` threads), and optionally `pm_session_thread_id`. Missing required keys is a rejection condition.
 2. **First-invocation input isolation.** Given a first PCG invocation with `ProjectCoordinationInput.initial_stakeholder_input="build a chatbot"`, the PCG state `messages` channel is empty after `dispatch_handoff` completes. The stakeholder input appears only in the synthesized `HandoffRecord.brief` and in the PM's child input via `Send`.
 3. **Bootstrap handoff record shape.** Given a first PCG invocation, the synthesized `HandoffRecord` has `source_agent="system"`, `target_agent="project_manager"`, `reason="coordinate"`, and non-empty `brief` matching the input.
-4. **UI-onboarding null pm_session_thread_id.** Given a project created via the UI-onboarding path, the Project Data Plane `project_registry` entry for that project has `pm_session_thread_id=null`.
-5. **Chat-driven pm_session_thread_id linkage.** Given a project created via the chat-driven path, the Project Data Plane `project_registry` entry for that project has `pm_session_thread_id` equal to the originating PM session's thread_id.
+4. **UI-onboarding null pm_session_thread_id.** Given a project created via the UI-onboarding path, the Project Records Layer `project_registry` entry for that project has `pm_session_thread_id=null`.
+5. **Chat-driven pm_session_thread_id linkage.** Given a project created via the chat-driven path, the Project Records Layer `project_registry` entry for that project has `pm_session_thread_id` equal to the originating PM session's thread_id.
 6. **Output schema derivation.** Given a completed PCG run, the output dict contains all keys from `ProjectCoordinationOutput` with non-null values where required. Missing required keys is a rejection condition.
 7. **Context injection.** Given a PCG node function with `runtime: Runtime[ProjectCoordinationContext]` parameter, `runtime.execution_info.thread_id` equals the LangGraph thread ID and `runtime.execution_info.run_id` equals the LangGraph run ID.
 8. **Idempotency with explicit project_thread_id.** Given two `threads.create` calls with the same `project_thread_id` and `if_exists="do_nothing"`, the second call returns the existing thread without error and the thread's metadata is unchanged.
 9. **Autonomous config bridge.** Given `ProjectCoordinationInput.autonomous_mode_config={"enabled": True}`, the run submission includes `config={"configurable": {"autonomous_mode": True}}`, and PM's `request_approval` tool observes `runtime.config["configurable"]["autonomous_mode"] is True`.
-10. **Org identity bridge.** Given a project run with `ProjectCoordinationInput.org_id`, `dispatch_handoff` writes the same value into PCG state and Project Data Plane operations receive that `org_id`.
+10. **Org identity bridge.** Given a project run with `ProjectCoordinationInput.org_id`, `dispatch_handoff` writes the same value into PCG state and Project Records Layer operations receive that `org_id`.
 11. **PM-session entry uses the PCG envelope.** Given a `pm_session` thread run, the assistant ID is `meta-harness-project-coordination-graph`, runnable config includes `configurable.thread_kind="pm_session"`, and no standalone PM assistant is invoked.
 12. **PM-session input isolation.** Given `input={"org_id": "org_1", "session_user_input": "what is active?"}`, parent PCG `messages` is empty until PM calls `finish_to_user`; the user text appears only in the mounted PM child input created with `Send("project_manager", {"messages": [...]})`.
 13. **PM-session state projection.** Given a `pm_session` run, parent PCG state contains `org_id` and terminal `messages` only; `project_id`, `project_thread_id`, `handoff_log`, and `acceptance_stamps` are absent or empty.

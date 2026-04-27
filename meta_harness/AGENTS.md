@@ -162,6 +162,21 @@ configuration spread across multiple files or assembled conditionally at runtime
 - Repository-root `README.md` — public-facing operational articulation of the
 product behavior derived from `Vision.md`.
 
+Anchor direction:
+
+1. `Vision.md` defines the product promise, brand posture, desired user
+experience, and non-negotiable behavior.
+2. `README.md` translates that promise into the user-facing operational story:
+what the product does, how the agent team works, what the user sees, and why the
+experience matters.
+3. `AGENTS.md` turns the product promise and operational story into contributor
+and coding-agent governance: source-of-truth rules, doc-maintenance rules,
+review gates, and SDK verification discipline.
+
+Downstream docs are valid only if they preserve all three layers: product
+promise from `Vision.md`, operational behavior from `README.md`, and governance
+rules from `AGENTS.md`.
+
 ### Implementation and architecture sources
 
 - `AGENTS.md` — the normative coding-agent operating contract (this file).
@@ -219,6 +234,32 @@ any point is a rejection condition under the Review Standard.
 3. **Parent AD pointer.** The parent AD section(s) include a one-line
   pointer: `> Implementation detail: see` [docs/specs/](...)[.md](...)``.
 
+### Downstream development readiness
+
+Docs are not done when they are merely accurate. They must be extractable by a
+Developer, Planner, or human engineer into an implementation plan without
+reverse-engineering hidden intent.
+
+Every implementation-facing spec should make the following explicit:
+
+1. **Owner and consumer.** Which role, module, service, UI surface, or runtime
+boundary owns the contract, and which downstream components consume it.
+2. **Source-of-truth chain.** Which product anchor, AD section, and sibling spec
+the contract derives from.
+3. **Buildable contract.** Concrete schemas, APIs, tool names, state keys,
+artifact shapes, lifecycle events, or UI obligations needed to implement it.
+4. **Dependency edges.** Upstream prerequisites and downstream dependents that
+must be planned together.
+5. **Acceptance checks.** Behavioral and architectural tests that would fail if
+the implementation violated the contract or silently reversed an architectural
+decision.
+6. **Open questions.** Any unresolved decision that would block implementation;
+do not hide blockers inside prose.
+
+If a spec lacks enough structure for a Planner to create phased work or for a
+Developer to begin implementation, treat that as a documentation defect, not a
+developer interpretation problem.
+
 ### Direction of flow
 
 Decisions originate in `AD.md` and flow *into* specs. **Specs never
@@ -249,6 +290,11 @@ final `last_synced` date and a note pointing to the successor.
 
 - If `AD.md` and `AGENTS.md` conflict, treat `AGENTS.md` as authoritative
 for active implementation and update `AD.md` to match.
+- When reviewing any downstream doc, run the anchor alignment test: does it
+preserve the product promise in `Vision.md`, the user-facing operational
+behavior in `README.md`, and the governance/source-of-truth rules in
+`AGENTS.md`? If not, repair the downstream doc or surface the anchor conflict to
+Jason.
 - Any PR that changes architecture, runtime policy, or agent behavior must
 update at least one of: `AGENTS.md`, `AD.md`, or the relevant spec doc.
 - Any PR that changes product behavior, user-facing role behavior, UI artifact
@@ -281,6 +327,9 @@ available as a forensic link-out.
 registration, or without a parent AD pointer must be rejected.
 - Specs that introduce new architectural decisions must be rejected; the
 decision is raised against `AD.md` first, then the spec updates.
+- Specs that cannot be translated into a development plan because ownership,
+dependencies, concrete contracts, acceptance checks, or open blockers are
+missing must be rejected as not development-ready.
 - PRs that modify an AD section with a downstream spec must update the spec
 in the same PR. Unsynced specs (stale `last_synced`) are a rejection
 condition.

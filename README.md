@@ -4,6 +4,16 @@
 
 Meta Harness puts a full team of specialized AI agents at your fingertips — a Project Manager, Researcher, Architect, Planner, Developer, Harness Engineer, and Evaluator — that work together to take your idea from a conversation to a production-ready agent harness. You define what success looks like. They do the engineering.
 
+## Documentation Role
+
+This README is the public-facing operational articulation of the product
+promise defined in [`Vision.md`](./Vision.md). It explains what Meta Harness
+does, how the agent team behaves, and what users should expect to see.
+
+Implementation docs must preserve this product behavior. Coding-agent
+governance, source-of-truth rules, and downstream spec-maintenance rules live in
+[`meta_harness/AGENTS.md`](./meta_harness/AGENTS.md).
+
 ---
 
 ## The Problem

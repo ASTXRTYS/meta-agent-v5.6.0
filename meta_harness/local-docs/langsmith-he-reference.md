@@ -4,7 +4,7 @@
 
 Durable `local-docs/` operating reference for Harness Engineer LangSmith and OpenEvals work.
 
-This is not a product spec, not a Product Data Plane record family, and not an implementation plan. It is coding-agent operating memory for deciding what the Harness Engineer can do through LangSmith CLI skills, LangSmith SDK/API, OpenEvals, or future Meta Harness tools.
+This is not a product spec, not a Project Records Layer record family, and not an implementation plan. It is coding-agent operating memory for deciding what the Harness Engineer can do through LangSmith CLI skills, LangSmith SDK/API, OpenEvals, or future Meta Harness tools.
 
 ## Purpose
 

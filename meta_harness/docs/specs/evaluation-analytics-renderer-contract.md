@@ -13,7 +13,7 @@ owners: ["@Jason"]
 
 > **Provenance:** Derived from `AD.md §6 Observability & Evaluation`, `§4 User Interface Surface`, and `§4 Project-Scoped Execution Environment`.
 > **Status:** Active · **Last synced with AD:** 2026-04-27.
-> **Consumers:** Web app, TUI, headless adapters, analytics schema validator, Project Data Plane implementation, Evaluator conformance review.
+> **Consumers:** Web app, TUI, headless adapters, analytics schema validator, Project Records Layer implementation, Evaluator conformance review.
 
 ## 1. Purpose
 
@@ -23,7 +23,7 @@ The renderer contract is not a charting-library implementation contract. It defi
 
 ## 2. Source Of Truth
 
-First-party surfaces render analytics from the Product Data Plane:
+First-party surfaces render analytics from the Project Records Layer:
 
 ```txt
 evaluation_analytics_views row
@@ -127,7 +127,7 @@ The backend operation that prepares renderer input must:
 ```txt
 1. Authorize the caller for the analytics view.
 2. Load the evaluation_analytics_views row.
-3. Resolve data_ref through the Product Data Plane or approved object/filesystem adapter.
+3. Resolve data_ref through the Project Records Layer or approved object/filesystem adapter.
 4. Load analytics source JSON.
 5. Validate source_data.schema_version.
 6. Validate source_data.view_type matches analytics_view.recommended_view_type.
@@ -293,6 +293,6 @@ renderer modules
 charting-library adapters
 fixture files
 test files
-Product Data Plane persistence
+Project Records Layer persistence
 role authorization logic
 ```

@@ -12,7 +12,7 @@ owners: ["@Jason"]
 
 > **Provenance:** Derived from `AD.md §6 Observability & Evaluation` and `§4 Project-Scoped Execution Environment`.
 > **Status:** Active · **Last synced with AD:** 2026-04-27.
-> **Consumers:** UI renderer, analytics schema validator, Harness Engineer analytics publication tools, Project Data Plane implementation.
+> **Consumers:** UI renderer, analytics schema validator, Harness Engineer analytics publication tools, Project Records Layer implementation.
 
 ## 1. Purpose
 

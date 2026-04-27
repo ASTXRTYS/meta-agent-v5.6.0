@@ -68,9 +68,9 @@ for the full update contract.
 The PM additionally owns one **terminal-emission tool** that uses a
 different shape — see §1.3 and §4.7 (Category 7: Terminal Emission).
 
-## 1.2 Project Data Plane Side Effects
+## 1.2 Project Records Layer Side Effects
 
-Artifact-producing tools additionally call Project Data Plane
+Artifact-producing tools additionally call Project Records Layer
 `register_artifact` so that any surface — TUI, web app, headless ingress, PM
 session threads — can enumerate project artifacts without walking role
 filesystems. A handoff or artifact-producing helper must not return a successful
@@ -79,7 +79,7 @@ agent receives recoverable feedback.
 
 The Harness Engineer's analytics-producing helper additionally calls
 `publish_analytics_view`. Developer info isolation is enforced by tool
-availability and Project Data Contracts data-access policy, not by filesystem
+availability and Project Records Layer data-access policy, not by filesystem
 permissions over LangGraph Store. See `docs/specs/project-data-contracts.md`.
 
 ## 1.3 Every Turn Terminates with `Command.PARENT`

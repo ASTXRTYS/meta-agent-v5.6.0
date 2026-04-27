@@ -1,5 +1,16 @@
 # Meta Harness Product, Brand & Positioning
 
+## Document Role
+
+This is the product, brand, and experience north star for Meta Harness. It
+defines the product promise that every downstream architecture, spec, UI, and
+agent-behavior document must preserve.
+
+Repository-root `README.md` translates this vision into the public-facing
+operational story. `meta_harness/AGENTS.md` defines how coding agents and
+contributors maintain that alignment while turning the vision into architecture,
+specs, plans, and implementation.
+
 ```
     Technical Decisions @meta_harness/AD.md & meta_harness/DECISIONS.md
 ```

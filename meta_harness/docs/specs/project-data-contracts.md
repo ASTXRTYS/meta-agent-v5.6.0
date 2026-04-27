@@ -11,34 +11,39 @@ last_synced: 2026-04-27
 owners: ["@Jason"]
 ---
 
-# Project Data Plane Specification
+# Project Records Layer Contracts
 
 > **Provenance:** Derived from `AD.md §4 PM Session And Project Entry Model`, `§4 LangGraph Project Coordination Graph`, `§4 Project-Scoped Execution Environment`, `§6 Observability & Evaluation`, and `§8 Security / Privacy / Compliance`.
-> **Status:** Active · **Last synced with AD:** 2026-04-27 (created for Ticket 6 / `OQ-H5` closure; renamed from project-data-plane 2026-04-26; synced analytics validation/publication/renderer spec links 2026-04-27).
+> **Status:** Active · **Last synced with AD:** 2026-04-27 (created for Ticket 6 / `OQ-H5` closure; renamed from project-data-plane 2026-04-26; terminology refactored from Project Data Plane to Project Records Layer 2026-04-27).
 > **Consumers:** Developer (backend/data-access implementation), PM session tools, web/TUI/headless surfaces, Harness Engineer, Evaluator, UI analytics renderer, access-policy conformance tests.
 
 ## 1. Purpose
 
-The Project Data Plane is the product-owned contract for durable project facts
-that must be visible across `pm_session` threads, project threads, the web app,
-TUI, and headless ingress adapters. It owns the project registry, artifact
-manifest, UI-renderable evaluation analytics views, access audit trail, and
-read-only snapshot records.
+The Project Records Layer is the product-owned contract for durable project
+records that must be visible across `pm_session` threads, project threads, the
+web app, TUI, and headless ingress adapters. It owns the project registry,
+artifact manifest, UI-renderable evaluation analytics views, access audit trail,
+and read-only snapshot records.
+
+The Project Records Layer does not own artifact bytes. Role filesystems,
+sandboxes/devboxes, object storage, and external URLs store artifact content;
+the records layer tells the product what exists, where it is, and who can see it.
 
 This spec replaces the earlier LangGraph `Store` namespaces previously listed
 in `docs/specs/pcg-data-contracts.md`. PCG state still owns deterministic
 routing state (`handoff_log`, `current_agent`, `current_phase`,
-`acceptance_stamps`). The Project Data Plane owns cross-surface product records.
+`acceptance_stamps`). The Project Records Layer owns cross-surface product
+records.
 
 `evaluation_analytics_views` is the canonical product record family for
 published evaluation analytics surfaces. `optimization_timeline` is supported
 only as an `analytics_kind` inside this record family; it is not a standalone
-Product Data Plane primitive.
+Project Records Layer primitive.
 
 ## 2. SDK Alignment
 
 LangGraph `Store` remains useful for cross-thread memory, queues, and caches, but
-it is not the authoritative project data plane:
+it is not the authoritative project records layer:
 
 - `BaseStore` is a hierarchical key-value API with `get`, `search`, `put`,
   `delete`, and `list_namespaces`; it has no per-role or per-field permission
@@ -55,7 +60,7 @@ it is not the authoritative project data plane:
   thread metadata and backend APIs (`.reference/open-swe/agent/server.py:192-263`).
 - LangSmith traces support searchable metadata on runs
   (`.venv/lib/python3.11/site-packages/langsmith/run_trees.py:140-152`,
-  `run_trees.py:415-420`); data-plane operations must attach the same
+  `run_trees.py:415-420`); project-record operations must attach the same
   correlation identifiers to trace metadata and access-event rows.
 
 ## 3. Source Of Truth
@@ -66,7 +71,7 @@ it is not the authoritative project data plane:
 | Artifact manifest metadata | Product database table `artifact_manifest` | Role filesystem directory listings, LangGraph Store cache |
 | Artifact bytes/content | Role filesystem, sandbox/devbox filesystem, object storage, or external URL named by manifest `content_ref` | Manifest metadata |
 | Evaluation analytics views | Product database table `evaluation_analytics_views` | UI cache, LangGraph Store cache, rendered snapshot artifacts |
-| Data-plane access audit | Product database table `project_data_events` | LangSmith metadata |
+| Project-record access audit | Product database table `project_data_events` | LangSmith metadata |
 | Read-only live snapshots | Product database table `project_snapshots` plus generated artifact rows | Sandbox/devbox filesystem at capture time |
 
 LangGraph Store may cache derived slices for low-latency agent reads, but every
@@ -76,10 +81,10 @@ authorization.
 
 ## 4. Common Fields
 
-Every Project Data Plane row has these fields:
+Every Project Records Layer row has these fields:
 
 ```python
-class DataPlaneBase(TypedDict):
+class ProjectRecordBase(TypedDict):
     schema_version: Literal[1]
     org_id: str
     project_id: str
@@ -102,7 +107,7 @@ Rules:
 Primary key: `(org_id, project_id)`.
 
 ```python
-class ProjectRegistryRecord(DataPlaneBase):
+class ProjectRegistryRecord(ProjectRecordBase):
     project_thread_id: str
     pm_session_thread_id: str | None
     created_by_user_id: str | None
@@ -135,7 +140,7 @@ when it drifts.
 Primary key: `(org_id, project_id, artifact_id, version)`.
 
 ```python
-class ArtifactManifestRecord(DataPlaneBase):
+class ArtifactManifestRecord(ProjectRecordBase):
     artifact_id: str
     version: int
     kind: Literal[
@@ -209,7 +214,7 @@ in the associated analytics view.
 Primary key: `(org_id, project_id, analytics_view_id)`.
 
 ```python
-class EvaluationAnalyticsView(DataPlaneBase):
+class EvaluationAnalyticsView(ProjectRecordBase):
     analytics_view_id: str
     owner_agent: Literal["harness_engineer", "evaluator", "system"]
 
@@ -321,7 +326,7 @@ instructions, raw private trace content, or HE/evaluator-private reasoning.
 Primary key: `(org_id, project_id, snapshot_id)`.
 
 ```python
-class ProjectSnapshotRecord(DataPlaneBase):
+class ProjectSnapshotRecord(ProjectRecordBase):
     snapshot_id: str
     requested_by_thread_id: str
     requested_by_user_id: str | None
@@ -346,7 +351,7 @@ snapshot capture requires explicit project-level opt-in recorded on
 Primary key: `(org_id, event_id)`.
 
 ```python
-class ProjectDataEvent(DataPlaneBase):
+class ProjectDataEvent(ProjectRecordBase):
     event_id: str
     operation: Literal[
         "create_project_registry",
@@ -435,7 +440,7 @@ All consumers use the same backend-owned read operations.
 PM session tools are thin wrappers around these operations. The web app, TUI,
 and headless adapters call the same backend operations; they do not read
 LangGraph Store directly. LangGraph Studio is an inspection surface
-for graph state and traces, not a supported product data-plane reader.
+for graph state and traces, not a supported Project Records Layer reader.
 First-party renderer behavior for these reads is specified in
 `evaluation-analytics-renderer-contract.md`.
 
@@ -521,7 +526,7 @@ be migration-only and must emit deprecation telemetry through
 Every operation accepts a `trace_context` payload:
 
 ```python
-class DataPlaneTraceContext(TypedDict, total=False):
+class ProjectRecordTraceContext(TypedDict, total=False):
     thread_id: str
     project_thread_id: str
     pm_session_thread_id: str | None

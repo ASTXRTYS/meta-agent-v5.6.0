@@ -21,7 +21,7 @@ for using LangSmith CLI, LangSmith SDK, and OpenEvals to design, inspect, and
 interpret harness evaluations.
 
 It is not a new evidence platform, not a generic LangSmith wrapper, and not a
-Product Data Plane expansion. Its job is to make the Harness Engineer excellent
+Project Records Layer expansion. Its job is to make the Harness Engineer excellent
 at:
 
 ```txt
@@ -76,7 +76,7 @@ LangSmith SDK = programmatic extension surface
 EBDR skill = evaluator-to-optimizer feedback boundary
 ```
 
-The Workbench does not introduce a new Product Data Plane record family and does
+The Workbench does not introduce a new Project Records Layer record family and does
 not require a new Workbench tools spec unless TICKET-006 identifies concrete
 SDK-only/high-friction HE workflows that survive CLI-vs-SDK reconciliation.
 

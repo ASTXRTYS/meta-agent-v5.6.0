@@ -12,7 +12,7 @@ owners: ["@Jason"]
 
 > **Provenance:** Derived from `AD.md §6 Observability & Evaluation` and `§4 Project-Scoped Execution Environment`.
 > **Status:** Active · **Last synced with AD:** 2026-04-27.
-> **Consumers:** Harness Engineer, PM surface, UI analytics renderer, Project Data Plane implementation, Developer-safe feedback pipeline.
+> **Consumers:** Harness Engineer, PM surface, UI analytics renderer, Project Records Layer implementation, Developer-safe feedback pipeline.
 
 ## 1. Purpose
 
@@ -103,16 +103,16 @@ analytics source data = artifact
 published analytics view = product record
 ```
 
-The Harness Engineer writes source analytics data as a file, usually JSON, to the working filesystem. That file is registered as an artifact. The published analytics view is a Product Data Plane record pointing to that artifact.
+The Harness Engineer writes source analytics data as a file, usually JSON, to the working filesystem. That file is registered as an artifact. The published analytics view is a Project Records Layer record pointing to that artifact.
 
 This gives the Harness Engineer durable local context while giving the UI a stable product record to render.
 
-## 7. Product Data Plane Record
+## 7. Project Records Layer Record
 
 Canonical record family: `evaluation_analytics_views`.
 
 ```python
-class EvaluationAnalyticsView(DataPlaneBase):
+class EvaluationAnalyticsView(ProjectRecordBase):
     analytics_view_id: str
     owner_agent: Literal["harness_engineer", "evaluator", "system"]
 
@@ -238,7 +238,7 @@ The backend must:
 ```txt
 1. Resolve org_id, project_id, thread identity, role_name, and trace_context from runtime context.
 2. Validate caller is Harness Engineer, Evaluator, or an authorized system analytics helper.
-3. Resolve data_ref through the Product Data Plane or approved object/filesystem adapter.
+3. Resolve data_ref through the Project Records Layer or approved object/filesystem adapter.
 4. Validate every source_artifact_id exists and is allowed for the caller.
 5. Load analytics source JSON.
 6. Validate source JSON against evaluation-analytics-chart-schemas.md.

@@ -249,7 +249,7 @@ otherwise `./graph.py:graph` is simpler. The role factories use
 
 - `dispatch_handoff` — The sole coordination node. On first invocation
   (empty `handoff_log`): synthesize an initial handoff record from
-  stakeholder input, validate, call Project Data Plane `update_project_progress`, return
+  stakeholder input, validate, call Project Records Layer `update_project_progress`, return
   `Command(goto=Send("project_manager", child_input), update={handoff_log, current_agent, current_phase})`.
   On re-entry triggered by a child-emitted
   `Command(graph=PARENT, goto="dispatch_handoff", update={...})`: read

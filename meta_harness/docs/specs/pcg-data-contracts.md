@@ -12,7 +12,7 @@ owners: ["@Jason"]
 # PCG Data Contracts Specification
 
 > **Provenance:** Derived from `AD.md §4 LangGraph Project Coordination Graph` (state schema, topology, and invariants), `§4 Handoff Protocol → Command.PARENT Update Contract`, `§4 Data Contracts`, and `§4 PM Session And Project Entry Model`.
-> **Status:** Active · **Last synced with AD:** 2026-04-24 (rewritten for `OQ-HO` resolution; supersedes Q4 / Q10 / Q11 in `DECISIONS.md`; corrected to mount-as-subgraph pattern after review surfaced `.ainvoke()` / `Command.PARENT` incompatibility; clarified sibling relationship with `handoff-tools.md`; updated for `handoff-tool-definitions.md` field ownership and `project_phase` / `plan_phase_id` split; corrected routing primitive from string `goto` to `Send` for explicit child input injection per Ticket 1; added persistence contract and namespace semantics for mounted role subgraphs per Ticket 3; **repaired wire/data contract inconsistencies per Ticket 4: canonical snake_case role enums, removed unused status field, explicit langsmith_run_id fallback, no handoff_log cap, explicit type aliases, clarified acceptance truth semantics**; **restored dispatcher re-entry `goto` on normal handoff parent commands and added approval-result stamp feedback semantics per Ticket 5 feedback**; **moved product data-plane schemas to `project-data-contracts.md` for Ticket 6 / `OQ-H5` closure**; **clarified PM-session state projection for Ticket 7**).
+> **Status:** Active · **Last synced with AD:** 2026-04-24 (rewritten for `OQ-HO` resolution; supersedes Q4 / Q10 / Q11 in `DECISIONS.md`; corrected to mount-as-subgraph pattern after review surfaced `.ainvoke()` / `Command.PARENT` incompatibility; clarified sibling relationship with `handoff-tools.md`; updated for `handoff-tool-definitions.md` field ownership and `project_phase` / `plan_phase_id` split; corrected routing primitive from string `goto` to `Send` for explicit child input injection per Ticket 1; added persistence contract and namespace semantics for mounted role subgraphs per Ticket 3; **repaired wire/data contract inconsistencies per Ticket 4: canonical snake_case role enums, removed unused status field, explicit langsmith_run_id fallback, no handoff_log cap, explicit type aliases, clarified acceptance truth semantics**; **restored dispatcher re-entry `goto` on normal handoff parent commands and added approval-result stamp feedback semantics per Ticket 5 feedback**; **moved Project Records Layer schemas to `project-data-contracts.md` for Ticket 6 / `OQ-H5` closure**; **clarified PM-session state projection for Ticket 7**).
 > **Consumers:** Developer (implementation), Evaluator (conformance checking).
 
 ## 1. Purpose
@@ -29,7 +29,7 @@ natively through the Pregel namespace hierarchy. No agent cognition, no
 artifact content, no specialist messages live in PCG state. This spec
 defines the exact state schema (channels, reducers, ownership), the
 `Command.PARENT` update contract, the `HandoffRecord` wire format, and the
-PCG-owned cross-reference to the Project Data Contracts. Product data-plane
+PCG-owned cross-reference to the Project Records Layer Contracts. Project Records Layer
 schemas, read/write APIs, authorization, tenant boundaries, retention, and
 trace metadata live in `docs/specs/project-data-contracts.md`.
 
@@ -98,12 +98,12 @@ that combined contract.
 
 **Relationship to server contract spec.** This spec owns the internal PCG state schema (channels, reducers, `HandoffRecord`, `Command.PARENT` update contract). `docs/specs/pcg-server-contract.md` owns the Agent Server boundary contract: `ProjectCoordinationInput`, `ProjectCoordinationContext`, `ProjectCoordinationOutput` schemas, thread metadata, bootstrap behavior, and the mapping from external caller to PCG state initialization. The two specs are siblings: server/bootstrap readers consult `pcg-server-contract.md`; PCG state channel readers consult this spec.
 
-**Relationship to project data contracts spec.** This spec does not define product
+**Relationship to Project Records Layer contracts spec.** This spec does not define product
 database schemas or cross-surface read APIs. `docs/specs/project-data-contracts.md`
 owns `project_registry`, `artifact_manifest`, `evaluation_analytics_views`,
 `project_data_events`, `project_snapshots`, the owning operations, and
 Developer-private / HE-private read boundaries. PCG handoff records contain
-artifact references; Project Data Contracts operations decide how those references
+artifact references; Project Records Layer operations decide how those references
 are registered, surfaced, archived, and audited.
 
 ## 3. Topology Recap (informative)
@@ -154,7 +154,7 @@ PCG envelope also runs `pm_session` threads, but session mode only populates the
 parent PCG `messages` and `org_id` channels. Project-only channels
 (`project_id`, `project_thread_id`, `current_phase`, `current_agent`,
 `handoff_log`, `acceptance_stamps`) remain unset or empty on `pm_session`
-threads; PM session project visibility comes from Project Data Contracts tools, not
+threads; PM session project visibility comes from Project Records Layer tools, not
 from fake project state on the session thread. See
 `docs/specs/pcg-server-contract.md §2.1` and `§7.5`.
 
@@ -162,9 +162,9 @@ from fake project state on the session thread. See
 | Channel | Type | Reducer | Purpose | Writers | Readers |
 |---------|------|---------|---------|---------|---------|
 | `messages` | `list[AnyMessage]` | `add_messages` | User-facing I/O conduit. Written only via PM's `finish_to_user` tool. | PM's `finish_to_user` tool only | External surfaces only (TUI, web app, headless ingress). Specialist agents never read it. |
-| `org_id` | `str` | overwrite (no reducer) | Tenant identity required for Project Data Contracts reads/writes. | `dispatch_handoff` (initial from runtime input/thread metadata) | `dispatch_handoff`, data-plane writers |
-| `project_id` | `str` | overwrite (no reducer) | Durable Meta Harness project identity. | `dispatch_handoff` (initial) | `dispatch_handoff`, middleware, data-plane writers |
-| `project_thread_id` | `str` | overwrite | Canonical LangGraph project execution thread identity. May equal `project_id` in local/dev. | `dispatch_handoff` (initial) | `dispatch_handoff`, middleware, data-plane writers |
+| `org_id` | `str` | overwrite (no reducer) | Tenant identity required for Project Records Layer reads/writes. | `dispatch_handoff` (initial from runtime input/thread metadata) | `dispatch_handoff`, Project Records Layer writers |
+| `project_id` | `str` | overwrite (no reducer) | Durable Meta Harness project identity. | `dispatch_handoff` (initial) | `dispatch_handoff`, middleware, Project Records Layer writers |
+| `project_thread_id` | `str` | overwrite | Canonical LangGraph project execution thread identity. May equal `project_id` in local/dev. | `dispatch_handoff` (initial) | `dispatch_handoff`, middleware, Project Records Layer writers |
 | `current_phase` | `ProjectPhase` | overwrite | Denormalization of last lifecycle-phase-transitioning handoff. Fast path for middleware gate dispatch. Not independent source-of-truth. | Handoff tools via `Command.PARENT` update when `HandoffRecord.project_phase` is present | `dispatch_handoff`; projected into `pcg_gate_context` for phase-gate middleware |
 | `current_agent` | `AgentName` | overwrite | Which role `dispatch_handoff` is about to invoke. Matches `handoff_log[-1].target_agent`. | Handoff tools via `Command.PARENT` update | `dispatch_handoff`, middleware |
 | `handoff_log` | `list[HandoffRecord]` | `operator.add` (list concatenation) | Append-only audit trail of all handoffs. No cap in v1. | Handoff tools via `Command.PARENT` update | `dispatch_handoff` (reads `[-1]`); projected into `pcg_gate_context` for prerequisite gates and HE-participation helper |
@@ -174,7 +174,7 @@ from fake project state on the session thread. See
 
 - **`messages`**: User-facing I/O conduit (LangGraph convention). Written only via PM's `finish_to_user` tool (`Command(graph=PARENT, goto=END, update={"messages": [AIMessage(...)]})`). Multiple lifecycle cycles may occur across the project thread lifetime (headless-ready-infra policy).
 - **`org_id`**: Tenant identity copied from runtime bootstrap input or thread
-  metadata on first invocation. It is required for every Project Data Contracts
+  metadata on first invocation. It is required for every Project Records Layer
   operation and never inferred from `project_id`.
 - **`current_phase`**: Denormalization of the last lifecycle-phase-transitioning handoff. Fast path for middleware gate dispatch. **Not** an independent source of truth — `handoff_log` with `HandoffRecord.project_phase` remains authoritative. Developer implementation-plan phases are stored separately as `plan_phase_id` and never drive `current_phase`.
 - **`handoff_log`**: Append-only audit trail of all handoffs in the project thread. No cap in v1 — projects have finite handoff counts. HE participation detection (scanning for `source_agent` or `target_agent == "harness_engineer"`) must work correctly regardless of log size.
@@ -269,7 +269,7 @@ applied.
 **Persistence contract.** The PCG is compiled with a concrete `BaseCheckpointSaver` instance (e.g., `PostgresSaver` in production, `SqliteSaver` in local/dev). Each role Deep Agent is compiled with `checkpointer=None` to inherit the parent's checkpointer. LangGraph's Checkpointer type semantics (types.py:96-102) define `None` as "inherits checkpointer from the parent graph." StateGraph.compile() (state.py:1038-1084) documents that `checkpointer=None` "may inherit the parent graph's checkpointer when used as a subgraph." During task execution, the checkpointer is propagated via `CONFIG_KEY_CHECKPOINTER` config (pregel/_algo.py:715-718): `CONFIG_KEY_CHECKPOINTER: (checkpointer or configurable.get(CONFIG_KEY_CHECKPOINTER))`.
 
 **Namespace semantics.** The stable checkpoint namespace for a role is the node name (e.g., `project_manager`). LangGraph constructs task-specific namespaces as `checkpoint_ns = f"{parent_ns}{NS_SEP}{name}"` and `task_checkpoint_ns = f"{checkpoint_ns}{NS_END}{task_id}"` (pregel/_algo.py:592-602). The stable namespace used for checkpoint storage is the recast namespace, which removes task IDs via `recast_checkpoint_ns(ns)` (_config.py:34-45): `NS_SEP.join(part.split(NS_END)[0] for part in ns.split(NS_SEP) if not part.isdigit())`. When a role is re-invoked via a handoff, LangGraph resolves checkpoint storage using the recast namespace (role name without task ID) under the same `project_thread_id`, ensuring the role resumes its prior conversation history. The PCG's `handoff_log` is not conversation history; it is an audit trail of handoff events only.
-7. **Durable cross-thread product data lives in the Project Data Contracts.** `project_registry`, `artifact_manifest`, and `evaluation_analytics_views` are not PCG state channels. PCG helpers call the data-plane operations defined in `docs/specs/project-data-contracts.md`; LangGraph Store may cache derived slices but is not the source of truth.
+7. **Durable cross-thread product data lives in the Project Records Layer.** `project_registry`, `artifact_manifest`, and `evaluation_analytics_views` are not PCG state channels. PCG helpers call the Project Records Layer operations defined in `docs/specs/project-data-contracts.md`; LangGraph Store may cache derived slices but is not the source of truth.
 8. **Graph lifecycle is PM-controlled.** `ask_user` interrupts fire inside the PM's Deep Agent subgraph. LangGraph's native interrupt machinery pauses the subgraph and the parent graph transparently; resume flows through automatically — no PCG-level interrupt code is required.
 
 ## 6. `Command.PARENT` Update Contract
@@ -311,7 +311,7 @@ Command(
 - Stamp-writing tools are the only tools that write to `acceptance_stamps`:
   `submit_application_acceptance`, `submit_harness_acceptance`, and PM's
   `request_approval`.
-- Artifact-manifest updates are Project Data Contracts writes (`register_artifact`), not state updates.
+- Artifact-manifest updates are Project Records Layer writes (`register_artifact`), not state updates.
 
 ### 6.1 Tool-helper-vs-PCG field ownership
 
@@ -399,15 +399,15 @@ below as AD decisions.
   approval-result re-entry message. `None` for approvals and non-approval
   handoffs.
 
-## 8. Project Data Contracts Cross-Reference
+## 8. Project Records Layer Cross-Reference
 
-`pcg-data-contracts.md` does not define product data-plane schemas. Handoff
+`pcg-data-contracts.md` does not define Project Records Layer schemas. Handoff
 `artifact_paths` are references carried in the audit record; they are not the
-artifact manifest. Artifact-producing helpers call Project Data Contracts
+artifact manifest. Artifact-producing helpers call Project Records Layer
 `register_artifact`; `dispatch_handoff` calls `update_project_progress`; Harness
 Engineer analytics helpers call `publish_analytics_view` and `update_analytics_view`.
 
-The Project Data Contracts owns durable cross-surface records, tenant boundaries,
+The Project Records Layer owns durable cross-surface records, tenant boundaries,
 read/write APIs, access events, retention, deletion, schema versioning, and
 Developer-private / HE-private exclusions. See
 [`project-data-contracts.md`](./project-data-contracts.md).
@@ -611,10 +611,10 @@ async def dispatch_handoff(
 ## 10. Growth, Cap, and Migration Notes
 
 - `messages` is bounded by natural PM completion frequency. Headless ingress may produce multiple lifecycle cycles; the channel is not artificially capped at 2 entries.
-- `handoff_log` has no cap in v1. Projects have finite handoff counts. HE participation detection (scanning for `source_agent` or `target_agent == "harness_engineer"`) must work correctly regardless of log size. If cap becomes necessary in v2, move handoff history into the Project Data Contracts and update gate logic to read from a data-plane operation, not checkpoint state.
+- `handoff_log` has no cap in v1. Projects have finite handoff counts. HE participation detection (scanning for `source_agent` or `target_agent == "harness_engineer"`) must work correctly regardless of log size. If cap becomes necessary in v2, move handoff history into the Project Records Layer and update gate logic to read from a Project Records Layer operation, not checkpoint state.
 - `acceptance_stamps` has a natural bound of 4 entries (`application`,
   `harness`, `scoping_to_research`, `architecture_to_planning`). No cap needed.
-- Project Data Contracts records grow outside state-checkpoint pressure; retention, archival, deletion, and migration rules are defined in `project-data-contracts.md`.
+- Project Records Layer records grow outside state-checkpoint pressure; retention, archival, deletion, and migration rules are defined in `project-data-contracts.md`.
 
 ## 11. Conformance Tests (minimum set)
 
@@ -625,7 +625,7 @@ Implementation must pass at least these assertions:
 3. Every role's handoff-tool set and the PM's `finish_to_user` tool together cover the role's possible terminal actions. A final-turn-guard middleware re-prompts any role whose last `AIMessage` lacks a tool call to a handoff tool or `finish_to_user`.
 4. User approval gates and the acceptance gate on `return_product_to_pm` read `request.state["pcg_gate_context"]["acceptance_stamps"]` and not `handoff_log` for stamp truth (static analysis or unit test).
 5. `current_phase == <most recent non-null HandoffRecord.project_phase> or <previously-set lifecycle phase>` after every handoff (denormalization consistency). `plan_phase_id` must never drive `current_phase`.
-6. `dispatch_handoff` calls Project Data Contracts `update_project_progress` on every handoff (fuzz: random-length handoff chains, verify `project_registry` matches the last record).
+6. `dispatch_handoff` calls Project Records Layer `update_project_progress` on every handoff (fuzz: random-length handoff chains, verify `project_registry` matches the last record).
 7. Developer-role runtime cannot call trendline, HE-private artifact, Evaluator-private artifact, or live-snapshot reads (toolset and data-access policy tests in `project-data-contracts.md`).
 
 ## 12. Conformance Matrix
@@ -633,9 +633,9 @@ Implementation must pass at least these assertions:
 | Channel/Field | Owner | Writer | Reader | Reducer | Validation Rule | Test Expectation |
 |---------------|-------|--------|--------|---------|----------------|-----------------|
 | `messages` | PCG | PM's `finish_to_user` only | External surfaces (TUI, web app, headless) | `add_messages` | Must be `list[AnyMessage]`; never written by handoff tools | Only `finish_to_user` writes; specialist agents never read |
-| `org_id` | PCG | `dispatch_handoff` (initial) | `dispatch_handoff`, data-plane writers | overwrite | Must be non-empty string | Immutable after initialization |
-| `project_id` | PCG | `dispatch_handoff` (initial) | `dispatch_handoff`, middleware, data-plane writers | overwrite | Must be non-empty string | Immutable after initialization |
-| `project_thread_id` | PCG | `dispatch_handoff` (initial) | `dispatch_handoff`, middleware, data-plane writers | overwrite | Must be non-empty string | Immutable after initialization |
+| `org_id` | PCG | `dispatch_handoff` (initial) | `dispatch_handoff`, Project Records Layer writers | overwrite | Must be non-empty string | Immutable after initialization |
+| `project_id` | PCG | `dispatch_handoff` (initial) | `dispatch_handoff`, middleware, Project Records Layer writers | overwrite | Must be non-empty string | Immutable after initialization |
+| `project_thread_id` | PCG | `dispatch_handoff` (initial) | `dispatch_handoff`, middleware, Project Records Layer writers | overwrite | Must be non-empty string | Immutable after initialization |
 | `current_phase` | PCG | Handoff tools (when `project_phase` present) | `dispatch_handoff` projection into gate middleware | overwrite | Must be one of `ProjectPhase` enum values | Matches most recent `HandoffRecord.project_phase` |
 | `current_agent` | PCG | Handoff tools | `dispatch_handoff`, middleware | overwrite | Must be one of `AgentName` enum values | Matches `handoff_log[-1].target_agent` |
 | `handoff_log` | PCG | Handoff tools | `dispatch_handoff`, HE-participation helper | `operator.add` (list concatenation) | Each record must be valid `HandoffRecord` | Append-only; no cap in v1; HE detection works at any size |
