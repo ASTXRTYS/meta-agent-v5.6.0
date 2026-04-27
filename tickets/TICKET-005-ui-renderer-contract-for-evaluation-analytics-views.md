@@ -2,7 +2,7 @@
 
 ## Status
 
-Proposed
+Completed — docs-phase contract
 
 ## Priority
 
@@ -17,12 +17,13 @@ Frontend + Architect + Evaluator
 - TICKET-002 Project Data Plane migration
 - TICKET-003 chart schema validation contract
 - `meta_harness/docs/specs/evaluation-analytics-chart-schemas.md`
+- `meta_harness/docs/specs/evaluation-analytics-renderer-contract.md`
 
 ## Blocks
 
-- Web dashboard rendering of HE analytics
-- TUI analytics cards/panels
-- Headless summary formatting
+- Future web dashboard rendering of HE analytics
+- Future TUI analytics cards/panels
+- Future headless summary formatting
 - PM project observability over analytics surfaces
 
 ## Problem
@@ -35,21 +36,34 @@ Without a renderer contract, frontend developers may infer incompatible behavior
 
 Define how first-party product surfaces render `evaluation_analytics_views`.
 
+## Docs-Phase Boundary
+
+This ticket is a specification ticket, not a frontend implementation ticket.
+
+Do not create React components, TUI widgets, backend endpoints, renderer modules,
+fixtures, or tests in this phase. Define the product rendering contract,
+surface-specific expectations, read paths, fallback behavior, and acceptance
+criteria that future development work must satisfy.
+
+The concrete frontend framework components, TUI widget implementation, snapshot
+renderer implementation, and adapter module layout are future development
+decisions.
+
 ## Required Surfaces
 
 ### 1. Web App
 
-Must support dashboard rendering for:
+Future web surfaces must support dashboard rendering for:
 
 ```txt
-radar_chart
-line_chart
-heatmap
 scorecard
 table
+line_chart
+radar_chart
+heatmap
 ```
 
-Progressive renderer support for:
+Future progressive renderer support should include:
 
 ```txt
 bar_chart
@@ -61,7 +75,8 @@ bubble_chart
 
 ### 2. TUI
 
-Must support compact textual summaries for all chart families.
+Future TUI surfaces must support compact textual summaries for all chart
+families.
 
 Minimum TUI display:
 
@@ -79,7 +94,8 @@ fallback table/text summary
 
 ### 3. Headless Adapters
 
-Must support concise summaries, not full chart rendering.
+Future headless adapters must support concise summaries, not full chart
+rendering.
 
 Example:
 
@@ -106,7 +122,7 @@ No surface scans role filesystems for analytics views.
 
 ## Renderer Contract
 
-Renderer receives:
+Future renderers should receive an input equivalent to:
 
 ```python
 class AnalyticsRendererInput(TypedDict):
@@ -114,7 +130,7 @@ class AnalyticsRendererInput(TypedDict):
     source_data: dict
 ```
 
-Renderer must:
+Future renderers must:
 
 ```txt
 validate source_data schema_version
@@ -168,11 +184,17 @@ This order is chosen because scorecards/tables are easiest to implement and prov
 
 ## Acceptance Criteria
 
-- [ ] UI read path is specified.
-- [ ] Web/TUI/headless behavior is specified.
-- [ ] Renderer input contract is specified.
-- [ ] Unsupported renderer fallback is specified.
-- [ ] Invalid source-data fallback is specified.
-- [ ] Artifact-unavailable behavior is specified.
-- [ ] Initial renderer priority is specified.
-- [ ] No UI surface reads LangGraph Store or role filesystem directly.
+- [x] UI read path is specified.
+- [x] Web/TUI/headless behavior is specified.
+- [x] Renderer input contract is specified.
+- [x] Unsupported renderer fallback is specified.
+- [x] Invalid source-data fallback is specified.
+- [x] Artifact-unavailable behavior is specified.
+- [x] Initial renderer priority is specified.
+- [x] No UI surface reads LangGraph Store or role filesystem directly.
+- [x] Frontend components, TUI widgets, backend endpoints, renderer modules,
+      fixtures, and tests are left out of scope for this docs phase.
+
+## Completion Notes
+
+Completed by creating `meta_harness/docs/specs/evaluation-analytics-renderer-contract.md` and registering it in `AD.md` §6 and §9. The renderer spec defines the Product Data Plane read path, renderer input, web/TUI/headless expectations, unsupported/invalid/stale/unavailable/denied fallback behavior, visibility handling, conformance expectations, and initial renderer priority: `scorecard`, `table`, `line_chart`, `radar_chart`, `heatmap`.

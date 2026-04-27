@@ -193,7 +193,7 @@ snapshot capture is rejected unless the project has explicit opt-in.
 
 **Decision space.**
 
-- **(a) Pure tool-based.** Dedicated session tools: `list_projects()`, `get_project_status(project_id)`, `list_artifacts(project_id, type=None)`, `get_trendline(project_id, metric=None)`. Explicit, bounded, token-visible. Tradeoffs: PM must remember to call them; requires system prompt conditioning to prime "always check registry when user mentions a project."
+- **(a) Pure tool-based.** Dedicated session tools: `list_projects()`, `get_project_status(project_id)`, `list_artifacts(project_id, type=None)`, `list_evaluation_analytics_views(project_id, filters=None)`, `get_evaluation_analytics_view(project_id, analytics_view_id)`. Explicit, bounded, token-visible. Tradeoffs: PM must remember to call them; requires system prompt conditioning to prime "always check registry when user mentions a project."
 - **(b) Middleware-injected context.** A `before_model` hook queries Project Data Plane `project_registry` each turn and injects a compact summary (active projects, current phases, last-handoff timestamps) as a system message. Tradeoffs: context bloat; stale if not refreshed; no on-demand deep query for specific artifacts.
 - **(c) Registry-as-file pattern.** Surface Project Data Plane projections of `project_registry` (and optionally scoped slices of `artifact_manifest` and `evaluation_analytics_views`) as live-refreshing virtual files in the PM's filesystem on `pm_session` threads. PM reads on demand via standard tools.
 - **(d) Hybrid.** Always-injected compact registry summary (top N active projects, current phase, last activity) + on-demand tools for deep queries (artifact listing, analytics view details).
@@ -501,7 +501,7 @@ project identity (`project_id`,
 `project_thread_id`), pipeline position (`current_phase`, `current_agent`),
 an append-only `handoff_log` audit trail, and a first-class
 `acceptance_stamps` channel keyed by stamp type. Durable cross-thread project
-data (artifact manifest, optimization trendline, project registry) lives in
+data (project registry, artifact manifest, evaluation analytics views) lives in
 the Project Data Plane, not in PCG state.
 
 **Architectural invariants:**
@@ -1224,6 +1224,7 @@ there is no predetermined spec-document count or order.
 > Implementation detail (LangSmith evidence ingestion, local mirrors, trace-bundle analysis): see [`docs/specs/evaluation-evidence-workbench.md`](./docs/specs/evaluation-evidence-workbench.md).
 > Implementation detail (Harness Engineer analytics publication model): see [`docs/specs/harness-engineer-evaluation-analytics.md`](./docs/specs/harness-engineer-evaluation-analytics.md).
 > Implementation detail (UI-renderable analytics payload schemas): see [`docs/specs/evaluation-analytics-chart-schemas.md`](./docs/specs/evaluation-analytics-chart-schemas.md).
+> Implementation detail (first-party analytics renderer contract): see [`docs/specs/evaluation-analytics-renderer-contract.md`](./docs/specs/evaluation-analytics-renderer-contract.md).
 
 ### Success Criteria
 
@@ -1339,10 +1340,11 @@ Implementation contracts extracted from AD decisions under `docs/specs/`. See
 | [`docs/specs/handoff-tool-definitions.md`](./docs/specs/handoff-tool-definitions.md) | §4 Handoff Protocol, §4 Handoff Tool Use-Case Matrix, §4 Command.PARENT Update Contract, §4 Data Contracts | Active (created 2026-04-23 for `T-H1` / `OQ-H6`; Ticket 5 parent-routing contract restored 2026-04-24) | 2026-04-24 |
 | [`docs/specs/pcg-data-contracts.md`](./docs/specs/pcg-data-contracts.md) | §4 LangGraph Project Coordination Graph (State Schema), §4 Handoff Protocol (Command.PARENT Update Contract), §4 Data Contracts, §4 PM Session And Project Entry Model (Identity Linkage) | Active (rewritten 2026-04-22 for `OQ-HO`; identity naming harmonised 2026-04-22b; sibling-spec relationship clarified 2026-04-23; runtime contract sibling added 2026-04-24; Ticket 5 approval-stamp ownership synced 2026-04-24; Ticket 6 product data-plane ownership split synced 2026-04-24; Ticket 7 PM-session state projection synced 2026-04-24) | 2026-04-24 |
 | [`docs/specs/pcg-server-contract.md`](./docs/specs/pcg-server-contract.md) | §4 PM Session And Project Entry Model, §4 Identity Linkage and Cardinality, §4 LangGraph Project Coordination Graph Factory Contract | Active (created 2026-04-24 for Ticket 2; org identity bridge synced for Ticket 6; PM-session PCG envelope synced for Ticket 7; renamed from pcg-runtime-contract 2026-04-26) | 2026-04-24 |
-| [`docs/specs/project-data-contracts.md`](./docs/specs/project-data-contracts.md) | §4 PM Session And Project Entry Model, §4 LangGraph Project Coordination Graph, §4 Project-Scoped Execution Environment, §6 Observability & Evaluation, §8 Security / Privacy / Compliance | Active (created 2026-04-24 for Ticket 6 / `OQ-H5` closure; renamed from project-data-plane 2026-04-26) | 2026-04-26 |
+| [`docs/specs/project-data-contracts.md`](./docs/specs/project-data-contracts.md) | §4 PM Session And Project Entry Model, §4 LangGraph Project Coordination Graph, §4 Project-Scoped Execution Environment, §6 Observability & Evaluation, §8 Security / Privacy / Compliance | Active (created 2026-04-24 for Ticket 6 / `OQ-H5` closure; renamed from project-data-plane 2026-04-26; analytics spec cross-links synced 2026-04-27) | 2026-04-27 |
 | [`docs/specs/evaluation-evidence-workbench.md`](./docs/specs/evaluation-evidence-workbench.md) | §6 Observability & Evaluation, §4 Project-Scoped Execution Environment | Draft (created 2026-04-26 for LangSmith-backed Evaluation Evidence Workbench architecture) | 2026-04-26 |
-| [`docs/specs/harness-engineer-evaluation-analytics.md`](./docs/specs/harness-engineer-evaluation-analytics.md) | §6 Observability & Evaluation, §4 Project-Scoped Execution Environment | Draft (created 2026-04-26 for Harness Engineer analytics publication model) | 2026-04-26 |
-| [`docs/specs/evaluation-analytics-chart-schemas.md`](./docs/specs/evaluation-analytics-chart-schemas.md) | §6 Observability & Evaluation, §4 Project-Scoped Execution Environment | Draft (created 2026-04-26 for UI-renderable evaluation analytics payload schemas) | 2026-04-26 |
+| [`docs/specs/harness-engineer-evaluation-analytics.md`](./docs/specs/harness-engineer-evaluation-analytics.md) | §6 Observability & Evaluation, §4 Project-Scoped Execution Environment | Active (created 2026-04-26 for Harness Engineer analytics publication model; publication operation contracts tightened and accepted as implementation contract 2026-04-27) | 2026-04-27 |
+| [`docs/specs/evaluation-analytics-chart-schemas.md`](./docs/specs/evaluation-analytics-chart-schemas.md) | §6 Observability & Evaluation, §4 Project-Scoped Execution Environment | Active (created 2026-04-26 for UI-renderable evaluation analytics payload schemas; validation contract tightened and accepted as implementation contract 2026-04-27) | 2026-04-27 |
+| [`docs/specs/evaluation-analytics-renderer-contract.md`](./docs/specs/evaluation-analytics-renderer-contract.md) | §6 Observability & Evaluation, §4 User Interface Surface, §4 Project-Scoped Execution Environment | Active (created 2026-04-27 for first-party analytics renderer contract; accepted as implementation contract 2026-04-27) | 2026-04-27 |
 | [`docs/specs/approval-and-gate-contracts.md`](./docs/specs/approval-and-gate-contracts.md) | §4 Phase Gate Middleware, §4 Handoff Protocol, §4 Handoff Tool Use-Case Matrix, §4 Command.PARENT Update Contract | Draft (created 2026-04-23 for Ticket 5; updated 2026-04-24 per EBDR-1 feedback; PM-session composition clarified for Ticket 7) | 2026-04-24 |
 | [`docs/specs/repo-and-workspace-layout.md`](./docs/specs/repo-and-workspace-layout.md) | §4 Repo and Workspace Layout, §4 LangGraph Project Coordination Graph Factory Contract, §4 Project Workspace and Memory Structure | Active (updated 2026-04-22 for `OQ-HO`; sync metadata corrected 2026-04-24; dispatcher input note synced for Ticket 7) | 2026-04-24 |
 
