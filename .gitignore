@@ -64,3 +64,10 @@ research_headless_pm/
 thread_research.md
 
 # Web app artifacts (not to be pushed)
+.venv/
+
+# Local generated presentation artifacts
+corinthians_lesson/
+.scratch/infographic/Aggregate-Infographic-AttitudePlus.pptx
+.scratch/infographic/Aggregate-Infographic-AttitudePlus.pptx.png
+.scratch/infographic/build.js

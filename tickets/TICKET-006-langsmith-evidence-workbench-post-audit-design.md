@@ -2,7 +2,7 @@
 
 ## Status
 
-In Progress → Blocked pending formal spec
+READY FOR POST-AUDIT RECONCILIATION
 
 ## Priority
 
@@ -26,56 +26,65 @@ Harness Engineer + Architect + Developer
 
 ## Problem
 
-The Evaluation Evidence Workbench is conceptually scoped, but exact tools must wait until LangSmith capabilities are source-audited.
+The Evaluation Evidence Workbench is conceptually scoped, and TICKET-001 has now source-audited the installed LangSmith SDK, OpenEvals package, and local CLI availability.
 
-After TICKET-001 completes, we need to translate verified LangSmith capabilities into the minimal deterministic harness HE needs.
+We now need to translate verified LangSmith capabilities into the minimal deterministic harness HE needs without creating raw wrapper tools around SDK operations that LangSmith already owns.
 
 ## Goal
 
-Design the actual Evidence Workbench tool family, deciding which operations are:
+Design the minimal Evidence Workbench access pattern, deciding which operations are:
 
 ```txt
-direct SDK wrapper tools
-direct CLI guidance through skill/procedural knowledge
-sandboxed Python/CLI operations
+sdk_direct calls from HE-owned scripts or backend code
+policy_tool operations with Meta Harness provenance/redaction/artifact/audit policy
+skill_or_script procedural workflows
 subagent task patterns
 not supported in v1
 ```
 
 ## Inputs
 
-From TICKET-001:
+From completed TICKET-001:
 
 ```txt
-LangSmith SDK capability matrix
-LangSmith CLI capability matrix
-recommended access path
-required stored identifiers
-export/mirror strategy
-redaction strategy
+meta_harness/local-docs/langsmith-cli-sdk-capability-audit.md
+meta_harness/local-docs/langsmith-capability-matrix.md
+meta_harness/local-docs/langsmith-ids-and-metadata-contract.md
 ```
 
-## Required Decisions (PROPOSED)
+Key audit conclusions:
 
-### 1. Tool vs Skill Split (PROPOSED)
+```txt
+Use sdk_direct for HE-owned scripts/backend code that call LangSmith SDK or OpenEvals primitives.
+Use policy_tool only when Meta Harness adds provenance, visibility/redaction, artifact registration, analytics validation, bounded export, or audit logging.
+Treat LangSmith CLI workflows as not_supported_v1 in this environment: installed langsmith==0.7.37 exposes no langsmith console script.
+Do not introduce raw LangSmith wrapper tools merely because an SDK method exists.
+Raw traces, full run trees, hidden examples, judge prompts/rubrics, evaluator reasoning/comments, attachments, and full dumps default he_private.
+```
 
-**Decision:** Proposed; must be captured in `meta_harness/docs/specs/evidence-workbench-tools-spec.md` before implementation.
+## Required Decisions (CANDIDATE ONLY)
+
+The sections below are candidate design notes, not implementation authority. They must be reconciled with the completed TICKET-001 audit and with `meta_harness/docs/specs/evaluation-evidence-workbench.md`, which rejects model-visible tools that merely duplicate LangSmith SDK/CLI operations without adding Meta Harness provenance, visibility, redaction, artifact registration, analytics-schema validation, or audit policy.
+
+### 1. Tool vs Skill Split (CANDIDATE)
+
+**Decision status:** Candidate; must now be reconciled against the completed TICKET-001 audit and may shrink substantially before any formal spec or implementation.
 
 | Capability | Implementation | Decision Rationale |
 |------------|---------------|-------------------|
-| SDK queries | **Backend tools** | Direct API access, structured returns |
-| Filesystem mirror | **Backend tools** | File I/O, streaming, local persistence |
-| Local analysis | **Backend tools** | Structured computation, synthesis |
+| SDK queries | **Backend tools only if policy-bearing** | Direct API access alone is not enough; tools must add project provenance, visibility, redaction, artifact registration, or audit policy |
+| Filesystem mirror | **Backend tools only if policy-bearing** | File I/O and local persistence must create bounded evidence bundles with explicit inclusion/exclusion policy |
+| Local analysis | **Scripts, skills, or backend tools depending on proof** | Structured computation should start in HE-owned scripts/skills unless deterministic backend policy is required |
 | Subagent spawning | **Skill guidance** | Deep Agents SDK provides `task` tool natively |
 | Filter syntax | **Backend helper** | Convert dict → LangSmith filter string |
 | Redaction | **Backend tool** + SDK config | Multi-level redaction support |
 | HE workflow | **Skill guidance** | Procedural knowledge for HE agent |
 
-**Source-verification required:** Confirm installed LangSmith package capabilities and any CLI surface before finalizing wrapper tools.
+**Source-verification result:** TICKET-001 confirmed installed LangSmith/OpenEvals package capabilities against `.venv/lib/python3.12/site-packages/...` and found no usable installed LangSmith CLI console script for v1 product contracts.
 
-### 2. Evidence Query Tools (PROPOSED)
+### 2. Evidence Query Tools (CANDIDATE)
 
-**Decision:** Proposed 6-tool family; formal schemas must be defined in `meta_harness/docs/specs/evidence-workbench-tools-spec.md` before implementation.
+**Decision status:** Candidate operations for audit comparison, not an accepted 6-tool family. Each operation must be rejected unless it adds Meta Harness-specific policy/value beyond a raw SDK method call.
 
 | Tool | SDK Method | Source |
 |------|-----------|--------|
@@ -86,11 +95,13 @@ redaction strategy
 | `query_runs_by_filter` | `list_runs(filter=...)` | `client.py:3678-3870` |
 | `get_dataset_info` | `read_dataset()` + `list_examples()` | `client.py:4925-4970`, `client.py:6384-6507` |
 
-**Exact schemas:** Pending formal spec with parameters aligned to SDK signatures.
+The source line references above are historical candidate anchors. The reconciliation pass must use the completed TICKET-001 audit artifacts as the current source of truth, especially where Python 3.11 path anchors have been superseded by Python 3.12 installed-source citations.
 
-### 3. Local Mirror Tools (PROPOSED)
+**Exact schemas:** Deferred. Do not create model-visible schemas until TICKET-001 proves the operation needs a policy-bearing product tool.
 
-**Decision:** Proposed 5-tool family; formal schemas must be defined in `meta_harness/docs/specs/evidence-workbench-tools-spec.md` before implementation.
+### 3. Local Mirror Tools (CANDIDATE)
+
+**Decision status:** Candidate mirror operations, not an accepted 5-tool family. Local mirrors should be introduced only as bounded evidence-bundle operations with recorded source refs, selection criteria, included/excluded fields, visibility, and retention expectations.
 
 | Tool | Purpose |
 |------|---------|
@@ -100,7 +111,7 @@ redaction strategy
 | `export_experiment_summary` | Export summary (JSON + optional CSV) |
 | `load_mirrored_evidence` | Load previously mirrored evidence |
 
-**Proposed file layout for future `meta_harness/docs/specs/evidence-workbench-tools-spec.md`:**
+**Candidate file layout for future bounded evidence bundles:**
 
 ```
 /langsmith_mirror/experiments/{experiment_id}/
@@ -112,9 +123,9 @@ redaction strategy
   summaries/{run_id}.summary.md
 ```
 
-### 4. Subagent Analysis Pattern (PROPOSED)
+### 4. Subagent Analysis Pattern (CANDIDATE)
 
-**Decision:** Proposed skill guidance, NOT tools. Must be captured in `meta_harness/docs/specs/evidence-workbench-tools-spec.md`.
+**Decision status:** Candidate skill guidance, not a new tool surface.
 
 **Rationale:** Deep Agents SDK provides `task` tool for subagent spawning. No wrapper needed.
 
@@ -135,9 +146,9 @@ redaction strategy
 
 **Critical:** Subagents must NOT publish final analytics directly.
 
-### 5. Redaction Boundary (PROPOSED)
+### 5. Redaction Boundary (CANDIDATE)
 
-**Decision:** Proposed 3-level redaction system. Must be captured in `meta_harness/docs/specs/evidence-workbench-tools-spec.md`.
+**Decision status:** Candidate redaction model. Must be verified against LangSmith SDK redaction/anonymizer behavior and Meta Harness Developer-safe policy before formalization.
 
 | Level | Redacted Fields | Use Case |
 |-------|-----------------|----------|
@@ -156,9 +167,9 @@ redaction strategy
 - Run IDs, Example IDs (routing/localization)
 - Tool call names (behavior analysis)
 
-## File Layout For Mirrored Evidence (PROPOSED)
+## File Layout For Mirrored Evidence (CANDIDATE)
 
-**Proposed layout** for future `meta_harness/docs/specs/evidence-workbench-tools-spec.md`:
+**Candidate layout** for future bounded evidence bundles:
 
 ```txt
 /langsmith_mirror/
@@ -185,25 +196,27 @@ redaction strategy
 
 ## Acceptance Criteria
 
-- [ ] Exact Evidence Workbench tools are specified in `meta_harness/docs/specs/evidence-workbench-tools-spec.md`.
-- [ ] Exact tool schemas are source-aligned with LangSmith and cited to local source.
-- [ ] Tool-vs-skill split is documented in the formal spec.
-- [ ] Local mirror file layout is documented in the formal spec.
+- [x] TICKET-001 source audit is complete with SDK/CLI/OpenEvals line-number citations.
+- [ ] Raw LangSmith wrapper operations are rejected unless they add Meta Harness provenance, visibility, redaction, artifact registration, analytics-schema validation, or audit policy.
+- [ ] Tool-vs-skill split is minimized and documented after audit.
+- [ ] Any local mirror file layout is documented as a bounded evidence-bundle layout, not a default full export path.
 - [ ] Full-dump policy is documented in the formal spec.
 - [ ] Filtered-export policy is documented in the formal spec.
-- [ ] Subagent analysis pattern is operationalized.
-- [ ] Redaction policy is integrated.
+- [ ] Subagent analysis pattern is operationalized without granting subagents publication authority.
+- [ ] Redaction policy is integrated and verified against LangSmith SDK behavior.
 - [ ] Developer-safe output boundary is preserved.
 - [ ] Deferred capabilities are identified.
 
 ## Deliverables
 
-1. **Updated Ticket** (this file) — Status: Blocked pending formal spec
-2. **Formal Spec** — `meta_harness/docs/specs/evidence-workbench-tools-spec.md` — still required before implementation.
+1. **Updated Ticket** (this file) — Status: ready for post-audit reconciliation.
+2. **Post-audit recommendation** — decide whether `meta_harness/docs/specs/evidence-workbench-tools-spec.md` is necessary or whether existing Workbench + analytics specs are sufficient.
+3. **Survivor list** — name only the policy-bearing tools, scripts, or skills that survive the audit reconciliation, with access path classification for each.
 
 ## Next Steps
 
-1. AD §9 registration: Add spec to Decision Index → Derived Specs
-2. Parent AD pointer: Add `> Implementation: see meta_harness/docs/specs/evidence-workbench-tools-spec.md` to relevant AD sections
-3. Implementation: Backend tool development (separate ticket)
-4. Skill documentation: HE agent skill for subagent analysis workflow
+1. Reconcile this candidate tool list against the TICKET-001 audit and the minimal-tooling stance in `evaluation-evidence-workbench.md`.
+2. Classify every candidate operation as `sdk_direct`, `policy_tool`, `skill_or_script`, or `not_supported_v1`.
+3. Decide whether a formal `evidence-workbench-tools-spec.md` is warranted.
+4. If warranted, add AD §9 registration and parent AD pointer before implementation.
+5. Create separate implementation tickets only for policy-bearing tools that survive review.

@@ -1,4 +1,18 @@
+---
+doc_type: archive
+derived_from:
+  - AD §6 Observability & Evaluation
+  - AD §4 Project-Scoped Execution Environment
+status: archived
+last_synced: 2026-04-26
+owners: ["@Jason"]
+---
+
 # ADR: Replace `optimization_trendline` With Evaluation Analytics Views
+
+> **Archive metadata:** Historical rationale for replacing `optimization_trendline` with `evaluation_analytics_views`.
+> **Status:** Archived source material · **Last synced with AD:** 2026-04-26.
+> **Current authority:** `AD.md`, `docs/specs/project-data-contracts.md`, `docs/specs/harness-engineer-evaluation-analytics.md`, and `docs/specs/evaluation-analytics-chart-schemas.md`.
 
 ## Status
 

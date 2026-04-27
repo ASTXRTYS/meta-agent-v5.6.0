@@ -2,8 +2,13 @@
 
 ## Status
 
-PENDING
+COMPLETED
+
+## Priority
+
 P0 — architecture consistency / schema repair
+
+Completed 2026-04-26. Active authority now lives in `meta_harness/docs/specs/project-data-contracts.md`, with historical rationale preserved in `meta_harness/docs/archive/replace-optimization-trendline-with-evaluation-analytics-views.md`.
 
 ## Owner
 
@@ -27,7 +32,7 @@ Architect + Developer
 
 `optimization_trendline` is now known to be over-narrow. It incorrectly treats optimization progress as the root product primitive, when the real requirement is a broader `evaluation_analytics_views` record family.
 
-The Project Data Plane spec still needs to be repaired so downstream implementation does not build the wrong substrate.
+The Project Data Plane spec has been repaired so downstream implementation does not build the wrong substrate.
 
 ## Goal
 
@@ -53,9 +58,9 @@ Replace with the new model unless the reference is part of explicit migration hi
 
 ### 2. Add Record Family: `evaluation_analytics_views`
 
-Add to Product Data Plane source-of-truth table.
+Added to Product Data Plane source-of-truth table.
 
-Proposed source-of-truth row:
+Source-of-truth row:
 
 ```txt
 Record family: evaluation_analytics_views
@@ -236,12 +241,12 @@ mark_analytics_view_stale
 
 ## Acceptance Criteria
 
-- [ ] Active Product Data Plane spec no longer treats `optimization_trendline` as a top-level record family.
-- [ ] `evaluation_analytics_views` is defined as canonical record family.
-- [ ] `optimization_timeline` is represented only as an `analytics_kind`.
-- [ ] Read/write APIs are specified.
-- [ ] Auth/visibility matrix is specified.
-- [ ] Artifact manifest kinds are updated.
-- [ ] Access audit events include analytics view operations.
-- [ ] Migration mapping is documented.
-- [ ] Developer-safe boundary is preserved.
+- [x] Active Product Data Plane spec no longer treats `optimization_trendline` as a top-level record family.
+- [x] `evaluation_analytics_views` is defined as canonical record family.
+- [x] `optimization_timeline` is represented only as an `analytics_kind`.
+- [x] Read/write APIs are specified.
+- [x] Auth/visibility matrix is specified.
+- [x] Artifact manifest kinds are updated.
+- [x] Access audit events include analytics view operations.
+- [x] Migration mapping is documented.
+- [x] Developer-safe boundary is preserved.

@@ -123,6 +123,16 @@ AD + spec pass lands.
 - `local-docs/langsmith-capability-audit-plan.md` — coding-agent research plan
 for source-auditing LangSmith CLI/SDK capabilities before finalizing Evidence
 Workbench tools. Read before creating or accepting LangSmith wrapper-tool specs.
+- `local-docs/langsmith-cli-sdk-capability-audit.md` — source-cited narrative
+audit of installed LangSmith/OpenEvals SDK and LangSmith CLI capability for the
+Evaluation Evidence Workbench. Treat as the TICKET-001 research result until a
+newer source audit supersedes it.
+- `local-docs/langsmith-capability-matrix.md` — tabular access-path matrix for
+LangSmith/OpenEvals capabilities, including SDK support, CLI support, citations,
+stored IDs, privacy risk, and gaps.
+- `local-docs/langsmith-ids-and-metadata-contract.md` — local reference for the
+LangSmith IDs and metadata keys Meta Harness should persist in existing artifact
+manifests when recording evaluation evidence.
 
 ## Local Workflows And Commands
 

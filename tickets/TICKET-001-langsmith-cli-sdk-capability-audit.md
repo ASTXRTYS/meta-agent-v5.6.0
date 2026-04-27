@@ -1,13 +1,21 @@
 # TICKET-001 — Source-Audit LangSmith CLI/SDK Capabilities For Evaluation Evidence Workbench
 
 ## Status
-PENDING
-
-
+COMPLETED
 
 ## Owner
 
 Researcher + Harness Engineer
+
+## Human Decision Bias
+
+Jason’s current bias is that the correct outcome is likely a hybrid architecture:
+
+- Use LangSmith SDK / OpenEvals directly where stable programmatic operations are needed.
+- Use CLI/skill/procedural guidance only for ad hoc operator workflows if the CLI is actually capable and non-brittle.
+- Add Meta Harness model-visible tools only when they add product policy: project provenance, artifact registration, visibility/redaction enforcement, analytics schema validation, or audit-event recording.
+
+This bias is not a conclusion. The audit must verify or overturn it with source citations.
 
 ## Depends On
 
@@ -166,15 +174,21 @@ What redaction hooks/features exist?
 What must Meta Harness redact before developer_safe outputs?
 ```
 
-## Deliverables
+## Deliverable Responsibilities
 
-Create:
+1. `langsmith-cli-sdk-capability-audit.md`
+   - Narrative audit.
+   - Explains what was inspected, how, source locations, and major conclusions.
 
-```txt
-docs/research/langsmith-cli-sdk-capability-audit.md
-docs/research/langsmith-capability-matrix.csv or .md
-docs/research/langsmith-ids-and-metadata-contract.md
-```
+2. `langsmith-capability-matrix.md`
+   - Tabular capability matrix.
+   - One row per capability.
+   - Must include SDK support, CLI support, citations, recommended Meta Harness access path, stored IDs, privacy risk, and gaps.
+
+3. `langsmith-ids-and-metadata-contract.md`
+   - Stable identifiers Meta Harness must persist.
+   - Recommended metadata keys to attach to LangSmith runs/experiments/datasets.
+   - Mapping from LangSmith IDs to Project Data Plane fields/artifacts.
 
 Minimum matrix columns:
 
@@ -188,31 +202,78 @@ Required stored identifiers
 Privacy risk
 Notes / gaps
 ```
+## Access Path Decision Rules
 
-## Decision Output
+For each capability, recommend one access path:
 
-The audit must conclude with one recommended architecture:
+- `sdk_direct`: HE-owned script or backend code should use the LangSmith/OpenEvals SDK directly.
+- `cli_skill`: agent/operator may use CLI guidance; do not depend on it for product correctness.
+- `policy_tool`: Meta Harness should expose a model-visible/backend tool because it adds provenance, visibility, redaction, artifact registration, analytics validation, or audit policy.
+- `not_supported_v1`: capability is unavailable, too brittle, too risky, or unnecessary for v1.
 
-```txt
-A. Direct CLI skill guidance
-B. Backend SDK wrapper tools
-C. Hybrid: SDK wrapper tools for stable operations + CLI guidance for ad hoc/inspection operations
-```
+Raw SDK parity is not sufficient justification for `policy_tool`.
 
-Expected likely outcome: **C**, but this must be source-verified.
+
+## Privacy Review Requirement
+
+For each evidence-bearing capability, identify whether outputs may include:
+- hidden dataset examples,
+- judge prompts,
+- rubric text,
+- evaluator reasoning,
+- user inputs,
+- model outputs,
+- tool call arguments/results,
+- serialized chain/config metadata,
+- stack traces or errors,
+- credentials/secrets.
+
+State whether the capability is safe for:
+- `he_private`,
+- `internal`,
+- `developer_safe`,
+- `stakeholder_visible`.
+
+Default raw traces and full exports to `he_private`.
 
 ## Acceptance Criteria
 
-- [ ] Current LangSmith SDK capabilities are verified from official docs/source.
-- [ ] Current LangSmith CLI capabilities are verified from official docs/source.
-- [ ] Dataset/example lifecycle is documented.
-- [ ] Experiment/session lifecycle is documented.
-- [ ] Run/trace querying capabilities are documented.
-- [ ] Feedback/score capabilities are documented.
-- [ ] Export/local mirror capabilities are documented.
-- [ ] Required Meta Harness stored identifiers are listed.
-- [ ] Privacy/redaction risks are listed.
-- [ ] Recommended Evidence Workbench access pattern is stated.
-- [ ] No wrapper tools are finalized without evidence.
+- [x] Current LangSmith SDK capabilities are verified from official docs/source.
+- [x] Current LangSmith CLI capabilities are verified from official docs/source.
+- [x] Dataset/example lifecycle is documented.
+- [x] Experiment/session lifecycle is documented.
+- [x] Run/trace querying capabilities are documented.
+- [x] Feedback/score capabilities are documented.
+- [x] Export/local mirror capabilities are documented.
+- [x] Required Meta Harness stored identifiers are listed.
+- [x] Privacy/redaction risks are listed.
+- [x] Recommended Evidence Workbench access pattern is stated.
+- [x] No wrapper tools are finalized without evidence.
+- [x] No product spec is created or updated except to record source-verified conclusions in a follow-up ticket.
 
-!FOR ALL CPABILITIES AND DISCOVERD FUNCIONALITY YOU MUST CITE LINE NUMBERS FROM SDK SOURCE AND NOT ONLY STATE THE WHAT IS CAPABLE BUT ALSO HOW!
+
+## Hard Boundary
+
+This ticket is research/audit only.
+
+Do not:
+- Implement Evidence Workbench tools.
+- Create final tool schemas.
+- Modify product specs except to note source-verified conclusions if explicitly requested.
+- Create a new Product Data Plane record family.
+- Introduce raw LangSmith wrapper tools as accepted design.
+- Treat candidate tool names in TICKET-006 as approved.
+
+## Source Quality Standard
+
+Every capability claim must include:
+- package/repo inspected,
+- file path,
+- line range,
+- function/class/command name,
+- what the capability does,
+- how it works or is invoked,
+- important limitations or missing support.
+
+Do not cite only prose docs when local SDK/source is available.
+If docs and source disagree, record the discrepancy and prefer source for behavior.

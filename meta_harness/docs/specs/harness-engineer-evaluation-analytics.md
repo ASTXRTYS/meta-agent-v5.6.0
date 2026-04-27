@@ -124,7 +124,7 @@ This gives the Harness Engineer durable local context while giving the UI a stab
 
 ## 7. Product Data Plane Record
 
-Proposed record family: `evaluation_analytics_views`.
+Canonical record family: `evaluation_analytics_views`.
 
 ```python
 class EvaluationAnalyticsView(DataPlaneBase):
@@ -280,7 +280,7 @@ The canonical UI contract remains structured JSON validated against supported ch
 
 ## 10. Visibility Policy
 
-Preliminary policy:
+Policy:
 
 | Visibility            | Meaning                                                             |
 | --------------------- | ------------------------------------------------------------------- |
@@ -290,14 +290,14 @@ Preliminary policy:
 | `developer_safe`      | Safe to expose to Developer without private eval leakage            |
 | `stakeholder_visible` | Safe for client/user-facing dashboard/reporting                     |
 
-Initial decision:
+Decision:
 
 ```txt
 HE may publish internal analytics.
 PM decides what becomes stakeholder-visible.
 ```
 
-This remains open to refinement.
+Future policy may refine promotion rules, but v1 implementation must preserve this visibility boundary.
 
 ## 11. Developer-Safe Boundary
 
