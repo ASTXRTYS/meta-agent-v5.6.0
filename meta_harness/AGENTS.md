@@ -114,27 +114,16 @@ Before implementing anything touching these SDKs, read local source first. Do
 not rely on training data or general knowledge. See `local-docs/SDK_REFERENCE.md`
 for the full path index and specific line-range references.
 
-## In-Flight Working Analyses (local-docs)
+## Local Coding-Agent References (local-docs)
 
-- `local-docs/pcg-state-schema-rewrite-working.md` — record of reasoning for the
-PCG state schema clean-slate rewrite resolving `OQ-HO` / `OQ-H2` / `OQ-H4`
-(folding in `OQ-H1` / `OQ-H3`). Temporary; archive or delete once the Phase 2
-AD + spec pass lands.
-- `local-docs/langsmith-capability-audit-plan.md` — coding-agent research plan
-for source-auditing LangSmith CLI/SDK capabilities before finalizing Evidence
-Workbench tools. Read before creating or accepting LangSmith wrapper-tool specs.
-- `local-docs/langsmith-cli-sdk-capability-audit.md` — source-cited narrative
-audit of installed LangSmith/OpenEvals SDK capabilities, corrected to treat
-local CLI absence as setup state only. Use it with TICKET-006 to compare
-first-party LangSmith CLI coverage against SDK capabilities before proposing HE
-tools.
-- `local-docs/langsmith-capability-matrix.md` — CLI-vs-SDK reconciliation
-matrix for Harness Engineer capability planning. Classifies capabilities as
-`cli_native`, `sdk_native`, `sdk_extends_cli`, `he_skill`, or
-`explicit_tool_candidate`.
-- `local-docs/langsmith-ids-and-metadata-contract.md` — local reference for
-LangSmith/OpenEvals IDs and metadata keys HE should preserve for routing back to
-evidence without duplicating LangSmith storage.
+- `local-docs/langsmith-he-reference.md` — Harness Engineer LangSmith/OpenEvals
+capability reference. Its primary job is the matrix for deciding what
+capabilities the agent should expose directly, learn as HE skills, or leave to
+native LangSmith/OpenEvals surfaces. It is also an excellent source map for what
+is possible through LangSmith CLI skills, the LangSmith SDK/API, OpenEvals, and
+related evidence workflows. Read before proposing LangSmith wrapper tools,
+Evidence Workbench tooling, evaluator/dataset flows, feedback APIs, trace export
+utilities, or analytics publication helpers.
 
 ## Local Workflows And Commands
 

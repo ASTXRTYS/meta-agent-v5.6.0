@@ -157,7 +157,7 @@ AD owns the boundary definition (which dimension each role gates), Developer sys
 > 3. `**messages` lifecycle-bookend invariant is too restrictive for headless ingress.** The `messages` channel now documents as the user-facing I/O conduit (LangGraph convention), written only by the PM's `finish_to_user` terminal tool. Child agents still never see it (now enforced structurally via mounted subgraphs' declared schemas plus `Command.PARENT` exit discipline).
 > 4. **Acceptance-stamp gate scans `handoff_log`.** Couples gate logic to audit log structure. Acceptance stamps now live on a first-class `acceptance_stamps` channel keyed by stamp type (`application` / `harness`). Gates read the channel.
 >
-> Folded in during the rewrite: `OQ-H1` (PM-session project visibility) via a `projects_registry` `Store` namespace; `OQ-H3` (Developer-blind optimization trendline) via an HE-owned `optimization_trendline` `Store` namespace. See `AD.md §4 LangGraph Project Coordination Graph` (current), `docs/specs/pcg-data-contracts.md` (current), and `local-docs/pcg-state-schema-rewrite-working.md` (working analysis, temporary).
+> Folded in during the rewrite: `OQ-H1` (PM-session project visibility) via a `projects_registry` `Store` namespace; `OQ-H3` (Developer-blind optimization trendline) via an HE-owned `optimization_trendline` `Store` namespace. See `AD.md §4 LangGraph Project Coordination Graph` and `docs/specs/pcg-data-contracts.md` for the current contract.
 
 > **Original decision (preserved for historical context):** The PCG owns a narrow, user-facing state surface and the child graph only receives a single constructed `HumanMessage`. This keeps routing deterministic and prevents accidental state leakage.
 
