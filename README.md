@@ -72,7 +72,7 @@ The UI exists to make invisible work visible. When your team sees the target har
 
 Meta Harness is built on LangChain's Deep Agents SDK and orchestrated by LangGraph. Seven specialized agents run as **peer Deep Agent graphs mounted under a thin Project Coordination Graph (PCG)** — each with its own checkpoint namespace, memory, tools, and middleware stack.
 
-The PCG has exactly two nodes: `process_handoff` and `run_agent`. No LLM calls. No conditional edges. Routing is pure `Command(goto=...)` dispatch. Agents communicate through explicit handoff tools that emit `Command.PARENT` with structured `HandoffRecord` payloads. Phase gates are enforced by middleware hooks on handoff tools, not by the coordination graph.
+The PCG has one deterministic coordination node, `dispatch_handoff`, plus seven mounted role Deep Agent subgraph nodes. No LLM calls. No conditional edges. Routing is pure `Command(goto=Send(...))` dispatch. Agents communicate through explicit handoff tools that emit `Command.PARENT` with structured `HandoffRecord` payloads. Phase gates are enforced by middleware hooks on handoff tools, not by the coordination graph.
 
 Every handoff, every experiment, every evaluation is traced in LangSmith. The web app transforms that data into progress narratives. LangSmith is always one click away for anyone who wants the raw detail.
 
@@ -109,7 +109,7 @@ The Developer is blind to evaluation artifacts. It sees only directional feedbac
 ### Architecture Decisions
 
 - **Peer Deep Agent topology**: Each role is a `create_deep_agent()` graph mounted as a subgraph node. No ephemeral `task` subagents for project roles.
-- **Command.PARENT handoffs**: All agent transitions bubble through the PCG via explicit `Command(graph=PARENT, goto="dispatcher")` emissions.
+- **Command.PARENT handoffs**: All agent transitions bubble through the PCG via explicit `Command(graph=PARENT, goto="dispatch_handoff")` emissions.
 - **Thread kinds**: `pm_session` for intake/conversation, `project` for execution. Project threads own project-scoped execution environments.
 - **Headless-first**: PM available via web app, TUI, and API. Same lifecycle across all surfaces.
 
@@ -200,4 +200,4 @@ Meta Harness is in active development. The architecture is locked — peer Deep 
 
 ---
 
-*Built with [Deep Agents SDK](https://pypi.org/project/deepagents/) · Orchestrated by [LangGraph](https://github.com/langchain-ai/langgraph) · Traced by [LangSmith*](https://smith.langchain.com)
+*Built with [Deep Agents SDK](https://pypi.org/project/deepagents/) · Orchestrated by [LangGraph](https://github.com/langchain-ai/langgraph) · Traced by [LangSmith](https://smith.langchain.com)*

@@ -9,10 +9,17 @@ weak architecture, and surface excellent design decisions for sign-off.
 a coding agent. The product makes agent work legible through artifacts,
 evaluation evidence, evaluation analytics, and LangSmith links while keeping
 LangSmith as the forensic layer.
-- Treat `AGENTS.md` as the normative implementation contract, `AD.md` as the
-active architecture baseline, `DECISIONS.md` as frozen rationale, and
-`local-docs/` as the local coding-agent reference library. If they conflict, prefer this file and repair
-the other document.
+- Treat repository-root `Vision.md` as the product, brand, and experience north
+star. Treat repository-root `README.md` as the public-facing operational
+articulation of that product behavior. All implementation and architecture docs
+must preserve the product promise in these two anchors.
+- Treat `AGENTS.md` as the normative coding-agent operating contract, `AD.md` as
+the active architecture baseline, `DECISIONS.md` as frozen rationale, and
+`local-docs/` as the local coding-agent reference library. If implementation
+conventions conflict, prefer this file and repair the other document. If product
+behavior, brand promise, user experience, or market positioning conflicts with
+`Vision.md` or root `README.md`, pause and surface the conflict to Jason before
+changing the anchor docs.
 - Assume docs may contain stale or over-delegated assertions from prior agents.
 When a correction is transient or task-specific, surface it to Jason and either
 address it immediately or promote it to a high-priority item here; do not turn
@@ -95,9 +102,17 @@ Consider:
 
 ## Product Roles and Workflow
 
-Agent roles, handoff phases, and communication architecture are resolved in
-`AD.md` §2 and §4. Do not invent new roles or handoff sequences without updating
-those sources first. The original product vision articulation is archived at
+Agent role topology, handoff phases, and communication architecture are resolved
+in `AD.md` §2 and §4. Do not invent new roles or handoff sequences without
+updating those sources first.
+
+User-facing role behavior must remain consistent with repository-root
+`README.md` and `Vision.md`: the PM is the primary user contact, the Harness
+Engineer owns evaluation science and analytics, the Developer optimizes against
+feedback without seeing hidden evaluation artifacts, and the Evaluator owns
+acceptance gating.
+
+The original product vision articulation is archived at
 `docs/archive/product-roles-and-workflow-source.md` for historical context only —
 it is not normative.
 
@@ -141,9 +156,15 @@ configuration spread across multiple files or assembled conditionally at runtime
 
 ## Documentation Hierarchy
 
-### Normative sources
+### Product anchors
 
-- `AGENTS.md` — the normative convention contract (this file).
+- Repository-root `Vision.md` — product, brand, and experience north star.
+- Repository-root `README.md` — public-facing operational articulation of the
+product behavior derived from `Vision.md`.
+
+### Implementation and architecture sources
+
+- `AGENTS.md` — the normative coding-agent operating contract (this file).
 - `AD.md` — architecture decision baseline. Active decisions, open questions,
 and rationale. Closed decisions move to `DECISIONS.md`; open questions stay
 inline.
@@ -230,6 +251,10 @@ final `last_synced` date and a note pointing to the successor.
 for active implementation and update `AD.md` to match.
 - Any PR that changes architecture, runtime policy, or agent behavior must
 update at least one of: `AGENTS.md`, `AD.md`, or the relevant spec doc.
+- Any PR that changes product behavior, user-facing role behavior, UI artifact
+surfaces, or evaluation analytics must preserve the product anchors in root
+`Vision.md` and root `README.md`, or explicitly surface the anchor conflict to
+Jason before changing downstream docs.
 - **Deferral verification:** When encountering any text that defers,
 delegates, or scopes a feature to "v2+", "spec", "future", or "later",
 **always surface it to Jason for confirmation** — never assume deferral
@@ -247,6 +272,11 @@ reason.
 explaining why.
 - New observability behavior should be rejected if it makes trajectory debugging
 worse.
+- New product, UI, or evaluation docs should be rejected if they reduce Harness
+Engineer analytics to generic trendlines, raw trace views, or LangSmith embeds.
+The product promise is first-class graphs, metrics, and scorecards that show
+progress toward PM-established and HE-refined success criteria, with LangSmith
+available as a forensic link-out.
 - Specs under `docs/specs/` without a provenance header, without `AD.md §9`
 registration, or without a parent AD pointer must be rejected.
 - Specs that introduce new architectural decisions must be rejected; the

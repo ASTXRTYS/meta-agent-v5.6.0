@@ -241,7 +241,7 @@ Validates code against spec and plan. Issues hard pass/fail decisions on phase d
 
 ## Handoff Protocol
 
-All agent-to-agent communication goes through explicit handoff tools. A handoff tool returns `Command(graph=Command.PARENT, goto="process_handoff", update=<payload>)` — the PCG records the handoff and invokes the target agent.
+All agent-to-agent communication goes through explicit handoff tools. A handoff tool returns `Command(graph=Command.PARENT, goto="dispatch_handoff", update=<payload>)` — the PCG records the handoff and routes to the target mounted role subgraph via `Command(goto=Send(...))`.
 
 ### Naming Convention
 
@@ -410,33 +410,32 @@ The core of the system: the **optimizer-evaluator feedback cycle** that repeats 
 
 The PCG is the **thin LangGraph orchestration layer** — plumbing, not a brain.
 
-### 3-Node Linear Topology
+### Dispatcher Plus Mounted Role Subgraphs
 
 ```
-START → receive_user_input → run_agent(PM)
-                                  │
-                            Agent calls handoff tool
-                            Middleware gate fires
-                                  │
-                            Gate passes → Command.PARENT
-                            Gate fails  → revision prompt to agent
-                                  │
-                            process_handoff → run_agent(target)
-                                  │
-                            target calls handoff or returns
-                                  │
-                            process_handoff → run_agent(next)  ← loop
+START → dispatch_handoff
+              │
+              └── Command(goto=Send(<role>, child_input))
+                         │
+                    mounted role Deep Agent
+                         │
+                    Agent calls handoff tool
+                    Middleware gate fires
+                         │
+                    Gate passes → Command.PARENT to dispatch_handoff
+                    Gate fails  → revision prompt to agent
+                         │
+                    dispatch_handoff routes next role ← loop
 ```
 
 
-| Node                 | Purpose                                                     |
-| -------------------- | ----------------------------------------------------------- |
-| `receive_user_input` | Accept stakeholder input, write to state for PM             |
-| `process_handoff`    | Record handoff, ensure target namespace, prepare payload    |
-| `run_agent`          | Invoke target mounted Deep Agent under its stable namespace |
+| Node | Purpose |
+| ---- | ------- |
+| `dispatch_handoff` | Deterministic coordination node. Synthesizes the initial handoff, records handoffs, updates project progress, and routes to mounted role subgraphs with `Command(goto=Send(...))`. |
+| Mounted role subgraphs | Seven `create_deep_agent()` graphs, one per role, each with its own checkpoint namespace, memory, tools, and middleware stack. |
 
 
-**No conditional edges.** The only branching happens *before* `Command.PARENT` reaches the PCG: the middleware hook on the handoff tool decides whether to allow the handoff or return a revision prompt. If the command reaches the PCG, it always flows through `process_handoff` → `run_agent`.
+**No conditional edges.** The only branching happens *before* `Command.PARENT` reaches the PCG: the middleware hook on the handoff tool decides whether to allow the handoff or return a revision prompt. If the command reaches the PCG, `dispatch_handoff` validates the handoff and routes to the next mounted role subgraph.
 
 ### Phase Gate Middleware
 
@@ -458,15 +457,16 @@ New phase gates = middleware additions, not PCG topology changes.
 Every PCG handoff and Deep Agent invocation is searchable by:
 
 
-| Field        | Scope                                             |
-| ------------ | ------------------------------------------------- |
-| `project_id` | Set once at PCG init                              |
+| Field | Scope |
+| ----- | ----- |
+| `project_id` | Durable product identity |
+| `project_thread_id` | Canonical project execution thread |
+| `thread_id` | Current LangGraph checkpoint/conversation identity |
 | `agent_name` | Auto-propagated via `create_deep_agent(name=...)` |
-| `thread_id`  | Set once at PCG init                              |
-| `handoff_id` | Handoff-scoped, in handoff records                |
-| `phase`      | Handoff-scoped, in handoff records                |
-| `from_agent` | Handoff-scoped, in handoff records                |
-| `to_agent`   | Handoff-scoped, in handoff records                |
+| `handoff_id` | Handoff-scoped, in handoff records |
+| `phase` | Handoff-scoped, in handoff records |
+| `from_agent` | Handoff-scoped, in handoff records |
+| `to_agent` | Handoff-scoped, in handoff records |
 
 
 ### LangGraph Studio
