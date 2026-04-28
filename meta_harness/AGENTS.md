@@ -140,6 +140,10 @@ is possible through LangSmith CLI skills, the LangSmith SDK/API, OpenEvals, and
 related evidence workflows. Read before proposing LangSmith wrapper tools,
 Evidence Workbench tooling, evaluator/dataset flows, feedback APIs, trace export
 utilities, or analytics publication helpers.
+- `local-docs/agent-harness-decision-audit.md` — working audit of the seven
+role harness decision surface and ticket backlog. It is not an AD decision or
+product spec. Use it to identify unresolved role-harness questions, then promote
+accepted decisions into `AD.md` and derived `docs/specs/` contracts.
 
 ## Local Workflows And Commands
 
@@ -185,6 +189,10 @@ and rationale. Closed decisions move to `DECISIONS.md`; open questions stay
 inline.
 - `DECISIONS.md` — frozen rationale, reference material, not active content.
 - `CHANGELOG.md` — historical change audit trail.
+- `ticket/` — execution backlog for proposed decisions and implementation work.
+Tickets are not normative architecture and not product specs. They sequence
+work, record dependencies, and identify which accepted decisions must be
+promoted into `AD.md` and derived specs before implementation.
 
 ### Documentation tree
 
@@ -203,6 +211,11 @@ when concrete content exists. Empty scaffolds are not permitted.**
   tables, shared diagrams).
 - `local-docs/` owns local coding-agent reference material (SDK paths, dev
 setup, harness philosophy). Not part of the shipped product docs.
+- `ticket/` owns proposed work packets. Each ticket is a standalone Markdown
+file with frontmatter fields for `ticket_id`, `status`, `priority`,
+`execution_phase`, `depends_on`, `blocks`, `same_owner_with`,
+`execution_mode`, and `decision_cluster`. `ticket/README.md` is the
+dependency index and execution-order guide.
 
 New top-level subfolders under `docs/` require Jason's approval before
 creation, same gate as renaming a module.
@@ -269,6 +282,29 @@ bump `last_synced`. Specs are free to detail *how* and *what
 fields/values*, but cannot contradict AD. If a spec and AD conflict, AD
 wins and the spec is repaired.
 
+### Ticket governance
+
+Tickets under `ticket/` are planning and execution packets, not authority.
+Closing a ticket by editing only the ticket file is invalid. Accepted decisions
+must be promoted into `AD.md`; implementation details must flow into the
+relevant `docs/specs/` contract; code follows only after those sources are
+updated.
+
+Every ticket must keep its frontmatter dependency fields accurate:
+
+1. `depends_on` — tickets that must close or be explicitly waived by Jason
+before this ticket can be implemented.
+2. `blocks` — direct downstream tickets that list this ticket in `depends_on`.
+3. `same_owner_with` — tickets that benefit from the same agent or same
+decision session.
+4. `execution_mode` — whether the ticket should run in a decision-continuity cluster,
+isolated review, or hybrid review.
+5. `decision_cluster` — the conceptual batch for coherent assignment.
+
+When a ticket changes architecture, runtime policy, role behavior, tool
+visibility, artifact visibility, permissions, or evaluation analytics, update
+the relevant AD/spec and refresh `ticket/README.md` if dependency order changes.
+
 ### Co-modification rule
 
 - A PR that modifies an AD section with a downstream spec must update that
@@ -323,6 +359,9 @@ Engineer analytics to generic trendlines, raw trace views, or LangSmith embeds.
 The product promise is first-class graphs, metrics, and scorecards that show
 progress toward PM-established and HE-refined success criteria, with LangSmith
 available as a forensic link-out.
+- New `local-docs/` working audits should be rejected if they are treated as
+normative architecture or implementation specs without promoting accepted
+decisions into `AD.md` and derived `docs/specs/` contracts.
 - Specs under `docs/specs/` without a provenance header, without `AD.md §9`
 registration, or without a parent AD pointer must be rejected.
 - Specs that introduce new architectural decisions must be rejected; the
@@ -340,3 +379,7 @@ condition.
 with a one-line pointer explaining what the file owns and when to read
 it. Orphan local-docs files with no `AGENTS.md` reference are stale by
 definition.
+- New or modified `ticket/` files must preserve accurate frontmatter
+dependencies and must not be treated as completed work unless the accepted
+decision has been promoted into `AD.md` and any affected `docs/specs/`
+contract.

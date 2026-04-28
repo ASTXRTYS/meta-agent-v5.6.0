@@ -17,6 +17,32 @@ specs, plans, and implementation.
 
 ---
 
+## Product Invariants
+
+These invariants are the test for every downstream architecture, spec, UI, and
+agent-behavior decision:
+
+1. **Agents-as-a-service, not a coding assistant.** Meta Harness gives users an
+agentic team that scopes needs, designs target harnesses, evaluates progress,
+builds the application, and produces measurable business value.
+2. **Headless-first plus artifact emitter.** The agent team goes where users
+already work — web, TUI, API, Slack, Discord, email, and custom integrations —
+while the UI makes progress and ROI visible through artifacts.
+3. **PM as primary point of contact.** The Project Manager leads user
+communication and turns stakeholder context into requirements, success
+criteria, and decision points for the team.
+4. **Harness Engineer as evaluation science owner.** Evaluation criteria,
+datasets, judges, calibration, experiment analysis, and progress analytics are
+first-class product behavior, not implementation details.
+5. **Visible proof over trace archaeology.** Users see PRDs, datasets, specs,
+rubrics, scorecards, graphs, and Harness Engineer analytics in Meta Harness;
+LangSmith remains one click away for forensic depth.
+6. **Participatory harness engineering.** Users define what good looks like,
+weigh in at key decision points, and watch the target harness improve through
+evidence-backed iterations.
+
+---
+
 ## D1: Product Purpose
 
 **Decision:** 

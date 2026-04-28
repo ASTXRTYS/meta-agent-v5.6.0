@@ -82,7 +82,7 @@ The UI exists to make invisible work visible. When your team sees the target har
 
 Meta Harness is built on LangChain's Deep Agents SDK and orchestrated by LangGraph. Seven specialized agents run as **peer Deep Agent graphs mounted under a thin Project Coordination Graph (PCG)** — each with its own checkpoint namespace, memory, tools, and middleware stack.
 
-The PCG has one deterministic coordination node, `dispatch_handoff`, plus seven mounted role Deep Agent subgraph nodes. No LLM calls. No conditional edges. Routing is pure `Command(goto=Send(...))` dispatch. Agents communicate through explicit handoff tools that emit `Command.PARENT` with structured `HandoffRecord` payloads. Phase gates are enforced by middleware hooks on handoff tools, not by the coordination graph.
+The PCG is deterministic plumbing, not an agent brain: it records handoffs, routes into mounted role graphs, and leaves role cognition to the Deep Agents themselves. Exact node names, state contracts, and handoff semantics live in [`meta_harness/AD.md`](./meta_harness/AD.md) and the derived specs under [`meta_harness/docs/specs/`](./meta_harness/docs/specs/).
 
 Every handoff, every experiment, every evaluation is traced in LangSmith. The web app transforms that data into progress narratives. LangSmith is always one click away for anyone who wants the raw detail.
 
@@ -121,17 +121,17 @@ The Developer is blind to evaluation artifacts. It sees only directional feedbac
 - **Peer Deep Agent topology**: Each role is a `create_deep_agent()` graph mounted as a subgraph node. No ephemeral `task` subagents for project roles.
 - **Command.PARENT handoffs**: All agent transitions bubble through the PCG via explicit `Command(graph=PARENT, goto="dispatch_handoff")` emissions.
 - **Thread kinds**: `pm_session` for intake/conversation, `project` for execution. Project threads own project-scoped execution environments.
-- **Headless-first**: PM available via web app, TUI, and API. Same lifecycle across all surfaces.
+- **Headless-first**: PM available through the web app, TUI, API, and channel integrations such as Slack, Discord, email, and custom adapters. Same lifecycle across all surfaces.
 
 ---
 
 ## Headless-First
 
-Meta Harness goes where your team already works. The PM is available through the web app, a terminal TUI, and API — with the same lifecycle and artifact visibility across all surfaces. A solo founder can scope a project from the command line; a team can collaborate through the web interface. All entry points share the same project state and artifact browser.
+Meta Harness goes where your team already works. The PM is available through the web app, terminal TUI, API, Slack, Discord, email, and custom integrations — with the same lifecycle and artifact visibility across all surfaces. A solo founder can scope a project from the command line; a team can collaborate through the web interface or the channels they already use. All entry points share the same project state and artifact browser.
 
 The web app is intentionally minimal — a chat interface for direct PM interaction, flanked by an artifact browser that surfaces PRDs, datasets, eval scorecards, and Harness Engineer-published analytics views. It's the single place where progress and ROI become visible, regardless of which surface the work originated from.
 
-Every project maintains state across all entry points. The same artifacts appear in the same artifact browser whether you scoped the project in the TUI or the web app.
+Every project maintains state across all entry points. The same artifacts appear in the same artifact browser whether you scoped the project in the TUI, the web app, an API workflow, or a channel integration.
 
 ---
 
@@ -147,7 +147,7 @@ Three execution modes serve different needs:
 - **External devbox** — Your organization brings its own sandbox provider, image, and security policy. Same capabilities, your governance.
 - **Local workspace** — The agent operates on your machine, from the TUI. Opt-in, with guarded shell access. Good for trusted solo development.
 
-The web app, TUI, and API all connect to the same project environment. File trees, diffs, command logs, PR status — all visible from wherever you're working.
+The web app, TUI, API, and channel integrations all connect to the same project environment. File trees, diffs, command logs, PR status — all visible from wherever you're working.
 
 ---
 
